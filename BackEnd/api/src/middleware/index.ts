@@ -4,14 +4,7 @@ import cors from 'cors';
 import type { Request, Response, NextFunction } from 'express';
 import { verifyAccess } from '../services/jwt.js';
 
-try {
-  var securityMiddleware = [helmet(), cors({ origin: true, credentials: true })];
-} catch (error) {
-  console.error('Security middleware initialization failed:', error);
-  process.exit(1);
-}
-
-export { securityMiddleware };
+export const securityMiddleware = [helmet(), cors({ origin: true, credentials: true })];
 
 export const rateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -36,7 +29,6 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     (req as any).user = claims;
     return next();
   } catch (error) {
-    console.error('Authentication failed:', error?.message || 'Unknown error');
     return res.status(401).json({ ok: false, error: 'Invalid token' });
   }
 }

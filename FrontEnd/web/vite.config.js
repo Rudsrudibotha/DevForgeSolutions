@@ -9,9 +9,6 @@ export default defineConfig({
     host: true
   },
   build: {
-    outDir: 'dist',
-    rollupOptions: {
-      onwarn: () => {}
-    }
+    outDir: 'dist'
   }
 })

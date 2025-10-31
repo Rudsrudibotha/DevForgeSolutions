@@ -2,6 +2,7 @@ name: CI
 on:
   push:
     paths: ['BackEnd/**']
+  workflow_dispatch:
 jobs:
   api:
     runs-on: ubuntu-latest

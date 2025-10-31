@@ -65,7 +65,7 @@ router.post('/', csrfProtection, requireAuth, setTenantFromJwt, async (req: Auth
 // Get student by ID
 router.get('/:id', authenticateToken, async (req: AuthRequest, res, next) => {
   try {
-    const result = await Database.query(
+    const studentResult = await Database.query(
       `SELECT s.*, 
               json_agg(
                 json_build_object(
@@ -85,11 +85,11 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res, next) => {
       req.user!.schoolId
     );
 
-    if (result.rows.length === 0) {
+    if (studentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Student not found' });
     }
 
-    res.json(result.rows[0]);
+    res.json(studentResult.rows[0]);
   } catch (error) {
     next(error);
   }

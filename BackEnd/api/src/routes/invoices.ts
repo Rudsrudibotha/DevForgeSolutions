@@ -4,14 +4,9 @@ import { Database } from '../services/database.js';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth.js';
 
 const csrfProtection = (req: any, res: any, next: any) => {
-  try {
-    const token = req.headers['x-csrf-token'];
-    if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
-    next();
-  } catch (error) {
-    console.error('CSRF validation error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
+  const token = req.headers['x-csrf-token'];
+  if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+  next();
 };
 
 const router = Router();

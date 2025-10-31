@@ -53,16 +53,4 @@ app.get('/api/me', requireAuth, setTenantFromJwt, (req, res) => {
 // (Optional) Swagger
 app.use('/docs', swaggerUi.serve, swaggerUi.setup({ openapi: '3.0.0', info: { title: 'DevForge API', version: '1.0.0' } }));
 
-try {
-  server.listen(env.PORT, () => {
-    logger.info({ 
-      msg: 'DevForge API server started successfully', 
-      port: env.PORT, 
-      env: env.NODE_ENV,
-      timestamp: new Date().toISOString()
-    });
-  });
-} catch (error) {
-  logger.error({ msg: 'Failed to start server', error: error?.message });
-  process.exit(1);
-}
+server.listen(env.PORT, () => logger.info({ msg: `API listening`, port: env.PORT }));

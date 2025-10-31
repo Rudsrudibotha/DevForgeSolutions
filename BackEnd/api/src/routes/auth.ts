@@ -74,8 +74,7 @@ r.post('/refresh', csrfProtection, async (req, res) => {
     if (!rows.length) return res.status(401).json({ ok:false, error:'Refresh revoked' });
     const access = signAccess({ sub: claims.sub, role: claims.role, school_id: claims.school_id });
     res.json({ ok:true, access });
-  } catch (e: any) {
-    console.error('Refresh error:', e);
+  } catch {
     res.status(401).json({ ok: false, error: 'Invalid refresh' });
   }
 });

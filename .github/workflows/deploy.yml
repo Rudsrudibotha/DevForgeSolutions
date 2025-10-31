@@ -35,7 +35,7 @@ jobs:
     - name: Build
       run: |
         cd FrontEnd/web
-        npm run build
+        npm run build || exit 1
       env:
         CI: false
         

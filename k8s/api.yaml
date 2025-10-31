@@ -10,6 +10,7 @@ spec:
       containers:
       - name: api
         image: ghcr.io/devforgesolutions/devforge-api:latest
+        imagePullPolicy: Always
         ports: [ { containerPort: 8080 } ]
         envFrom: [ { secretRef: { name: api-secrets } } ]
         resources:
