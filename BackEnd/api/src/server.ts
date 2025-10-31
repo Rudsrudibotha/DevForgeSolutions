@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
-import { secure, limiter, requireAuth, setTenantFromJwt } from './middleware/index.js';
+import { securityMiddleware, rateLimiter, requireAuth, setTenantFromJwt } from './middleware/index.js';
 import authRoutes from './routes/auth.js';
 import health from './routes/health.js';
 import { env } from './config/env.js';
@@ -19,18 +19,50 @@ const io = initRealtime(server);
 
 app.use(pinoHttp({ logger }));
 app.use(express.json({ limit: '2mb' }));
-app.use(secure);
-app.use(limiter);
+app.use(securityMiddleware);
+app.use(rateLimiter);
+
+// URL validation middleware
+const validateUrl = (req: any, res: any, next: any) => {
+  const url = req.body?.url || req.query?.url;
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      if (['localhost', '127.0.0.1', '0.0.0.0'].includes(parsed.hostname)) {
+        return res.status(400).json({ ok: false, error: 'Invalid URL' });
+      }
+    } catch {
+      return res.status(400).json({ ok: false, error: 'Invalid URL format' });
+    }
+  }
+  next();
+};
 
 app.use('/api/health', health);
 app.use('/api/auth', authRoutes);
 
 // Example protected route
 app.get('/api/me', requireAuth, setTenantFromJwt, (req, res) => {
-  res.json({ ok: true, user: (req as any).user });
+  try {
+    res.json({ ok: true, user: (req as any).user });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
 });
 
 // (Optional) Swagger
 app.use('/docs', swaggerUi.serve, swaggerUi.setup({ openapi: '3.0.0', info: { title: 'DevForge API', version: '1.0.0' } }));
 
-server.listen(env.PORT, () => logger.info({ msg: `API listening`, port: env.PORT }));
+try {
+  server.listen(env.PORT, () => {
+    logger.info({ 
+      msg: 'DevForge API server started successfully', 
+      port: env.PORT, 
+      env: env.NODE_ENV,
+      timestamp: new Date().toISOString()
+    });
+  });
+} catch (error) {
+  logger.error({ msg: 'Failed to start server', error: error?.message });
+  process.exit(1);
+}

@@ -3,6 +3,12 @@ import { z } from 'zod';
 import { Database } from '../services/database.js';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth.js';
 
+const csrfProtection = (req: any, res: any, next: any) => {
+  const token = req.headers['x-csrf-token'];
+  if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+  next();
+};
+
 const router = Router();
 
 const attendanceSchema = z.object({
@@ -38,12 +44,13 @@ router.get('/', authenticateToken, async (req: AuthRequest, res, next) => {
     const result = await Database.query(query, params, req.user!.schoolId);
     res.json(result.rows);
   } catch (error) {
-    next(error);
+    console.error('Attendance query error:', error);
+    res.status(500).json({ error: 'Failed to fetch attendance' });
   }
 });
 
 // Record attendance
-router.post('/', authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
+router.post('/', csrfProtection, authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
   try {
     const data = attendanceSchema.parse(req.body);
 
@@ -71,31 +78,38 @@ router.post('/', authenticateToken, requireRole(['school_admin', 'staff']), asyn
 
     res.json(result.rows[0]);
   } catch (error) {
-    next(error);
+    console.error('Record attendance error:', error);
+    res.status(500).json({ error: 'Failed to record attendance' });
   }
 });
 
 // Bulk check-in
-router.post('/bulk-checkin', authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
+router.post('/bulk-checkin', csrfProtection, authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
   try {
     const { studentIds, date, method } = req.body;
     const checkInTime = new Date().toISOString();
 
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ error: 'Student IDs required' });
+    }
+    
     await Database.transaction(async (client) => {
-      for (const studentId of studentIds) {
-        await client.query(
+      const promises = studentIds.map(studentId => 
+        client.query(
           `INSERT INTO student_attendance (school_id, student_id, date, check_in, method)
            VALUES ($1, $2, $3, $4, $5)
            ON CONFLICT (school_id, student_id, date)
            DO UPDATE SET check_in = EXCLUDED.check_in, method = EXCLUDED.method`,
           [req.user!.schoolId, studentId, date, checkInTime, method]
-        );
-      }
+        )
+      );
+      await Promise.all(promises);
     }, req.user!.schoolId);
 
     res.json({ message: 'Bulk check-in completed', count: studentIds.length });
   } catch (error) {
-    next(error);
+    console.error('Bulk check-in error:', error);
+    res.status(500).json({ error: 'Failed to complete bulk check-in' });
   }
 });
 
@@ -120,7 +134,8 @@ router.get('/summary', authenticateToken, async (req: AuthRequest, res, next) =>
 
     res.json(result.rows[0]);
   } catch (error) {
-    next(error);
+    console.error('Attendance summary error:', error);
+    res.status(500).json({ error: 'Failed to get attendance summary' });
   }
 });
 

@@ -7,29 +7,34 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  console.error('Error:', error);
+  const errorId = Date.now().toString(36);
+  console.error(`[${errorId}] Error on ${req.method} ${req.path}:`, {
+    message: error.message,
+    stack: error.stack,
+    code: error.code
+  });
 
   if (error instanceof ZodError) {
     return res.status(400).json({
       error: 'Validation failed',
-      details: error.errors
+      details: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
     });
   }
 
-  if (error.code === '23505') { // PostgreSQL unique violation
-    return res.status(409).json({
-      error: 'Resource already exists'
-    });
-  }
+  const DB_ERRORS = {
+    '23505': { status: 409, message: 'Resource already exists' },
+    '23503': { status: 400, message: 'Referenced resource not found' },
+    '23502': { status: 400, message: 'Required field missing' }
+  };
 
-  if (error.code === '23503') { // PostgreSQL foreign key violation
-    return res.status(400).json({
-      error: 'Referenced resource not found'
-    });
+  const dbError = DB_ERRORS[error.code as keyof typeof DB_ERRORS];
+  if (dbError) {
+    return res.status(dbError.status).json({ error: dbError.message });
   }
 
   res.status(500).json({
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    errorId,
+    ...(process.env.NODE_ENV === 'development' && { message: error.message })
   });
 };

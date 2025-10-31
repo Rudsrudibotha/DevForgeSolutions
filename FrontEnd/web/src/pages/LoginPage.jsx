@@ -14,13 +14,21 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     
-    const result = await login(email, password)
-    
-    if (!result.success) {
-      setError(result.error)
+    try {
+      if (!email || !password) {
+        throw new Error('Please fill in all fields')
+      }
+      
+      const result = await login(email, password)
+      
+      if (!result.success) {
+        setError(result.error || 'Login failed')
+      }
+    } catch (err) {
+      setError(err.message || 'An unexpected error occurred')
+    } finally {
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   return (
@@ -33,7 +41,7 @@ export default function LoginPage() {
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <label className="block text-sm font-medium text-gray-700">{'Email'}</label>
             <input
               type="email"
               required
@@ -44,7 +52,7 @@ export default function LoginPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
+            <label className="block text-sm font-medium text-gray-700">{'Password'}</label>
             <input
               type="password"
               required

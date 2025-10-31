@@ -3,6 +3,17 @@ import { z } from 'zod';
 import { Database } from '../services/database.js';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth.js';
 
+const csrfProtection = (req: any, res: any, next: any) => {
+  try {
+    const token = req.headers['x-csrf-token'];
+    if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+    next();
+  } catch (error) {
+    console.error('CSRF validation error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 const router = Router();
 
 const contractSchema = z.object({
@@ -47,7 +58,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res, next) => {
 });
 
 // Create contract from template
-router.post('/', authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
+router.post('/', csrfProtection, authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
   try {
     const data = contractSchema.parse(req.body);
 
@@ -138,7 +149,8 @@ router.post('/', authenticateToken, requireRole(['school_admin', 'staff']), asyn
 
     res.status(201).json(result);
   } catch (error) {
-    next(error);
+    console.error('Contract creation error:', error);
+    res.status(500).json({ error: 'Failed to create contract' });
   }
 });
 
@@ -194,7 +206,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res, next) => {
 });
 
 // Sign contract section
-router.post('/:id/sections/:sectionId/sign', authenticateToken, async (req: AuthRequest, res, next) => {
+router.post('/:id/sections/:sectionId/sign', csrfProtection, authenticateToken, async (req: AuthRequest, res, next) => {
   try {
     const { signatureType, signatureSvg } = req.body;
 
@@ -233,7 +245,8 @@ router.post('/:id/sections/:sectionId/sign', authenticateToken, async (req: Auth
 
     res.json(result.rows[0]);
   } catch (error) {
-    next(error);
+    console.error('Contract signing error:', error);
+    res.status(500).json({ error: 'Failed to sign contract' });
   }
 });
 

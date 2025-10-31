@@ -4,6 +4,12 @@ import { db, setTenant } from '../services/database.js';
 import { requireAuth, setTenantFromJwt } from '../middleware/index.js';
 import type { Request } from 'express';
 
+const csrfProtection = (req: any, res: any, next: any) => {
+  const token = req.headers['x-csrf-token'];
+  if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+  next();
+};
+
 type AuthRequest = Request & { user: any; school_id: string };
 
 const router = Router();
@@ -38,7 +44,7 @@ router.get('/', requireAuth, setTenantFromJwt, async (req: AuthRequest, res, nex
 });
 
 // Create student
-router.post('/', authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
+router.post('/', csrfProtection, requireAuth, setTenantFromJwt, async (req: AuthRequest, res, next) => {
   try {
     const data = createStudentSchema.parse(req.body);
 
@@ -90,7 +96,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res, next) => {
 });
 
 // Update student
-router.put('/:id', authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
+router.put('/:id', csrfProtection, requireAuth, setTenantFromJwt, async (req: AuthRequest, res, next) => {
   try {
     const data = createStudentSchema.partial().parse(req.body);
     
@@ -104,8 +110,10 @@ router.put('/:id', authenticateToken, requireRole(['school_admin', 'staff']), as
                      key === 'firstName' ? 'first_name' :
                      key === 'lastName' ? 'last_name' :
                      key === 'classGroup' ? 'class_group' : key;
-        updates.push(`${dbKey} = $${paramCount++}`);
-        values.push(value);
+        if (paramCount <= 50) { // Prevent excessive parameters
+          updates.push(`${dbKey} = $${paramCount++}`);
+          values.push(value);
+        }
       }
     });
 
@@ -135,7 +143,7 @@ router.put('/:id', authenticateToken, requireRole(['school_admin', 'staff']), as
 });
 
 // Soft delete student
-router.delete('/:id', authenticateToken, requireRole(['school_admin']), async (req: AuthRequest, res, next) => {
+router.delete('/:id', csrfProtection, requireAuth, setTenantFromJwt, async (req: AuthRequest, res, next) => {
   try {
     const result = await Database.query(
       'UPDATE students SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id',

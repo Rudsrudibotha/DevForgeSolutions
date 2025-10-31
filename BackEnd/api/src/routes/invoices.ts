@@ -3,6 +3,17 @@ import { z } from 'zod';
 import { Database } from '../services/database.js';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth.js';
 
+const csrfProtection = (req: any, res: any, next: any) => {
+  try {
+    const token = req.headers['x-csrf-token'];
+    if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+    next();
+  } catch (error) {
+    console.error('CSRF validation error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 const router = Router();
 
 const invoiceSchema = z.object({
@@ -52,7 +63,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res, next) => {
 });
 
 // Create invoice
-router.post('/', authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
+router.post('/', csrfProtection, authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
   try {
     const data = invoiceSchema.parse(req.body);
 
@@ -121,7 +132,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res, next) => {
 });
 
 // Record payment
-router.post('/:id/payments', authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
+router.post('/:id/payments', csrfProtection, authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
   try {
     const { amountCents, method, reference, notes } = req.body;
 
@@ -161,7 +172,8 @@ router.post('/:id/payments', authenticateToken, requireRole(['school_admin', 'st
 
     res.status(201).json(result);
   } catch (error) {
-    next(error);
+    console.error('Payment recording error:', error);
+    res.status(500).json({ error: 'Failed to record payment' });
   }
 });
 

@@ -1,16 +1,25 @@
+# Prometheus configuration for DevForgeSolutions monitoring
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
 
+# Scrape configuration for different services
 scrape_configs:
-  - job_name: 'node'
+  # Node exporter for system metrics
+  - job_name: 'node-exporter'
     static_configs:
       - targets: ['node_exporter:9100']
+    scrape_interval: 30s
   
-  - job_name: 'postgres'
+  # PostgreSQL database metrics
+  - job_name: 'postgres-exporter'
     static_configs:
       - targets: ['postgres_exporter:9187']
+    scrape_interval: 30s
   
-  - job_name: 'api'
+  # DevForge API application metrics
+  - job_name: 'devforge-api'
     static_configs:
       - targets: ['api:8080']
     metrics_path: '/metrics'
+    scrape_interval: 15s

@@ -7,8 +7,9 @@ export function generateOpenAPISpec() {
   registry.registerPath({
     method: 'post',
     path: '/api/auth/login',
-    description: 'Authenticate user and get access token',
-    summary: 'User login',
+    description: 'Authenticate user with email and password to receive JWT tokens for API access',
+    summary: 'User authentication endpoint',
+    tags: ['Authentication'],
     request: {
       body: {
         content: {
@@ -51,9 +52,24 @@ export function generateOpenAPISpec() {
   registry.registerPath({
     method: 'get',
     path: '/api/students',
-    description: 'Get all students for the authenticated school',
-    summary: 'List students',
+    description: 'Retrieve a paginated list of all students enrolled in the authenticated school with their basic information',
+    summary: 'Get students list',
+    tags: ['Students'],
     security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'page',
+        in: 'query',
+        description: 'Page number for pagination',
+        schema: { type: 'integer', minimum: 1, default: 1 }
+      },
+      {
+        name: 'limit',
+        in: 'query', 
+        description: 'Number of students per page',
+        schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 }
+      }
+    ],
     responses: {
       200: {
         description: 'List of students',

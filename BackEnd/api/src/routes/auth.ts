@@ -6,7 +6,14 @@ import crypto from 'crypto';
 
 const r = Router();
 
-r.post('/register', async (req, res) => {
+// CSRF protection middleware
+const csrfProtection = (req: any, res: any, next: any) => {
+  const token = req.headers['x-csrf-token'];
+  if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+  next();
+};
+
+r.post('/register', csrfProtection, async (req, res) => {
   const dto = RegisterSchema.parse(req.body);
   const client = await db.connect();
   try {
@@ -25,15 +32,16 @@ r.post('/register', async (req, res) => {
     );
     await client.query('COMMIT');
     return res.json({ ok: true, user: u[0], note: 'Awaiting admin approval' });
-  } catch (e:any) {
+  } catch (e: any) {
     await client.query('ROLLBACK');
-    return res.status(400).json({ ok: false, error: e.message });
+    console.error('Registration error:', e);
+    return res.status(400).json({ ok: false, error: 'Registration failed' });
   } finally {
     client.release();
   }
 });
 
-r.post('/login', async (req, res) => {
+r.post('/login', csrfProtection, async (req, res) => {
   const dto = LoginSchema.parse(req.body);
   const { rows } = await db.query(
     `select u.id, u.full_name, u.email, usm.school_id, usm.role
@@ -55,7 +63,7 @@ r.post('/login', async (req, res) => {
   res.json({ ok:true, access, refresh });
 });
 
-r.post('/refresh', async (req, res) => {
+r.post('/refresh', csrfProtection, async (req, res) => {
   const token = String(req.body?.refresh || '');
   try {
     const claims = verifyRefresh(token);
@@ -66,8 +74,9 @@ r.post('/refresh', async (req, res) => {
     if (!rows.length) return res.status(401).json({ ok:false, error:'Refresh revoked' });
     const access = signAccess({ sub: claims.sub, role: claims.role, school_id: claims.school_id });
     res.json({ ok:true, access });
-  } catch {
-    res.status(401).json({ ok:false, error:'Invalid refresh' });
+  } catch (e: any) {
+    console.error('Refresh error:', e);
+    res.status(401).json({ ok: false, error: 'Invalid refresh' });
   }
 });
 

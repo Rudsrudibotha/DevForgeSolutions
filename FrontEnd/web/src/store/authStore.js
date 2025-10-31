@@ -7,6 +7,10 @@ export const useAuthStore = create((set) => ({
   
   login: async (email, password) => {
     try {
+      if (!email || !password) {
+        throw new Error('Email and password are required');
+      }
+      
       // TODO: Replace with actual API call
       await new Promise(resolve => setTimeout(resolve, 1000))
       
@@ -18,7 +22,8 @@ export const useAuthStore = create((set) => ({
       
       return { success: true }
     } catch (error) {
-      return { success: false, error: 'Login failed' }
+      console.error('Login error:', error);
+      return { success: false, error: error.message || 'Login failed' }
     }
   },
   

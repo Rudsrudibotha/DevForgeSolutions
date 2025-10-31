@@ -13,34 +13,45 @@ export default function SchoolRegistration({ onBack }) {
   })
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState(1)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match')
-      return
-    }
+    setError('')
     
-    setLoading(true)
     try {
+      if (formData.password !== formData.confirmPassword) {
+        throw new Error('Passwords do not match')
+      }
+      
+      if (formData.password.length < 8) {
+        throw new Error('Password must be at least 8 characters')
+      }
+      
+      setLoading(true)
       // TODO: Send to backend API
-      console.log('School registration:', formData)
-      setStep(2) // Move to payment step
-    } catch (error) {
-      alert('Registration failed. Please try again.')
+      try {
+        console.log('School registration:', formData)
+        setStep(2) // Move to payment step
+      } catch (apiError) {
+        throw new Error('Failed to submit registration');
+      }
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   const handlePayment = async () => {
+    setError('')
     setLoading(true)
     try {
       // TODO: Integrate with payment provider
       console.log('Processing payment...')
       setStep(3) // Move to confirmation step
-    } catch (error) {
-      alert('Payment failed. Please try again.')
+    } catch (err) {
+      setError(err.message || 'Payment failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -143,22 +154,22 @@ export default function SchoolRegistration({ onBack }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">School Name *</label>
+            <label className="block text-sm font-medium mb-2">{'School Name'} *</label>
             <input
               type="text"
               required
               value={formData.schoolName}
-              onChange={(e) => setFormData({...formData, schoolName: e.target.value})}
+              onChange={(e) => setFormData(prev => ({...prev, schoolName: e.target.value}))}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Contact Person *</label>
+            <label className="block text-sm font-medium mb-2">{'Contact Person'} *</label>
             <input
               type="text"
               required
               value={formData.contactPerson}
-              onChange={(e) => setFormData({...formData, contactPerson: e.target.value})}
+              onChange={(e) => setFormData(prev => ({...prev, contactPerson: e.target.value}))}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -166,44 +177,44 @@ export default function SchoolRegistration({ onBack }) {
 
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Email Address *</label>
+            <label className="block text-sm font-medium mb-2">{'Email Address'} *</label>
             <input
               type="email"
               required
               value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Phone Number *</label>
+            <label className="block text-sm font-medium mb-2">{'Phone Number'} *</label>
             <input
               type="tel"
               required
               value={formData.phone}
-              onChange={(e) => setFormData({...formData, phone: e.target.value})}
+              onChange={(e) => setFormData(prev => ({...prev, phone: e.target.value}))}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2">School Address *</label>
+          <label className="block text-sm font-medium mb-2">{'School Address'} *</label>
           <textarea
             required
             rows="3"
             value={formData.address}
-            onChange={(e) => setFormData({...formData, address: e.target.value})}
+            onChange={(e) => setFormData(prev => ({...prev, address: e.target.value}))}
             className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2">Number of Students *</label>
+          <label className="block text-sm font-medium mb-2">{'Number of Students'} *</label>
           <select
             required
             value={formData.studentCount}
-            onChange={(e) => setFormData({...formData, studentCount: e.target.value})}
+            onChange={(e) => setFormData(prev => ({...prev, studentCount: e.target.value}))}
             className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Select student count</option>
@@ -218,24 +229,24 @@ export default function SchoolRegistration({ onBack }) {
 
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Password *</label>
+            <label className="block text-sm font-medium mb-2">{'Password'} *</label>
             <input
               type="password"
               required
               minLength="8"
               value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              onChange={(e) => setFormData(prev => ({...prev, password: e.target.value}))}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Confirm Password *</label>
+            <label className="block text-sm font-medium mb-2">{'Confirm Password'} *</label>
             <input
               type="password"
               required
               minLength="8"
               value={formData.confirmPassword}
-              onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+              onChange={(e) => setFormData(prev => ({...prev, confirmPassword: e.target.value}))}
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -251,6 +262,12 @@ export default function SchoolRegistration({ onBack }) {
           </ul>
         </div>
 
+        {error && (
+          <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 text-red-200">
+            {error}
+          </div>
+        )}
+        
         <button
           type="submit"
           disabled={loading}

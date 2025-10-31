@@ -1,7 +1,14 @@
 import { Router } from 'express';
 
-const r = Router();
+const healthRouter = Router();
 
-r.get('/healthz', (_req, res) => res.json({ ok: true, service: 'api', time: new Date().toISOString() }));
+healthRouter.get('/healthz', (_req, res) => {
+  res.json({ 
+    ok: true, 
+    service: 'devforge-api', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
 
-export default r;
+export default healthRouter;
