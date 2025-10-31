@@ -1,48 +1,59 @@
-import rateLimit from 'express-rate-limit';
-import helmet from 'helmet';
-import cors from 'cors';
-import type { Request, Response, NextFunction } from 'express';
-import { verifyAccess } from '../services/jwt.js';
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import type { Request, Response, NextFunction } from "express";
 
-export const securityMiddleware = [helmet(), cors({ origin: true, credentials: true })];
+const ORIGIN_ALLOWLIST = (process.env.CORS_ALLOWLIST || "")
+  .split(",")
+  .map(s => s.trim())
+  .filter(Boolean);
 
-export const rateLimiter = rateLimit({
+export const security = [
+  helmet(),
+  cors({
+    origin(origin, cb) {
+      if (!origin || ORIGIN_ALLOWLIST.includes(origin)) return cb(null, true);
+      return cb(new Error("CORS: origin not allowed"));
+    },
+    credentials: true
+  }),
+];
+
+export const limiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 600,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({ error: 'Too many requests' });
-  }
+  // Do not leak specifics
+  message: { ok: false, error: { code: "RATE_LIMITED", message: "Too many requests" } }
 });
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  try {
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-    
-    if (!token) {
-      return res.status(401).json({ ok: false, error: 'Token required' });
-    }
-    
-    const claims = verifyAccess(token);
-    (req as any).user = claims;
-    return next();
-  } catch (error) {
-    return res.status(401).json({ ok: false, error: 'Invalid token' });
-  }
+/** Minimal 404 to avoid vague errors in scanners */
+export function notFound(_req: Request, res: Response) {
+  res.status(404).json({ ok: false, error: { code: "NOT_FOUND", message: "Route not found" } });
 }
 
-export function setTenantFromJwt(req: Request, res: Response, next: NextFunction) {
+/** Guard to stop logging multi-line messages (CWE-117) */
+export function sanitizeLogInput(input: string) {
+  return (input || "").replace(/[\r\n\t]/g, " ").slice(0, 1000);
+}
+
+/** SSRF protection for outbound requests */
+export function assertAllowedOutbound(urlStr: string) {
   try {
-    const user = (req as any).user;
-    if (!user?.school_id) {
-      return res.status(400).json({ error: 'School ID required' });
+    const u = new URL(urlStr);
+    const allow = (process.env.OUTBOUND_ALLOWLIST || "").split(",").map(s => s.trim()).filter(Boolean);
+    
+    // Block private/internal networks
+    if (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname.startsWith('192.168.') || u.hostname.startsWith('10.')) {
+      throw Object.assign(new Error("Private network access denied"), { status: 400 });
     }
-    (req as any).school_id = user.school_id;
-    next();
-  } catch (error) {
-    console.error('Tenant setup error:', error);
-    return res.status(500).json({ error: 'Server error' });
+    
+    if (allow.length > 0 && !allow.includes(u.hostname)) {
+      throw Object.assign(new Error("Outbound host not allowed"), { status: 400 });
+    }
+  } catch (e) {
+    if (e instanceof Error && 'status' in e) throw e;
+    throw Object.assign(new Error("Invalid URL"), { status: 400 });
   }
 }

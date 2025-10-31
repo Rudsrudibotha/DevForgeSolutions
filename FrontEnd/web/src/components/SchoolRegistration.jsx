@@ -30,14 +30,11 @@ export default function SchoolRegistration({ onBack }) {
       
       setLoading(true)
       // TODO: Send to backend API
-      try {
-        console.log('School registration:', formData)
-        setStep(2) // Move to payment step
-      } catch (apiError) {
-        throw new Error('Failed to submit registration');
-      }
+      console.log('School registration:', formData)
+      setStep(2) // Move to payment step
     } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -51,7 +48,8 @@ export default function SchoolRegistration({ onBack }) {
       console.log('Processing payment...')
       setStep(3) // Move to confirmation step
     } catch (err) {
-      setError(err.message || 'Payment failed. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'Payment failed. Please try again.'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }

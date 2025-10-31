@@ -3,5 +3,4 @@ kind: Namespace
 metadata:
   name: devforge
   labels:
-    name: devforge
-    environment: production
+    app: devforge

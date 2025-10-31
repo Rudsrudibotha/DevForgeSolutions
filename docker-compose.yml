@@ -13,6 +13,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
 
   pgbouncer:
     image: bitnami/pgbouncer:1
@@ -61,10 +62,11 @@ services:
         condition: service_started
     ports: [ "8080:8080" ]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health/healthz"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
 
   mailhog:
     image: mailhog/mailhog

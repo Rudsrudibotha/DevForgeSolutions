@@ -1,8 +1,8 @@
 import { Router } from 'express';
 
-const healthRouter = Router();
+const router = Router();
 
-healthRouter.get('/healthz', (_req, res) => {
+router.get('/healthz', (_req, res) => {
   res.json({ 
     ok: true, 
     service: 'devforge-api', 
@@ -11,4 +11,4 @@ healthRouter.get('/healthz', (_req, res) => {
   });
 });
 
-export default healthRouter;
+export default router;

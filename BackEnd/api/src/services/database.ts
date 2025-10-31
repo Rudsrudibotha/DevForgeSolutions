@@ -12,7 +12,15 @@ export const databasePool = new Pool({
 export const db = databasePool;
 
 export async function setTenantContext(client: any, schoolId: string) {
-  await client.query('SELECT app.set_school($1::uuid)', [schoolId]);
+  try {
+    if (!schoolId || typeof schoolId !== 'string') {
+      throw new Error('Invalid school ID provided');
+    }
+    await client.query('SELECT app.set_school($1::uuid)', [schoolId]);
+  } catch (error: any) {
+    console.error('Failed to set tenant context:', error.message);
+    throw error;
+  }
 }
 
 // Keep backward compatibility

@@ -4,8 +4,10 @@ import { Database } from '../services/database.js';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth.js';
 
 const csrfProtection = (req: any, res: any, next: any) => {
-  const token = req.headers['x-csrf-token'];
-  if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+  const token = req.headers['x-csrf-token'] || req.headers['X-CSRF-Token'];
+  if (!token || typeof token !== 'string') {
+    return res.status(403).json({ ok: false, error: { code: 'CSRF_REQUIRED', message: 'CSRF token required' } });
+  }
   next();
 };
 
@@ -143,9 +145,9 @@ router.post('/', csrfProtection, authenticateToken, requireRole(['school_admin',
     }, req.user!.schoolId);
 
     res.status(201).json(result);
-  } catch (error) {
-    console.error('Contract creation error:', error);
-    res.status(500).json({ error: 'Failed to create contract' });
+  } catch (error: any) {
+    req.log?.error({ error: error.message }, 'Contract creation failed');
+    next(error);
   }
 });
 
@@ -239,9 +241,9 @@ router.post('/:id/sections/:sectionId/sign', csrfProtection, authenticateToken, 
     );
 
     res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Contract signing error:', error);
-    res.status(500).json({ error: 'Failed to sign contract' });
+  } catch (error: any) {
+    req.log?.error({ error: error.message }, 'Contract signing failed');
+    next(error);
   }
 });
 

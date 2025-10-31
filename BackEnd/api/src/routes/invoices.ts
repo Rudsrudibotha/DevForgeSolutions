@@ -4,8 +4,10 @@ import { Database } from '../services/database.js';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth.js';
 
 const csrfProtection = (req: any, res: any, next: any) => {
-  const token = req.headers['x-csrf-token'];
-  if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+  const token = req.headers['x-csrf-token'] || req.headers['X-CSRF-Token'];
+  if (!token || typeof token !== 'string') {
+    return res.status(403).json({ ok: false, error: { code: 'CSRF_REQUIRED', message: 'CSRF token required' } });
+  }
   next();
 };
 
@@ -166,9 +168,9 @@ router.post('/:id/payments', csrfProtection, authenticateToken, requireRole(['sc
     }, req.user!.schoolId);
 
     res.status(201).json(result);
-  } catch (error) {
-    console.error('Payment recording error:', error);
-    res.status(500).json({ error: 'Failed to record payment' });
+  } catch (error: any) {
+    req.log?.error({ error: error.message }, 'Payment recording failed');
+    next(error);
   }
 });
 

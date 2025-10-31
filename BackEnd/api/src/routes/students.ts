@@ -5,8 +5,10 @@ import { requireAuth, setTenantFromJwt } from '../middleware/index.js';
 import type { Request } from 'express';
 
 const csrfProtection = (req: any, res: any, next: any) => {
-  const token = req.headers['x-csrf-token'];
-  if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+  const token = req.headers['x-csrf-token'] || req.headers['X-CSRF-Token'];
+  if (!token || typeof token !== 'string') {
+    return res.status(403).json({ ok: false, error: { code: 'CSRF_REQUIRED', message: 'CSRF token required' } });
+  }
   next();
 };
 
@@ -104,16 +106,12 @@ router.put('/:id', csrfProtection, requireAuth, setTenantFromJwt, async (req: Au
     const values = [];
     let paramCount = 1;
 
+    const fieldMap = { studentNo: 'student_no', firstName: 'first_name', lastName: 'last_name', classGroup: 'class_group' };
     Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined) {
-        const dbKey = key === 'studentNo' ? 'student_no' : 
-                     key === 'firstName' ? 'first_name' :
-                     key === 'lastName' ? 'last_name' :
-                     key === 'classGroup' ? 'class_group' : key;
-        if (paramCount <= 50) { // Prevent excessive parameters
-          updates.push(`${dbKey} = $${paramCount++}`);
-          values.push(value);
-        }
+      if (value !== undefined && paramCount <= 10) {
+        const dbKey = fieldMap[key] || key;
+        updates.push(`${dbKey} = $${paramCount++}`);
+        values.push(value);
       }
     });
 

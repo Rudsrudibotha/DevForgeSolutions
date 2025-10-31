@@ -4,8 +4,10 @@ import { Database } from '../services/database.js';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth.js';
 
 const csrfProtection = (req: any, res: any, next: any) => {
-  const token = req.headers['x-csrf-token'];
-  if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+  const token = req.headers['x-csrf-token'] || req.headers['X-CSRF-Token'];
+  if (!token || typeof token !== 'string') {
+    return res.status(403).json({ ok: false, error: { code: 'CSRF_REQUIRED', message: 'CSRF token required' } });
+  }
   next();
 };
 
@@ -43,9 +45,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res, next) => {
 
     const result = await Database.query(query, params, req.user!.schoolId);
     res.json(result.rows);
-  } catch (error) {
-    console.error('Attendance query error:', error);
-    res.status(500).json({ error: 'Failed to fetch attendance' });
+  } catch (error: any) {
+    req.log?.error({ error: error.message }, 'Attendance query failed');
+    next(error);
   }
 });
 
@@ -77,9 +79,9 @@ router.post('/', csrfProtection, authenticateToken, requireRole(['school_admin',
     );
 
     res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Record attendance error:', error);
-    res.status(500).json({ error: 'Failed to record attendance' });
+  } catch (error: any) {
+    req.log?.error({ error: error.message }, 'Record attendance failed');
+    next(error);
   }
 });
 
@@ -107,9 +109,9 @@ router.post('/bulk-checkin', csrfProtection, authenticateToken, requireRole(['sc
     }, req.user!.schoolId);
 
     res.json({ message: 'Bulk check-in completed', count: studentIds.length });
-  } catch (error) {
-    console.error('Bulk check-in error:', error);
-    res.status(500).json({ error: 'Failed to complete bulk check-in' });
+  } catch (error: any) {
+    req.log?.error({ error: error.message }, 'Bulk check-in failed');
+    next(error);
   }
 });
 
@@ -133,9 +135,9 @@ router.get('/summary', authenticateToken, async (req: AuthRequest, res, next) =>
     );
 
     res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Attendance summary error:', error);
-    res.status(500).json({ error: 'Failed to get attendance summary' });
+  } catch (error: any) {
+    req.log?.error({ error: error.message }, 'Attendance summary failed');
+    next(error);
   }
 });
 

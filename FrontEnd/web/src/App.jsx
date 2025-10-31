@@ -9,29 +9,25 @@ import AdminDashboard from './pages/AdminDashboard'
 function App() {
   const { isAuthenticated } = useAuthStore()
 
-  try {
-    return (
-      <div className="min-h-screen">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route 
-            path="/login" 
-            element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} 
-          />
-          <Route 
-            path="/dashboard" 
-            element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />} 
-          />
-          <Route path="/register" element={<LoginPage />} />
-          <Route path="/demo" element={<DashboardPage />} />
-          <Route path="/get-started" element={<GetStartedPage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-        </Routes>
-      </div>
-    )
-  } catch (error) {
-    return <div className="p-4 text-red-600">Something went wrong. Please refresh the page.</div>
-  }
+  return (
+    <div className="min-h-screen">
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route 
+          path="/login" 
+          element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} 
+        />
+        <Route 
+          path="/dashboard" 
+          element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />} 
+        />
+        <Route path="/register" element={<LoginPage />} />
+        <Route path="/demo" element={<DashboardPage />} />
+        <Route path="/get-started" element={<GetStartedPage />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
+    </div>
+  )
 }
 
 export default App

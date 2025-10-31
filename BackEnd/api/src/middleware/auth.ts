@@ -1,59 +1,29 @@
-import { Request, Response, NextFunction } from 'express';
-import { db, setTenant } from '../services/database.js';
-import { verifyAccess, JwtClaims } from '../services/jwt.js';
+import type { NextFunction, Request, Response } from "express";
+import jwt from "jsonwebtoken";
 
-export interface AuthRequest extends Request {
-  user?: JwtClaims & { email: string };
+/** Require Bearer JWT in Authorization header */
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  try {
+    const h = req.headers.authorization || "";
+    const token = h.startsWith("Bearer ") ? h.slice(7) : "";
+    if (!token) return res.status(401).json({ ok: false, error: { code: "NO_TOKEN", message: "Unauthorized" } });
+
+    if (!process.env.JWT_ACCESS_SECRET) {
+      req.log?.error("JWT_ACCESS_SECRET not configured");
+      return res.status(500).json({ ok: false, error: { code: "CONFIG_ERROR", message: "Server misconfigured" } });
+    }
+
+    const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET) as any;
+    (req as any).user = { sub: payload.sub, role: payload.role, school_id: payload.school_id };
+    return next();
+  } catch (e: any) {
+    req.log?.warn({ code: "AUTH_FAIL", reason: e?.name || "unknown" }, "Authentication failed");
+    return res.status(401).json({ ok: false, error: { code: "INVALID_TOKEN", message: "Unauthorized" } });
+  }
 }
 
-export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
-  try {
-    const decoded = verifyAccess(token);
-    
-    // Verify user still exists and has access to school
-    const client = await db.connect();
-    try {
-      await setTenant(client, decoded.school_id);
-      const result = await client.query(
-        `SELECT u.email FROM users u
-         JOIN user_school_memberships usm ON u.id = usm.user_id
-         WHERE u.id = $1 AND usm.school_id = $2 AND usm.status = 'approved'`,
-        [decoded.sub, decoded.school_id]
-      );
-      
-      if (result.rows.length === 0) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
-
-      req.user = {
-        ...decoded,
-        email: result.rows[0].email
-      };
-
-      next();
-    } finally {
-      client.release();
-    }
-
-
-  } catch (error) {
-    console.error('Token verification error:', error);
-    return res.status(403).json({ error: 'Invalid or expired token' });
-  }
-};
-
-export const requireRole = (roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-    next();
-  };
-};
+/**
+ * CSRF note:
+ * If you use Authorization: Bearer (no cookies), CSRF is not applicable.
+ * If you ever set refresh tokens in cookies, enable double-submit CSRF tokens and SameSite=strict.
+ */

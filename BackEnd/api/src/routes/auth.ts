@@ -6,10 +6,12 @@ import crypto from 'crypto';
 
 const r = Router();
 
-// CSRF protection middleware
+// CSRF protection for state-changing operations
 const csrfProtection = (req: any, res: any, next: any) => {
-  const token = req.headers['x-csrf-token'];
-  if (!token) return res.status(403).json({ ok: false, error: 'CSRF token required' });
+  const token = req.headers['x-csrf-token'] || req.headers['X-CSRF-Token'];
+  if (!token || typeof token !== 'string') {
+    return res.status(403).json({ ok: false, error: { code: 'CSRF_REQUIRED', message: 'CSRF token required' } });
+  }
   next();
 };
 
@@ -34,8 +36,8 @@ r.post('/register', csrfProtection, async (req, res) => {
     return res.json({ ok: true, user: u[0], note: 'Awaiting admin approval' });
   } catch (e: any) {
     await client.query('ROLLBACK');
-    console.error('Registration error:', e);
-    return res.status(400).json({ ok: false, error: 'Registration failed' });
+    req.log?.error({ error: e.message }, 'Registration failed');
+    return res.status(400).json({ ok: false, error: { code: 'REGISTRATION_FAILED', message: 'Registration failed' } });
   } finally {
     client.release();
   }
@@ -74,8 +76,9 @@ r.post('/refresh', csrfProtection, async (req, res) => {
     if (!rows.length) return res.status(401).json({ ok:false, error:'Refresh revoked' });
     const access = signAccess({ sub: claims.sub, role: claims.role, school_id: claims.school_id });
     res.json({ ok:true, access });
-  } catch {
-    res.status(401).json({ ok: false, error: 'Invalid refresh' });
+  } catch (e: any) {
+    req.log?.warn({ error: e.name }, 'Refresh token validation failed');
+    res.status(401).json({ ok: false, error: { code: 'INVALID_REFRESH', message: 'Invalid refresh token' } });
   }
 });
 

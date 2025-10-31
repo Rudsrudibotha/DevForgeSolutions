@@ -22,8 +22,9 @@ export const useAuthStore = create((set) => ({
       
       return { success: true }
     } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, error: error.message || 'Login failed' }
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      console.error('Login failed:', { error: errorMessage });
+      return { success: false, error: errorMessage }
     }
   },
   
