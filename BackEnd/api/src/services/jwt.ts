@@ -1,39 +1,37 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 
-export type JwtClaims = { sub: string; role: string; school_id: string };
-export const signAccess = (c: JwtClaims) => {
-  try {
-    if (!env.JWT_ACCESS_SECRET) throw new Error('JWT_ACCESS_SECRET not configured');
-    return jwt.sign(c, env.JWT_ACCESS_SECRET, { expiresIn: '15m' });
-  } catch (e) {
-    throw new Error('Failed to sign access token');
+export type JwtClaims = { sub: string; role: string; school_id?: string };
+
+const validateSecret = (secret: string | undefined, type: string): string => {
+  if (!secret || secret.length < 32) {
+    throw new Error(`${type} secret not properly configured`);
   }
+  return secret;
 };
 
-export const signRefresh = (c: JwtClaims & { ver: number }) => {
-  try {
-    if (!env.JWT_REFRESH_SECRET) throw new Error('JWT_REFRESH_SECRET not configured');
-    return jwt.sign(c, env.JWT_REFRESH_SECRET, { expiresIn: '30d' });
-  } catch (e) {
-    throw new Error('Failed to sign refresh token');
-  }
+export const signAccess = (c: JwtClaims): string => {
+  const secret = validateSecret(env.JWT_ACCESS_SECRET, 'JWT_ACCESS');
+  return jwt.sign(c, secret, { expiresIn: '15m', algorithm: 'HS256' });
 };
 
-export const verifyAccess = (t: string) => {
-  try {
-    if (!env.JWT_ACCESS_SECRET) throw new Error('JWT_ACCESS_SECRET not configured');
-    return jwt.verify(t, env.JWT_ACCESS_SECRET) as JwtClaims;
-  } catch (e) {
-    throw new Error('Invalid access token');
-  }
+export const signRefresh = (c: JwtClaims & { ver: number }): string => {
+  const secret = validateSecret(env.JWT_REFRESH_SECRET, 'JWT_REFRESH');
+  return jwt.sign(c, secret, { expiresIn: '30d', algorithm: 'HS256' });
 };
 
-export const verifyRefresh = (t: string) => {
-  try {
-    if (!env.JWT_REFRESH_SECRET) throw new Error('JWT_REFRESH_SECRET not configured');
-    return jwt.verify(t, env.JWT_REFRESH_SECRET) as JwtClaims & { ver: number };
-  } catch (e) {
-    throw new Error('Invalid refresh token');
+export const verifyAccess = (t: string): JwtClaims => {
+  if (!t || typeof t !== 'string') {
+    throw new Error('Token required');
   }
+  const secret = validateSecret(env.JWT_ACCESS_SECRET, 'JWT_ACCESS');
+  return jwt.verify(t, secret, { algorithms: ['HS256'] }) as JwtClaims;
+};
+
+export const verifyRefresh = (t: string): JwtClaims & { ver: number } => {
+  if (!t || typeof t !== 'string') {
+    throw new Error('Token required');
+  }
+  const secret = validateSecret(env.JWT_REFRESH_SECRET, 'JWT_REFRESH');
+  return jwt.verify(t, secret, { algorithms: ['HS256'] }) as JwtClaims & { ver: number };
 };

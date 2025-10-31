@@ -1,43 +1,26 @@
 name: CI
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+    paths: ['BackEnd/**']
   pull_request:
-    branches: [ main ]
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [main]
+    paths: ['BackEnd/**']
 
 jobs:
-  api:
-    name: Build & Push API
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions: { contents: read, packages: write }
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Registry login
-        uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name == 'push'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build & push with cache
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: ./BackEnd/api
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: ghcr.io/${{ github.repository_owner }}/devforge-api:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-        continue-on-error: false
-        
-      - name: Verify build
-        if: success()
-        run: echo "Build completed successfully"

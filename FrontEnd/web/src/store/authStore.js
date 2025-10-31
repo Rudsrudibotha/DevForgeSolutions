@@ -1,14 +1,36 @@
 import { create } from 'zustand'
 
-export const useAuthStore = create((set) => ({
+// Secure token storage using httpOnly cookies (handled by server)
+const getStoredAuth = () => {
+  try {
+    const stored = sessionStorage.getItem('auth_state');
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+
+const setStoredAuth = (authState) => {
+  try {
+    if (authState) {
+      sessionStorage.setItem('auth_state', JSON.stringify(authState));
+    } else {
+      sessionStorage.removeItem('auth_state');
+    }
+  } catch (error) {
+    // Silently handle storage errors
+  }
+};
+
+export const useAuthStore = create((set, get) => ({
   isAuthenticated: false,
   user: null,
   schoolId: null,
   
   login: async (email, password) => {
     try {
-      if (!email || !password) {
-        throw new Error('Email and password are required');
+      if (!email?.trim() || !password?.trim()) {
+        return { success: false, error: 'Email and password are required' };
       }
       
       const response = await fetch('/api/auth/login', {
@@ -17,49 +39,82 @@ export const useAuthStore = create((set) => ({
           'Content-Type': 'application/json',
           'X-CSRF-Token': crypto.randomUUID()
         },
+        credentials: 'include', // Include httpOnly cookies
         body: JSON.stringify({ email, password })
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+        return { success: false, error: errorData.error || 'Login failed' };
+      }
       
       const data = await response.json();
       
       if (!data.ok) {
-        throw new Error(data.error || 'Login failed');
+        return { success: false, error: data.error || 'Authentication failed' };
       }
       
-      // Store tokens
-      localStorage.setItem('access_token', data.access);
-      localStorage.setItem('refresh_token', data.refresh);
-      
-      set({
+      const authState = {
         isAuthenticated: true,
         user: data.user,
-        schoolId: data.user.school_id
-      });
+        schoolId: data.user?.school_id || null
+      };
+      
+      set(authState);
+      setStoredAuth({ user: data.user, schoolId: data.user?.school_id });
       
       return { success: true, user: data.user };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Login failed';
-      console.error('Login failed:', { error: errorMessage });
-      return { success: false, error: errorMessage };
+      return { success: false, error: 'Network error occurred' };
     }
   },
   
-  logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    set({
-      isAuthenticated: false,
-      user: null,
-      schoolId: null
-    });
+  logout: async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      }).catch(() => {});
+    } finally {
+      setStoredAuth(null);
+      set({
+        isAuthenticated: false,
+        user: null,
+        schoolId: null
+      });
+    }
   },
   
-  // Initialize auth state from localStorage
-  initAuth: () => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      // In a real app, verify token validity
-      set({ isAuthenticated: true });
+  // Initialize auth state from secure storage
+  initAuth: async () => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.ok && data.user) {
+          const authState = {
+            isAuthenticated: true,
+            user: data.user,
+            schoolId: data.user.school_id
+          };
+          set(authState);
+          setStoredAuth({ user: data.user, schoolId: data.user.school_id });
+          return;
+        }
+      }
+    } catch {
+      // Fallback to stored state for offline scenarios
+      const stored = getStoredAuth();
+      if (stored?.user) {
+        set({
+          isAuthenticated: true,
+          user: stored.user,
+          schoolId: stored.schoolId
+        });
+      }
     }
   }
 }))

@@ -105,30 +105,75 @@ r.post('/login', csrfProtection, async (req, res, next) => {
       }
     });
   } catch (e: any) {
-    req.log?.error({ error: e.message }, 'Login failed');
-    next(e);
+    req.log?.error({ error: 'login_failed' }, 'Login attempt failed');
+    return res.status(500).json({ ok: false, error: 'Login failed' });
   }
 });
 
 r.post('/refresh', csrfProtection, async (req, res, next) => {
   try {
     const token = String(req.body?.refresh || '');
-    if (!token) return res.status(400).json({ ok: false, error: 'Refresh token required' });
+    if (!token) {
+      return res.status(400).json({ ok: false, error: 'Refresh token required' });
+    }
     
     const claims = verifyRefresh(token);
     const { rows } = await db.query(
-      `select 1 from auth_refresh_tokens t where t.user_id=$1`,
+      `SELECT 1 FROM auth_refresh_tokens WHERE user_id = $1`,
       [claims.sub]
     );
-    if (!rows.length) return res.status(401).json({ ok:false, error:'Refresh revoked' });
-    const access = signAccess({ sub: claims.sub, role: claims.role, school_id: claims.school_id });
-    res.json({ ok:true, access });
+    
+    if (!rows.length) {
+      return res.status(401).json({ ok: false, error: 'Refresh token revoked' });
+    }
+    
+    const payload = { sub: claims.sub, role: claims.role };
+    if (claims.school_id) {
+      payload.school_id = claims.school_id;
+    }
+    
+    const access = signAccess(payload);
+    res.json({ ok: true, access });
   } catch (e: any) {
-    req.log?.warn({ error: e.name }, 'Refresh token validation failed');
-    const refreshError = new Error('Invalid refresh token');
-    refreshError.status = 401;
-    refreshError.code = 'INVALID_REFRESH';
-    next(refreshError);
+    req.log?.warn({ error: 'refresh_failed' }, 'Refresh token validation failed');
+    return res.status(401).json({ ok: false, error: 'Invalid refresh token' });
+  }
+});
+
+r.post('/logout', async (req, res) => {
+  try {
+    // Clear httpOnly cookies if using them
+    res.clearCookie('access_token');
+    res.clearCookie('refresh_token');
+    res.json({ ok: true, message: 'Logged out successfully' });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: 'Logout failed' });
+  }
+});
+
+r.get('/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ ok: false, error: 'No token provided' });
+    }
+    
+    const token = authHeader.slice(7);
+    const claims = verifyAccess(token);
+    
+    // Fetch current user data
+    const { rows } = await db.query(
+      `SELECT id, email, full_name, role, school_id FROM users WHERE id = $1 AND status = 'approved'`,
+      [claims.sub]
+    );
+    
+    if (!rows.length) {
+      return res.status(401).json({ ok: false, error: 'User not found' });
+    }
+    
+    res.json({ ok: true, user: rows[0] });
+  } catch (e: any) {
+    res.status(401).json({ ok: false, error: 'Invalid token' });
   }
 });
 
