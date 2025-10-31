@@ -3,7 +3,9 @@ import type { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
 
 export function initRealtime(http: HttpServer) {
-  const io = new Server(http, { cors: { origin: (origin, cb) => cb(null, true), credentials: true } });
+  try {
+    if (!http) throw new Error('HTTP server required');
+    const io = new Server(http, { cors: { origin: (origin, cb) => cb(null, true), credentials: true } });
 
   io.use((socket, next) => {
     try {
@@ -46,10 +48,15 @@ export function initRealtime(http: HttpServer) {
       }
     }
 
+    if (!u?.school_id) return s.disconnect();
     s.on("attendance:update", (p) => safeEmit(`school:${u.school_id}`, "attendance:changed", p));
     s.on("notify:parent",  (p) => safeEmit(`school:${u.school_id}`, "notification", p));
     s.on("contract:signed", (p) => safeEmit(`school:${u.school_id}`, "contract:status", p));
   });
 
-  return io;
+    return io;
+  } catch (e) {
+    console.error('Failed to initialize realtime:', e);
+    throw e;
+  }
 }

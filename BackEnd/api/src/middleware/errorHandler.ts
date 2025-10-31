@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/node";
 
 /** Standard API error shape (no stack in prod) */
 export function errorHandler(err: any, req: Request, res: Response, _next: NextFunction) {
+  if (!err) return;
   const status = Number(err?.status || err?.statusCode || 500);
   const code = err?.code || "INTERNAL_ERROR";
 
@@ -33,10 +34,11 @@ export function errorHandler(err: any, req: Request, res: Response, _next: NextF
     req.log?.warn("Failed to send error to Sentry");
   }
 
+  if (res.headersSent) return;
   const isProd = process.env.NODE_ENV === "production";
   const payload = {
     ok: false,
-    error: { code, message: isProd ? "Something went wrong" : String(err?.message || err) }
+    error: { code, message: isProd ? "Something went wrong" : String(err?.message || err).slice(0, 200) }
   };
   res.status(status).json(payload);
 }

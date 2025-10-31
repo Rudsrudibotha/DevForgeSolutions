@@ -40,6 +40,10 @@ export function sanitizeLogInput(input: string) {
 
 /** SSRF protection for outbound requests */
 export function assertAllowedOutbound(urlStr: string) {
+  if (!urlStr || typeof urlStr !== 'string') {
+    throw Object.assign(new Error("Invalid URL provided"), { status: 400 });
+  }
+  
   try {
     const u = new URL(urlStr);
     const allow = (process.env.OUTBOUND_ALLOWLIST || "").split(",").map(s => s.trim()).filter(Boolean);
@@ -54,6 +58,6 @@ export function assertAllowedOutbound(urlStr: string) {
     }
   } catch (e) {
     if (e instanceof Error && 'status' in e) throw e;
-    throw Object.assign(new Error("Invalid URL"), { status: 400 });
+    throw Object.assign(new Error("Invalid URL format"), { status: 400 });
   }
 }

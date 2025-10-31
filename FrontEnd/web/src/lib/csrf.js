@@ -2,10 +2,14 @@
 let csrfToken = null;
 
 export function generateCSRFToken() {
-  if (!csrfToken) {
-    csrfToken = crypto.randomUUID();
+  try {
+    if (!csrfToken) {
+      csrfToken = crypto.randomUUID();
+    }
+    return csrfToken;
+  } catch (e) {
+    return Math.random().toString(36).substring(2);
   }
-  return csrfToken;
 }
 
 export function getCSRFHeaders() {

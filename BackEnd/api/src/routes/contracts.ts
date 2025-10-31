@@ -1,250 +1,162 @@
 import { Router } from 'express';
-import { z } from 'zod';
-import { Database } from '../services/database.js';
-import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth.js';
+import { db } from '../services/database.js';
+import { requireAuth } from '../middleware/auth.js';
+import { setTenantContext, requireRole } from '../middleware/tenant.js';
+import { generateContractPDF, generateDocumentHash, validateSignature } from '../services/contractPDF.js';
 
-const csrfProtection = (req: any, res: any, next: any) => {
-  const token = req.headers['x-csrf-token'] || req.headers['X-CSRF-Token'];
-  if (!token || typeof token !== 'string') {
-    return res.status(403).json({ ok: false, error: { code: 'CSRF_REQUIRED', message: 'CSRF token required' } });
-  }
-  next();
-};
+const r = Router();
 
-const router = Router();
-
-const contractSchema = z.object({
-  templateId: z.string().uuid(),
-  studentId: z.string().uuid(),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
-});
-
-// Get contracts
-router.get('/', authenticateToken, async (req: AuthRequest, res, next) => {
+// Get contract for signing (parent access)
+r.get('/:id/sign', async (req, res, next) => {
   try {
-    const { studentId, status } = req.query;
-    
-    let query = `
-      SELECT sc.*, s.first_name, s.last_name, s.student_no, ct.name as template_name
-      FROM student_contracts sc
-      JOIN students s ON sc.student_id = s.id
-      JOIN contract_templates ct ON sc.template_id = ct.id
-      WHERE 1=1
-    `;
-    
-    const params: any[] = [];
-    let paramCount = 1;
-    
-    if (studentId) {
-      query += ` AND sc.student_id = $${paramCount++}`;
-      params.push(studentId);
-    }
-    
-    if (status) {
-      query += ` AND sc.status = $${paramCount++}`;
-      params.push(status);
-    }
-    
-    query += ' ORDER BY sc.created_at DESC';
-
-    const result = await Database.query(query, params, req.user!.schoolId);
-    res.json(result.rows);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Create contract from template
-router.post('/', csrfProtection, authenticateToken, requireRole(['school_admin', 'staff']), async (req: AuthRequest, res, next) => {
-  try {
-    const data = contractSchema.parse(req.body);
-
-    const result = await Database.transaction(async (client) => {
-      // Get template details
-      const templateResult = await client.query(
-        'SELECT * FROM contract_templates WHERE id = $1 AND status = $2',
-        [data.templateId, 'published']
-      );
-
-      if (templateResult.rows.length === 0) {
-        throw new Error('Template not found or not published');
-      }
-
-      const template = templateResult.rows[0];
-
-      // Create contract
-      const contractResult = await client.query(
-        `INSERT INTO student_contracts (school_id, template_id, student_id, version, status, issued_at, due_date, created_by)
-         VALUES ($1, $2, $3, $4, 'issued', now(), $5, $6)
-         RETURNING *`,
-        [req.user!.schoolId, data.templateId, data.studentId, template.version, data.dueDate, req.user!.id]
-      );
-
-      const contract = contractResult.rows[0];
-
-      // Copy template sections
-      const sectionsResult = await client.query(
-        'SELECT * FROM contract_template_sections WHERE template_id = $1 ORDER BY seq',
-        [data.templateId]
-      );
-
-      for (const section of sectionsResult.rows) {
-        await client.query(
-          `INSERT INTO student_contract_sections (school_id, student_contract_id, template_section_id, seq, title, body_rendered)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [req.user!.schoolId, contract.id, section.id, section.seq, section.title, section.body_md]
-        );
-      }
-
-      // Copy template signers
-      const signersResult = await client.query(
-        'SELECT * FROM contract_template_signers WHERE template_id = $1',
-        [data.templateId]
-      );
-
-      for (const signer of signersResult.rows) {
-        let userId = null, guardianId = null, staffId = null;
-
-        if (signer.signer_role === 'guardian') {
-          // Find student's guardians
-          const guardianResult = await client.query(
-            `SELECT g.id, g.user_id, u.full_name, u.email
-             FROM guardians g
-             JOIN users u ON g.user_id = u.id
-             JOIN student_guardians sg ON g.id = sg.guardian_id
-             WHERE sg.student_id = $1`,
-            [data.studentId]
-          );
-
-          if (guardianResult.rows.length > 0) {
-            const guardian = guardianResult.rows[0];
-            guardianId = guardian.id;
-            userId = guardian.user_id;
-          }
-        }
-
-        await client.query(
-          `INSERT INTO student_contract_signers (school_id, student_contract_id, signer_role, relation_hint, user_id, guardian_id, staff_id, full_name, email, must_sign)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [
-            req.user!.schoolId,
-            contract.id,
-            signer.signer_role,
-            signer.relation_hint,
-            userId,
-            guardianId,
-            staffId,
-            'TBD', // Will be updated when actual signer is assigned
-            null,
-            signer.must_sign
-          ]
-        );
-      }
-
-      return contract;
-    }, req.user!.schoolId);
-
-    res.status(201).json(result);
-  } catch (error: any) {
-    req.log?.error({ error: error.message }, 'Contract creation failed');
-    next(error);
-  }
-});
-
-// Get contract details
-router.get('/:id', authenticateToken, async (req: AuthRequest, res, next) => {
-  try {
-    const contractResult = await Database.query(
-      `SELECT sc.*, s.first_name, s.last_name, ct.name as template_name
-       FROM student_contracts sc
-       JOIN students s ON sc.student_id = s.id
-       JOIN contract_templates ct ON sc.template_id = ct.id
-       WHERE sc.id = $1`,
-      [req.params.id],
-      req.user!.schoolId
-    );
-
-    if (contractResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Contract not found' });
-    }
-
-    const sectionsResult = await Database.query(
-      `SELECT scs.*, 
+    const { rows } = await db.query(
+      `SELECT sc.*, s.first_name, s.last_name, sch.name as school_name,
               json_agg(
                 json_build_object(
-                  'id', sig.id,
-                  'signed_at', sig.signed_at,
-                  'signature_type', sig.signature_type
-                )
-              ) FILTER (WHERE sig.id IS NOT NULL) as signatures
-       FROM student_contract_sections scs
-       LEFT JOIN student_contract_section_signatures sig ON scs.id = sig.section_instance_id
-       WHERE scs.student_contract_id = $1
-       GROUP BY scs.id
-       ORDER BY scs.seq`,
-      [req.params.id],
-      req.user!.schoolId
+                  'id', cs.id,
+                  'title', cs.title, 
+                  'content', cs.content,
+                  'is_mandatory', cs.is_mandatory,
+                  'signed', sig.signed_at IS NOT NULL
+                ) ORDER BY cs.sort_order
+              ) as sections
+       FROM student_contracts sc
+       JOIN students s ON sc.student_id = s.id
+       JOIN schools sch ON s.school_id = sch.id
+       JOIN contract_sections cs ON sc.template_id = cs.template_id
+       LEFT JOIN contract_signatures sig ON cs.id = sig.section_id AND sc.id = sig.contract_id
+       WHERE sc.id = $1
+       GROUP BY sc.id, s.first_name, s.last_name, sch.name`,
+      [req.params.id]
     );
 
-    const signersResult = await Database.query(
-      'SELECT * FROM student_contract_signers WHERE student_contract_id = $1',
-      [req.params.id],
-      req.user!.schoolId
-    );
+    if (!rows.length) {
+      return res.status(404).json({ ok: false, error: 'Contract not found' });
+    }
 
-    const contract = contractResult.rows[0];
-    contract.sections = sectionsResult.rows;
-    contract.signers = signersResult.rows;
-
-    res.json(contract);
-  } catch (error) {
-    next(error);
+    res.json(rows[0]);
+  } catch (e: any) {
+    next(e);
   }
 });
 
 // Sign contract section
-router.post('/:id/sections/:sectionId/sign', csrfProtection, authenticateToken, async (req: AuthRequest, res, next) => {
+r.post('/:contractId/sections/:sectionId/sign', async (req, res, next) => {
   try {
-    const { signatureType, signatureSvg } = req.body;
-
-    // Find signer for this user
-    const signerResult = await Database.query(
-      `SELECT scs.id as signer_id
-       FROM student_contract_signers scs
-       WHERE scs.student_contract_id = $1 AND scs.user_id = $2`,
-      [req.params.id, req.user!.id],
-      req.user!.schoolId
-    );
-
-    if (signerResult.rows.length === 0) {
-      return res.status(403).json({ error: 'Not authorized to sign this contract' });
+    const { contractId, sectionId } = req.params;
+    const { guardian_name, guardian_email } = req.body;
+    
+    // ECTA compliance - validate consent
+    if (!req.body.ecta_consent) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: 'ECTA consent required for electronic signature' 
+      });
     }
 
-    const signerId = signerResult.rows[0].signer_id;
-
-    const result = await Database.query(
-      `INSERT INTO student_contract_section_signatures (school_id, section_instance_id, signer_id, signature_type, signature_svg, ip, user_agent)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (school_id, section_instance_id, signer_id)
-       DO UPDATE SET signature_type = EXCLUDED.signature_type, signature_svg = EXCLUDED.signature_svg, signed_at = now()
-       RETURNING *`,
-      [
-        req.user!.schoolId,
-        req.params.sectionId,
-        signerId,
-        signatureType,
-        signatureSvg,
-        req.ip,
-        req.get('User-Agent')
-      ],
-      req.user!.schoolId
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent') || '';
+    
+    // Find guardian by email
+    const guardian = await db.query(
+      'SELECT id FROM guardians WHERE user_id IN (SELECT id FROM users WHERE email = $1)',
+      [guardian_email]
     );
+    
+    if (!guardian.rows.length) {
+      return res.status(404).json({ ok: false, error: 'Guardian not found' });
+    }
 
-    res.json(result.rows[0]);
-  } catch (error: any) {
-    req.log?.error({ error: error.message }, 'Contract signing failed');
-    next(error);
+    const guardianId = guardian.rows[0].id;
+    
+    // Validate signature and create record
+    const signatureData = validateSignature(contractId, sectionId, guardianId, ipAddress, userAgent);
+    
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Insert signature
+      await client.query(
+        `INSERT INTO contract_signatures 
+         (school_id, contract_id, section_id, guardian_id, signed_at, ip_address, user_agent, signature_data)
+         SELECT s.school_id, $1, $2, $3, $4, $5, $6, $7
+         FROM student_contracts sc
+         JOIN students s ON sc.student_id = s.id
+         WHERE sc.id = $1`,
+        [contractId, sectionId, guardianId, signatureData.signed_at, 
+         ipAddress, userAgent, JSON.stringify(signatureData)]
+      );
+      
+      // Check if contract is complete
+      const completion = await client.query(
+        `SELECT 
+           COUNT(cs.id) as total_sections,
+           COUNT(sig.id) as signed_sections
+         FROM contract_sections cs
+         JOIN student_contracts sc ON cs.template_id = sc.template_id
+         LEFT JOIN contract_signatures sig ON cs.id = sig.section_id AND sc.id = sig.contract_id
+         WHERE sc.id = $1 AND cs.is_mandatory = true`,
+        [contractId]
+      );
+      
+      const { total_sections, signed_sections } = completion.rows[0];
+      
+      if (total_sections === signed_sections) {
+        // Contract complete - generate final PDF
+        const contractData = await client.query(
+          `SELECT sc.*, s.first_name, s.last_name, sch.name as school_name
+           FROM student_contracts sc
+           JOIN students s ON sc.student_id = s.id  
+           JOIN schools sch ON s.school_id = sch.id
+           WHERE sc.id = $1`,
+          [contractId]
+        );
+        
+        const pdfData = {
+          student_name: `${contractData.rows[0].first_name} ${contractData.rows[0].last_name}`,
+          guardian_name,
+          school_name: contractData.rows[0].school_name,
+          sections: [] // Would populate from database
+        };
+        
+        const pdfBuffer = generateContractPDF(pdfData);
+        const documentHash = generateDocumentHash(pdfData);
+        
+        // Update contract status
+        await client.query(
+          `UPDATE student_contracts 
+           SET status = 'completed', completed_at = NOW(), document_hash = $2
+           WHERE id = $1`,
+          [contractId, documentHash]
+        );
+        
+        // Store PDF (in production, save to S3/storage)
+        // await storePDF(contractId, pdfBuffer);
+      }
+      
+      await client.query('COMMIT');
+      
+      // Log audit trail
+      await client.query(
+        `INSERT INTO audit_logs (school_id, action, resource_type, resource_id, details, ip_address, user_agent)
+         SELECT s.school_id, 'contract_section_signed', 'contract', $1, $2, $3, $4
+         FROM student_contracts sc
+         JOIN students s ON sc.student_id = s.id
+         WHERE sc.id = $1`,
+        [contractId, JSON.stringify({ section_id: sectionId, guardian_email }), ipAddress, userAgent]
+      );
+      
+      res.json({ ok: true, signature: signatureData });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (e: any) {
+    next(e);
   }
 });
 
-export { router as contractsRouter };
+export default r;
