@@ -1,8 +1,35 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import SchoolRegistration from '../components/SchoolRegistration'
 
 export default function GetStartedPage() {
   const [userType, setUserType] = useState('')
+  const [showRegistration, setShowRegistration] = useState(false)
+
+  if (showRegistration) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <header className="border-b border-gray-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <Link to="/" className="text-2xl font-bold text-blue-400">
+                DevForgeSolutions
+              </Link>
+              <Link 
+                to="/login" 
+                className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors"
+              >
+                Sign In
+              </Link>
+            </div>
+          </div>
+        </header>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <SchoolRegistration onBack={() => setShowRegistration(false)} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -140,12 +167,20 @@ export default function GetStartedPage() {
                 <p className="text-2xl font-bold text-blue-400">R800/month</p>
                 <p className="text-gray-300">Up to 250 students</p>
               </div>
-              <a 
-                href="https://wa.me/27731510877?text=Hi%20Rudi,%20I%20want%20to%20start%20today%20with%20DevForgeSolutions%20for%20R800/month"
-                className="block w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white text-center py-3 rounded-lg font-semibold transition-colors"
-              >
-                Start Today - R800/month
-              </a>
+              <div className="flex space-x-4 mt-4">
+                <button 
+                  onClick={() => setShowRegistration(true)}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-3 rounded-lg font-semibold transition-colors"
+                >
+                  Create Account - R800/month
+                </button>
+                <a 
+                  href="https://wa.me/27731510877?text=Hi%20Rudi,%20I%20want%20to%20start%20today%20with%20DevForgeSolutions%20for%20R800/month"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-3 rounded-lg font-semibold transition-colors"
+                >
+                  WhatsApp Us
+                </a>
+              </div>
             </div>
           </div>
         )}
@@ -220,12 +255,12 @@ export default function GetStartedPage() {
         <div className="text-center">
           <h3 className="text-2xl font-bold mb-4">Ready to Get Started?</h3>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a 
-              href="https://wa.me/27731510877?text=Hi%20Rudi,%20I%20want%20to%20start%20today%20with%20DevForgeSolutions%20for%20R800/month"
+            <button 
+              onClick={() => setShowRegistration(true)}
               className="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-lg text-lg font-semibold transition-colors inline-flex items-center justify-center"
             >
-              Start Today - R800/month
-            </a>
+              Create Account - R800/month
+            </button>
             <a 
               href="https://wa.me/27731510877?text=Hi%20Rudi,%20I'm%20interested%20in%20DevForgeSolutions"
               className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold transition-colors inline-flex items-center justify-center"

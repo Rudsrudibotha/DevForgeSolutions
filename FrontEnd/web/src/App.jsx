@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import GetStartedPage from './pages/GetStartedPage'
+import AdminDashboard from './pages/AdminDashboard'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -23,6 +24,7 @@ function App() {
         <Route path="/register" element={<LoginPage />} />
         <Route path="/demo" element={<DashboardPage />} />
         <Route path="/get-started" element={<GetStartedPage />} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </div>
   )

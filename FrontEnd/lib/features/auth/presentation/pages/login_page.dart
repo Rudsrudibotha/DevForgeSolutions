@@ -58,11 +58,26 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 24),
                   BlocBuilder<AuthBloc, AuthState>(
                     builder: (context, state) {
-                      return ElevatedButton(
-                        onPressed: state is AuthLoading ? null : _login,
-                        child: state is AuthLoading
-                            ? const CircularProgressIndicator()
-                            : const Text('Login'),
+                      return Column(
+                        children: [
+                          ElevatedButton(
+                            onPressed: state is AuthLoading ? null : _login,
+                            child: state is AuthLoading
+                                ? const CircularProgressIndicator()
+                                : const Text('Login'),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text('or'),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: state is AuthLoading ? null : _googleSignIn,
+                            icon: const Icon(Icons.login, color: Colors.red),
+                            label: const Text('Sign in with Google'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -81,5 +96,9 @@ class _LoginPageState extends State<LoginPage> {
         LoginRequested(_emailController.text, _passwordController.text),
       );
     }
+  }
+
+  void _googleSignIn() {
+    context.read<AuthBloc>().add(GoogleSignInRequested());
   }
 }
