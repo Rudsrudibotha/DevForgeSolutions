@@ -14,10 +14,10 @@ class UserService {
   }
 
   // Register a new user and optionally create the linked school tenant.
-  async register(userData) {
+  async register(userData, options = {}) {
     const { email, password, role, schoolName, address, contactEmail, contactPhone } = userData;
 
-    this.validateRegistration(email, password, role, schoolName, contactEmail);
+    this.validateRegistration(email, password, role, schoolName, contactEmail, options);
 
     const existingUser = await this.userRepository.getUserByEmail(email);
 
@@ -75,15 +75,15 @@ class UserService {
     return await this.userRepository.getUserById(userId);
   }
 
-  validateRegistration(email, password, role, schoolName, contactEmail) {
-    const allowedRoles = ['admin', 'school'];
+  validateRegistration(email, password, role, schoolName, contactEmail, options = {}) {
+    const allowedRoles = options.allowAdmin ? ['admin', 'school'] : ['school'];
 
     if (!email || !password || !role) {
       throw new Error('Email, password, and role are required');
     }
 
     if (!allowedRoles.includes(role)) {
-      throw new Error('Role must be admin or school');
+      throw new Error(options.allowAdmin ? 'Role must be admin or school' : 'Public registration is only available for school accounts');
     }
 
     if (password.length < 8) {

@@ -14,7 +14,6 @@ const elements = {
   viewTitle: document.getElementById('viewTitle'),
   loginForm: document.getElementById('loginForm'),
   registerForm: document.getElementById('registerForm'),
-  registerRole: document.getElementById('registerRole'),
   schoolNameGroup: document.getElementById('schoolNameGroup'),
   schoolForm: document.getElementById('schoolForm'),
   invoiceForm: document.getElementById('invoiceForm'),
@@ -258,14 +257,6 @@ function switchAuthMode(mode) {
   });
 }
 
-function renderRegistrationFields() {
-  const isSchool = elements.registerRole.value === 'school';
-  const schoolNameInput = elements.schoolNameGroup.querySelector('input');
-
-  elements.schoolNameGroup.classList.toggle('hidden', !isSchool);
-  schoolNameInput.required = isSchool;
-}
-
 elements.loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
@@ -389,12 +380,9 @@ document.querySelectorAll('[data-auth-mode]').forEach((button) => {
   button.addEventListener('click', () => switchAuthMode(button.dataset.authMode));
 });
 
-elements.registerRole.addEventListener('change', renderRegistrationFields);
-
 elements.logoutButton.addEventListener('click', () => {
   clearSession();
   showToast('Signed out');
 });
 
-renderRegistrationFields();
 renderShell();

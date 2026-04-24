@@ -75,16 +75,10 @@
                 Password
                 <input name="password" type="password" autocomplete="new-password" minlength="8" required>
               </label>
-              <label>
-                Role
-                <select name="role" id="registerRole">
-                  <option value="admin">Admin</option>
-                  <option value="school">School</option>
-                </select>
-              </label>
-              <label id="schoolNameGroup" class="hidden">
+              <input name="role" type="hidden" value="school">
+              <label id="schoolNameGroup">
                 School name
-                <input name="schoolName" type="text">
+                <input name="schoolName" type="text" autocomplete="organization" required>
               </label>
               <button class="primary-button" type="submit">Create account</button>
             </form>
