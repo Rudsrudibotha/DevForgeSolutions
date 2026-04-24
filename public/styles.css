@@ -23,6 +23,10 @@ body {
   font-family: Inter, "Segoe UI", Arial, sans-serif;
 }
 
+body.signed-out {
+  background: #eef3f1;
+}
+
 button,
 input,
 select,
@@ -129,6 +133,22 @@ textarea {
   overflow: auto;
 }
 
+.signed-out .app-shell {
+  display: block;
+}
+
+.signed-out .sidebar,
+.signed-out .topbar {
+  display: none;
+}
+
+.signed-out .main-panel {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 22px;
+}
+
 .topbar {
   display: flex;
   align-items: center;
@@ -159,6 +179,69 @@ textarea {
   grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
+}
+
+.signed-out .auth-layout {
+  width: min(100%, 430px);
+  display: block;
+}
+
+.auth-card {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 24px;
+  box-shadow: 0 18px 48px rgba(20, 33, 29, 0.12);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.auth-brand h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.auth-brand p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  padding: 4px;
+}
+
+.auth-tab {
+  min-height: 38px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.auth-tab.active {
+  background: var(--panel);
+  color: var(--primary-strong);
+  box-shadow: 0 1px 3px rgba(20, 33, 29, 0.12);
+}
+
+.auth-form {
+  display: block;
 }
 
 .form-panel,

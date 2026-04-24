@@ -40,28 +40,33 @@
         </header>
 
         <section id="authPanel" class="auth-layout">
-          <form id="loginForm" class="form-panel">
-            <div class="panel-header">
-              <h3>Sign in</h3>
-              <p>Use an admin or school account.</p>
+          <div class="auth-card">
+            <div class="auth-brand">
+              <span class="brand-mark">DFS</span>
+              <div>
+                <h1>DevForegeSolutions</h1>
+                <p>School Finance and Management System</p>
+              </div>
             </div>
-            <label>
-              Email
-              <input name="email" type="email" autocomplete="email" required>
-            </label>
-            <label>
-              Password
-              <input name="password" type="password" autocomplete="current-password" required>
-            </label>
-            <button class="primary-button" type="submit">Sign in</button>
-          </form>
 
-          <form id="registerForm" class="form-panel">
-            <div class="panel-header">
-              <h3>Create account</h3>
-              <p>Create an admin user or register a school tenant.</p>
+            <div class="auth-tabs" role="tablist" aria-label="Authentication">
+              <button class="auth-tab active" data-auth-mode="login" type="button">Sign in</button>
+              <button class="auth-tab" data-auth-mode="register" type="button">Register</button>
             </div>
-            <div class="form-grid">
+
+            <form id="loginForm" class="auth-form">
+              <label>
+                Email
+                <input name="email" type="email" autocomplete="email" required>
+              </label>
+              <label>
+                Password
+                <input name="password" type="password" autocomplete="current-password" required>
+              </label>
+              <button class="primary-button" type="submit">Sign in</button>
+            </form>
+
+            <form id="registerForm" class="auth-form hidden">
               <label>
                 Email
                 <input name="email" type="email" autocomplete="email" required>
@@ -77,25 +82,13 @@
                   <option value="school">School</option>
                 </select>
               </label>
-              <label>
+              <label id="schoolNameGroup" class="hidden">
                 School name
                 <input name="schoolName" type="text">
               </label>
-              <label>
-                Contact email
-                <input name="contactEmail" type="email">
-              </label>
-              <label>
-                Contact phone
-                <input name="contactPhone" type="text">
-              </label>
-              <label class="wide">
-                Address
-                <input name="address" type="text">
-              </label>
-            </div>
-            <button class="primary-button" type="submit">Create account</button>
-          </form>
+              <button class="primary-button" type="submit">Create account</button>
+            </form>
+          </div>
         </section>
 
         <section id="workspace" class="workspace hidden">

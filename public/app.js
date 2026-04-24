@@ -14,6 +14,8 @@ const elements = {
   viewTitle: document.getElementById('viewTitle'),
   loginForm: document.getElementById('loginForm'),
   registerForm: document.getElementById('registerForm'),
+  registerRole: document.getElementById('registerRole'),
+  schoolNameGroup: document.getElementById('schoolNameGroup'),
   schoolForm: document.getElementById('schoolForm'),
   invoiceForm: document.getElementById('invoiceForm'),
   invoiceSchool: document.getElementById('invoiceSchool'),
@@ -82,6 +84,7 @@ function clearSession() {
 function renderShell() {
   const signedIn = Boolean(state.token && state.user);
 
+  document.body.classList.toggle('signed-out', !signedIn);
   elements.authPanel.classList.toggle('hidden', signedIn);
   elements.workspace.classList.toggle('hidden', !signedIn);
   elements.logoutButton.classList.toggle('hidden', !signedIn);
@@ -244,6 +247,25 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function switchAuthMode(mode) {
+  const showRegister = mode === 'register';
+
+  elements.loginForm.classList.toggle('hidden', showRegister);
+  elements.registerForm.classList.toggle('hidden', !showRegister);
+
+  document.querySelectorAll('[data-auth-mode]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.authMode === mode);
+  });
+}
+
+function renderRegistrationFields() {
+  const isSchool = elements.registerRole.value === 'school';
+  const schoolNameInput = elements.schoolNameGroup.querySelector('input');
+
+  elements.schoolNameGroup.classList.toggle('hidden', !isSchool);
+  schoolNameInput.required = isSchool;
+}
+
 elements.loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
@@ -266,6 +288,11 @@ elements.registerForm.addEventListener('submit', async (event) => {
 
   try {
     const payload = formData(elements.registerForm);
+
+    if (payload.role === 'school') {
+      payload.contactEmail = payload.email;
+    }
+
     const result = await api('/api/users/register', {
       method: 'POST',
       body: JSON.stringify(payload)
@@ -358,9 +385,16 @@ document.querySelectorAll('.nav-item').forEach((button) => {
   button.addEventListener('click', () => switchView(button.dataset.view));
 });
 
+document.querySelectorAll('[data-auth-mode]').forEach((button) => {
+  button.addEventListener('click', () => switchAuthMode(button.dataset.authMode));
+});
+
+elements.registerRole.addEventListener('change', renderRegistrationFields);
+
 elements.logoutButton.addEventListener('click', () => {
   clearSession();
   showToast('Signed out');
 });
 
+renderRegistrationFields();
 renderShell();
