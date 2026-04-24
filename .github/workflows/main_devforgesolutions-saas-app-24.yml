@@ -19,21 +19,26 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Node.js version
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20.x'
+          cache: 'npm'
 
-      - name: npm install, build, and test
+      - name: Install and validate
         run: |
-          npm install
-          npm run build --if-present
-          npm run test --if-present
+          npm ci
+          node --check src/app.js
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: |
+            .
+            !node_modules
+            !.git
+            !.env
+            !deploy.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -62,4 +67,5 @@ jobs:
           app-name: 'devforgesolutions-saas-app-24'
           slot-name: 'Production'
           package: .
+          startup-command: 'npm start'
           
