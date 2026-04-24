@@ -3,6 +3,11 @@
 
 const sql = require('mssql');
 
+const dbState = {
+  connected: false,
+  lastError: null
+};
+
 function getConnectionConfig() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required');
@@ -14,11 +19,19 @@ function getConnectionConfig() {
 async function connectDB() {
   try {
     await sql.connect(getConnectionConfig());
+    dbState.connected = true;
+    dbState.lastError = null;
     console.log('Connected to Azure SQL Database');
   } catch (err) {
+    dbState.connected = false;
+    dbState.lastError = err.message;
     console.error('Database connection failed:', err);
     throw err;
   }
 }
 
-module.exports = { connectDB, sql };
+function getDbState() {
+  return { ...dbState };
+}
+
+module.exports = { connectDB, getDbState, sql };

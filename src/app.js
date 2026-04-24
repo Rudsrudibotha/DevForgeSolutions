@@ -7,7 +7,7 @@ const helmet = require('helmet');
 const path = require('path');
 require('dotenv').config();
 
-const { connectDB } = require('./data/db');
+const { connectDB, getDbState } = require('./data/db');
 const userRoutes = require('./application/userRoutes');
 const schoolRoutes = require('./application/schoolRoutes');
 const invoiceRoutes = require('./application/invoiceRoutes');
@@ -24,7 +24,13 @@ app.use('/api/schools', schoolRoutes);
 app.use('/api/invoices', invoiceRoutes);
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'School Finance and Management System is running' });
+  const database = getDbState();
+
+  res.json({
+    status: 'OK',
+    message: 'School Finance and Management System is running',
+    database
+  });
 });
 
 app.get('/', (req, res) => {
@@ -34,16 +40,15 @@ app.get('/', (req, res) => {
 async function start() {
   const PORT = process.env.PORT || 3000;
 
-  try {
-    await connectDB();
+  app.listen(PORT, async () => {
+    console.log(`Server running on port ${PORT}`);
 
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Application startup failed:', error);
-    process.exit(1);
-  }
+    try {
+      await connectDB();
+    } catch (error) {
+      console.error('Application started without database connection:', error.message);
+    }
+  });
 }
 
 if (require.main === module) {
