@@ -31,9 +31,27 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_83C034F08B6F47ECB73178D7D1CDE1AA }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_957216CA4DF34E498637032CD17A2E53 }}
 
+      - name: Configure Azure Web App
+        run: |
+          az webapp config appsettings set \
+            --resource-group devforge-saas-rg \
+            --name devforgesolutions-saas-app-24 \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true WEBSITE_NODE_DEFAULT_VERSION=~20
+          az webapp config set \
+            --resource-group devforge-saas-rg \
+            --name devforgesolutions-saas-app-24 \
+            --startup-file "npm start"
+
       - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: devforgesolutions-saas-app-24
-          slot-name: Production
-          package: .
+        run: |
+          zip -r app.zip . \
+            -x ".git/*" \
+            -x ".env" \
+            -x "node_modules/*" \
+            -x "deploy.zip"
+          az webapp deploy \
+            --resource-group devforge-saas-rg \
+            --name devforgesolutions-saas-app-24 \
+            --src-path app.zip \
+            --type zip \
+            --async false
