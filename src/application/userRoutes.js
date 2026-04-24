@@ -28,6 +28,12 @@ router.post('/register', async (req, res) => {
 
     }
 
+    if (role !== 'school') {
+
+      return res.status(400).json({ error: 'Public registration is only available for school accounts' });
+
+    }
+
     if (role === 'school' && (!schoolName || !contactEmail)) {
 
       return res.status(400).json({ error: 'School name and contact email are required for school registration' });
