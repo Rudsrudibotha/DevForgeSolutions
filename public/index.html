@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DevForegeSolutions SMS</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">DFS</span>
+          <div>
+            <h1>DevForegeSolutions</h1>
+            <p>School finance and management</p>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="Primary">
+          <button class="nav-item active" data-view="overview" type="button">Overview</button>
+          <button class="nav-item" data-view="schools" type="button">Schools</button>
+          <button class="nav-item" data-view="invoices" type="button">Invoices</button>
+          <button class="nav-item" data-view="account" type="button">Account</button>
+        </nav>
+
+        <div class="session-box">
+          <p id="sessionLabel">Signed out</p>
+          <button id="logoutButton" class="secondary-button hidden" type="button">Sign out</button>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Azure-ready SMS</p>
+            <h2 id="viewTitle">Overview</h2>
+          </div>
+          <div id="statusPill" class="status-pill">Connecting</div>
+        </header>
+
+        <section id="authPanel" class="auth-layout">
+          <form id="loginForm" class="form-panel">
+            <div class="panel-header">
+              <h3>Sign in</h3>
+              <p>Use an admin or school account.</p>
+            </div>
+            <label>
+              Email
+              <input name="email" type="email" autocomplete="email" required>
+            </label>
+            <label>
+              Password
+              <input name="password" type="password" autocomplete="current-password" required>
+            </label>
+            <button class="primary-button" type="submit">Sign in</button>
+          </form>
+
+          <form id="registerForm" class="form-panel">
+            <div class="panel-header">
+              <h3>Create account</h3>
+              <p>Create an admin user or register a school tenant.</p>
+            </div>
+            <div class="form-grid">
+              <label>
+                Email
+                <input name="email" type="email" autocomplete="email" required>
+              </label>
+              <label>
+                Password
+                <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+              </label>
+              <label>
+                Role
+                <select name="role" id="registerRole">
+                  <option value="admin">Admin</option>
+                  <option value="school">School</option>
+                </select>
+              </label>
+              <label>
+                School name
+                <input name="schoolName" type="text">
+              </label>
+              <label>
+                Contact email
+                <input name="contactEmail" type="email">
+              </label>
+              <label>
+                Contact phone
+                <input name="contactPhone" type="text">
+              </label>
+              <label class="wide">
+                Address
+                <input name="address" type="text">
+              </label>
+            </div>
+            <button class="primary-button" type="submit">Create account</button>
+          </form>
+        </section>
+
+        <section id="workspace" class="workspace hidden">
+          <section id="overviewView" class="view active">
+            <div class="metrics-grid">
+              <div class="metric">
+                <span>Schools</span>
+                <strong id="schoolCount">0</strong>
+              </div>
+              <div class="metric">
+                <span>Invoices</span>
+                <strong id="invoiceCount">0</strong>
+              </div>
+              <div class="metric">
+                <span>Pending value</span>
+                <strong id="pendingValue">R0.00</strong>
+              </div>
+              <div class="metric">
+                <span>Paid value</span>
+                <strong id="paidValue">R0.00</strong>
+              </div>
+            </div>
+
+            <div class="split-layout">
+              <section class="table-panel">
+                <div class="panel-header">
+                  <h3>Recent schools</h3>
+                  <p>Tenant records available to this account.</p>
+                </div>
+                <div id="recentSchools" class="compact-list"></div>
+              </section>
+
+              <section class="table-panel">
+                <div class="panel-header">
+                  <h3>Recent invoices</h3>
+                  <p>Latest finance records.</p>
+                </div>
+                <div id="recentInvoices" class="compact-list"></div>
+              </section>
+            </div>
+          </section>
+
+          <section id="schoolsView" class="view">
+            <div class="split-layout">
+              <form id="schoolForm" class="form-panel">
+                <div class="panel-header">
+                  <h3>Add school</h3>
+                  <p>Admin-only tenant creation.</p>
+                </div>
+                <label>
+                  School name
+                  <input name="schoolName" type="text" required>
+                </label>
+                <label>
+                  Contact email
+                  <input name="contactEmail" type="email">
+                </label>
+                <label>
+                  Contact phone
+                  <input name="contactPhone" type="text">
+                </label>
+                <label>
+                  Address
+                  <input name="address" type="text">
+                </label>
+                <button class="primary-button" type="submit">Add school</button>
+              </form>
+
+              <section class="table-panel">
+                <div class="panel-header">
+                  <h3>Schools</h3>
+                  <p>Subscription and contact records.</p>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="schoolsTable"></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section id="invoicesView" class="view">
+            <div class="split-layout">
+              <form id="invoiceForm" class="form-panel">
+                <div class="panel-header">
+                  <h3>Create invoice</h3>
+                  <p>Admin-only finance record creation.</p>
+                </div>
+                <label>
+                  School
+                  <select name="schoolId" id="invoiceSchool" required></select>
+                </label>
+                <label>
+                  Amount
+                  <input name="amount" type="number" min="0.01" step="0.01" required>
+                </label>
+                <label>
+                  Due date
+                  <input name="dueDate" type="date">
+                </label>
+                <label>
+                  Description
+                  <textarea name="description" rows="4"></textarea>
+                </label>
+                <button class="primary-button" type="submit">Create invoice</button>
+              </form>
+
+              <section class="table-panel">
+                <div class="panel-header">
+                  <h3>Invoices</h3>
+                  <p>Status, due dates, and paid records.</p>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Number</th>
+                        <th>School</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Due</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="invoicesTable"></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section id="accountView" class="view">
+            <section class="table-panel narrow">
+              <div class="panel-header">
+                <h3>Account</h3>
+                <p>Current signed-in user and tenant scope.</p>
+              </div>
+              <dl class="profile-list">
+                <div>
+                  <dt>Email</dt>
+                  <dd id="profileEmail">-</dd>
+                </div>
+                <div>
+                  <dt>Role</dt>
+                  <dd id="profileRole">-</dd>
+                </div>
+                <div>
+                  <dt>School ID</dt>
+                  <dd id="profileSchool">-</dd>
+                </div>
+              </dl>
+            </section>
+          </section>
+        </section>
+
+        <div id="toast" class="toast hidden" role="status"></div>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
