@@ -20,11 +20,11 @@ router.post('/register', async (req, res) => {
 
   try {
 
-    const { email, password, role, schoolName, address, contactEmail, contactPhone } = req.body;
+    const { email, username, password, role, schoolName, address, contactEmail, contactPhone } = req.body;
 
-    if (!email || !password || !role) {
+    if (!email || !username || !password || !role) {
 
-      return res.status(400).json({ error: 'Email, password, and role are required' });
+      return res.status(400).json({ error: 'Email, username, password, and role are required' });
 
     }
 
@@ -58,15 +58,15 @@ router.post('/login', async (req, res) => {
 
   try {
 
-    const { email, password } = req.body;
+    const { schoolId, username, password } = req.body;
 
-    if (!email || !password) {
+    if (schoolId === undefined || !username || !password) {
 
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({ error: 'School ID, username, and password are required' });
 
     }
 
-    const result = await userService.login(email, password);
+    const result = await userService.login(schoolId, username, password);
 
     res.json(result);
 

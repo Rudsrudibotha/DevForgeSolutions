@@ -16,6 +16,40 @@ class UserRepository {
 
   }
 
+  async getUserBySchoolAndUsername(schoolId, username) {
+
+    const pool = await sql.connect();
+
+    const result = await pool.request()
+
+      .input('schoolId', sql.Int, schoolId)
+
+      .input('username', sql.NVarChar, username)
+
+      .query(`SELECT * FROM Users
+
+              WHERE SchoolID = @schoolId AND LOWER(Username) = LOWER(@username)`);
+
+    return result.recordset[0];
+
+  }
+
+  async getAdminByUsername(username) {
+
+    const pool = await sql.connect();
+
+    const result = await pool.request()
+
+      .input('username', sql.NVarChar, username)
+
+      .query(`SELECT * FROM Users
+
+              WHERE SchoolID IS NULL AND Role = 'admin' AND LOWER(Username) = LOWER(@username)`);
+
+    return result.recordset[0];
+
+  }
+
   // Get user by ID
 
   async getUserById(userId) {
@@ -30,15 +64,15 @@ class UserRepository {
 
   async createUser(userData) {
 
-    const { email, passwordHash, role, schoolId } = userData;
+    const { username, email, passwordHash, role, schoolId } = userData;
 
     const result = await sql.query`
 
-      INSERT INTO Users (Email, PasswordHash, Role, SchoolID)
+      INSERT INTO Users (Username, Email, PasswordHash, Role, SchoolID)
 
       OUTPUT INSERTED.*
 
-      VALUES (${email}, ${passwordHash}, ${role}, ${schoolId})
+      VALUES (${username}, ${email}, ${passwordHash}, ${role}, ${schoolId})
 
     `;
 
@@ -50,7 +84,7 @@ class UserRepository {
 
   async getAllUsers() {
 
-    const result = await sql.query`SELECT UserID, Email, Role, SchoolID, CreatedDate FROM Users`;
+    const result = await sql.query`SELECT UserID, Username, Email, Role, SchoolID, CreatedDate FROM Users`;
 
     return result.recordset;
 

@@ -30,6 +30,24 @@ router.get('/', authenticateToken, async (req, res) => {
 
 });
 
+// GET /api/schools/availability/school-name - Check if a school name can be registered
+
+router.get('/availability/school-name', async (req, res) => {
+
+  try {
+
+    const registered = await schoolService.isSchoolNameRegistered(req.query.schoolName);
+
+    res.json({ available: !registered });
+
+  } catch (error) {
+
+    res.status(400).json({ error: error.message });
+
+  }
+
+});
+
 // GET /api/schools/:id - Get school by ID
 
 router.get('/:id', authenticateToken, async (req, res) => {
@@ -66,19 +84,21 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
 
 });
 
-// PUT /api/schools/:id - Update school (admin only)
+// PUT /api/schools/:id - Update school. Admins can update any school; school users can update their own profile.
 
-router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
 
   try {
 
-    const updatedSchool = await schoolService.updateSchool(parseInt(req.params.id, 10), req.body);
+    const updatedSchool = await schoolService.updateSchool(parseInt(req.params.id, 10), req.body, req.user);
 
     res.json(updatedSchool);
 
   } catch (error) {
 
-    res.status(400).json({ error: error.message });
+    const status = error.message.includes('only update your own') ? 403 : 400;
+
+    res.status(status).json({ error: error.message });
 
   }
 

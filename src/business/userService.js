@@ -15,9 +15,23 @@ class UserService {
 
   // Register a new user and optionally create the linked school tenant.
   async register(userData, options = {}) {
-    const { email, password, role, schoolName, address, contactEmail, contactPhone } = userData;
+    const {
+      email,
+      username,
+      password,
+      role,
+      schoolName,
+      address,
+      logoUrl,
+      contactPerson,
+      contactEmail,
+      contactPhone,
+      website
+    } = userData;
 
-    this.validateRegistration(email, password, role, schoolName, contactEmail, options);
+    const normalizedUsername = this.normalizeUsername(username);
+
+    this.validateRegistration(email, normalizedUsername, password, role, schoolName, contactEmail, options);
 
     const existingUser = await this.userRepository.getUserByEmail(email);
 
@@ -29,13 +43,14 @@ class UserService {
     let schoolId = null;
 
     if (role === 'school') {
-      const schoolData = { schoolName, address, contactEmail, contactPhone };
+      const schoolData = { schoolName, address, logoUrl, contactPerson, contactEmail, contactPhone, website };
       const newSchool = await this.schoolService.createSchool(schoolData);
       schoolId = newSchool.SchoolID;
     }
 
     const newUser = await this.userRepository.createUser({
       email,
+      username: normalizedUsername,
       passwordHash,
       role,
       schoolId
@@ -45,12 +60,17 @@ class UserService {
   }
 
   // Login an existing user and issue a short-lived access token.
-  async login(email, password) {
-    if (!email || !password) {
-      throw new Error('Email and password are required');
+  async login(schoolId, username, password) {
+    const parsedSchoolId = Number(schoolId);
+    const normalizedUsername = this.normalizeUsername(username);
+
+    if (!Number.isInteger(parsedSchoolId) || parsedSchoolId < 0 || !normalizedUsername || !password) {
+      throw new Error('School ID, username, and password are required');
     }
 
-    const user = await this.userRepository.getUserByEmail(email);
+    const user = parsedSchoolId === 0
+      ? await this.userRepository.getAdminByUsername(normalizedUsername)
+      : await this.userRepository.getUserBySchoolAndUsername(parsedSchoolId, normalizedUsername);
 
     if (!user) {
       throw new Error('Invalid credentials');
@@ -75,11 +95,15 @@ class UserService {
     return await this.userRepository.getUserById(userId);
   }
 
-  validateRegistration(email, password, role, schoolName, contactEmail, options = {}) {
+  validateRegistration(email, username, password, role, schoolName, contactEmail, options = {}) {
     const allowedRoles = options.allowAdmin ? ['admin', 'school'] : ['school'];
 
-    if (!email || !password || !role) {
-      throw new Error('Email, password, and role are required');
+    if (!email || !username || !password || !role) {
+      throw new Error('Email, username, password, and role are required');
+    }
+
+    if (!/^[a-z0-9._-]{3,50}$/.test(username)) {
+      throw new Error('Username must be 3 to 50 characters and use only letters, numbers, dots, underscores, or hyphens');
     }
 
     if (!allowedRoles.includes(role)) {
@@ -101,7 +125,7 @@ class UserService {
     }
 
     const token = jwt.sign(
-      { userId: user.UserID, email: user.Email, role: user.Role, schoolId: user.SchoolID },
+      { userId: user.UserID, username: user.Username, email: user.Email, role: user.Role, schoolId: user.SchoolID },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -109,12 +133,17 @@ class UserService {
     return {
       user: {
         id: user.UserID,
+        username: user.Username,
         email: user.Email,
         role: user.Role,
         schoolId: user.SchoolID
       },
       token
     };
+  }
+
+  normalizeUsername(username) {
+    return String(username || '').trim().toLowerCase();
   }
 }
 

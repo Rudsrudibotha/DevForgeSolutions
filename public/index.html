@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>DevForegeSolutions SMS</title>
+    <title>DevForge Solutions SMS</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -12,7 +12,7 @@
         <div class="brand">
           <span class="brand-mark">DFS</span>
           <div>
-            <h1>DevForegeSolutions</h1>
+            <h1>DevForge Solutions</h1>
             <p>School finance and management</p>
           </div>
         </div>
@@ -22,6 +22,7 @@
           <button class="nav-item" data-view="schools" type="button">Schools</button>
           <button class="nav-item" data-view="invoices" type="button">Invoices</button>
           <button class="nav-item" data-view="account" type="button">Account</button>
+          <button class="nav-item" data-view="settings" type="button">Settings</button>
         </nav>
 
         <div class="session-box">
@@ -33,7 +34,6 @@
       <main class="main-panel">
         <header class="topbar">
           <div>
-            <p class="eyebrow">Azure-ready SMS</p>
             <h2 id="viewTitle">Overview</h2>
           </div>
           <div id="statusPill" class="status-pill">Connecting</div>
@@ -44,7 +44,7 @@
             <div class="auth-brand">
               <span class="brand-mark">DFS</span>
               <div>
-                <h1>DevForegeSolutions</h1>
+                <h1>DevForge Solutions</h1>
                 <p>School Finance and Management System</p>
               </div>
             </div>
@@ -56,8 +56,12 @@
 
             <form id="loginForm" class="auth-form">
               <label>
-                Email
-                <input name="email" type="email" autocomplete="email" required>
+                School ID
+                <input name="schoolId" type="number" min="0" step="1" inputmode="numeric" required>
+              </label>
+              <label>
+                Username
+                <input name="username" type="text" autocomplete="username" required>
               </label>
               <label>
                 Password
@@ -68,6 +72,15 @@
 
             <form id="registerForm" class="auth-form hidden">
               <label>
+                School name
+                <input name="schoolName" type="text" autocomplete="organization" required>
+              </label>
+              <p id="registerMessage" class="form-message hidden"></p>
+              <label>
+                Username
+                <input name="username" type="text" autocomplete="username" required>
+              </label>
+              <label>
                 Email
                 <input name="email" type="email" autocomplete="email" required>
               </label>
@@ -76,10 +89,6 @@
                 <input name="password" type="password" autocomplete="new-password" minlength="8" required>
               </label>
               <input name="role" type="hidden" value="school">
-              <label id="schoolNameGroup">
-                School name
-                <input name="schoolName" type="text" autocomplete="organization" required>
-              </label>
               <button class="primary-button" type="submit">Create account</button>
             </form>
           </div>
@@ -161,7 +170,7 @@
                     <thead>
                       <tr>
                         <th>Name</th>
-                        <th>Email</th>
+                        <th>Contact</th>
                         <th>Status</th>
                         <th>Actions</th>
                       </tr>
@@ -224,12 +233,17 @@
           </section>
 
           <section id="accountView" class="view">
-            <section class="table-panel narrow">
+            <div class="split-layout account-layout">
+            <section class="table-panel">
               <div class="panel-header">
                 <h3>Account</h3>
                 <p>Current signed-in user and tenant scope.</p>
               </div>
               <dl class="profile-list">
+                <div>
+                  <dt>Username</dt>
+                  <dd id="profileUsername">-</dd>
+                </div>
                 <div>
                   <dt>Email</dt>
                   <dd id="profileEmail">-</dd>
@@ -242,8 +256,106 @@
                   <dt>School ID</dt>
                   <dd id="profileSchool">-</dd>
                 </div>
+                <div>
+                  <dt>School</dt>
+                  <dd id="profileSchoolName">-</dd>
+                </div>
               </dl>
             </section>
+
+            <form id="accountSchoolForm" class="form-panel">
+              <div class="panel-header inline-panel-header">
+                <div>
+                  <h3>School account</h3>
+                  <p>Address, logo, and contact details.</p>
+                </div>
+                <span id="accountSchoolStatus" class="badge">Active</span>
+              </div>
+
+              <label id="accountSchoolSelector" class="hidden">
+                School
+                <select id="accountSchoolSelect" name="schoolId"></select>
+              </label>
+
+              <div class="logo-editor">
+                <div id="accountLogoPreview" class="logo-preview" aria-label="School logo preview">DFS</div>
+                <div>
+                  <input name="logoUrl" type="hidden">
+                  <div class="logo-source-tabs" aria-label="Logo source">
+                    <button class="logo-source-tab active" data-logo-source="link" type="button">Link</button>
+                    <button class="logo-source-tab" data-logo-source="upload" type="button">Upload</button>
+                  </div>
+                  <label id="logoLinkField">
+                    Logo URL
+                    <input id="accountLogoUrlInput" type="url" inputmode="url" placeholder="https://example.com/logo.png">
+                  </label>
+                  <label id="logoUploadField" class="hidden">
+                    JPG or PNG logo
+                    <input id="accountLogoFileInput" type="file" accept="image/jpeg,image/png">
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  School name
+                  <input name="schoolName" type="text" autocomplete="organization" required>
+                </label>
+                <label>
+                  Contact person
+                  <input name="contactPerson" type="text" autocomplete="name">
+                </label>
+                <label>
+                  Contact email
+                  <input name="contactEmail" type="email" autocomplete="email">
+                </label>
+                <label>
+                  Contact phone
+                  <input name="contactPhone" type="tel" autocomplete="tel">
+                </label>
+                <label class="wide">
+                  Website
+                  <input name="website" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com">
+                </label>
+                <label class="wide">
+                  Address
+                  <textarea name="address" rows="3" autocomplete="street-address"></textarea>
+                </label>
+              </div>
+
+              <button class="primary-button" type="submit">Save school account</button>
+            </form>
+            </div>
+          </section>
+
+          <section id="settingsView" class="view">
+            <form id="settingsForm" class="settings-surface">
+              <section class="settings-section">
+                <div class="settings-section-header">
+                  <div>
+                    <h3>Finance</h3>
+                    <p id="settingsSchoolName">-</p>
+                  </div>
+                </div>
+
+                <label id="settingsSchoolSelector" class="hidden">
+                  School
+                  <select id="settingsSchoolSelect" name="schoolId"></select>
+                </label>
+
+                <div class="settings-row">
+                  <div>
+                    <h4>Currency</h4>
+                    <p id="settingsCurrencyLabel">South African Rand - R</p>
+                  </div>
+                  <select id="currencySelect" name="currencyCode" required></select>
+                </div>
+              </section>
+
+              <div class="settings-actions">
+                <button class="primary-button compact-button" type="submit">Save settings</button>
+              </div>
+            </form>
           </section>
         </section>
 

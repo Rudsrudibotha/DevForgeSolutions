@@ -4,6 +4,15 @@
 
 const { sql } = require('./db');
 
+function optionalString(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const trimmed = String(value).trim();
+  return trimmed || null;
+}
+
 class SchoolRepository {
 
   // Get all schools
@@ -34,6 +43,36 @@ class SchoolRepository {
 
   }
 
+  async getSchoolByName(schoolName) {
+
+    const pool = await sql.connect();
+
+    const result = await pool.request()
+
+      .input('schoolName', sql.NVarChar, schoolName)
+
+      .query('SELECT * FROM Schools WHERE SchoolName = @schoolName');
+
+    return result.recordset[0];
+
+  }
+
+  async getSchoolByNameExcludingId(schoolName, id) {
+
+    const pool = await sql.connect();
+
+    const result = await pool.request()
+
+      .input('schoolName', sql.NVarChar, schoolName)
+
+      .input('id', sql.Int, id)
+
+      .query('SELECT * FROM Schools WHERE SchoolName = @schoolName AND SchoolID <> @id');
+
+    return result.recordset[0];
+
+  }
+
   // Create new school
 
   async createSchool(schoolData) {
@@ -46,17 +85,31 @@ class SchoolRepository {
 
       .input('address', sql.NVarChar, schoolData.address)
 
+      .input('logoUrl', sql.NVarChar(sql.MAX), optionalString(schoolData.logoUrl))
+
+      .input('contactPerson', sql.NVarChar, optionalString(schoolData.contactPerson))
+
       .input('contactEmail', sql.NVarChar, schoolData.contactEmail)
 
       .input('contactPhone', sql.NVarChar, schoolData.contactPhone)
 
+      .input('website', sql.NVarChar, optionalString(schoolData.website))
+
+      .input('currencyCode', sql.NVarChar, schoolData.currencyCode)
+
+      .input('currencySymbol', sql.NVarChar, schoolData.currencySymbol)
+
       .input('subscriptionStatus', sql.NVarChar, schoolData.subscriptionStatus || 'Active')
 
-      .query(`INSERT INTO Schools (SchoolName, Address, ContactEmail, ContactPhone, SubscriptionStatus)
+      .query(`INSERT INTO Schools (SchoolName, Address, LogoUrl, ContactPerson, ContactEmail, ContactPhone, Website,
+
+              CurrencyCode, CurrencySymbol, SubscriptionStatus)
 
               OUTPUT INSERTED.*
 
-              VALUES (@schoolName, @address, @contactEmail, @contactPhone, @subscriptionStatus)`);
+              VALUES (@schoolName, @address, @logoUrl, @contactPerson, @contactEmail, @contactPhone, @website,
+
+              @currencyCode, @currencySymbol, @subscriptionStatus)`);
 
     return result.recordset[0];
 
@@ -76,15 +129,29 @@ class SchoolRepository {
 
       .input('address', sql.NVarChar, schoolData.address)
 
+      .input('logoUrl', sql.NVarChar(sql.MAX), optionalString(schoolData.logoUrl))
+
+      .input('contactPerson', sql.NVarChar, optionalString(schoolData.contactPerson))
+
       .input('contactEmail', sql.NVarChar, schoolData.contactEmail)
 
       .input('contactPhone', sql.NVarChar, schoolData.contactPhone)
+
+      .input('website', sql.NVarChar, optionalString(schoolData.website))
+
+      .input('currencyCode', sql.NVarChar, schoolData.currencyCode)
+
+      .input('currencySymbol', sql.NVarChar, schoolData.currencySymbol)
 
       .input('subscriptionStatus', sql.NVarChar, schoolData.subscriptionStatus)
 
       .query(`UPDATE Schools SET SchoolName = @schoolName, Address = @address, ContactEmail = @contactEmail,
 
-              ContactPhone = @contactPhone, SubscriptionStatus = @subscriptionStatus, UpdatedDate = GETDATE()
+              LogoUrl = @logoUrl, ContactPerson = @contactPerson, ContactPhone = @contactPhone,
+
+              Website = @website, CurrencyCode = @currencyCode, CurrencySymbol = @currencySymbol,
+
+              SubscriptionStatus = @subscriptionStatus, UpdatedDate = GETDATE()
 
               OUTPUT INSERTED.*
 
