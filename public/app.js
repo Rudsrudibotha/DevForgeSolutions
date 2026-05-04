@@ -323,7 +323,8 @@ function applyIconPermissions() {
 
 // === OUTSTANDING FEES EXPORT ===
 function exportOutstandingFees() {
-  const year = new Date().getFullYear();
+  const yearInput = document.getElementById('outstandingFeesYear');
+  const year = yearInput ? Number(yearInput.value) : new Date().getFullYear();
   const url = '/api/export/outstanding-fees?year=' + year;
   const token = state.token;
   fetch(url, { headers: { Authorization: 'Bearer ' + token } })
