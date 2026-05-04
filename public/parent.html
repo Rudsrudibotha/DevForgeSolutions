@@ -21,6 +21,9 @@
           <button class="nav-item active" data-view="overview" type="button" aria-current="page">Home</button>
           <button class="nav-item" data-view="students" type="button">My Child</button>
           <button class="nav-item" data-view="account" type="button">Account</button>
+          <button class="nav-item" data-view="notifications" type="button">Notifications</button>
+          <button class="nav-item" data-view="admissions" type="button">Admissions</button>
+          <button class="nav-item" data-view="consent" type="button">Consent</button>
         </nav>
 
         <div class="session-box">
@@ -60,6 +63,18 @@
                   <button class="module-tile" data-action="open-account" type="button">
                     <span class="module-icon finance-icon" aria-hidden="true">AC</span>
                     <span>Account / View Statement</span>
+                  </button>
+                  <button class="module-tile" data-action="open-notifications" type="button">
+                    <span class="module-icon report-icon" aria-hidden="true">NT</span>
+                    <span>Notifications</span>
+                  </button>
+                  <button class="module-tile" data-action="open-admissions" type="button">
+                    <span class="module-icon schools-icon" aria-hidden="true">AR</span>
+                    <span>Admissions / Re-Enrolment</span>
+                  </button>
+                  <button class="module-tile" data-action="open-consent" type="button">
+                    <span class="module-icon students-icon" aria-hidden="true">CN</span>
+                    <span>Consent</span>
                   </button>
                 </div>
               </section>
@@ -250,6 +265,42 @@
                   <tbody id="invoicesTable"></tbody>
                 </table>
               </div>
+            </section>
+          </section>
+
+          <section id="notificationsView" class="view">
+            <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Notifications</h3>
+                  <p>Messages, statement delivery updates, and school notices linked to this parent account.</p>
+                </div>
+              </div>
+              <p>No notifications are available yet.</p>
+            </section>
+          </section>
+
+          <section id="admissionsView" class="view">
+            <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Admissions / Re-Enrolment</h3>
+                  <p>Applications and re-enrolment confirmations linked to this parent account.</p>
+                </div>
+              </div>
+              <p>No admissions or re-enrolment records are available yet.</p>
+            </section>
+          </section>
+
+          <section id="consentView" class="view">
+            <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Consent</h3>
+                  <p>Consent requests and responses for linked children only.</p>
+                </div>
+              </div>
+              <p>No consent requests are available yet.</p>
             </section>
           </section>
         </section>

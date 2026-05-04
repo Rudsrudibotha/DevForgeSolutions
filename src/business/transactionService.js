@@ -8,10 +8,7 @@ class TransactionService {
   }
 
   async getTransactions(currentUser, options = {}) {
-    if (currentUser.Role === 'admin') {
-      return await this.transactionRepository.getAllTransactions(options);
-    }
-
+    if (currentUser.Role === 'admin') return await this.transactionRepository.getAllTransactions(options);
     const schoolId = this.resolveSchoolId(currentUser);
     return await this.transactionRepository.getTransactionsBySchool(schoolId, options);
   }
@@ -25,7 +22,8 @@ class TransactionService {
       description: transactionData.description || null,
       transactionType: 'Credit',
       amount: transactionData.amount,
-      transactionDate: transactionData.transactionDate || new Date()
+      transactionDate: transactionData.transactionDate || new Date(),
+      allocationStatus: 'Allocated'
     });
   }
 
@@ -38,11 +36,12 @@ class TransactionService {
       description: transactionData.description || null,
       transactionType: 'Bank',
       amount: transactionData.amount,
-      transactionDate: transactionData.transactionDate || new Date()
+      transactionDate: transactionData.transactionDate || new Date(),
+      allocationStatus: 'Unallocated',
+      bankTransactionKey: transactionData.bankTransactionKey || null
     });
   }
 
-  // Uses SQL aggregates instead of loading all rows into JS memory
   async getSummary(currentUser) {
     const isAdmin = currentUser.Role === 'admin';
     const schoolId = isAdmin ? null : this.resolveSchoolId(currentUser);
@@ -60,26 +59,20 @@ class TransactionService {
       totalDebit: Number(totals.totalDebit),
       totalBank: Number(totals.totalBank),
       outstandingInvoices: outstanding,
-      netPosition: Number(totals.totalCredit) - Number(totals.totalDebit)
+      netPosition: Number(totals.totalCredit) - Number(totals.totalDebit),
+      allocatedCount: Number(totals.allocatedCount || 0),
+      unallocatedCount: Number(totals.unallocatedCount || 0),
+      suggestedCount: Number(totals.suggestedCount || 0)
     };
   }
 
   resolveSchoolId(currentUser) {
-    if (!currentUser) {
-      throw new Error('User context is required');
-    }
-
-    if (currentUser.Role !== 'admin' && currentUser.Role !== 'school') {
-      throw new Error('School or admin access required');
-    }
-
+    if (!currentUser) throw new Error('User context is required');
+    if (currentUser.Role !== 'admin' && currentUser.Role !== 'school') throw new Error('School or admin access required');
     if (currentUser.Role !== 'admin') {
-      if (!currentUser.SchoolID) {
-        throw new Error('School users must be linked to a school');
-      }
+      if (!currentUser.SchoolID) throw new Error('School users must be linked to a school');
       return currentUser.SchoolID;
     }
-
     return currentUser.SchoolID || null;
   }
 }

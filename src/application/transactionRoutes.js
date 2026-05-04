@@ -12,7 +12,11 @@ router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
     const options = {
       page: parseInt(req.query.page, 10) || 1,
       limit: parseInt(req.query.limit, 10) || 50,
-      search: req.query.search || null
+      search: req.query.search || null,
+      status: req.query.status || null,
+      fromDate: req.query.fromDate || null,
+      toDate: req.query.toDate || null,
+      transactionType: req.query.transactionType || null
     };
     const transactions = await transactionService.getTransactions(req.user, options);
     res.json(transactions);

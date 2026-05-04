@@ -35,6 +35,156 @@ const CURRENCY_SYMBOL_OVERRIDES = {
   TRY: 'TRY'
 };
 
+const VIEW_TITLES = {
+  overview: 'School Management Dashboard',
+  school: 'School',
+  finance: 'Finance',
+  reporting: 'Reporting',
+  account: 'Account',
+  settings: 'Settings',
+  classes: 'School / Classes',
+  staff: 'School / Staff',
+  students: 'School / Students',
+  parents: 'School / Parents',
+  attendance: 'School / Attendance',
+  admissions: 'School / Admissions / Enrolment',
+  reenrolment: 'School / Re-Enrolment / Year Rollover',
+  schoolSettings: 'School / School Settings',
+  consentPermissions: 'School / Consent and Permissions',
+  bank: 'Finance / Bank Reconciliation',
+  outstanding: 'Finance / Outstanding Fees',
+  bankTransactions: 'Finance / Bank Transactions',
+  bankStatements: 'Finance / Bank Statements',
+  suggestedMatches: 'Finance / Suggested Matches',
+  invoices: 'Finance / Invoices',
+  billingCategories: 'Finance / Billing Categories',
+  payslips: 'Finance / HR / Payroll',
+  financialAdjustments: 'Finance / Financial Adjustments',
+  refunds: 'Finance / Refunds',
+  registrationFees: 'Finance / Registration / Deposit Fees',
+  yearEndClosing: 'Finance / Year-End Financial Closing',
+  studentReports: 'Reporting / Student Reports',
+  report: 'Reporting / School Report',
+  sendInvoices: 'Reporting / Send Invoices to Parents',
+  exportReports: 'Reporting / Export Reports',
+  communicationHistory: 'Reporting / Communication History',
+  admissionsReport: 'Reporting / Admissions Report',
+  reenrolmentReport: 'Reporting / Re-Enrolment Report',
+  consentReport: 'Reporting / Consent Report',
+  yearEndReport: 'Reporting / Year-End Report'
+};
+
+const VIEW_MODULE = {
+  classes: 'school',
+  staff: 'school',
+  students: 'school',
+  parents: 'school',
+  attendance: 'school',
+  admissions: 'school',
+  reenrolment: 'school',
+  schoolSettings: 'school',
+  consentPermissions: 'school',
+  bank: 'finance',
+  outstanding: 'finance',
+  bankTransactions: 'finance',
+  bankStatements: 'finance',
+  suggestedMatches: 'finance',
+  invoices: 'finance',
+  billingCategories: 'finance',
+  payslips: 'finance',
+  financialAdjustments: 'finance',
+  refunds: 'finance',
+  registrationFees: 'finance',
+  yearEndClosing: 'finance',
+  studentReports: 'reporting',
+  report: 'reporting',
+  sendInvoices: 'reporting',
+  exportReports: 'reporting',
+  communicationHistory: 'reporting',
+  admissionsReport: 'reporting',
+  reenrolmentReport: 'reporting',
+  consentReport: 'reporting',
+  yearEndReport: 'reporting'
+};
+
+const VIEW_ROUTES = {
+  overview: '/sms',
+  school: '/school',
+  finance: '/school/finance',
+  reporting: '/school/reporting',
+  account: '/school/account',
+  settings: '/school/settings',
+  classes: '/school/classes',
+  staff: '/school/staff',
+  students: '/school/students',
+  parents: '/school/parents',
+  attendance: '/school/attendance',
+  admissions: '/school/admissions-enrolment',
+  reenrolment: '/school/re-enrolment-year-rollover',
+  schoolSettings: '/school/school-settings',
+  consentPermissions: '/school/consent-permissions',
+  bank: '/school/finance/bank-reconciliation',
+  outstanding: '/school/finance/outstanding-fees',
+  bankTransactions: '/school/finance/bank-transactions',
+  bankStatements: '/school/finance/bank-statements',
+  suggestedMatches: '/school/finance/suggested-matches',
+  invoices: '/school/finance/invoices',
+  billingCategories: '/school/finance/billing-categories',
+  payslips: '/school/finance/hr-payroll',
+  financialAdjustments: '/school/finance/financial-adjustments',
+  refunds: '/school/finance/refunds',
+  registrationFees: '/school/finance/registration-deposit-fees',
+  yearEndClosing: '/school/finance/year-end-financial-closing',
+  studentReports: '/school/reporting/student-reports',
+  report: '/school/reporting/school-report',
+  sendInvoices: '/school/reporting/send-invoices-to-parents',
+  exportReports: '/school/reporting/export-reports',
+  communicationHistory: '/school/reporting/communication-history',
+  admissionsReport: '/school/reporting/admissions-report',
+  reenrolmentReport: '/school/reporting/re-enrolment-report',
+  consentReport: '/school/reporting/consent-report',
+  yearEndReport: '/school/reporting/year-end-report'
+};
+
+const ROUTE_VIEWS = Object.fromEntries(Object.entries(VIEW_ROUTES).map(([view, route]) => [route, view]));
+
+const ACTION_VIEWS = {
+  'open-school': 'school',
+  'open-finance': 'finance',
+  'open-reporting': 'reporting',
+  'open-classes': 'classes',
+  'open-staff': 'staff',
+  'open-students': 'students',
+  'open-parents': 'parents',
+  'open-attendance': 'attendance',
+  'open-admissions': 'admissions',
+  'open-reenrolment': 'reenrolment',
+  'open-school-settings': 'schoolSettings',
+  'open-consent-permissions': 'consentPermissions',
+  'open-bank': 'bank',
+  'open-outstanding': 'outstanding',
+  'open-bank-transactions': 'bankTransactions',
+  'open-bank-statements': 'bankStatements',
+  'open-suggested-matches': 'suggestedMatches',
+  'open-invoices': 'invoices',
+  'open-billing-categories': 'billingCategories',
+  'open-hr-payroll': 'payslips',
+  'open-payslips': 'payslips',
+  'open-financial-adjustments': 'financialAdjustments',
+  'open-refunds': 'refunds',
+  'open-registration-fees': 'registrationFees',
+  'open-year-end-closing': 'yearEndClosing',
+  'open-student-reports': 'studentReports',
+  'open-report': 'report',
+  'open-send-invoices': 'sendInvoices',
+  'open-export-reports': 'exportReports',
+  'open-communication-history': 'communicationHistory',
+  'open-admissions-report': 'admissionsReport',
+  'open-reenrolment-report': 'reenrolmentReport',
+  'open-consent-report': 'consentReport',
+  'open-year-end-report': 'yearEndReport'
+};
+
 const state = {
   token: localStorage.getItem('smsToken'),
   user: JSON.parse(localStorage.getItem('smsUser') || 'null'),
@@ -160,8 +310,16 @@ function activeViewName() {
   return document.querySelector('.view.active')?.id?.replace(/View$/, '') || 'overview';
 }
 
+function viewFromPath() {
+  return ROUTE_VIEWS[window.location.pathname] || 'overview';
+}
+
+function navViewFor(viewName) {
+  return VIEW_MODULE[viewName] || viewName;
+}
+
 function isViewAllowed(viewName) {
-  return viewName !== 'schools';
+  return Boolean(document.getElementById(`${viewName}View`)) && viewName !== 'schools';
 }
 
 function applyRoleShell() {
@@ -330,6 +488,7 @@ function renderShell() {
   document.getElementById('profileRole').textContent = state.user.role;
   document.getElementById('profileSchool').textContent = state.user.schoolId || 'Global';
   document.getElementById('profileSchoolName').textContent = '-';
+  switchView(viewFromPath(), { replace: true });
   refreshData();
 }
 
@@ -1265,16 +1424,15 @@ function renderAdminControls() {
   });
 }
 
-function switchView(viewName) {
+function switchView(viewName, options = {}) {
   if (!isViewAllowed(viewName)) {
     viewName = 'overview';
   }
 
-  const groupedViews = ['school', 'finance', 'reporting'];
-  const isGroupedView = groupedViews.includes(viewName);
+  const activeNavView = navViewFor(viewName);
 
   document.querySelectorAll('.nav-item').forEach((item) => {
-    const isActive = item.dataset.view === viewName;
+    const isActive = item.dataset.view === activeNavView;
     item.classList.toggle('active', isActive);
     if (isActive) {
       item.setAttribute('aria-current', 'page');
@@ -1284,22 +1442,16 @@ function switchView(viewName) {
   });
 
   document.querySelectorAll('.view').forEach((view) => {
-    const isActive = isGroupedView
-      ? view.dataset.group === viewName
-      : view.id === `${viewName}View`;
-    view.classList.toggle('active', isActive);
+    view.classList.toggle('active', view.id === `${viewName}View`);
   });
 
-  const titles = {
-    overview: 'School Management Dashboard',
-    school: 'School',
-    finance: 'Finance',
-    reporting: 'Reporting',
-    account: 'Account',
-    settings: 'Settings'
-  };
+  const route = VIEW_ROUTES[viewName] || '/sms';
+  if (window.location.pathname !== route) {
+    const historyMethod = options.replace ? 'replaceState' : 'pushState';
+    window.history[historyMethod]({}, '', route);
+  }
 
-  elements.viewTitle.textContent = titles[viewName] || viewName.charAt(0).toUpperCase() + viewName.slice(1);
+  elements.viewTitle.textContent = VIEW_TITLES[viewName] || viewName.charAt(0).toUpperCase() + viewName.slice(1);
   elements.viewTitle.focus({ preventScroll: true });
 }
 
@@ -1930,69 +2082,8 @@ document.addEventListener('click', async (event) => {
   const id = button.dataset.id;
   const action = button.dataset.action;
 
-  if (action === 'open-classes') {
-    switchView('school');
-    return;
-  }
-
-  if (action === 'open-staff') {
-    switchView('school');
-    return;
-  }
-
-  if (action === 'open-students') {
-    switchView('school');
-    return;
-  }
-
-  if (action === 'open-parents') {
-    switchView('school');
-    elements.parentsModulePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    return;
-  }
-
-  if (action === 'open-bank') {
-    switchView('finance');
-    return;
-  }
-
-  if (action === 'open-outstanding') {
-    switchView('finance');
-    return;
-  }
-
-  if (action === 'open-payslips') {
-    switchView('finance');
-    return;
-  }
-
-  if (action === 'open-leave') {
-    switchView('finance');
-    return;
-  }
-
-  if (action === 'open-report') {
-    switchView('reporting');
-    return;
-  }
-
-  if (action === 'open-send-invoices') {
-    switchView('reporting');
-    return;
-  }
-
-  if (action === 'open-school') {
-    switchView('school');
-    return;
-  }
-
-  if (action === 'open-finance') {
-    switchView('finance');
-    return;
-  }
-
-  if (action === 'open-reporting') {
-    switchView('reporting');
+  if (ACTION_VIEWS[action]) {
+    switchView(ACTION_VIEWS[action]);
     return;
   }
 
@@ -2082,6 +2173,10 @@ document.addEventListener('click', async (event) => {
 
 document.querySelectorAll('.nav-item').forEach((button) => {
   button.addEventListener('click', () => switchView(button.dataset.view));
+});
+
+window.addEventListener('popstate', () => {
+  switchView(viewFromPath(), { replace: true });
 });
 
 document.querySelectorAll('.finance-tab').forEach((button) => {

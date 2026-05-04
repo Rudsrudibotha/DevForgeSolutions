@@ -121,9 +121,39 @@ SaaS Testing Requirement:
 
 ## Core Application Layout Requirement
 
-This section defines the required login, dashboard, section, visual layout, and data separation rules.
+This section defines the required login, dashboard, visual layout, and data separation rules.
 
-Do not split lower-level items into separate dashboard icons if they are meant to be sections. Only the main headings marked as Icon must appear as dashboard icons. Items marked as Section must appear inside the page that opens after clicking the icon.
+The system must use a 3-level layout:
+
+Level 1: Dashboard main navigation.
+Level 2: Module landing page with feature icons.
+Level 3: Dedicated feature page that shows only that feature's information.
+
+Correct flow:
+
+```text
+User logs in
+        |
+        v
+Dashboard home / side menu opens
+        |
+        v
+User clicks a main module such as School, Finance, or Reporting
+        |
+        v
+System opens that module landing page
+        |
+        v
+Landing page shows feature icons for that module
+        |
+        v
+User clicks a feature icon
+        |
+        v
+System opens a dedicated page for that feature only
+```
+
+Main module opens a module landing page. Module landing page shows feature icons. Feature icon opens a dedicated page. Dedicated feature page shows only that feature's forms, filters, tables, summaries, and actions.
 
 ### 1. Separate Login Links
 
@@ -247,31 +277,38 @@ The Platform Usage Report must:
 
 This dashboard is for client schools.
 
-The School Management Dashboard must only show these main icons:
+The School Management Dashboard side menu must include:
 
-```text
-[ School Icon ] [ Finance Icon ] [ Reporting Icon ]
-```
+- Home
+- School
+- Finance
+- Reporting
+- Account
+- Settings
 
-Do not show Staff, Learners, Parents, Classes, Bank Reconciliation, Outstanding Fees, Payslips, or Leave as separate dashboard icons.
+Do not show Staff, Learners, Parents, Classes, Bank Reconciliation, Outstanding Fees, Payslips, or Leave as Level 1 side menu items or Dashboard Home main icons.
 
-Those must be sections inside the correct opened page.
+Lower-level items such as Staff, Learners, Parents, Classes, Bank Reconciliation, Outstanding Fees, Payslips, and Leave must appear only as Level 2 feature icons inside the correct module landing page, and each feature icon must open its own Level 3 dedicated feature page.
+
+When the user clicks School, the system opens the School landing page showing School feature icons. When the user clicks Finance, the system opens the Finance landing page showing Finance feature icons. When the user clicks Reporting, the system opens the Reporting landing page showing Reporting feature icons. Each feature icon opens its own dedicated page.
 
 #### School Icon
 
-The School icon opens one School page.
+The School icon opens the School landing page.
 
-The School page must contain these sections:
+The School landing page must show these feature icons:
 
-- Classes Section
-- Staff Section
-- Students Section
-- Parents Section
-- Attendance Section
-- Admissions / Enrolment Section
-- Re-Enrolment / Year Rollover Section
-- School Settings Section
-- Consent and Permissions Section
+- Classes
+- Staff
+- Students
+- Parents
+- Attendance
+- Admissions / Enrolment
+- Re-Enrolment / Year Rollover
+- School Settings
+- Consent and Permissions
+
+Each icon opens a dedicated page for that feature only.
 
 ##### Classes Section
 
@@ -421,7 +458,7 @@ The Parents section must:
 - When a parent updates details in the Parent Dashboard, the change must appear for school approval before becoming final if approval is enabled.
 - Show pending parent detail changes.
 - Allow school staff to approve or reject parent detail changes.
-- Keep history of approved and refused changes.
+- Keep history of approved and rejected parent detail changes.
 - Only show parent communication logs and approval records for the logged-in School ID.
 
 ##### Attendance Section
@@ -667,35 +704,182 @@ The Consent and Permissions section must:
 
 #### Finance Icon
 
-The Finance icon opens one Finance page.
+The Finance icon opens the Finance landing page.
 
-The Finance page must contain these sections:
+The Finance landing page must show only Finance feature icons / tiles. Do not show Bank Reconciliation, Outstanding Fees, Bank Transactions, Bank Statements, and Suggested Matches all on the same page.
 
-- Bank Reconciliation Section
-- Outstanding Fees Section
-- Invoices Section
-- Billing Categories Section
-- HR / Payroll Section
-- Financial Adjustments Section
-- Refunds Section
-- Registration / Deposit Fee Section
-- Year-End Financial Closing Section
+Finance landing page icons:
+
+- Bank Reconciliation
+- Outstanding Fees
+- Bank Transactions
+- Bank Statements
+- Suggested Matches
+- Invoices
+- Billing Categories
+- HR / Payroll
+- Financial Adjustments
+- Refunds
+- Registration / Deposit Fees
+- Year-End Financial Closing
+
+Each icon opens a dedicated page for that feature only.
+
+Finance routes:
+
+- /school/finance
+- /school/finance/bank-reconciliation
+- /school/finance/outstanding-fees
+- /school/finance/bank-transactions
+- /school/finance/bank-statements
+- /school/finance/suggested-matches
+- /school/finance/invoices
+- /school/finance/billing-categories
+- /school/finance/hr-payroll
+- /school/finance/financial-adjustments
+- /school/finance/refunds
+- /school/finance/registration-deposit-fees
+- /school/finance/year-end-financial-closing
+
+Each route must only show that feature's own information.
 
 ##### Bank Reconciliation Section
 
-The Bank Reconciliation section must:
+The Bank Reconciliation icon on the Finance landing page opens the Bank Reconciliation dedicated page.
 
-- Keep bank reconciliation as it currently is.
+The Bank Reconciliation dedicated page must:
+
+- Look and behave like a bank statement view.
+- Show imported bank transactions in a statement-style table.
 - Allow users to allocate payments to invoices.
 - Allow users to allocate funds paid in advance.
 - Allow payment to be allocated as advance credit.
 - Store advance payments as credit.
 - Use advance credit against future invoices.
 - Only show bank reconciliation records for the logged-in School ID.
-- Add reconciliation status summary.
+- Show reconciliation status summary.
 - Show count of matched, unmatched, pending, and advance credit transactions.
 - Show reconciliation totals for selected date range.
 - Only show reconciliation summary for the logged-in School ID.
+
+The Bank Reconciliation dedicated page must include:
+- Upload bank statement area.
+- Bank statement import summary.
+- Statement-style bank transaction table.
+- Suggested matches area.
+- Manual allocation action per transaction row.
+- Allocation status per transaction.
+- Audit-safe transaction details that are never altered after import.
+
+Bank Reconciliation Page Layout:
+- The Bank Reconciliation page must look and behave like a bank statement view.
+- Each row must represent one bank transaction.
+- The user must be able to allocate a payment directly from the transaction row.
+- The page must only show bank transactions for the logged-in SchoolID.
+
+Bank Statement Table Columns:
+- Payment Date
+- Exact Bank Reference Used
+- Description if available
+- Debit Amount
+- Credit Amount
+- Transaction Amount
+- Allocation Status
+- Allocated To
+- Action
+
+Required Bank Transaction Details:
+- Payment date must show the exact transaction/payment date from the bank statement.
+- Bank reference must show the exact reference used on the bank statement.
+- Amount must show the exact amount from the bank statement.
+- The system must not alter or overwrite the original bank reference.
+- The original imported transaction data must remain stored for audit purposes.
+
+Payment Allocation Search Field:
+- Each unallocated payment row must have one search field used to find the correct student/family account.
+- The search field must allow searching by:
+  - Family code
+  - Student name
+  - Student surname
+  - Parent name
+  - Parent surname
+  - Parent cell number
+- The search field must return only matching records from the logged-in SchoolID.
+- The search results must not show students or families from another school.
+- The user must be able to select the correct student or family from the search results.
+- After selecting the student or family, the user must be able to allocate the payment.
+
+Allocation Behaviour:
+- If the selected student/family has outstanding invoices, the system must allow the user to allocate the payment to one or more invoices.
+- If the payment is more than the outstanding amount, the remaining amount must be stored as advance credit.
+- If the payment is less than the outstanding amount, the invoice must be marked as partially paid where applicable.
+- If there is no outstanding invoice, the payment may be allocated as advance credit.
+- The user must confirm the allocation before it is saved.
+- The allocation must update the transaction status from Unallocated to Allocated or Partially Allocated where applicable.
+- The allocation must remain linked to the bank transaction, student/family account, invoice if applicable, user, and logged-in SchoolID.
+
+Statement-Style Behaviour:
+- Imported bank transactions must display in date order.
+- The user must be able to filter by date range.
+- The user must be able to filter by allocation status.
+- The user must be able to search by bank reference.
+- The user must be able to search by amount.
+- The user must be able to search by student/family after allocation.
+- The original payment date, reference, and amount must always remain visible.
+
+Bank Reconciliation Audit Rules:
+- Bank statement upload must be audit logged.
+- Payment allocation must be audit logged.
+- Allocation correction must be audit logged.
+- Unallocation must be audit logged.
+- The audit log must record:
+  - User who allocated the payment
+  - Date and time of allocation
+  - Bank transaction ID
+  - Original bank reference
+  - Original payment date
+  - Original amount
+  - Student/family selected
+  - Invoice selected if applicable
+  - Amount allocated
+  - Remaining advance credit if applicable
+  - Logged-in SchoolID
+
+Bank Reconciliation Permissions:
+- Viewing the Bank Reconciliation page requires finance.bank_reconciliation.view.
+- Allocating a payment requires finance.payments.allocate.
+- Correcting or unallocating a payment requires finance.bank_reconciliation.correct.
+- All permission checks must be enforced in the backend.
+
+Suggested Matches Placement:
+- Suggested matches must appear inside the Bank Reconciliation workflow after a bank statement is uploaded.
+- Suggested Matches may also have a separate Finance icon, but suggestions must still appear inside Bank Reconciliation because that is where reconciliation happens.
+- Correct flow:
+  - User uploads bank statement.
+  - System imports valid cleared transactions up to previous day.
+  - System detects possible invoice or account matches.
+  - Suggested matches appear on the Bank Reconciliation page.
+  - User approves, rejects, or manually allocates.
+
+Bank Transaction Statuses:
+- Imported
+- Unallocated
+- Suggested Match
+- Allocated
+- Partially Allocated
+- Cleared
+- Duplicate
+- Ignored
+- Reversed
+
+Bank Statement Import Rules:
+- The import must only process cleared / posted payments.
+- Pending payments must not be treated as cleared payments.
+- Current-day transactions must be ignored or staged as pending.
+- The system must use a unique bank transaction key to prevent duplicates.
+- Re-uploading the same bank statement must not create duplicate transactions.
+- The import must show total rows, rows imported, rows skipped as duplicates, rows skipped as pending, and rows requiring review.
+- Import results must be audit logged.
 
 Example:
 
@@ -727,6 +911,47 @@ The Outstanding Fees section must:
 - Allow finance staff to record promised payment date, amount, note, and responsible parent.
 - Show promise-to-pay status in the outstanding fees view.
 - Only show reminder rules and promise-to-pay records for the logged-in School ID.
+
+Outstanding Fees Export Requirements:
+- The Outstanding Fees page must allow authorised finance users to export the outstanding fees table.
+- Export must only include records for the logged-in SchoolID.
+- Export must respect the filters selected on the screen.
+- Export must include:
+  - School name
+  - Export date
+  - Student name
+  - Student surname
+  - Class
+  - Family code
+  - Parent 1 cell number
+  - Parent 2 cell number
+  - Responsible payer where available
+  - January outstanding amount
+  - February outstanding amount
+  - March outstanding amount
+  - April outstanding amount
+  - May outstanding amount
+  - June outstanding amount
+  - July outstanding amount
+  - August outstanding amount
+  - September outstanding amount
+  - October outstanding amount
+  - November outstanding amount
+  - December outstanding amount
+  - Total outstanding amount
+  - Promise-to-pay status if available
+  - Promised payment date if available
+- CSV export must be supported as the minimum required format.
+- Excel export can be added if already supported.
+- PDF export can remain a future option if not currently implemented.
+- Export must require the correct export permission.
+- Export action must be audit logged.
+- If export fails, the system must show a clear error message.
+- The system must not download an empty or broken file.
+
+Outstanding Fees Export Permission:
+- Viewing Outstanding Fees requires finance.outstanding_fees.view.
+- Exporting Outstanding Fees requires reports.finance.export or finance.outstanding_fees.export.
 
 Example:
 
@@ -889,6 +1114,95 @@ Payslip Statuses:
 - Add staff contract expiry alerts.
 - If a contract end date is captured, alert HR users when the contract is expiring within 30 or 60 days.
 - Only show payroll summaries, leave calendars, and contract alerts for the logged-in School ID.
+
+###### Employee Payroll Details
+
+- The system must store employee payroll details for future payslip generation.
+- Employee payroll details must include:
+  - Employee number
+  - Employee name
+  - Employee surname
+  - ID number or passport number
+  - Tax number
+  - UIF number if applicable
+  - Job title
+  - Department
+  - Employment start date
+  - Payment method
+  - Bank name
+  - Bank account number
+  - Branch code
+  - Account type
+  - Basic salary
+  - Standard allowances
+  - Standard deductions
+  - Tax / PAYE settings if configured
+  - UIF or statutory deduction settings if configured
+  - SchoolID
+- Sensitive employee payroll fields must require HR / Payroll permission.
+- Sensitive employee payroll field access must be audit logged.
+
+###### Payslip Generation from Previous Month
+
+- When generating a new payslip, the system must use the previous month's finalized payslip figures as the starting point where available.
+- The user selects employee.
+- The user selects pay period.
+- The system checks if the employee has a previous finalized payslip.
+- If a previous finalized payslip exists, copy the previous month's figures into the new payslip draft.
+- If no previous payslip exists, use the employee's saved payroll defaults.
+- The new payslip must be created as Draft.
+- The user must be able to edit all draft figures before finalizing.
+- Editing the new payslip must not change the previous month's payslip.
+- Previous payslips must remain historical and unchanged.
+
+###### Printable Payslip Layout
+
+- Payslips must be viewable and printable.
+- Printable payslip must include:
+
+School details:
+  - School logo
+  - School name
+  - School address
+  - School contact number
+  - School email address
+  - School registration number if available
+
+Employee details:
+  - Employee number
+  - Employee name and surname
+  - ID number or passport number
+  - Tax number
+  - UIF number if applicable
+  - Job title
+  - Department
+  - Pay period
+  - Payment date
+
+Payslip financial details:
+  - Basic salary
+  - Allowances
+  - Overtime
+  - Bonus
+  - Gross pay
+  - Deductions
+  - Leave deduction
+  - Tax / PAYE if configured
+  - UIF or statutory deductions if configured
+  - Other deductions
+  - Total deductions
+  - Net pay
+  - Notes
+
+Payslip footer:
+  - Generated date
+  - Generated by
+  - Approved by where applicable
+  - Finalized date where applicable
+
+- The payslip print layout must be clean and professional.
+- The payslip must use the logged-in school's logo and address.
+- Payslips from another school must never be visible or printable.
 
 ###### Leave Management
 
@@ -1075,19 +1389,21 @@ Year-End Carry Forward Rules:
 - All year-end actions must be audit logged.
 - Users from one school must never view, close, reopen, or change another school's year-end records.
 
-The Reporting icon opens one Reporting page.
+The Reporting icon opens the Reporting landing page.
 
-The Reporting page must contain these sections:
+The Reporting landing page must show these feature icons:
 
-- Student Reports Section
-- School Report Section
-- Send Invoices to Parents Section
-- Export Reports Section
-- Communication History Section
-- Admissions Report Section
-- Re-Enrolment Report Section
-- Consent Report Section
-- Year-End Report Section
+- Student Reports
+- School Report
+- Send Invoices to Parents
+- Export Reports
+- Communication History
+- Admissions Report
+- Re-Enrolment Report
+- Consent Report
+- Year-End Report
+
+Each icon opens a dedicated page for that feature only.
 
 ##### Student Reports Section
 
@@ -1242,9 +1558,23 @@ The Parent Management Dashboard must have its own separate login link:
 /parent-login
 ```
 
-The Parent Management Dashboard should be structured as sections, not split unnecessarily.
+The Parent Management Dashboard home page must show these main icons:
 
-Parent dashboard sections:
+- My Child
+- Account
+- Notifications
+- Admissions / Re-Enrolment
+- Consent
+
+Each Parent icon opens its own dedicated page:
+
+- Parent -> My Child
+- Parent -> Account
+- Parent -> Notifications
+- Parent -> Admissions / Re-Enrolment
+- Parent -> Consent
+
+Each dedicated Parent page must show only that feature's own information, actions, filters, tables, and audit-safe details.
 
 #### My Child Section
 
@@ -1344,11 +1674,14 @@ Add this flow:
 
 ```text
 School user logs in with School ID SCH001
-        ↓
+        |
+        v
 System confirms user belongs to SCH001
-        ↓
+        |
+        v
 System loads only SCH001 data
-        ↓
+        |
+        v
 School B data is never shown
 ```
 
@@ -1557,6 +1890,7 @@ Finance permissions:
 - finance.payments.allocate
 - finance.bank_reconciliation.view
 - finance.bank_reconciliation.approve_match
+- finance.bank_reconciliation.correct
 - finance.outstanding_fees.view
 - finance.billing_categories.manage
 - finance.discounts.manage
@@ -1735,7 +2069,44 @@ For the School Management Dashboard, the main visual should be:
 ---------------------------------------------------------
 ```
 
-When a user clicks School, Finance, or Reporting, the opened page must show the relevant sections on that page.
+When a user clicks School, Finance, or Reporting, the system opens that module's landing page showing feature icons. Each feature icon opens a dedicated page for that feature only.
+
+#### Individual Icon Asset Requirement
+
+- Each dashboard icon must be created and saved as a separate individual asset.
+- Do not use one combined image for all dashboard icons.
+- Do not crop a single combined image manually as the final implementation approach.
+- Each icon must be its own separate file.
+- Prefer SVG for production icons.
+- PNG can be added as a fallback.
+- Use transparent background for individual icons where possible.
+- Use the same blue/navy icon style across all icons.
+- Each icon file must be named clearly and consistently.
+- Icon labels must be rendered by the application UI, not baked into the icon image.
+- The icon image should contain only the icon graphic.
+- The tile/card, label, hover effect, and spacing must be handled by CSS/UI components.
+
+#### Icon Naming Convention
+
+Icon files must be stored in `/public/assets/icons/` and follow this naming convention:
+
+Main navigation: icon-nav-home.svg, icon-nav-school.svg, icon-nav-finance.svg, icon-nav-reporting.svg, icon-nav-account.svg, icon-nav-settings.svg
+
+DevForge: icon-devforge-schools.svg, icon-devforge-users.svg, icon-devforge-audit.svg
+
+School module: icon-school-classes.svg, icon-school-staff.svg, icon-school-students.svg, icon-school-parents.svg, icon-school-attendance.svg, icon-school-admissions-enrolment.svg, icon-school-re-enrolment-year-rollover.svg, icon-school-settings.svg, icon-school-consent-permissions.svg
+
+Finance module: icon-finance-bank-reconciliation.svg, icon-finance-outstanding-fees.svg, icon-finance-bank-transactions.svg, icon-finance-bank-statements.svg, icon-finance-suggested-matches.svg, icon-finance-invoices.svg, icon-finance-billing-categories.svg, icon-finance-hr-payroll.svg, icon-finance-financial-adjustments.svg, icon-finance-refunds.svg, icon-finance-registration-deposit-fees.svg, icon-finance-year-end-financial-closing.svg
+
+Reporting module: icon-reporting-student-reports.svg, icon-reporting-school-report.svg, icon-reporting-send-invoices-to-parents.svg, icon-reporting-export-reports.svg, icon-reporting-communication-history.svg, icon-reporting-admissions-report.svg, icon-reporting-re-enrolment-report.svg, icon-reporting-consent-report.svg, icon-reporting-year-end-report.svg
+
+Parent dashboard: icon-parent-my-child.svg, icon-parent-account.svg, icon-parent-notifications.svg, icon-parent-admissions-re-enrolment.svg, icon-parent-consent.svg
+
+#### Icon UI Implementation Rule
+
+- The application must use reusable icon tile components.
+- Each icon tile must contain: icon image, title label, optional short description, permission check, and route target.
+- Icons must be hidden or disabled if the user does not have permission.
 
 ### 7. Final Navigation Behaviour
 
@@ -1743,29 +2114,51 @@ Use this flow:
 
 ```text
 Separate login link
-        ↓
+        |
+        v
 User logs in
-        ↓
+        |
+        v
 System validates access
-        ↓
-Dashboard home opens
-        ↓
-Dashboard shows main icons
-        ↓
-User clicks icon
-        ↓
-Separate page opens for that icon
-        ↓
-Page shows the required sections, actions, filters, summary/chart, and tables
+        |
+        v
+Dashboard home / side menu opens
+        |
+        v
+User clicks a main module (School, Finance, Reporting)
+        |
+        v
+Module landing page opens with feature icons
+        |
+        v
+User clicks a feature icon
+        |
+        v
+Dedicated feature page opens
+        |
+        v
+Page shows only that feature's forms, filters, tables, summaries, and actions
 ```
 
 ### 8. README Update Requirement
 
-The README must clearly reflect this exact structure.
+The README must clearly reflect the 3-level layout structure.
 
-The README must not say that Staff, Learners, Parents, Classes, Bank Reconciliation, Outstanding Fees, Payslips, or Leave are main dashboard icons.
+The README must not say that Staff, Learners, Parents, Classes, Bank Reconciliation, Outstanding Fees, Payslips, or Leave are main dashboard icons or side menu items.
 
-They must be described as sections under School or Finance.
+Main module opens a module landing page. Module landing page shows feature icons. Feature icon opens a dedicated page. Dedicated feature page shows only that feature's forms, filters, tables, summaries, and actions.
+
+The layout must not change the existing security model:
+
+- Azure SaaS multi-tenant structure stays in place.
+- SchoolID isolation stays in place.
+- Backend must enforce SchoolID separation.
+- Parent users must only access their own child or children.
+- Teachers must only access assigned classes unless given extra permission.
+- Finance and HR permissions must stay separate.
+- Sensitive data must require explicit permission.
+- Export permissions must be separate from view permissions.
+- All sensitive actions must be audit logged.
 
 ## Local Development
 
@@ -1787,7 +2180,7 @@ Run the database setup script:
 npm run setup-db
 ```
 
-Run this again after schema changes so new tables and columns such as reconciliation matches, user activation flags, default monthly fee, and payment instructions are applied.
+Run this again after schema changes so new tables and columns such as reconciliation matches and user activation flags are applied.
 
 Once the server starts, open the local app in your browser.
 
@@ -1798,6 +2191,7 @@ Once the server starts, open the local app in your browser.
 
 ## Change History
 
+- **Three-level dashboard layout:** Updated the README and school/parent dashboard wiring to use Level 1 side navigation, Level 2 module landing pages with feature icons, and Level 3 dedicated feature pages. School, Finance, Reporting, DevForge, and Parent navigation now match the final layout rules.
 - **Port fallback:** Updated `src/app.js` to automatically try the next port if `3000` is already in use.
 - **Static route fix:** Disabled Express static index file serving so `/` now correctly serves `public/login.html` instead of `public/index.html`.
 - **Login card square:** Made the login card square with `aspect-ratio: 1` in `public/styles.css`.
@@ -1845,7 +2239,7 @@ Once the server starts, open the local app in your browser.
 - **Expanded audit logging:** Successful logins, school additions, school suspensions, school activations, and DevForge user creation now write audit activity.
 - **School HR UI wiring:** Connected the school Staff, Leave, and Payslips pages to the existing `/api/employees`, `/api/leaves`, and `/api/payslips` modules.
 - **Parent dashboard grouping:** Reworked `/parent` into My Child and Account sections. Attendance and detail updates live inside My Child so the parent dashboard is not over-split.
-- **Dashboard wiring verification:** Confirmed the separate DevForge, School, and Parent login/dashboard flows. Wired school Classes and Attendance sections into the School page, scoped class capacity and parent attendance access checks, made HR payslip denial non-fatal for school dashboard loading, and added idempotent schema repair for school payment settings columns.
+- **README wiring verification:** Confirmed the separate DevForge, School, and Parent login/dashboard flows. Wired school Classes and Attendance sections into the School page, scoped class capacity and parent attendance access checks, made HR payslip denial non-fatal for school dashboard loading, and added idempotent schema repair for school payment settings columns.
 - **HR payslip permissions:** Added `HasHrPermission` flag on Users, `AllowStaffPayslipView` toggle on Schools, and `IsFinalized`/`FinalizedDate` on Payslips. Payslip list, view, create, and finalize endpoints now enforce HR permission. Staff can only view their own payslips if the school explicitly allows it. All payslip access is audit-logged. Finalized payslips are read-only historical records.
 - **Billing category term calculation fix:** Fixed `calculateInvoiceAmount` so it divides `BaseAmount` by the term months instead of returning the full amount. Supports named frequencies (Monthly, Quarterly, Annually) and numeric terms (3, 6, 10, 12). For example a R3 600 Quarterly category now correctly generates R1 200 monthly invoices.
 - **Attendance module:** Added `Attendance` table, `attendanceRepository`, `attendanceService`, and `/api/attendance` routes. Supports daily capture, bulk recording, student history, and class summary with present/absent/late/excused counts.
@@ -1958,12 +2352,9 @@ The current vertical slice includes:
 - DevForge audit page for recent system activity.
 - Family and student management, including student status filters and departure/inactive workflow.
 - Icon-based dashboard navigation grouped into clear sections.
-- DevForge dashboard home shows only Schools, Users, and Audit as main dashboard icons.
-- School dashboard main icons for School, Finance, and Reporting, with lower-level functions presented as sections inside those pages.
-- School page sections include Classes, Staff, Students, Parents, and Attendance.
-- Classes section is wired to `/api/classes` for class creation, teacher assignment selection, search, and school-scoped class display.
-- Attendance section is wired to `/api/attendance` for daily present, absent, late, and excused capture by student and date.
-- Class capacity checks are scoped through the authenticated user so school users can only check classes for their own School ID.
+- School dashboard side menu for Home, School, Finance, Reporting, Account, and Settings.
+- School module landing pages for School, Finance, and Reporting, with lower-level functions presented as Level 2 feature icons.
+- Dedicated Level 3 feature pages for each School, Finance, and Reporting feature so one module page does not contain all feature content.
 - Learner-style pages with actions, search, filters, summary charts, pagination, and data tables.
 - Invoice creation, listing, partial payment recording, payment marking, and deletion.
 - Billing category management per school.
@@ -1973,27 +2364,12 @@ The current vertical slice includes:
 - Outstanding Fees year-calendar view showing outstanding amounts under the correct month.
 - Audit activity review for recent account and finance changes.
 - Employee management, leave requests, and payslips HR.
-- HR payslip permission denial is shown inside the Payslips section and does not stop the rest of the School dashboard from loading.
-- Parent dashboard is grouped into My Child and Account sections. Attendance and detail updates live inside My Child.
-- Parent portal with linked child information, attendance history, update details, invoices, statements, balance, and advance credit views.
-- Parent attendance routes verify that the requested student is linked to the logged-in parent.
+- Parent portal with child information, update details, invoice, statement, and balance views.
 - Partial payments and overdue invoice flagging.
 - CSV export for invoices, transactions, students, and employees.
 - Role-based dashboard metrics.
 - School-user views scoped to the signed-in school.
 - Suspended-school access blocking for school staff.
-- The `Schools` schema setup is idempotent for payment settings columns used by school creation and account settings.
-
-## Latest Local Verification
-
-The latest local wiring pass confirmed:
-
-- JavaScript syntax checks pass for all `.js` files.
-- Frontend scripts do not reference missing DOM IDs in `public/index.html`, `public/devforge.html`, `public/parent.html`, or `public/login.html`.
-- `npm run setup-db` applies the current schema successfully.
-- `/health` returns `OK` with an active database connection.
-- `/devforge-login`, `/school-login`, `/parent-login`, `/sms`, `/devforge`, and `/parent` all return HTTP 200 locally.
-- DevForge, school, and parent API smoke checks pass against the connected database.
 
 ## Pending Integrations
 

@@ -234,6 +234,51 @@ class InvoiceRepository {
     return result.recordset[0];
   }
 
+  async getOutstandingFeesExport(schoolId, year) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('schoolId', sql.Int, schoolId)
+      .input('year', sql.Int, year || new Date().getFullYear())
+      .query(`
+        SELECT s.StudentID, s.FirstName, s.LastName, s.ClassName,
+          f.FamilyName AS FamilyCode,
+          f.PrimaryParentPhone, f.SecondaryParentPhone, f.PrimaryParentName AS ResponsiblePayer,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 1 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month1,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 2 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month2,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 3 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month3,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 4 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month4,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 5 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month5,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 6 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month6,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 7 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month7,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 8 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month8,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 9 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month9,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 10 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month10,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 11 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month11,
+          ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 12 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month12,
+          ISNULL(SUM(i.Amount - ISNULL(i.AmountPaid,0)), 0) AS TotalOutstanding,
+          sc.SchoolName,
+          ptp.Status AS PromiseToPayStatus,
+          ptp.PromisedDate AS PromisedPaymentDate
+        FROM Invoices i
+        INNER JOIN Students s ON i.StudentID = s.StudentID
+        INNER JOIN Families f ON s.FamilyID = f.FamilyID
+        INNER JOIN Schools sc ON i.SchoolID = sc.SchoolID
+        LEFT JOIN (
+          SELECT FamilyID, Status, PromisedDate,
+            ROW_NUMBER() OVER (PARTITION BY FamilyID ORDER BY CreatedDate DESC) AS rn
+          FROM PromiseToPay
+        ) ptp ON f.FamilyID = ptp.FamilyID AND ptp.rn = 1
+        WHERE i.SchoolID = @schoolId AND i.IsDeleted = 0 AND i.Status <> 'Paid'
+          AND YEAR(i.IssueDate) = @year
+        GROUP BY s.StudentID, s.FirstName, s.LastName, s.ClassName,
+          f.FamilyName, f.PrimaryParentPhone, f.SecondaryParentPhone, f.PrimaryParentName,
+          sc.SchoolName, ptp.Status, ptp.PromisedDate
+        HAVING SUM(i.Amount - ISNULL(i.AmountPaid,0)) > 0
+        ORDER BY s.LastName, s.FirstName
+      `);
+    return result.recordset;
+  }
+
   // Flag overdue invoices
   async flagOverdueInvoices() {
     const pool = await getPool();

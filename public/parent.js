@@ -257,6 +257,10 @@ function renderAttendance() {
 }
 
 function switchView(viewName) {
+  if (!document.getElementById(`${viewName}View`)) {
+    viewName = 'overview';
+  }
+
   document.querySelectorAll('.nav-item').forEach((item) => {
     const isActive = item.dataset.view === viewName;
     item.classList.toggle('active', isActive);
@@ -268,16 +272,16 @@ function switchView(viewName) {
   });
 
   document.querySelectorAll('.view').forEach((view) => {
-    const isActive = view.dataset.group === viewName || view.id === `${viewName}View`;
-    view.classList.toggle('active', isActive);
+    view.classList.toggle('active', view.id === `${viewName}View`);
   });
 
   const titles = {
     overview: 'Parent Management Dashboard',
     students: 'My Child',
-    attendance: 'Attendance',
-    details: 'Update Details',
-    account: 'Account'
+    account: 'Account',
+    notifications: 'Notifications',
+    admissions: 'Admissions / Re-Enrolment',
+    consent: 'Consent'
   };
 
   elements.viewTitle.textContent = titles[viewName] || viewName.charAt(0).toUpperCase() + viewName.slice(1);
@@ -321,9 +325,10 @@ document.addEventListener('click', (event) => {
 
   const actions = {
     'open-child': 'students',
-    'open-attendance': 'students',
-    'open-details': 'students',
-    'open-account': 'account'
+    'open-account': 'account',
+    'open-notifications': 'notifications',
+    'open-admissions': 'admissions',
+    'open-consent': 'consent'
   };
   const viewName = actions[button.dataset.action];
 

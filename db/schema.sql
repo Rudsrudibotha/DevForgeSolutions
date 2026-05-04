@@ -1314,3 +1314,213 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Schools_NormalizedScho
 BEGIN
     CREATE UNIQUE INDEX UX_Schools_NormalizedSchoolName ON dbo.Schools(NormalizedSchoolName);
 END;
+
+-- =============================================
+-- FINANCE FIXES: Transaction allocation, Employee payroll, Payslip details, Bank statement import
+-- =============================================
+
+-- Transaction allocation status and type
+IF COL_LENGTH('dbo.Transactions', 'AllocationStatus') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD AllocationStatus NVARCHAR(50) NOT NULL DEFAULT 'Unallocated';
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'AllocationType') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD AllocationType NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'FamilyID') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD FamilyID INT NULL;
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'StudentID') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD StudentID INT NULL;
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'AllocatedBy') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD AllocatedBy INT NULL;
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'AllocatedDate') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD AllocatedDate DATETIME NULL;
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'BankTransactionKey') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD BankTransactionKey NVARCHAR(500) NULL;
+END;
+
+-- Bank statement import tracking columns
+IF COL_LENGTH('dbo.BankStatements', 'UploadedBy') IS NULL
+BEGIN
+    ALTER TABLE dbo.BankStatements ADD UploadedBy INT NULL;
+END;
+
+IF COL_LENGTH('dbo.BankStatements', 'TotalRows') IS NULL
+BEGIN
+    ALTER TABLE dbo.BankStatements ADD TotalRows INT NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.BankStatements', 'RowsImported') IS NULL
+BEGIN
+    ALTER TABLE dbo.BankStatements ADD RowsImported INT NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.BankStatements', 'RowsSkippedDuplicate') IS NULL
+BEGIN
+    ALTER TABLE dbo.BankStatements ADD RowsSkippedDuplicate INT NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.BankStatements', 'RowsSkippedPending') IS NULL
+BEGIN
+    ALTER TABLE dbo.BankStatements ADD RowsSkippedPending INT NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.BankStatements', 'StatementEndDate') IS NULL
+BEGIN
+    ALTER TABLE dbo.BankStatements ADD StatementEndDate DATE NULL;
+END;
+
+-- Employee payroll detail fields
+IF COL_LENGTH('dbo.Employees', 'IdNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD IdNumber NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'PassportNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD PassportNumber NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'TaxNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD TaxNumber NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'UifNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD UifNumber NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'PaymentMethod') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD PaymentMethod NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'BankName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD BankName NVARCHAR(100) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'BankAccountNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD BankAccountNumber NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'BranchCode') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD BranchCode NVARCHAR(20) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'AccountType') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD AccountType NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'StandardAllowances') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD StandardAllowances DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'StandardDeductions') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD StandardDeductions DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'TaxPaye') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD TaxPaye DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'UifDeduction') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD UifDeduction DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+-- Payslip detail fields for itemised payslip
+IF COL_LENGTH('dbo.Payslips', 'BasicSalary') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD BasicSalary DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'Allowances') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD Allowances DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'Overtime') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD Overtime DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'Bonus') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD Bonus DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'LeaveDeduction') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD LeaveDeduction DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'TaxPaye') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD TaxPaye DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'UifDeduction') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD UifDeduction DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'OtherDeductions') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD OtherDeductions DECIMAL(10,2) NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'PaymentDate') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD PaymentDate DATE NULL;
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'Status') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD Status NVARCHAR(50) NOT NULL DEFAULT 'Draft';
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'CreatedBy') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD CreatedBy INT NULL;
+END;
+
+IF COL_LENGTH('dbo.Payslips', 'FinalizedBy') IS NULL
+BEGIN
+    ALTER TABLE dbo.Payslips ADD FinalizedBy INT NULL;
+END;
+
+-- Index for transaction duplicate key checking
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_BankTransactionKey' AND object_id = OBJECT_ID('dbo.Transactions'))
+BEGIN
+    CREATE INDEX IX_Transactions_BankTransactionKey ON dbo.Transactions(BankTransactionKey) WHERE BankTransactionKey IS NOT NULL;
+END;
+
+-- Index for transaction allocation status
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_AllocationStatus' AND object_id = OBJECT_ID('dbo.Transactions'))
+BEGIN
+    CREATE INDEX IX_Transactions_AllocationStatus ON dbo.Transactions(SchoolID, AllocationStatus);
+END;

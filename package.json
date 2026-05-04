@@ -10,7 +10,9 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "setup-db": "node setup-db.js",
-    "clean-db": "node clean-db.js"
+    "clean-db": "node clean-db.js",
+    "seed-db": "node seed-db.js",
+    "seed-test-data": "node seed-school-test-data.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
