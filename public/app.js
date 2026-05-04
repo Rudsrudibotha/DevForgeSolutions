@@ -212,7 +212,8 @@ const state = {
   studentStatusFilter: 'active',
   selectedDepartureStudentId: null,
   studentSearchQuery: '',
-  studentSearchType: 'Student name'
+  studentSearchType: 'Student name',
+  editingClassId: null
 };
 
 const elements = {
@@ -256,6 +257,9 @@ const elements = {
   classTeacherSelect: document.getElementById('classTeacherSelect'),
   classSearchInput: document.getElementById('classSearchInput'),
   classesTable: document.getElementById('classesTable'),
+  editClassId: document.getElementById('editClassId'),
+  classSubmitButton: document.getElementById('classSubmitButton'),
+  cancelClassEditButton: document.getElementById('cancelClassEditButton'),
   attendanceForm: document.getElementById('attendanceForm'),
   attendanceStudentSelect: document.getElementById('attendanceStudentSelect'),
   attendanceDateInput: document.getElementById('attendanceDateInput'),
@@ -997,6 +1001,30 @@ function renderStudentsTable() {
   }).join('') || '<tr><td colspan="6">No students found.</td></tr>';
 }
 
+
+function editClass(classId) {
+  const cls = state.classes.find((c) => c.ClassID === classId);
+  if (!cls) return;
+  state.editingClassId = classId;
+  elements.editClassId.value = classId;
+  elements.classForm.elements.className.value = cls.ClassName || '';
+  elements.classForm.elements.capacity.value = cls.Capacity || '';
+  // Set teacher dropdown
+  if (elements.classTeacherSelect) {
+    elements.classTeacherSelect.value = cls.TeacherID || '';
+  }
+  elements.classSubmitButton.textContent = 'Save Changes';
+  elements.cancelClassEditButton.classList.remove('hidden');
+}
+
+function resetClassForm() {
+  state.editingClassId = null;
+  elements.editClassId.value = '';
+  elements.classForm.reset();
+  elements.classSubmitButton.textContent = 'Add Class';
+  elements.cancelClassEditButton.classList.add('hidden');
+}
+
 function filteredClasses() {
   const search = String(elements.classSearchInput?.value || '').trim().toLowerCase();
 
@@ -1027,9 +1055,17 @@ function renderClasses() {
         <td>${escapeHtml(teacherName)}</td>
         <td>${escapeHtml(item.StudentCount ?? 0)}${item.Capacity ? ` / ${escapeHtml(item.Capacity)}` : ''}</td>
         <td><span class="${isActive ? 'badge' : 'badge danger'}">${isActive ? 'Active' : 'Inactive'}</span></td>
+        <td>
+          <div class="actions">
+            <button class="ghost-button" data-action="edit-class" data-id="${item.ClassID}" type="button">Edit</button>
+            ${isActive
+              ? `<button class="ghost-button" data-action="deactivate-class" data-id="${item.ClassID}" type="button">Deactivate</button>`
+              : `<button class="ghost-button" data-action="activate-class" data-id="${item.ClassID}" type="button">Activate</button>`}
+          </div>
+        </td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="5">No class records found.</td></tr>';
+  }).join('') || '<tr><td colspan="6">No class records found.</td></tr>';
 }
 
 function renderAttendance() {
@@ -1892,20 +1928,30 @@ elements.classForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   try {
-    setFormBusy(elements.classForm, true, 'Adding...');
+    const isEdit = Boolean(state.editingClassId);
+    setFormBusy(elements.classForm, true, isEdit ? 'Saving...' : 'Adding...');
     const payload = formData(elements.classForm);
     payload.teacherId = payload.teacherId ? Number(payload.teacherId) : null;
     payload.capacity = payload.capacity ? Number(payload.capacity) : null;
 
-    await api('/api/classes', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
+    if (isEdit) {
+      await api('/api/classes/' + state.editingClassId, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      resetClassForm();
+      showToast('Class updated');
+    } else {
+      await api('/api/classes', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      elements.classForm.reset();
+      showToast('Class added');
+    }
 
-    elements.classForm.reset();
     await refreshClasses();
     renderClasses();
-    showToast('Class added');
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -1914,6 +1960,10 @@ elements.classForm.addEventListener('submit', async (event) => {
 });
 
 elements.classSearchInput.addEventListener('input', renderClasses);
+
+if (elements.cancelClassEditButton) {
+  elements.cancelClassEditButton.addEventListener('click', resetClassForm);
+}
 
 elements.attendanceDateInput.addEventListener('change', async () => {
   await refreshAttendance();
@@ -2169,6 +2219,30 @@ elements.generateMonthlyButton.addEventListener('click', async () => {
 });
 
 document.addEventListener('click', async (event) => {
+
+    // Class edit/deactivate/activate
+    if (action === 'edit-class') {
+      editClass(Number(target.dataset.id));
+      return;
+    }
+    if (action === 'deactivate-class') {
+      try {
+        await api('/api/classes/' + target.dataset.id, { method: 'PUT', body: JSON.stringify({ isActive: false, className: state.classes.find(c => c.ClassID === Number(target.dataset.id))?.ClassName || '' }) });
+        await refreshClasses();
+        renderClasses();
+        showToast('Class deactivated');
+      } catch (e) { showToast(e.message); }
+      return;
+    }
+    if (action === 'activate-class') {
+      try {
+        await api('/api/classes/' + target.dataset.id, { method: 'PUT', body: JSON.stringify({ isActive: true, className: state.classes.find(c => c.ClassID === Number(target.dataset.id))?.ClassName || '' }) });
+        await refreshClasses();
+        renderClasses();
+        showToast('Class activated');
+      } catch (e) { showToast(e.message); }
+      return;
+    }
   const button = event.target.closest('[data-action]');
 
   if (!button) {

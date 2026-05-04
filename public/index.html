@@ -549,6 +549,7 @@
                   </div>
                 </div>
                 <form id="classForm" class="module-form flush-form">
+                  <input id="editClassId" name="classId" type="hidden">
                   <div class="form-grid">
                     <label>
                       Class Name
@@ -563,7 +564,8 @@
                       <input name="capacity" type="number" min="1" step="1">
                     </label>
                   </div>
-                  <button class="primary-button compact-button" type="submit">Add Class</button>
+                  <button id="classSubmitButton" class="primary-button compact-button" type="submit">Add Class</button>
+                  <button id="cancelClassEditButton" class="secondary-button compact-button hidden" type="button">Cancel Edit</button>
                 </form>
                 <label class="section-spacer">
                   Search Class
@@ -584,11 +586,12 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>Selected</th>
+                      <th>#</th>
                       <th>Class Name</th>
                       <th>Teacher</th>
-                      <th>Number of Learners</th>
+                      <th>Learners</th>
                       <th>Status</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody id="classesTable"></tbody>
