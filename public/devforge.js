@@ -41,6 +41,45 @@ const VIEW_TITLES = {
 };
 
 let toastTimer = null;
+let inactivityTimer = null;
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
+function rememberActivity() {
+  if (state.token) {
+    localStorage.setItem('smsLastActivity', String(Date.now()));
+  }
+}
+
+function redirectToDevForgeLogin() {
+  state.token = null;
+  state.user = null;
+  localStorage.removeItem('smsToken');
+  localStorage.removeItem('smsUser');
+  localStorage.removeItem('smsLastActivity');
+  window.location.href = '/devforge-login';
+}
+
+function enforceInactivityTimeout() {
+  if (!state.token) return false;
+  const lastActivity = Number(localStorage.getItem('smsLastActivity') || Date.now());
+  if (Date.now() - lastActivity >= SESSION_TIMEOUT_MS) {
+    redirectToDevForgeLogin();
+    return true;
+  }
+  return false;
+}
+
+function startInactivityTimer() {
+  if (inactivityTimer) {
+    window.clearInterval(inactivityTimer);
+  }
+  rememberActivity();
+  inactivityTimer = window.setInterval(enforceInactivityTimeout, 30000);
+}
+
+['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
+  window.addEventListener(eventName, rememberActivity, { passive: true });
+});
 
 function dashboardPath(user) {
   if (user?.role === 'admin') {
@@ -60,6 +99,10 @@ function requirePlatformSession() {
     return false;
   }
 
+  if (enforceInactivityTimeout()) {
+    return false;
+  }
+
   if (state.user.role !== 'admin') {
     window.location.href = dashboardPath(state.user);
     return false;
@@ -69,6 +112,10 @@ function requirePlatformSession() {
 }
 
 async function api(path, options = {}) {
+  if (enforceInactivityTimeout()) {
+    throw new Error('Session expired');
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {})
@@ -85,13 +132,14 @@ async function api(path, options = {}) {
   if (!response.ok) {
     const message = payload?.error?.message || payload?.error || 'Request failed';
 
-    if ([401, 403].includes(response.status) && /token|session/i.test(message)) {
-      clearSession();
+    if (response.status === 401 || ([401, 403].includes(response.status) && /token|session/i.test(message))) {
+      redirectToDevForgeLogin();
     }
 
     throw new Error(message);
   }
 
+  rememberActivity();
   return payload;
 }
 
@@ -126,6 +174,11 @@ function clearSession() {
   state.user = null;
   localStorage.removeItem('smsToken');
   localStorage.removeItem('smsUser');
+  localStorage.removeItem('smsLastActivity');
+  if (inactivityTimer) {
+    window.clearInterval(inactivityTimer);
+    inactivityTimer = null;
+  }
   window.location.href = '/devforge-login';
 }
 
@@ -157,6 +210,7 @@ function renderShell() {
   elements.logoutButton.classList.remove('hidden');
   elements.sessionLabel.textContent = `${state.user.username || state.user.email} (DevForge)`;
   elements.statusPill.textContent = 'Platform';
+  startInactivityTimer();
   document.getElementById('profileUsername').textContent = state.user.username || '-';
   document.getElementById('profileEmail').textContent = state.user.email || '-';
   document.getElementById('profileRole').textContent = 'DevForge admin';

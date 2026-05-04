@@ -97,6 +97,7 @@ function dashboardPath(user) {
 function setSession(authPayload) {
   localStorage.setItem('smsToken', authPayload.token);
   localStorage.setItem('smsUser', JSON.stringify(authPayload.user));
+  localStorage.setItem('smsLastActivity', String(Date.now()));
   window.location.href = dashboardPath(authPayload.user);
 }
 
@@ -132,9 +133,9 @@ window.addEventListener('DOMContentLoaded', () => {
     fetch('/api/dashboard', { headers: { Authorization: 'Bearer ' + token } })
       .then(r => {
         if (r.ok) window.location.href = dashboardPath(user);
-        else { localStorage.removeItem('smsToken'); localStorage.removeItem('smsUser'); }
+        else { localStorage.removeItem('smsToken'); localStorage.removeItem('smsUser'); localStorage.removeItem('smsLastActivity'); }
       })
-      .catch(() => { localStorage.removeItem('smsToken'); localStorage.removeItem('smsUser'); });
+      .catch(() => { localStorage.removeItem('smsToken'); localStorage.removeItem('smsUser'); localStorage.removeItem('smsLastActivity'); });
   }
 });
 

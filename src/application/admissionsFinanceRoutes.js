@@ -42,7 +42,7 @@ router.post('/admissions', authenticateToken, requireSchoolOrAdmin, audit('Admis
 router.put('/admissions/:id/status', authenticateToken, requireSchoolOrAdmin, audit('Admission', 'UpdateStatus'), async (req, res) => {
   try {
     const { status, enrolledDate, convertedStudentId } = req.body;
-    const valid = ['New', 'In Review', 'Accepted', 'Rejected', 'Enrolled'];
+    const valid = ['New', 'In Review', 'Accepted', 'Waitlisted', 'Refused', 'Enrolled'];
     if (!valid.includes(status)) return res.status(400).json({ error: `Status must be one of: ${valid.join(', ')}` });
     res.json(await admissionsRepo.updateStatus(parseInt(req.params.id, 10), status, enrolledDate, convertedStudentId));
   } catch (e) { res.status(400).json({ error: e.message }); }

@@ -151,6 +151,9 @@ const VIEW_ROUTES = {
 
 const ROUTE_VIEWS = Object.fromEntries(Object.entries(VIEW_ROUTES).map(([view, route]) => [route, view]));
 
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+const SCHOOL_LOGIN_PATH = '/school-login';
+
 const ACTION_VIEWS = {
   'open-school': 'school',
   'open-finance': 'finance',
@@ -213,7 +216,18 @@ const state = {
   selectedDepartureStudentId: null,
   studentSearchQuery: '',
   studentSearchType: 'Student name',
-  editingClassId: null
+  editingClassId: null,
+  admissions: [],
+  reEnrolments: [],
+  reEnrolmentPending: [],
+  consentRecords: [],
+  missingConsent: [],
+  financialAdjustments: [],
+  refunds: [],
+  registrationFees: [],
+  yearEndClosings: [],
+  communicationHistory: [],
+  reportPreview: []
 };
 
 const elements = {
@@ -307,6 +321,52 @@ const elements = {
 };
 
 let toastTimer = null;
+let inactivityTimer = null;
+
+function rememberActivity() {
+  if (state.token) {
+    localStorage.setItem('smsLastActivity', String(Date.now()));
+  }
+}
+
+function redirectToLogin(message) {
+  state.token = null;
+  state.user = null;
+  localStorage.removeItem('smsToken');
+  localStorage.removeItem('smsUser');
+  localStorage.removeItem('smsLastActivity');
+  if (message) {
+    sessionStorage.setItem('loginNotice', message);
+  }
+  window.location.href = SCHOOL_LOGIN_PATH;
+}
+
+function enforceInactivityTimeout() {
+  if (!state.token) {
+    return false;
+  }
+
+  const lastActivity = Number(localStorage.getItem('smsLastActivity') || Date.now());
+  if (Date.now() - lastActivity >= SESSION_TIMEOUT_MS) {
+    redirectToLogin('Session expired after 30 minutes of inactivity.');
+    return true;
+  }
+
+  return false;
+}
+
+function startInactivityTimer() {
+  if (inactivityTimer) {
+    window.clearInterval(inactivityTimer);
+  }
+
+  rememberActivity();
+  inactivityTimer = window.setInterval(enforceInactivityTimeout, 30000);
+}
+
+['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
+  window.addEventListener(eventName, rememberActivity, { passive: true });
+});
 
 
 // === PERMISSION-BASED ICON HIDING ===
@@ -344,6 +404,37 @@ function exportOutstandingFees() {
       showToast('Outstanding fees exported successfully');
     })
     .catch((e) => showToast(e.message || 'Export failed. No data found or permission denied.'));
+}
+
+async function downloadExport(exportName) {
+  const url = `/api/export/${encodeURIComponent(exportName)}`;
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${state.token}` }
+    });
+
+    if (response.status === 401) {
+      redirectToLogin('Your login token expired. Please sign in again.');
+      return;
+    }
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || 'Export failed');
+    }
+
+    const blob = await response.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${exportName}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    showToast('Export downloaded');
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 
 // === STUDENT SEARCH WIRING ===
@@ -438,6 +529,10 @@ function dateOnly(value) {
 }
 
 async function api(path, options = {}) {
+  if (enforceInactivityTimeout()) {
+    throw new Error('Session expired');
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {})
@@ -453,9 +548,7 @@ async function api(path, options = {}) {
 
   if (!response.ok) {
     if (response.status === 401) {
-      localStorage.removeItem('smsToken');
-      localStorage.removeItem('smsUser');
-      window.location.href = '/school-login';
+      redirectToLogin('Your login token expired. Please sign in again.');
       throw new Error('Session expired');
     }
     const message = payload?.error?.message || payload?.error || 'Request failed';
@@ -468,6 +561,7 @@ async function api(path, options = {}) {
     throw new Error(message);
   }
 
+  rememberActivity();
   return payload;
 }
 
@@ -510,6 +604,8 @@ function setSession(authPayload) {
   state.user = authPayload.user;
   localStorage.setItem('smsToken', state.token);
   localStorage.setItem('smsUser', JSON.stringify(state.user));
+  rememberActivity();
+  startInactivityTimer();
   renderShell();
   applyIconPermissions();
   wireStudentSearch();
@@ -548,6 +644,11 @@ function clearSession() {
   state.selectedDepartureStudentId = null;
   localStorage.removeItem('smsToken');
   localStorage.removeItem('smsUser');
+  localStorage.removeItem('smsLastActivity');
+  if (inactivityTimer) {
+    window.clearInterval(inactivityTimer);
+    inactivityTimer = null;
+  }
   renderShell();
 }
 
@@ -556,6 +657,10 @@ function renderShell() {
 
   if (!signedIn) {
     window.location.href = '/school-login';
+    return;
+  }
+
+  if (enforceInactivityTimeout()) {
     return;
   }
 
@@ -576,6 +681,7 @@ function renderShell() {
   document.getElementById('profileSchool').textContent = state.user.schoolId || 'Global';
   document.getElementById('profileSchoolName').textContent = '-';
   switchView(viewFromPath(), { replace: true });
+  startInactivityTimer();
   refreshData();
 }
 
@@ -604,7 +710,8 @@ async function refreshData() {
       refreshMatchSuggestions(),
       refreshClasses(),
       refreshAttendance(),
-      refreshPayslips()
+      refreshPayslips(),
+      refreshFeatureData()
     ]);
     await refreshOutstandingFees();
     renderData();
@@ -681,6 +788,28 @@ async function refreshPayslips() {
   }
 }
 
+async function refreshFeatureData() {
+  const year = Number(document.getElementById('reenrolmentYearInput')?.value || document.getElementById('yearEndReportYearInput')?.value || new Date().getFullYear());
+  const calls = [
+    ['admissions', '/api/school-features/admissions'],
+    ['consentRecords', '/api/school-features/consent'],
+    ['missingConsent', '/api/school-features/consent/missing'],
+    ['financialAdjustments', '/api/school-features/adjustments'],
+    ['refunds', '/api/school-features/refunds'],
+    ['registrationFees', '/api/school-features/registration-fees'],
+    ['yearEndClosings', '/api/hr/year-end'],
+    ['communicationHistory', '/api/features/communication-history'],
+    ['reEnrolments', `/api/platform/re-enrolment/${encodeURIComponent(year)}`],
+    ['reEnrolmentPending', `/api/platform/re-enrolment/${encodeURIComponent(year)}/pending`]
+  ];
+
+  const results = await Promise.allSettled(calls.map(([, path]) => api(path)));
+  results.forEach((result, index) => {
+    const [key] = calls[index];
+    state[key] = result.status === 'fulfilled' ? result.value : [];
+  });
+}
+
 function renderData() {
   applyRoleShell();
   renderMetrics();
@@ -709,6 +838,467 @@ function renderData() {
   renderMatchSuggestions();
   renderSettings();
   renderAdminControls();
+  installFeaturePanels();
+  renderFeaturePages();
+}
+
+function studentLabel(student) {
+  return `${student.FirstName || ''} ${student.LastName || ''}`.trim() || `Student ${student.StudentID}`;
+}
+
+function familyLabel(family) {
+  return family.FamilyName || family.FamilyCode || `Family ${family.FamilyID}`;
+}
+
+function optionsFor(items, idKey, labelFn, emptyLabel = 'Select') {
+  return `<option value="">${emptyLabel}</option>` + items.map((item) => (
+    `<option value="${item[idKey]}">${escapeHtml(labelFn(item))}</option>`
+  )).join('');
+}
+
+function setPanel(viewId, content) {
+  const panel = document.querySelector(`#${viewId} .page-table-panel`);
+  if (panel && !panel.dataset.wiredFeature) {
+    panel.dataset.wiredFeature = 'true';
+    panel.innerHTML = content;
+  }
+}
+
+function installFeaturePanels() {
+  setPanel('admissionsView', `
+    <div class="panel-header"><div><h3>Admissions / Enrolment</h3><p>Applicant capture and status review.</p></div></div>
+    <form id="admissionForm" class="module-form flush-form">
+      <div class="form-grid">
+        <label>First name<input name="firstName" type="text" required></label>
+        <label>Last name<input name="lastName" type="text" required></label>
+        <label>Date of birth<input name="dateOfBirth" type="date"></label>
+        <label>Class<input name="className" type="text"></label>
+        <label>Family<select name="familyId" id="admissionFamilySelect"></select></label>
+        <label>Billing category<select name="billingCategoryId" id="admissionBillingSelect"></select></label>
+        <label class="wide">Notes<textarea name="notes" rows="2"></textarea></label>
+      </div>
+      <button class="primary-button compact-button" type="submit">Add Applicant</button>
+    </form>
+    <div class="form-grid section-spacer"><label>Status filter<select id="admissionStatusFilter"><option value="">All statuses</option><option>New</option><option>In Review</option><option>Accepted</option><option>Waitlisted</option><option>Refused</option><option>Enrolled</option></select></label></div>
+    <div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Family</th><th>Class</th><th>Status</th><th>Applied</th><th>Actions</th></tr></thead><tbody id="admissionsTable"></tbody></table></div>
+  `);
+
+  setPanel('reenrolmentView', `
+    <div class="panel-header"><div><h3>Re-Enrolment / Year Rollover</h3><p>Process promoted, retained, left, and pending learners.</p></div></div>
+    <form id="reenrolmentForm" class="module-form flush-form">
+      <div class="form-grid">
+        <label>Academic year<input id="reenrolmentYearInput" name="academicYear" type="number" min="2000" max="2100" value="${new Date().getFullYear()}"></label>
+        <label>Student<select name="studentId" id="reenrolmentStudentSelect" required></select></label>
+        <label>New class<input name="newClassName" type="text"></label>
+        <label>Action<select name="action"><option>Promoted</option><option>Retained</option><option>Left</option><option>Pending</option></select></label>
+      </div>
+      <button class="primary-button compact-button" type="submit">Process Student</button>
+    </form>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Previous class</th><th>New class</th><th>Action</th><th>Balance BF</th><th>Advance BF</th></tr></thead><tbody id="reenrolmentTable"></tbody></table></div>
+  `);
+
+  setPanel('schoolSettingsView', `
+    <div class="panel-header"><div><h3>School Settings</h3><p>School logo, contact, banking, currency, and portal settings.</p></div></div>
+    <div class="actions"><button class="primary-button compact-button" data-action="open-settings-page" type="button">Open Settings</button><button class="secondary-button compact-button" data-action="open-account-page" type="button">Open Account</button></div>
+    <div class="compact-list section-spacer" id="schoolSettingsSummary"></div>
+  `);
+
+  setPanel('consentPermissionsView', `
+    <div class="panel-header"><div><h3>Consent and Permissions</h3><p>Consent requests and missing consent review.</p></div></div>
+    <form id="consentForm" class="module-form flush-form">
+      <div class="form-grid">
+        <label>Student<select name="studentId" id="consentStudentSelect" required></select></label>
+        <label>Consent type<select name="consentType" required><option>Photo</option><option>Trip</option><option>Medical</option><option>Communication</option><option>Data-processing</option></select></label>
+        <label class="wide">Notes<textarea name="notes" rows="2"></textarea></label>
+      </div>
+      <button class="primary-button compact-button" type="submit">Create Consent Request</button>
+    </form>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Type</th><th>Response</th><th>Date</th><th>Actions</th></tr></thead><tbody id="consentTable"></tbody></table></div>
+  `);
+
+  setPanel('financialAdjustmentsView', `
+    <div class="panel-header"><div><h3>Financial Adjustments</h3><p>Audit-safe write-offs, reversals, and corrections.</p></div></div>
+    <form id="adjustmentForm" class="module-form flush-form">
+      <div class="form-grid">
+        <label>Student<select name="studentId" id="adjustmentStudentSelect"></select></label>
+        <label>Family<select name="familyId" id="adjustmentFamilySelect"></select></label>
+        <label>Invoice<select name="invoiceId" id="adjustmentInvoiceSelect"></select></label>
+        <label>Type<select name="adjustmentType" required><option>Write-off</option><option>Reversal</option><option>Credit Correction</option><option>Debit Correction</option><option>Fee Correction</option></select></label>
+        <label>Amount<input name="amount" type="number" min="0.01" step="0.01" required></label>
+        <label class="wide">Reason<textarea name="reason" rows="2" required></textarea></label>
+      </div>
+      <button class="primary-button compact-button" type="submit">Create Adjustment</button>
+    </form>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Date</th><th>Student</th><th>Invoice</th><th>Type</th><th>Amount</th><th>Reason</th></tr></thead><tbody id="adjustmentsTable"></tbody></table></div>
+  `);
+
+  setPanel('refundsView', `
+    <div class="panel-header"><div><h3>Refunds</h3><p>Refund requests, approvals, and completion.</p></div></div>
+    <form id="refundForm" class="module-form flush-form">
+      <div class="form-grid">
+        <label>Family<select name="familyId" id="refundFamilySelect" required></select></label>
+        <label>Student<select name="studentId" id="refundStudentSelect"></select></label>
+        <label>Amount<input name="amount" type="number" min="0.01" step="0.01" required></label>
+        <label class="wide">Reason<textarea name="reason" rows="2" required></textarea></label>
+      </div>
+      <button class="primary-button compact-button" type="submit">Create Refund</button>
+    </form>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Family</th><th>Student</th><th>Amount</th><th>Status</th><th>Reason</th><th>Actions</th></tr></thead><tbody id="refundsTable"></tbody></table></div>
+  `);
+
+  setPanel('registrationFeesView', `
+    <div class="panel-header"><div><h3>Registration / Deposit Fees</h3><p>Once-off fees separate from monthly billing.</p></div></div>
+    <form id="registrationFeeForm" class="module-form flush-form">
+      <div class="form-grid">
+        <label>Student<select name="studentId" id="registrationFeeStudentSelect"></select></label>
+        <label>Family<select name="familyId" id="registrationFeeFamilySelect"></select></label>
+        <label>Fee type<input name="feeType" type="text" required></label>
+        <label>Amount<input name="amount" type="number" min="0.01" step="0.01" required></label>
+        <label>Refundable<select name="isRefundable"><option value="false">No</option><option value="true">Yes</option></select></label>
+        <label class="wide">Notes<textarea name="notes" rows="2"></textarea></label>
+      </div>
+      <button class="primary-button compact-button" type="submit">Create Fee</button>
+    </form>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Family</th><th>Type</th><th>Amount</th><th>Refundable</th><th>Paid</th><th>Actions</th></tr></thead><tbody id="registrationFeesTable"></tbody></table></div>
+  `);
+
+  setPanel('yearEndClosingView', `
+    <div class="panel-header"><div><h3>Year-End Financial Closing</h3><p>Closing status and balance carry-forward tracking.</p></div></div>
+    <form id="yearEndClosingForm" class="module-form flush-form">
+      <div class="form-grid">
+        <label>Financial year<input name="financialYear" type="number" min="2000" max="2100" value="${new Date().getFullYear()}" required></label>
+        <label>Status<select name="status"><option>Open</option><option>In Review</option><option>Ready to Close</option><option>Closed</option></select></label>
+      </div>
+      <button class="primary-button compact-button" type="submit">Create Year-End Record</button>
+    </form>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Year</th><th>Status</th><th>Closed</th><th>Reopened</th><th>Actions</th></tr></thead><tbody id="yearEndClosingTable"></tbody></table></div>
+  `);
+
+  setPanel('studentReportsView', `
+    <div class="panel-header"><div><h3>Student Reports</h3><p>Birthdays, demographics, and enrolment counts.</p></div></div>
+    <div class="form-grid"><label>Birthday month<select id="birthdayMonthFilter"><option value="">All months</option>${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${new Date(2026, i, 1).toLocaleString('en-ZA', { month: 'long' })}</option>`).join('')}</select></label><label>Status<select id="studentReportStatusFilter"><option value="">All</option><option>Active</option><option>Inactive</option></select></label></div>
+    <div id="studentReportSummary" class="metrics-grid section-spacer"></div>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Class</th><th>Date of birth</th><th>Age</th><th>Status</th></tr></thead><tbody id="studentReportsTable"></tbody></table></div>
+  `);
+
+  setPanel('exportReportsView', `
+    <div class="panel-header"><div><h3>Export Reports</h3><p>CSV exports scoped to the signed-in School ID.</p></div></div>
+    <div class="actions">
+      <button class="primary-button compact-button" data-action="download-export" data-export="students" type="button">Students CSV</button>
+      <button class="primary-button compact-button" data-action="download-export" data-export="invoices" type="button">Invoices CSV</button>
+      <button class="primary-button compact-button" data-action="download-export" data-export="transactions" type="button">Payments CSV</button>
+      <button class="primary-button compact-button" data-action="download-export" data-export="employees" type="button">Employees CSV</button>
+      <button class="primary-button compact-button" data-action="download-export" data-export="outstanding-fees" type="button">Outstanding Fees CSV</button>
+    </div>
+  `);
+
+  setPanel('communicationHistoryView', `
+    <div class="panel-header"><div><h3>Communication History</h3><p>Invoices, statements, reminders, and delivery statuses.</p></div></div>
+    <div class="form-grid"><label>Type<input id="communicationTypeFilter" type="search" placeholder="Invoice, Statement, Reminder"></label><label>Status<input id="communicationStatusFilter" type="search" placeholder="Sent, Delivered, Failed"></label></div>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Date</th><th>Type</th><th>Subject</th><th>Status</th><th>Delivery</th></tr></thead><tbody id="communicationHistoryTable"></tbody></table></div>
+  `);
+
+  setPanel('admissionsReportView', `
+    <div class="panel-header"><div><h3>Admissions Report</h3><p>Applicant status counts and conversion review.</p></div></div>
+    <div id="admissionsReportSummary" class="metrics-grid"></div>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Applicant</th><th>Status</th><th>Class</th><th>Applied</th></tr></thead><tbody id="admissionsReportTable"></tbody></table></div>
+  `);
+
+  setPanel('reenrolmentReportView', `
+    <div class="panel-header"><div><h3>Re-Enrolment Report</h3><p>Promoted, retained, left, and pending learners.</p></div></div>
+    <div id="reenrolmentReportSummary" class="metrics-grid"></div>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Previous</th><th>New</th><th>Action</th><th>Balance BF</th></tr></thead><tbody id="reenrolmentReportTable"></tbody></table></div>
+  `);
+
+  setPanel('consentReportView', `
+    <div class="panel-header"><div><h3>Consent Report</h3><p>Consent responses and missing consent records.</p></div></div>
+    <div id="consentReportSummary" class="metrics-grid"></div>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Type</th><th>Response</th><th>Date</th></tr></thead><tbody id="consentReportTable"></tbody></table></div>
+  `);
+
+  setPanel('yearEndReportView', `
+    <div class="panel-header"><div><h3>Year-End Report</h3><p>Year-end finance and rollover summary.</p></div></div>
+    <label>Year<input id="yearEndReportYearInput" type="number" value="${new Date().getFullYear()}"></label>
+    <div id="yearEndReportSummary" class="metrics-grid section-spacer"></div>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Action</th><th>Balance BF</th><th>Advance BF</th></tr></thead><tbody id="yearEndReportTable"></tbody></table></div>
+  `);
+
+  wireFeatureForms();
+}
+
+function wireFeatureForms() {
+  const bind = (id, event, handler) => {
+    const element = document.getElementById(id);
+    if (!element || element.dataset.boundFeature) return;
+    element.dataset.boundFeature = 'true';
+    element.addEventListener(event, handler);
+  };
+
+  bind('admissionForm', 'submit', async (event) => {
+    event.preventDefault();
+    await submitFeatureForm(event.currentTarget, '/api/school-features/admissions', 'Applicant added');
+  });
+
+  bind('admissionStatusFilter', 'change', renderFeaturePages);
+
+  bind('reenrolmentForm', 'submit', async (event) => {
+    event.preventDefault();
+    await submitFeatureForm(event.currentTarget, '/api/platform/re-enrolment', 'Re-enrolment processed');
+  });
+
+  bind('reenrolmentYearInput', 'change', async () => {
+    await refreshFeatureData();
+    renderFeaturePages();
+  });
+
+  bind('consentForm', 'submit', async (event) => {
+    event.preventDefault();
+    await submitFeatureForm(event.currentTarget, '/api/school-features/consent', 'Consent request created');
+  });
+
+  bind('adjustmentForm', 'submit', async (event) => {
+    event.preventDefault();
+    await submitFeatureForm(event.currentTarget, '/api/school-features/adjustments', 'Financial adjustment created');
+  });
+
+  bind('refundForm', 'submit', async (event) => {
+    event.preventDefault();
+    await submitFeatureForm(event.currentTarget, '/api/school-features/refunds', 'Refund created');
+  });
+
+  bind('registrationFeeForm', 'submit', async (event) => {
+    event.preventDefault();
+    await submitFeatureForm(event.currentTarget, '/api/school-features/registration-fees', 'Registration fee created');
+  });
+
+  bind('yearEndClosingForm', 'submit', async (event) => {
+    event.preventDefault();
+    await submitFeatureForm(event.currentTarget, '/api/hr/year-end', 'Year-end record created');
+  });
+
+  bind('birthdayMonthFilter', 'change', renderFeaturePages);
+  bind('studentReportStatusFilter', 'change', renderFeaturePages);
+  bind('communicationTypeFilter', 'input', renderFeaturePages);
+  bind('communicationStatusFilter', 'input', renderFeaturePages);
+  bind('yearEndReportYearInput', 'change', renderFeaturePages);
+}
+
+async function submitFeatureForm(form, path, successMessage) {
+  setFormBusy(form, true, 'Saving...');
+  try {
+    const data = formData(form);
+    await api(path, { method: 'POST', body: JSON.stringify(data) });
+    form.reset();
+    await refreshFeatureData();
+    renderFeaturePages();
+    showToast(successMessage);
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setFormBusy(form, false);
+  }
+}
+
+function renderFeatureSelects() {
+  const studentOptions = optionsFor(state.students, 'StudentID', studentLabel, 'Select student');
+  const familyOptions = optionsFor(state.families, 'FamilyID', familyLabel, 'Select family');
+  const invoiceOptions = optionsFor(state.invoices, 'InvoiceID', (invoice) => `${invoice.InvoiceNumber || invoice.InvoiceID} - ${studentLabel(invoice)} - ${money(invoice.Amount || 0)}`, 'Select invoice');
+  const billingOptions = optionsFor(state.billingCategories, 'BillingCategoryID', (category) => category.CategoryName || `Category ${category.BillingCategoryID}`, 'Select billing category');
+  const pendingOptions = optionsFor(state.reEnrolmentPending.length ? state.reEnrolmentPending : state.students, 'StudentID', studentLabel, 'Select student');
+
+  [
+    ['admissionFamilySelect', familyOptions],
+    ['admissionBillingSelect', billingOptions],
+    ['consentStudentSelect', studentOptions],
+    ['adjustmentStudentSelect', studentOptions],
+    ['adjustmentFamilySelect', familyOptions],
+    ['adjustmentInvoiceSelect', invoiceOptions],
+    ['refundFamilySelect', familyOptions],
+    ['refundStudentSelect', studentOptions],
+    ['registrationFeeStudentSelect', studentOptions],
+    ['registrationFeeFamilySelect', familyOptions],
+    ['reenrolmentStudentSelect', pendingOptions]
+  ].forEach(([id, options]) => {
+    const select = document.getElementById(id);
+    if (select && select.dataset.lastOptions !== options) {
+      select.innerHTML = options;
+      select.dataset.lastOptions = options;
+    }
+  });
+}
+
+function metricCard(label, value) {
+  return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`;
+}
+
+function renderFeaturePages() {
+  renderFeatureSelects();
+  renderAdmissionsFeature();
+  renderReenrolmentFeature();
+  renderSchoolSettingsSummary();
+  renderConsentFeature();
+  renderFinanceFeatureTables();
+  renderReportingFeatureTables();
+}
+
+function renderAdmissionsFeature() {
+  const filter = document.getElementById('admissionStatusFilter')?.value || '';
+  const rows = state.admissions
+    .filter((item) => !filter || item.Status === filter)
+    .map((item) => `
+      <tr>
+        <td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td>
+        <td>${escapeHtml(item.FamilyName || '-')}</td>
+        <td>${escapeHtml(item.ClassName || '-')}</td>
+        <td><span class="badge">${escapeHtml(item.Status || 'New')}</span></td>
+        <td>${dateOnly(item.AppliedDate)}</td>
+        <td><div class="actions">
+          <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="In Review" type="button">Review</button>
+          <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="Accepted" type="button">Accept</button>
+          <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="Refused" type="button">Refuse</button>
+        </div></td>
+      </tr>
+    `).join('');
+  setTable('admissionsTable', rows, 6, 'No admissions records found.');
+}
+
+function renderReenrolmentFeature() {
+  const rows = state.reEnrolments.map((item) => `
+    <tr>
+      <td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td>
+      <td>${escapeHtml(item.PreviousClassName || item.CurrentClassName || '-')}</td>
+      <td>${escapeHtml(item.NewClassName || '-')}</td>
+      <td><span class="badge">${escapeHtml(item.Action || 'Pending')}</span></td>
+      <td>${money(item.BalanceCarriedForward || 0)}</td>
+      <td>${money(item.AdvanceCreditCarriedForward || 0)}</td>
+    </tr>
+  `).join('');
+  setTable('reenrolmentTable', rows, 6, 'No re-enrolment records found for the selected year.');
+}
+
+function renderSchoolSettingsSummary() {
+  const school = getSettingsSchool();
+  const container = document.getElementById('schoolSettingsSummary');
+  if (!container) return;
+  container.innerHTML = school ? `
+    <div class="compact-item"><strong>${escapeHtml(school.SchoolName || 'Current school')}</strong><span>${escapeHtml(school.ContactEmail || '-')}</span></div>
+    <div class="compact-item"><span>Currency</span><strong>${escapeHtml(school.CurrencyCode || 'ZAR')}</strong></div>
+    <div class="compact-item"><span>Parent detail approval</span><strong>${school.RequireParentUpdateApproval ? 'Required' : 'Optional'}</strong></div>
+  ` : '<p>No school settings are loaded.</p>';
+}
+
+function renderConsentFeature() {
+  const rows = state.consentRecords.map((item) => `
+    <tr>
+      <td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td>
+      <td>${escapeHtml(item.ConsentType || '-')}</td>
+      <td><span class="badge">${escapeHtml(item.Response || 'Pending')}</span></td>
+      <td>${dateOnly(item.ResponseDate || item.CreatedDate)}</td>
+      <td><div class="actions">
+        <button class="ghost-button" data-action="consent-response" data-id="${item.ConsentID}" data-response="Accepted" type="button">Accept</button>
+        <button class="danger-button" data-action="consent-response" data-id="${item.ConsentID}" data-response="Declined" type="button">Decline</button>
+      </div></td>
+    </tr>
+  `).join('');
+  setTable('consentTable', rows, 5, 'No consent records found.');
+}
+
+function renderFinanceFeatureTables() {
+  setTable('adjustmentsTable', state.financialAdjustments.map((item) => `
+    <tr><td>${dateOnly(item.CreatedDate)}</td><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim() || '-')}</td><td>${escapeHtml(item.InvoiceNumber || '-')}</td><td>${escapeHtml(item.AdjustmentType || '-')}</td><td>${money(item.Amount || 0)}</td><td>${escapeHtml(item.Reason || '-')}</td></tr>
+  `).join(''), 6, 'No financial adjustments found.');
+
+  setTable('refundsTable', state.refunds.map((item) => `
+    <tr><td>${escapeHtml(item.FamilyName || '-')}</td><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim() || '-')}</td><td>${money(item.Amount || 0)}</td><td><span class="badge">${escapeHtml(item.Status || 'Pending')}</span></td><td>${escapeHtml(item.Reason || '-')}</td><td><div class="actions">${item.Status === 'Pending' ? `<button class="ghost-button" data-action="refund-approve" data-id="${item.RefundID}" type="button">Approve</button>` : ''}${item.Status === 'Approved' ? `<button class="ghost-button" data-action="refund-complete" data-id="${item.RefundID}" type="button">Complete</button>` : ''}</div></td></tr>
+  `).join(''), 6, 'No refund records found.');
+
+  setTable('registrationFeesTable', state.registrationFees.map((item) => `
+    <tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim() || '-')}</td><td>${escapeHtml(item.FamilyName || '-')}</td><td>${escapeHtml(item.FeeType || '-')}</td><td>${money(item.Amount || 0)}</td><td>${item.IsRefundable ? 'Yes' : 'No'}</td><td>${item.IsPaid ? dateOnly(item.PaidDate) : 'Unpaid'}</td><td>${item.IsPaid ? '' : `<button class="ghost-button" data-action="registration-fee-paid" data-id="${item.RegistrationFeeID}" type="button">Mark Paid</button>`}</td></tr>
+  `).join(''), 7, 'No registration or deposit fees found.');
+
+  setTable('yearEndClosingTable', state.yearEndClosings.map((item) => `
+    <tr><td>${escapeHtml(String(item.FinancialYear || '-'))}</td><td><span class="badge">${escapeHtml(item.Status || 'Open')}</span></td><td>${dateOnly(item.ClosedDate)}</td><td>${dateOnly(item.ReopenedDate)}</td><td><div class="actions"><button class="ghost-button" data-action="year-end-status" data-id="${item.ClosingID}" data-status="In Review" type="button">Review</button><button class="ghost-button" data-action="year-end-status" data-id="${item.ClosingID}" data-status="Ready to Close" type="button">Ready</button><button class="danger-button" data-action="year-end-status" data-id="${item.ClosingID}" data-status="Closed" type="button">Close</button></div></td></tr>
+  `).join(''), 5, 'No year-end closing records found.');
+}
+
+function renderReportingFeatureTables() {
+  renderStudentReports();
+  renderAdmissionsReport();
+  renderReenrolmentReport();
+  renderConsentReport();
+  renderCommunicationHistory();
+  renderYearEndReport();
+}
+
+function renderStudentReports() {
+  const month = Number(document.getElementById('birthdayMonthFilter')?.value || 0);
+  const status = document.getElementById('studentReportStatusFilter')?.value || '';
+  const now = new Date();
+  const students = state.students.filter((student) => {
+    const active = student.IsActive !== false;
+    const statusOk = !status || (status === 'Active' ? active : !active);
+    const dob = student.DateOfBirth ? new Date(student.DateOfBirth) : null;
+    const monthOk = !month || (dob && dob.getMonth() + 1 === month);
+    return statusOk && monthOk;
+  });
+  const summary = document.getElementById('studentReportSummary');
+  if (summary) {
+    summary.innerHTML = metricCard('Students', students.length) + metricCard('Active', state.students.filter((s) => s.IsActive !== false).length) + metricCard('Classes', new Set(state.students.map((s) => s.ClassName).filter(Boolean)).size);
+  }
+  setTable('studentReportsTable', students.map((student) => {
+    const dob = student.DateOfBirth ? new Date(student.DateOfBirth) : null;
+    const age = dob ? now.getFullYear() - dob.getFullYear() - (now < new Date(now.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0) : '-';
+    return `<tr><td>${escapeHtml(studentLabel(student))}</td><td>${escapeHtml(student.ClassName || '-')}</td><td>${dateOnly(student.DateOfBirth)}</td><td>${age}</td><td>${student.IsActive !== false ? 'Active' : 'Inactive'}</td></tr>`;
+  }).join(''), 5, 'No students match the selected report filters.');
+}
+
+function renderAdmissionsReport() {
+  const counts = ['New', 'In Review', 'Accepted', 'Waitlisted', 'Refused', 'Enrolled'].map((status) => metricCard(status, state.admissions.filter((item) => item.Status === status).length)).join('');
+  const summary = document.getElementById('admissionsReportSummary');
+  if (summary) summary.innerHTML = counts || metricCard('Applications', 0);
+  setTable('admissionsReportTable', state.admissions.map((item) => `<tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td><td>${escapeHtml(item.Status || 'New')}</td><td>${escapeHtml(item.ClassName || '-')}</td><td>${dateOnly(item.AppliedDate)}</td></tr>`).join(''), 4, 'No admissions records found.');
+}
+
+function renderReenrolmentReport() {
+  const summary = document.getElementById('reenrolmentReportSummary');
+  if (summary) summary.innerHTML = ['Promoted', 'Retained', 'Left', 'Pending'].map((action) => metricCard(action, state.reEnrolments.filter((item) => item.Action === action).length)).join('');
+  setTable('reenrolmentReportTable', state.reEnrolments.map((item) => `<tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td><td>${escapeHtml(item.PreviousClassName || '-')}</td><td>${escapeHtml(item.NewClassName || '-')}</td><td>${escapeHtml(item.Action || 'Pending')}</td><td>${money(item.BalanceCarriedForward || 0)}</td></tr>`).join(''), 5, 'No re-enrolment records found.');
+}
+
+function renderConsentReport() {
+  const summary = document.getElementById('consentReportSummary');
+  if (summary) summary.innerHTML = metricCard('Consent records', state.consentRecords.length) + metricCard('Pending', state.missingConsent.length);
+  setTable('consentReportTable', state.consentRecords.map((item) => `<tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td><td>${escapeHtml(item.ConsentType || '-')}</td><td>${escapeHtml(item.Response || 'Pending')}</td><td>${dateOnly(item.ResponseDate || item.CreatedDate)}</td></tr>`).join(''), 4, 'No consent records found.');
+}
+
+function renderCommunicationHistory() {
+  const typeFilter = String(document.getElementById('communicationTypeFilter')?.value || '').toLowerCase();
+  const statusFilter = String(document.getElementById('communicationStatusFilter')?.value || '').toLowerCase();
+  const rows = state.communicationHistory.filter((item) => {
+    const typeOk = !typeFilter || String(item.CommunicationType || '').toLowerCase().includes(typeFilter);
+    const statusOk = !statusFilter || String(item.Status || item.DeliveryStatus || '').toLowerCase().includes(statusFilter);
+    return typeOk && statusOk;
+  }).map((item) => `<tr><td>${dateOnly(item.SentDate)}</td><td>${escapeHtml(item.CommunicationType || '-')}</td><td>${escapeHtml(item.Subject || '-')}</td><td>${escapeHtml(item.Status || '-')}</td><td>${escapeHtml(item.DeliveryStatus || '-')}</td></tr>`).join('');
+  setTable('communicationHistoryTable', rows, 5, 'No communication history found.');
+}
+
+function renderYearEndReport() {
+  const year = Number(document.getElementById('yearEndReportYearInput')?.value || new Date().getFullYear());
+  const reportRows = state.reEnrolments.filter((item) => Number(item.AcademicYear || year) === year);
+  const summary = document.getElementById('yearEndReportSummary');
+  if (summary) {
+    const invoiced = state.invoices.reduce((sum, invoice) => sum + Number(invoice.Amount || 0), 0);
+    const paid = state.invoices.reduce((sum, invoice) => sum + Number(invoice.AmountPaid || 0), 0);
+    summary.innerHTML = metricCard('Total invoiced', money(invoiced)) + metricCard('Total paid', money(paid)) + metricCard('Outstanding', money(Math.max(0, invoiced - paid))) + metricCard('Rollover records', reportRows.length);
+  }
+  setTable('yearEndReportTable', reportRows.map((item) => `<tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td><td>${escapeHtml(item.Action || '-')}</td><td>${money(item.BalanceCarriedForward || 0)}</td><td>${money(item.AdvanceCreditCarriedForward || 0)}</td></tr>`).join(''), 4, 'No year-end report records found.');
+}
+
+function setTable(id, rows, colspan, emptyText) {
+  const body = document.getElementById(id);
+  if (body) {
+    body.innerHTML = rows || `<tr><td colspan="${colspan}">${escapeHtml(emptyText)}</td></tr>`;
+  }
 }
 
 function renderMetrics() {
@@ -1926,43 +2516,45 @@ elements.familyForm.addEventListener('submit', async (event) => {
   }
 });
 
-elements.studentForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
+if (elements.studentForm) {
+  elements.studentForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
 
-  try {
-    const schoolId = currentSchoolId();
+    try {
+      const schoolId = currentSchoolId();
 
-    if (!schoolId) {
-      throw new Error('Create a school before adding students');
+      if (!schoolId) {
+        throw new Error('Create a school before adding students');
+      }
+
+      if (!elements.studentFamilySelect?.value) {
+        throw new Error('Add a family before adding students');
+      }
+
+      setFormBusy(elements.studentForm, true, 'Adding...');
+      const payload = {
+        ...formData(elements.studentForm),
+        schoolId,
+        familyId: Number(elements.studentFamilySelect.value)
+      };
+      payload.billingCategoryId = Number(payload.billingCategoryId);
+      payload.dateOfBirth = payload.dateOfBirth || null;
+
+      await api('/api/students', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      elements.studentForm.reset();
+      await refreshData();
+      showToast('Student added');
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      setFormBusy(elements.studentForm, false);
     }
-
-    if (!elements.studentFamilySelect.value) {
-      throw new Error('Add a family before adding students');
-    }
-
-    setFormBusy(elements.studentForm, true, 'Adding...');
-    const payload = {
-      ...formData(elements.studentForm),
-      schoolId,
-      familyId: Number(elements.studentFamilySelect.value)
-    };
-    payload.billingCategoryId = Number(payload.billingCategoryId);
-    payload.dateOfBirth = payload.dateOfBirth || null;
-
-    await api('/api/students', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-
-    elements.studentForm.reset();
-    await refreshData();
-    showToast('Student added');
-  } catch (error) {
-    showToast(error.message);
-  } finally {
-    setFormBusy(elements.studentForm, false);
-  }
-});
+  });
+}
 
 elements.billingCategoryForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -2272,22 +2864,24 @@ elements.ofxUploadForm.addEventListener('submit', async (event) => {
   }
 });
 
-elements.generateMonthlyButton.addEventListener('click', async () => {
-  try {
-    setFormBusy(elements.generateMonthlyButton, true, 'Generating...');
+if (elements.generateMonthlyButton) {
+  elements.generateMonthlyButton.addEventListener('click', async () => {
+    try {
+      setFormBusy(elements.generateMonthlyButton, true, 'Generating...');
 
-    const result = await api('/api/invoices/generate-monthly', {
-      method: 'POST'
-    });
+      const result = await api('/api/invoices/generate-monthly', {
+        method: 'POST'
+      });
 
-    showToast(`Generated invoices for ${result.generated.length} schools`);
-    await refreshData();
-  } catch (error) {
-    showToast(error.message);
-  } finally {
-    setFormBusy(elements.generateMonthlyButton, false);
-  }
-});
+      showToast(`Generated invoices for ${result.generated.length} schools`);
+      await refreshData();
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      setFormBusy(elements.generateMonthlyButton, false);
+    }
+  });
+}
 
 document.addEventListener('click', async (event) => {
 
@@ -2302,6 +2896,21 @@ document.addEventListener('click', async (event) => {
 
   if (ACTION_VIEWS[action]) {
     switchView(ACTION_VIEWS[action]);
+    return;
+  }
+
+  if (action === 'open-settings-page') {
+    switchView('settings');
+    return;
+  }
+
+  if (action === 'open-account-page') {
+    switchView('account');
+    return;
+  }
+
+  if (action === 'download-export') {
+    await downloadExport(button.dataset.export);
     return;
   }
 
@@ -2361,6 +2970,56 @@ document.addEventListener('click', async (event) => {
   }
 
   try {
+    if (action === 'admission-status') {
+      await api(`/api/school-features/admissions/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: button.dataset.status })
+      });
+      await refreshFeatureData();
+      renderFeaturePages();
+      showToast('Admission status updated');
+      return;
+    }
+
+    if (action === 'consent-response') {
+      await api(`/api/school-features/consent/${id}/respond`, {
+        method: 'PUT',
+        body: JSON.stringify({ response: button.dataset.response })
+      });
+      await refreshFeatureData();
+      renderFeaturePages();
+      showToast('Consent response updated');
+      return;
+    }
+
+    if (action === 'refund-approve' || action === 'refund-complete') {
+      const nextAction = action === 'refund-approve' ? 'approve' : 'complete';
+      await api(`/api/school-features/refunds/${id}/${nextAction}`, { method: 'PUT' });
+      await refreshFeatureData();
+      renderFeaturePages();
+      showToast(action === 'refund-approve' ? 'Refund approved' : 'Refund completed');
+      return;
+    }
+
+    if (action === 'registration-fee-paid') {
+      await api(`/api/school-features/registration-fees/${id}/pay`, { method: 'PUT' });
+      await refreshFeatureData();
+      renderFeaturePages();
+      showToast('Registration fee marked paid');
+      return;
+    }
+
+    if (action === 'year-end-status') {
+      await api(`/api/hr/year-end/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: button.dataset.status })
+      });
+      await refreshFeatureData();
+      renderFeaturePages();
+      showToast('Year-end status updated');
+      return;
+    }
+
     if (action === 'approve-bank-match') {
       const confirmed = window.confirm(
         'Approve this suggested bank match? This records the bank transaction as a payment for this invoice. Future suggestions will still need approval.'
