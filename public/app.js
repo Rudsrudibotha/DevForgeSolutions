@@ -247,6 +247,7 @@ const elements = {
   studentFamilySelect: document.getElementById('studentFamilySelect'),
   studentBillingCategorySelect: document.getElementById('studentBillingCategorySelect'),
   studentsTable: document.getElementById('studentsTable'),
+  outstandingFeesTable: document.getElementById('outstandingFeesTable'),
   registerLearnerForm: document.getElementById('registerLearnerForm'),
   registerLearnerFamilySelect: document.getElementById('registerLearnerFamilySelect'),
   registerLearnerBillingSelect: document.getElementById('registerLearnerBillingSelect'),
@@ -1218,6 +1219,57 @@ function renderRegisterLearnerOptions() {
   const cats = state.billingCategories.filter((c) => c.IsActive !== false && c.IsActive !== 0);
   elements.registerLearnerBillingSelect.innerHTML = '<option value="">Select category</option>' +
     cats.map((c) => '<option value="' + c.BillingCategoryID + '">' + escapeHtml(c.CategoryName) + ' (' + money(c.BaseAmount) + ')</option>').join('');
+}
+
+
+function renderOutstandingFees() {
+  const table = document.getElementById('outstandingFeesTable');
+  if (!table) return;
+
+  const search = (document.getElementById('outstandingFeesSearch')?.value || '').toLowerCase();
+  const data = state.outstandingFeesData || [];
+  const filtered = search
+    ? data.filter(r => (r.FirstName + ' ' + r.LastName + ' ' + (r.ClassName || '') + ' ' + (r.FamilyCode || '')).toLowerCase().includes(search))
+    : data;
+
+  if (filtered.length === 0) {
+    table.innerHTML = '<tr><td colspan="18">No outstanding fees found for the selected year.</td></tr>';
+    return;
+  }
+
+  const school = getSettingsSchool();
+  table.innerHTML = filtered.map(row => {
+    const months = [];
+    for (let m = 1; m <= 12; m++) {
+      const val = Number(row['Month' + m] || 0);
+      months.push(val > 0 ? '<td class="outstanding-cell">' + money(val, school) + '</td>' : '<td>-</td>');
+    }
+    return '<tr>' +
+      '<td>' + escapeHtml(row.FirstName || '') + '</td>' +
+      '<td>' + escapeHtml(row.LastName || '') + '</td>' +
+      '<td>' + escapeHtml(row.ClassName || '-') + '</td>' +
+      '<td>' + escapeHtml(row.PrimaryParentPhone || '-') + '</td>' +
+      '<td>' + escapeHtml(row.SecondaryParentPhone || '-') + '</td>' +
+      months.join('') +
+      '<td><strong>' + money(row.TotalOutstanding || 0, school) + '</strong></td>' +
+      '</tr>';
+  }).join('');
+}
+
+async function refreshOutstandingFees() {
+  const yearInput = document.getElementById('outstandingFeesYear');
+  const year = yearInput ? Number(yearInput.value) : new Date().getFullYear();
+  try {
+    const ofResult = await api('/api/invoices/outstanding-fees?year=' + year);
+    state.outstandingFeesData = ofResult.data || ofResult;
+    // Update year input if server returned a different year
+    if (ofResult.year && yearInput && Number(yearInput.value) !== ofResult.year) {
+      yearInput.value = ofResult.year;
+    }
+  } catch (e) {
+    state.outstandingFeesData = [];
+  }
+  renderOutstandingFees();
 }
 
 function renderStudentStatusFilter() {

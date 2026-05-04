@@ -1535,3 +1535,5 @@ tbody tr:hover {
   margin-bottom: 0.5rem;
   color: #fff;
 }
+
+.outstanding-cell { color: #dc2626; font-weight: 600; }

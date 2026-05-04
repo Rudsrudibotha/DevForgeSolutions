@@ -2,6 +2,7 @@
 
 const express = require('express');
 const InvoiceService = require('../business/invoiceService');
+const InvoiceRepository = require('../data/invoiceRepository');
 const { authenticateToken, requireAdmin, requireSchoolOrAdmin } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
 
@@ -111,6 +112,33 @@ router.post('/generate-monthly', authenticateToken, requireSchoolOrAdmin, async 
   try {
     const result = await invoiceService.generateMonthlyInvoices(req.user);
     res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Outstanding fees view data
+router.get('/outstanding-fees', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+  try {
+    const schoolId = req.user.SchoolID;
+    if (!schoolId && req.user.Role !== 'admin') {
+      return res.status(403).json({ error: 'School context required' });
+    }
+    let year = parseInt(req.query.year, 10) || new Date().getFullYear();
+    const invoiceRepository = new InvoiceRepository();
+    let rows = await invoiceRepository.getOutstandingFeesExport(schoolId, year);
+    // If current year has no data, try the most recent year that does
+    if ((!rows || rows.length === 0) && !req.query.year) {
+      const { getPool, sql: mssql } = require('../data/db');
+      const pool = await getPool();
+      const latestYear = await pool.request().input('schoolId', mssql.Int, schoolId)
+        .query("SELECT TOP 1 YEAR(IssueDate) AS yr FROM Invoices WHERE SchoolID=@schoolId AND IsDeleted=0 AND Status<>'Paid' ORDER BY IssueDate DESC");
+      if (latestYear.recordset[0]) {
+        year = latestYear.recordset[0].yr;
+        rows = await invoiceRepository.getOutstandingFeesExport(schoolId, year);
+      }
+    }
+    res.json({ year, data: rows || [] });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

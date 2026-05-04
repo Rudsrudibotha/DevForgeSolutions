@@ -891,7 +891,7 @@
                 <div class="form-grid">
                   <label>
                     Search Student / Parent / Class
-                    <input type="search">
+                    <input id="outstandingFeesSearch" type="search" placeholder="Search...">
                   </label>
                   <label>
                     Grade
@@ -906,7 +906,7 @@
                     <select><option>Current</option></select>
                   </label>
                 </div>
-                <div class="form-grid section-spacer"><label>Year <input id="outstandingFeesYear" type="number" min="2020" max="2030" value="2024"></label></div>
+                <div class="form-grid section-spacer"><label>Year <input id="outstandingFeesYear" type="number" min="2020" max="2030" value="2026"></label></div>
                 <button class="secondary-button compact-button" data-action="export-outstanding-fees" type="button">Export Outstanding Fees</button>
               </section>
               <section class="table-panel summary-panel">
@@ -933,11 +933,18 @@
                       <th>Mar</th>
                       <th>Apr</th>
                       <th>May</th>
+                      <th>Jun</th>
+                      <th>Jul</th>
+                      <th>Aug</th>
+                      <th>Sep</th>
+                      <th>Oct</th>
+                      <th>Nov</th>
+                      <th>Dec</th>
                       <th>Total</th>
                     </tr>
                   </thead>
                   <tbody id="outstandingFeesTable">
-                    <tr><td colspan="11">Outstanding fee calendar will appear here.</td></tr>
+                    <tr><td colspan="18">Loading outstanding fees...</td></tr>
                   </tbody>
                 </table>
               </div>
