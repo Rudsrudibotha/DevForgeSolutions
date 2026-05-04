@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DevForge Solutions Login</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="auth-shell">
+      <div class="auth-card dedicated-login-card">
+        <div class="auth-brand">
+          <span class="brand-mark">DFS</span>
+          <div>
+            <h1 id="loginTitle">School Management Staff Login</h1>
+            <p id="loginSubtitle">Use your school login link to continue.</p>
+          </div>
+        </div>
+
+        <form id="loginForm" class="auth-form">
+          <label id="schoolIdField">
+            School ID
+            <input name="schoolId" type="number" min="1" step="1" inputmode="numeric">
+          </label>
+          <label>
+            <span id="identifierLabel">Email Address</span>
+            <input name="identifier" type="text" autocomplete="username" required>
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <input name="loginType" type="hidden" value="school">
+          <p id="loginMessage" class="form-message hidden"></p>
+          <button class="primary-button" type="submit">Login</button>
+        </form>
+      </div>
+    </div>
+
+    <script src="/login.js"></script>
+  </body>
+</html>

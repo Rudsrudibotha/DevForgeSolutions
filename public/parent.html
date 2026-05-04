@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Parent Management Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="school-user parent-user">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">DFS</span>
+          <div>
+            <h1>Parent Management</h1>
+            <p>Student and account information</p>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="Primary">
+          <button class="nav-item active" data-view="overview" type="button" aria-current="page">Home</button>
+          <button class="nav-item" data-view="students" type="button">My Child</button>
+          <button class="nav-item" data-view="account" type="button">Account</button>
+        </nav>
+
+        <div class="session-box">
+          <p id="sessionLabel">Signed out</p>
+          <button id="logoutButton" class="secondary-button hidden" type="button">Logout</button>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <h2 id="viewTitle" tabindex="-1">Parent Management Dashboard</h2>
+          </div>
+          <div id="statusPill" class="status-pill">Connecting</div>
+        </header>
+
+        <section id="workspace" class="workspace hidden">
+          <section id="overviewView" class="view active">
+            <div class="dashboard-home">
+              <section class="school-module-section">
+                <div class="school-section-heading">
+                  <h3>CHILD INFORMATION</h3>
+                </div>
+                <div class="module-grid">
+                  <button class="module-tile" data-action="open-child" type="button">
+                    <span class="module-icon students-icon" aria-hidden="true">CH</span>
+                    <span>My Child</span>
+                  </button>
+                </div>
+              </section>
+
+              <section class="school-module-section">
+                <div class="school-section-heading">
+                  <h3>ACCOUNT</h3>
+                </div>
+                <div class="module-grid">
+                  <button class="module-tile" data-action="open-account" type="button">
+                    <span class="module-icon finance-icon" aria-hidden="true">AC</span>
+                    <span>Account / View Statement</span>
+                  </button>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section id="studentsView" class="view">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>My Child</h3>
+                    <p>Select a linked child to view school information.</p>
+                  </div>
+                </div>
+                <label>
+                  Select Child
+                  <select id="childSelect"></select>
+                </label>
+              </section>
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Child Information</h3>
+                    <p>Only children linked to this parent account are shown.</p>
+                  </div>
+                </div>
+                <div id="studentSummary" class="compact-list"></div>
+              </section>
+            </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Family</th>
+                      <th>Class</th>
+                      <th>Billing</th>
+                    </tr>
+                  </thead>
+                  <tbody id="studentsTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="attendanceView" class="view grouped-view" data-group="students">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Attendance</h3>
+                    <p>Filter attendance by child and month.</p>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Select Child
+                    <select id="attendanceChildSelect"></select>
+                  </label>
+                  <label>
+                    Select Month
+                    <input id="attendanceMonthInput" type="month">
+                  </label>
+                </div>
+              </section>
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Attendance Summary</h3>
+                    <p>Attendance records will appear when the school captures them.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attendanceTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="detailsView" class="view grouped-view" data-group="students">
+            <form id="parentDetailsForm" class="form-panel narrow-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Update Details</h3>
+                  <p>Submit contact updates for school review.</p>
+                </div>
+              </div>
+              <label>
+                Parent Name
+                <input name="parentName" type="text">
+              </label>
+              <label>
+                Cell Number
+                <input name="cellNumber" type="tel">
+              </label>
+              <label>
+                Email Address
+                <input name="email" type="email">
+              </label>
+              <label>
+                Address
+                <textarea name="address" rows="3"></textarea>
+              </label>
+              <label>
+                Emergency Contact
+                <input name="emergencyContact" type="text">
+              </label>
+              <button class="primary-button" type="submit">Submit Changes</button>
+            </form>
+          </section>
+
+          <section id="accountView" class="view">
+            <div class="icon-page-layout">
+              <section class="table-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Account</h3>
+                    <p>Parent account details.</p>
+                  </div>
+                </div>
+                <dl class="profile-list">
+                  <div><dt>Username</dt><dd id="profileUsername">-</dd></div>
+                  <div><dt>Email</dt><dd id="profileEmail">-</dd></div>
+                  <div><dt>Role</dt><dd id="profileRole">Parent</dd></div>
+                </dl>
+              </section>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Balance Summary</h3>
+                    <p>Statement values for your own linked account.</p>
+                  </div>
+                </div>
+                <div class="metrics-grid">
+                  <div class="metric">
+                    <span>Total owed</span>
+                    <strong id="totalOwed">R0.00</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Total paid</span>
+                    <strong id="totalPaid">R0.00</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Invoices</span>
+                    <strong id="invoiceCount">0</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Outstanding</span>
+                    <strong id="outstandingCount">0</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Statement</h3>
+                  <p>Invoices and payments linked to your child or family account.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Invoice</th>
+                      <th>Description</th>
+                      <th>Amount</th>
+                      <th>Paid</th>
+                      <th>Status</th>
+                      <th>Due</th>
+                    </tr>
+                  </thead>
+                  <tbody id="invoicesTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+        </section>
+
+        <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+      </main>
+    </div>
+
+    <script src="/parent.js"></script>
+  </body>
+</html>

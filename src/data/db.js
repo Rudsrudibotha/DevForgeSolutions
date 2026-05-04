@@ -3,6 +3,8 @@
 
 const sql = require('mssql');
 
+let pool = null;
+
 const dbState = {
   connected: false,
   lastError: null
@@ -18,7 +20,7 @@ function getConnectionConfig() {
 
 async function connectDB() {
   try {
-    await sql.connect(getConnectionConfig());
+    pool = await sql.connect(getConnectionConfig());
     dbState.connected = true;
     dbState.lastError = null;
     console.log('Connected to Azure SQL Database');
@@ -30,8 +32,16 @@ async function connectDB() {
   }
 }
 
+async function getPool() {
+  if (pool) {
+    return pool;
+  }
+
+  return await sql.connect(getConnectionConfig());
+}
+
 function getDbState() {
   return { ...dbState };
 }
 
-module.exports = { connectDB, getDbState, sql };
+module.exports = { connectDB, getPool, getDbState, sql };

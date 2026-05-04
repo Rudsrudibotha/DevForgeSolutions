@@ -71,4 +71,4 @@ Then open:
 https://<your-app-name>.azurewebsites.net/
 ```
 
-You should see the DevForegeSolutions login and registration screen.
+You should see the DevForge Solutions login and registration screen.

@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DevForge Solutions Management</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="platform-user">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">DFS</span>
+          <div>
+            <h1>DevForge Solutions</h1>
+            <p>Management dashboard</p>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="Primary">
+          <button class="nav-item active" data-view="overview" type="button" aria-current="page">Home</button>
+          <button class="nav-item" data-view="schools" type="button">Schools</button>
+          <button class="nav-item" data-view="users" type="button">Users</button>
+          <button class="nav-item" data-view="audit" type="button">Audit</button>
+          <button class="nav-item" data-view="account" type="button">Account</button>
+        </nav>
+
+        <div class="session-box">
+          <p id="sessionLabel">Signed out</p>
+          <button id="logoutButton" class="secondary-button hidden" type="button">Logout</button>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <h2 id="viewTitle" tabindex="-1">DevForge Solutions Management Dashboard</h2>
+          </div>
+          <div id="statusPill" class="status-pill">Connecting</div>
+        </header>
+
+        <section id="workspace" class="workspace hidden">
+          <section id="overviewView" class="view active">
+            <div class="dashboard-home">
+              <section class="school-module-section">
+                <div class="school-section-heading">
+                  <h3>MANAGEMENT</h3>
+                </div>
+                <div class="module-grid">
+                  <button class="module-tile" data-action="open-schools" type="button">
+                    <span class="module-icon schools-icon" aria-hidden="true">SC</span>
+                    <span>Schools</span>
+                  </button>
+                  <button class="module-tile" data-action="open-users" type="button">
+                    <span class="module-icon staff-icon" aria-hidden="true">US</span>
+                    <span>Users</span>
+                  </button>
+                  <button class="module-tile" data-action="open-audit" type="button">
+                    <span class="module-icon report-icon" aria-hidden="true">AU</span>
+                    <span>Audit</span>
+                  </button>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section id="schoolsView" class="view">
+            <div class="icon-page-layout">
+              <form id="schoolForm" class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Schools</h3>
+                    <p>Search schools and add new client tenants.</p>
+                  </div>
+                </div>
+                <label>
+                  Search School
+                  <input id="schoolSearchInput" type="search" placeholder="School name or contact">
+                </label>
+                <div class="form-grid">
+                  <label>
+                    School name
+                    <input name="schoolName" type="text" autocomplete="organization" required>
+                  </label>
+                  <label>
+                    Contact email
+                    <input name="contactEmail" type="email" autocomplete="email" required>
+                  </label>
+                  <label>
+                    Contact person
+                    <input name="contactPerson" type="text" autocomplete="name">
+                  </label>
+                  <label>
+                    Contact phone
+                    <input name="contactPhone" type="tel" autocomplete="tel">
+                  </label>
+                  <label>
+                    Currency
+                    <select name="currencyCode">
+                      <option value="ZAR">South African Rand - R</option>
+                      <option value="USD">US Dollar - $</option>
+                      <option value="EUR">Euro - EUR</option>
+                      <option value="GBP">British Pound - GBP</option>
+                    </select>
+                  </label>
+                  <label>
+                    Default monthly fee
+                    <input name="defaultMonthlyFee" type="number" min="0" step="0.01" value="0">
+                  </label>
+                  <label class="wide">
+                    Address
+                    <textarea name="address" rows="3" autocomplete="street-address"></textarea>
+                  </label>
+                </div>
+                <button class="primary-button" type="submit">Add School</button>
+              </form>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>School Summary</h3>
+                    <p>Platform tenant position.</p>
+                  </div>
+                </div>
+                <div class="metrics-grid">
+                  <div class="metric">
+                    <span>Active schools</span>
+                    <strong id="activeSchools">0</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Suspended schools</span>
+                    <strong id="suspendedSchools">0</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Students</span>
+                    <strong id="totalStudents">0</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>School List</h3>
+                  <p>Activate or suspend only the selected school tenant.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>School Name</th>
+                      <th>Status</th>
+                      <th>Users</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="schoolsTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="usersView" class="view">
+            <div class="icon-page-layout">
+              <form id="devforgeUserForm" class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Users</h3>
+                    <p>Manage DevForge internal dashboard users only.</p>
+                  </div>
+                </div>
+                <label>
+                  Search User
+                  <input id="userSearchInput" type="search" placeholder="Name or email">
+                </label>
+                <div class="form-grid">
+                  <label>
+                    Username
+                    <input name="username" type="text" autocomplete="off" required>
+                  </label>
+                  <label>
+                    Email
+                    <input name="email" type="email" autocomplete="email" required>
+                  </label>
+                  <label>
+                    Temporary password
+                    <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+                  </label>
+                </div>
+                <button class="primary-button" type="submit">Add DevForge User</button>
+              </form>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>User Summary</h3>
+                    <p>Internal users are marked inactive instead of deleted.</p>
+                  </div>
+                </div>
+                <div class="metrics-grid">
+                  <div class="metric">
+                    <span>System users</span>
+                    <strong id="totalUsers">0</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="devforgeUsersTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="auditView" class="view">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Audit</h3>
+                    <p>Recent system activity across the application.</p>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Date From
+                    <input id="auditDateFrom" type="date">
+                  </label>
+                  <label>
+                    Date To
+                    <input id="auditDateTo" type="date">
+                  </label>
+                  <label>
+                    Activity Type
+                    <select id="auditTypeFilter">
+                      <option value="">All activity</option>
+                      <option value="Login">Login</option>
+                      <option value="CreateSchoolUser">User added</option>
+                      <option value="CreateDevForgeUser">DevForge user added</option>
+                      <option value="SchoolSuspended">School suspended</option>
+                      <option value="SchoolActivated">School activated</option>
+                      <option value="Payment">Payment allocated</option>
+                      <option value="Invoice">Invoice sent</option>
+                    </select>
+                  </label>
+                  <label>
+                    Search
+                    <input id="auditSearchInput" type="search" placeholder="User, school, or activity">
+                  </label>
+                </div>
+              </section>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Audit Summary</h3>
+                    <p>Use the filters to narrow activity.</p>
+                  </div>
+                </div>
+                <div class="metrics-grid">
+                  <div class="metric">
+                    <span>Activity rows</span>
+                    <strong id="auditCount">0</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>User</th>
+                      <th>School</th>
+                      <th>Activity</th>
+                    </tr>
+                  </thead>
+                  <tbody id="auditTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="accountView" class="view">
+            <section class="table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>DevForge account</h3>
+                  <p>Current platform operator session.</p>
+                </div>
+              </div>
+              <dl class="profile-list">
+                <div><dt>Username</dt><dd id="profileUsername">-</dd></div>
+                <div><dt>Email</dt><dd id="profileEmail">-</dd></div>
+                <div><dt>Role</dt><dd id="profileRole">-</dd></div>
+              </dl>
+            </section>
+          </section>
+        </section>
+
+        <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+      </main>
+    </div>
+
+    <script src="/devforge.js"></script>
+  </body>
+</html>

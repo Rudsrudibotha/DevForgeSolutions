@@ -3,195 +3,816 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>DevForge Solutions SMS</title>
+    <title>School Management Dashboard</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
-  <body>
+  <body class="school-user">
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
           <span class="brand-mark">DFS</span>
           <div>
-            <h1>DevForge Solutions</h1>
-            <p>School finance and management</p>
+            <h1>School Management</h1>
+            <p>Client school dashboard</p>
           </div>
         </div>
 
         <nav class="nav-list" aria-label="Primary">
-          <button class="nav-item active" data-view="overview" type="button">Overview</button>
-          <button class="nav-item" data-view="schools" type="button">Schools</button>
-          <button class="nav-item" data-view="invoices" type="button">Invoices</button>
+          <button class="nav-item active" data-view="overview" type="button" aria-current="page">Home</button>
+          <button class="nav-item" data-view="school" type="button">School</button>
+          <button class="nav-item" data-view="finance" type="button">Finance</button>
+          <button class="nav-item" data-view="reporting" type="button">Reporting</button>
           <button class="nav-item" data-view="account" type="button">Account</button>
           <button class="nav-item" data-view="settings" type="button">Settings</button>
         </nav>
 
         <div class="session-box">
           <p id="sessionLabel">Signed out</p>
-          <button id="logoutButton" class="secondary-button hidden" type="button">Sign out</button>
+          <button id="logoutButton" class="secondary-button hidden" type="button">Logout</button>
         </div>
       </aside>
 
       <main class="main-panel">
         <header class="topbar">
           <div>
-            <h2 id="viewTitle">Overview</h2>
+            <h2 id="viewTitle" tabindex="-1">School Management Dashboard</h2>
           </div>
           <div id="statusPill" class="status-pill">Connecting</div>
         </header>
 
-        <section id="authPanel" class="auth-layout">
-          <div class="auth-card">
-            <div class="auth-brand">
-              <span class="brand-mark">DFS</span>
-              <div>
-                <h1>DevForge Solutions</h1>
-                <p>School Finance and Management System</p>
-              </div>
-            </div>
-
-            <div class="auth-tabs" role="tablist" aria-label="Authentication">
-              <button class="auth-tab active" data-auth-mode="login" type="button">Sign in</button>
-              <button class="auth-tab" data-auth-mode="register" type="button">Register</button>
-            </div>
-
-            <form id="loginForm" class="auth-form">
-              <label>
-                School ID
-                <input name="schoolId" type="number" min="0" step="1" inputmode="numeric" required>
-              </label>
-              <label>
-                Username
-                <input name="username" type="text" autocomplete="username" required>
-              </label>
-              <label>
-                Password
-                <input name="password" type="password" autocomplete="current-password" required>
-              </label>
-              <button class="primary-button" type="submit">Sign in</button>
-            </form>
-
-            <form id="registerForm" class="auth-form hidden">
-              <label>
-                School name
-                <input name="schoolName" type="text" autocomplete="organization" required>
-              </label>
-              <p id="registerMessage" class="form-message hidden"></p>
-              <label>
-                Username
-                <input name="username" type="text" autocomplete="username" required>
-              </label>
-              <label>
-                Email
-                <input name="email" type="email" autocomplete="email" required>
-              </label>
-              <label>
-                Password
-                <input name="password" type="password" autocomplete="new-password" minlength="8" required>
-              </label>
-              <input name="role" type="hidden" value="school">
-              <button class="primary-button" type="submit">Create account</button>
-            </form>
-          </div>
-        </section>
-
         <section id="workspace" class="workspace hidden">
           <section id="overviewView" class="view active">
-            <div class="metrics-grid">
-              <div class="metric">
-                <span>Schools</span>
-                <strong id="schoolCount">0</strong>
-              </div>
-              <div class="metric">
-                <span>Invoices</span>
-                <strong id="invoiceCount">0</strong>
-              </div>
-              <div class="metric">
-                <span>Pending value</span>
-                <strong id="pendingValue">R0.00</strong>
-              </div>
-              <div class="metric">
-                <span>Paid value</span>
-                <strong id="paidValue">R0.00</strong>
-              </div>
-            </div>
-
-            <div class="split-layout">
-              <section class="table-panel">
-                <div class="panel-header">
-                  <h3>Recent schools</h3>
-                  <p>Tenant records available to this account.</p>
+            <div class="dashboard-home">
+              <section class="school-module-section">
+                <div class="school-section-heading">
+                  <h3>SCHOOL MANAGEMENT</h3>
                 </div>
-                <div id="recentSchools" class="compact-list"></div>
-              </section>
-
-              <section class="table-panel">
-                <div class="panel-header">
-                  <h3>Recent invoices</h3>
-                  <p>Latest finance records.</p>
+                <div class="module-grid">
+                  <button class="module-tile" data-action="open-school" type="button">
+                    <span class="module-icon schools-icon" aria-hidden="true">SC</span>
+                    <span>School</span>
+                  </button>
+                  <button class="module-tile" data-action="open-finance" type="button">
+                    <span class="module-icon finance-icon" aria-hidden="true">FI</span>
+                    <span>Finance</span>
+                  </button>
+                  <button class="module-tile" data-action="open-reporting" type="button">
+                    <span class="module-icon report-icon" aria-hidden="true">RP</span>
+                    <span>Reporting</span>
+                  </button>
                 </div>
-                <div id="recentInvoices" class="compact-list"></div>
               </section>
             </div>
           </section>
 
-          <section id="schoolsView" class="view">
-            <div class="split-layout">
-              <form id="schoolForm" class="form-panel">
+          <section id="staffView" class="view grouped-view" data-group="school">
+            <div class="icon-page-layout">
+              <section class="form-panel">
                 <div class="panel-header">
-                  <h3>Add school</h3>
-                  <p>Admin-only tenant creation.</p>
+                  <div>
+                    <h3>Staff</h3>
+                    <p>Add, search, and filter staff for this school.</p>
+                  </div>
                 </div>
-                <label>
-                  School name
-                  <input name="schoolName" type="text" required>
-                </label>
-                <label>
-                  Contact email
-                  <input name="contactEmail" type="email">
-                </label>
-                <label>
-                  Contact phone
-                  <input name="contactPhone" type="text">
-                </label>
-                <label>
-                  Address
-                  <input name="address" type="text">
-                </label>
-                <button class="primary-button" type="submit">Add school</button>
-              </form>
-
-              <section class="table-panel">
+                <form id="employeeForm" class="module-form flush-form">
+                  <div class="form-grid">
+                    <label>
+                      First name
+                      <input name="firstName" type="text" required>
+                    </label>
+                    <label>
+                      Last name
+                      <input name="lastName" type="text" required>
+                    </label>
+                    <label>
+                      Email
+                      <input name="email" type="email">
+                    </label>
+                    <label>
+                      Cell Number
+                      <input name="phone" type="tel">
+                    </label>
+                    <label>
+                      Role
+                      <input name="jobTitle" type="text" placeholder="Teacher, Finance, Admin, HR">
+                    </label>
+                    <label>
+                      Department
+                      <input name="department" type="text">
+                    </label>
+                    <label>
+                      Start date
+                      <input name="startDate" type="date" required>
+                    </label>
+                    <label>
+                      Salary
+                      <input name="salary" type="number" min="0" step="0.01" value="0">
+                    </label>
+                    <label>
+                      Leave balance
+                      <input name="leaveBalance" type="number" min="0" step="1" value="21">
+                    </label>
+                  </div>
+                  <button class="primary-button compact-button" type="submit">Add Staff</button>
+                </form>
+                <div class="form-grid section-spacer">
+                  <label>
+                    Search Type
+                    <select>
+                      <option>Name</option>
+                      <option>Staff number</option>
+                      <option>Email</option>
+                    </select>
+                  </label>
+                  <label>
+                    Search Value
+                    <input type="search">
+                  </label>
+                  <label>
+                    Status
+                    <select>
+                      <option>Active</option>
+                      <option>Inactive</option>
+                    </select>
+                  </label>
+                  <label>
+                    Role
+                    <select>
+                      <option>All roles</option>
+                      <option>Teacher</option>
+                      <option>Finance</option>
+                      <option>Admin</option>
+                      <option>HR</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+              <section class="table-panel summary-panel">
                 <div class="panel-header">
-                  <h3>Schools</h3>
-                  <p>Subscription and contact records.</p>
+                  <div>
+                    <h3>Staff Summary Chart</h3>
+                    <p>Employee module data appears here.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Selected</th>
+                      <th>Name</th>
+                      <th>Staff Number</th>
+                      <th>Role</th>
+                      <th>Cell Number</th>
+                      <th>Email</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="employeesTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="studentsView" class="view grouped-view" data-group="school">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Learners</h3>
+                    <p>Register learners and search within the signed-in School ID.</p>
+                  </div>
+                </div>
+
+                <form id="studentForm" class="module-form flush-form">
+                  <div class="form-grid">
+                    <label>
+                      Family
+                      <select id="studentFamilySelect" name="familyId" required></select>
+                    </label>
+                    <label>
+                      Billing category
+                      <select id="studentBillingCategorySelect" name="billingCategoryId" required></select>
+                    </label>
+                    <label>
+                      First name
+                      <input name="firstName" type="text" required>
+                    </label>
+                    <label>
+                      Last name
+                      <input name="lastName" type="text" required>
+                    </label>
+                    <label>
+                      Date of birth
+                      <input name="dateOfBirth" type="date">
+                    </label>
+                    <label>
+                      Class
+                      <input name="className" type="text">
+                    </label>
+                    <label>
+                      Billing date
+                      <input name="billingDate" type="date" required>
+                    </label>
+                    <label>
+                      Enrolled date
+                      <input name="enrolledDate" type="date" required>
+                    </label>
+                    <label>
+                      Home phone
+                      <input name="homePhone" type="tel">
+                    </label>
+                    <label class="wide">
+                      Medical notes
+                      <textarea name="medicalNotes" rows="2"></textarea>
+                    </label>
+                  </div>
+                  <button class="primary-button compact-button" type="submit">Register Learner</button>
+                </form>
+
+                <div class="form-grid section-spacer">
+                  <label>
+                    Search Type
+                    <select>
+                      <option>Student name</option>
+                      <option>Student surname</option>
+                      <option>Parent name</option>
+                      <option>Family code</option>
+                    </select>
+                  </label>
+                  <label>
+                    Search Value
+                    <input type="search">
+                  </label>
+                  <label>
+                    Grade
+                    <select>
+                      <option>All Grades</option>
+                    </select>
+                  </label>
+                  <label>
+                    Class
+                    <select>
+                      <option>All Classes</option>
+                    </select>
+                  </label>
+                  <label>
+                    Gender
+                    <select>
+                      <option>Male and Female</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="status-filter section-spacer" aria-label="Student status filter">
+                  <button class="filter-button active" data-student-status="active" type="button">Current</button>
+                  <button class="filter-button" data-student-status="inactive" type="button">Left / Inactive</button>
+                  <button class="filter-button" data-student-status="all" type="button">All</button>
+                </div>
+              </section>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Learner Count Chart</h3>
+                    <p>Current school learner summary.</p>
+                  </div>
+                </div>
+                <div class="metrics-grid">
+                  <div class="metric">
+                    <span id="primaryMetricLabel">Students</span>
+                    <strong id="schoolCount">0</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Invoices</span>
+                    <strong id="invoiceCount">0</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Pending value</span>
+                    <strong id="pendingValue">R0.00</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Paid value</span>
+                    <strong id="paidValue">R0.00</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Learner List</h3>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Family</th>
+                      <th>Billing</th>
+                      <th>Enrolled</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="studentsTable"></tbody>
+                </table>
+              </div>
+
+              <form id="departureForm" class="module-form hidden">
+                <h4>Mark student inactive: <span id="departureStudentName"></span></h4>
+                <div class="form-grid">
+                  <label>
+                    Departure date
+                    <input name="departureDate" type="date" required>
+                  </label>
+                  <label>
+                    Reason
+                    <select id="departureReasonSelect" name="departureReason" required>
+                      <option value="Left">Left</option>
+                      <option value="Absconded">Absconded</option>
+                      <option value="Moved">Moved</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </label>
+                  <label id="departureOtherGroup" class="wide hidden">
+                    Reason detail
+                    <input name="departureNote" type="text">
+                  </label>
+                </div>
+                <div class="actions">
+                  <button class="primary-button compact-button" type="submit">Confirm departure</button>
+                  <button class="secondary-button compact-button" id="cancelDepartureButton" type="button">Cancel</button>
+                </div>
+              </form>
+            </section>
+          </section>
+
+          <section id="parentsView" class="view grouped-view" data-group="school">
+            <div class="icon-page-layout">
+              <section id="parentsModulePanel" class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Parents</h3>
+                    <p>Families and parent contacts for this school only.</p>
+                  </div>
+                </div>
+                <form id="familyForm" class="module-form flush-form">
+                  <div class="form-grid">
+                    <label>
+                      Family name
+                      <input name="familyName" type="text" required>
+                    </label>
+                    <label>
+                      Home phone
+                      <input name="primaryParentPhone" type="tel">
+                    </label>
+                    <label>
+                      Mother or primary parent
+                      <input name="primaryParentName" type="text" required>
+                    </label>
+                    <label>
+                      Primary ID number
+                      <input name="primaryParentIdNumber" type="text">
+                    </label>
+                    <label>
+                      Primary email
+                      <input name="primaryParentEmail" type="email">
+                    </label>
+                    <label>
+                      Father or secondary parent
+                      <input name="secondaryParentName" type="text">
+                    </label>
+                    <label>
+                      Secondary ID number
+                      <input name="secondaryParentIdNumber" type="text">
+                    </label>
+                    <label>
+                      Secondary phone
+                      <input name="secondaryParentPhone" type="tel">
+                    </label>
+                    <label>
+                      Secondary email
+                      <input name="secondaryParentEmail" type="email">
+                    </label>
+                    <label class="wide">
+                      Home address
+                      <textarea name="homeAddress" rows="2"></textarea>
+                    </label>
+                    <label>
+                      Emergency contact
+                      <input name="emergencyContactName" type="text">
+                    </label>
+                    <label>
+                      Emergency phone
+                      <input name="emergencyContactPhone" type="tel">
+                    </label>
+                    <label>
+                      Family doctor
+                      <input name="familyDoctor" type="text">
+                    </label>
+                    <label>
+                      Medical aid and number
+                      <input name="medicalAidNumber" type="text">
+                    </label>
+                  </div>
+                  <button class="primary-button compact-button" type="submit">Add Parent</button>
+                </form>
+                <div class="form-grid section-spacer">
+                  <label>
+                    Search by
+                    <select>
+                      <option>Parent Name</option>
+                      <option>Student Name</option>
+                      <option>Family Code</option>
+                      <option>ID Number</option>
+                      <option>Passport Number</option>
+                    </select>
+                  </label>
+                  <label>
+                    Search Value
+                    <input type="search">
+                  </label>
+                  <label>
+                    Status
+                    <select>
+                      <option>Active</option>
+                      <option>Archived</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Parent Summary Chart</h3>
+                    <p>Parent/family totals for this school.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Parent List</h3>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Family</th>
+                      <th>Primary parent</th>
+                      <th>Secondary parent</th>
+                      <th>Emergency</th>
+                    </tr>
+                  </thead>
+                  <tbody id="familiesTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="classesView" class="view grouped-view" data-group="school">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Classes</h3>
+                    <p>Class setup and teacher assignment.</p>
+                  </div>
+                </div>
+                <form id="classForm" class="module-form flush-form">
+                  <div class="form-grid">
+                    <label>
+                      Class Name
+                      <input name="className" type="text" required>
+                    </label>
+                    <label>
+                      Teacher
+                      <select id="classTeacherSelect" name="teacherId"></select>
+                    </label>
+                    <label>
+                      Capacity
+                      <input name="capacity" type="number" min="1" step="1">
+                    </label>
+                  </div>
+                  <button class="primary-button compact-button" type="submit">Add Class</button>
+                </form>
+                <label class="section-spacer">
+                  Search Class
+                  <input id="classSearchInput" type="search">
+                </label>
+              </section>
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Class Summary Chart</h3>
+                    <p>Class totals appear here.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Selected</th>
+                      <th>Class Name</th>
+                      <th>Teacher</th>
+                      <th>Number of Learners</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="classesTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="attendanceView" class="view grouped-view" data-group="school">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Attendance</h3>
+                    <p>Capture and review daily attendance for the signed-in school.</p>
+                  </div>
+                </div>
+                <form id="attendanceForm" class="module-form flush-form">
+                  <div class="form-grid">
+                    <label>
+                      Student
+                      <select id="attendanceStudentSelect" name="studentId" required></select>
+                    </label>
+                    <label>
+                      Date
+                      <input id="attendanceDateInput" name="attendanceDate" type="date" required>
+                    </label>
+                    <label>
+                      Status
+                      <select name="status" required>
+                        <option value="Present">Present</option>
+                        <option value="Absent">Absent</option>
+                        <option value="Late">Late</option>
+                        <option value="Excused">Excused</option>
+                      </select>
+                    </label>
+                    <label class="wide">
+                      Note
+                      <input name="notes" type="text">
+                    </label>
+                  </div>
+                  <button class="primary-button compact-button" type="submit">Save Attendance</button>
+                </form>
+              </section>
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Attendance Summary</h3>
+                    <p>Counts for the selected date.</p>
+                  </div>
                 </div>
                 <div class="table-wrap">
                   <table>
                     <thead>
                       <tr>
-                        <th>Name</th>
-                        <th>Contact</th>
                         <th>Status</th>
-                        <th>Actions</th>
+                        <th>Count</th>
                       </tr>
                     </thead>
-                    <tbody id="schoolsTable"></tbody>
+                    <tbody id="attendanceSummaryTable"></tbody>
                   </table>
                 </div>
               </section>
             </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Student</th>
+                      <th>Class</th>
+                      <th>Status</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attendanceTable"></tbody>
+                </table>
+              </div>
+            </section>
           </section>
 
-          <section id="invoicesView" class="view">
-            <div class="split-layout">
+          <section id="bankView" class="view grouped-view" data-group="finance">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Bank Reconciliation</h3>
+                    <p>Import bank statements and confirm payment allocation.</p>
+                  </div>
+                </div>
+                <form id="ofxUploadForm" class="module-form flush-form">
+                  <label>
+                    Import Bank Statement
+                    <input name="ofxFile" type="file" accept=".ofx,.qfx" required>
+                  </label>
+                  <button class="primary-button compact-button" type="submit">Upload Statement</button>
+                </form>
+                <div class="form-grid section-spacer">
+                  <label>
+                    Search payment
+                    <input type="search" placeholder="Reference / family code / amount">
+                  </label>
+                  <label>
+                    Status
+                    <select>
+                      <option>Unallocated</option>
+                      <option>Allocated</option>
+                      <option>Advance Credit</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Payment Summary</h3>
+                    <p>Current financial position.</p>
+                  </div>
+                </div>
+                <div id="reconciliationSummary" class="metrics-grid">
+                  <div class="metric">
+                    <span>Total Credits</span>
+                    <strong id="totalCredits">R0.00</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Total Debits</span>
+                    <strong id="totalDebits">R0.00</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Balance</span>
+                    <strong id="accountBalance">R0.00</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Outstanding</span>
+                    <strong id="outstandingAmount">R0.00</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Bank Transactions</h3>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Amount</th>
+                      <th>Reference</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody id="transactionsTable"></tbody>
+                </table>
+              </div>
+
+              <div class="module-detail-header section-spacer">
+                <div>
+                  <h4>Bank Statements</h4>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>File Name</th>
+                      <th>Statement Date</th>
+                      <th>Transactions</th>
+                      <th>Uploaded</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bankStatementsTable"></tbody>
+                </table>
+              </div>
+
+              <div class="module-detail-header section-spacer">
+                <div>
+                  <h4>Suggested matches</h4>
+                  <p>Review suggested bank-to-invoice matches before approving.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Bank reference</th>
+                      <th>Invoice</th>
+                      <th>Amount</th>
+                      <th>Confidence</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="matchSuggestionsTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="outstandingView" class="view grouped-view" data-group="finance">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Outstanding Fees</h3>
+                    <p>Search outstanding balances by learner, parent, or class.</p>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Search Student / Parent / Class
+                    <input type="search">
+                  </label>
+                  <label>
+                    Grade
+                    <select><option>All Grades</option></select>
+                  </label>
+                  <label>
+                    Class
+                    <select><option>All Classes</option></select>
+                  </label>
+                  <label>
+                    Status
+                    <select><option>Current</option></select>
+                  </label>
+                </div>
+                <button class="secondary-button compact-button section-spacer" type="button">Export</button>
+              </section>
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Outstanding Fees Year Calendar</h3>
+                    <p>Invoice status by learner and month.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Student Name</th>
+                      <th>Student Surname</th>
+                      <th>Class</th>
+                      <th>Parent 1 Cell</th>
+                      <th>Parent 2 Cell</th>
+                      <th>Jan</th>
+                      <th>Feb</th>
+                      <th>Mar</th>
+                      <th>Apr</th>
+                      <th>May</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody id="outstandingFeesTable">
+                    <tr><td colspan="11">Outstanding fee calendar will appear here.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="invoicesView" class="view grouped-view" data-group="finance">
+            <div class="icon-page-layout">
               <form id="invoiceForm" class="form-panel">
                 <div class="panel-header">
-                  <h3>Create invoice</h3>
-                  <p>Admin-only finance record creation.</p>
+                  <div>
+                    <h3>Invoices</h3>
+                    <p>Create manual invoices and review billing for this school.</p>
+                  </div>
                 </div>
                 <label>
                   School
                   <select name="schoolId" id="invoiceSchool" required></select>
+                </label>
+                <label>
+                  Student
+                  <select name="studentId" id="invoiceStudentSelect" required></select>
                 </label>
                 <label>
                   Amount
@@ -206,125 +827,460 @@
                   <textarea name="description" rows="4"></textarea>
                 </label>
                 <button class="primary-button" type="submit">Create invoice</button>
+                <button class="secondary-button" id="generateMonthlyButton" type="button">Generate Monthly Invoices</button>
               </form>
 
-              <section class="table-panel">
+              <section class="table-panel summary-panel">
                 <div class="panel-header">
-                  <h3>Invoices</h3>
-                  <p>Status, due dates, and paid records.</p>
+                  <div>
+                    <h3>Invoice Filters</h3>
+                    <p>Filter by student, class, month, year, or status.</p>
+                  </div>
                 </div>
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Number</th>
-                        <th>School</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Due</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody id="invoicesTable"></tbody>
-                  </table>
+                <div class="form-grid">
+                  <label>
+                    Student
+                    <select id="invoiceFilterStudent">
+                      <option value="">All students</option>
+                    </select>
+                  </label>
+                  <label>
+                    Class
+                    <select id="invoiceFilterClass">
+                      <option value="">All classes</option>
+                    </select>
+                  </label>
+                  <label>
+                    Month
+                    <select id="invoiceFilterMonth">
+                      <option value="">All months</option>
+                      <option value="1">January</option>
+                      <option value="2">February</option>
+                      <option value="3">March</option>
+                      <option value="4">April</option>
+                      <option value="5">May</option>
+                      <option value="6">June</option>
+                      <option value="7">July</option>
+                      <option value="8">August</option>
+                      <option value="9">September</option>
+                      <option value="10">October</option>
+                      <option value="11">November</option>
+                      <option value="12">December</option>
+                    </select>
+                  </label>
+                  <label>
+                    Year
+                    <input id="invoiceFilterYear" type="number" min="2000" max="2100" placeholder="All years">
+                  </label>
+                  <label>
+                    Status
+                    <select id="invoiceFilterStatus">
+                      <option value="">All statuses</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Partial">Partial</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Overdue">Overdue</option>
+                    </select>
+                  </label>
                 </div>
               </section>
             </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Number</th>
+                      <th>Student</th>
+                      <th>Class</th>
+                      <th>Billing</th>
+                      <th>Amount</th>
+                      <th>Paid</th>
+                      <th>Status</th>
+                      <th>Due</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="invoicesTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="billingCategoriesView" class="view grouped-view" data-group="finance">
+            <div class="icon-page-layout">
+              <form id="billingCategoryForm" class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Billing Categories</h3>
+                    <p>Add, edit, and deactivate school billing terms.</p>
+                  </div>
+                </div>
+                <input name="billingCategoryId" type="hidden">
+                <label>
+                  Category name
+                  <input name="categoryName" type="text" required>
+                </label>
+                <label>
+                  Billing amount
+                  <input name="baseAmount" type="number" min="0" step="0.01" required>
+                </label>
+                <label>
+                  Billing frequency or term
+                  <input name="frequency" type="text" list="billingTermOptions" placeholder="10 months" required>
+                  <datalist id="billingTermOptions">
+                    <option value="3 months"></option>
+                    <option value="6 months"></option>
+                    <option value="10 months"></option>
+                    <option value="12 months"></option>
+                    <option value="Monthly"></option>
+                  </datalist>
+                </label>
+                <label>
+                  Description
+                  <textarea name="description" rows="3"></textarea>
+                </label>
+                <button class="primary-button" type="submit">Save billing category</button>
+                <button class="secondary-button hidden" id="cancelBillingCategoryEditButton" type="button">Cancel edit</button>
+              </form>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Automatic Billing Rule</h3>
+                    <p>Monthly invoices use each active student's assigned billing category from enrolment month onward.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Category</th>
+                      <th>Amount</th>
+                      <th>Term</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="billingCategoriesTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="payslipsView" class="view grouped-view" data-group="finance">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Payslips</h3>
+                    <p>Create and review school employee payslips.</p>
+                  </div>
+                </div>
+                <form id="payslipForm" class="module-form flush-form">
+                  <div class="form-grid">
+                    <label>
+                      Employee
+                      <select id="payslipEmployeeSelect" name="employeeId" required></select>
+                    </label>
+                    <label>
+                      Pay period
+                      <input name="payPeriod" type="month" required>
+                    </label>
+                    <label>
+                      Gross amount
+                      <input name="grossAmount" type="number" min="0.01" step="0.01" required>
+                    </label>
+                    <label>
+                      Deductions
+                      <input name="deductions" type="number" min="0" step="0.01" value="0">
+                    </label>
+                    <label class="wide">
+                      Notes
+                      <textarea name="notes" rows="2"></textarea>
+                    </label>
+                  </div>
+                  <button class="primary-button compact-button" type="submit">Create Payslip</button>
+                </form>
+              </section>
+              <section class="table-panel summary-panel">
+                <div class="panel-header"><h3>Payslip Summary</h3></div>
+              </section>
+            </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Employee</th><th>Period</th><th>Net Pay</th><th>Status</th></tr></thead>
+                  <tbody id="payslipsTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="leaveView" class="view grouped-view" data-group="finance">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Leave</h3>
+                    <p>Submit, approve, or reject leave requests.</p>
+                  </div>
+                </div>
+                <form id="leaveForm" class="module-form flush-form">
+                  <div class="form-grid">
+                    <label>
+                      Leave type
+                      <select name="leaveType" required>
+                        <option value="Annual">Annual</option>
+                        <option value="Sick">Sick</option>
+                        <option value="Family">Family</option>
+                        <option value="Unpaid">Unpaid</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </label>
+                    <label>
+                      Start date
+                      <input name="startDate" type="date" required>
+                    </label>
+                    <label>
+                      End date
+                      <input name="endDate" type="date" required>
+                    </label>
+                    <label class="wide">
+                      Reason
+                      <textarea name="reason" rows="2"></textarea>
+                    </label>
+                  </div>
+                  <button class="primary-button compact-button" type="submit">Capture Leave</button>
+                </form>
+              </section>
+              <section class="table-panel summary-panel">
+                <div class="panel-header"><h3>Leave Summary</h3></div>
+              </section>
+            </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Status</th></tr></thead>
+                  <tbody id="leavesTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="reportView" class="view grouped-view" data-group="reporting">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>School Report</h3>
+                    <p>Filter school activity and finance reporting.</p>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Date From
+                    <input type="date">
+                  </label>
+                  <label>
+                    Date To
+                    <input type="date">
+                  </label>
+                  <label>
+                    Report Type
+                    <select>
+                      <option>Learners</option>
+                      <option>Finance</option>
+                      <option>Attendance</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+              <section class="table-panel summary-panel">
+                <div class="panel-header"><h3>Report Summary</h3></div>
+              </section>
+            </div>
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Date</th><th>Area</th><th>Description</th><th>Total</th></tr></thead>
+                  <tbody id="auditLogsTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="sendInvoicesView" class="view grouped-view" data-group="reporting">
+            <div class="icon-page-layout">
+              <form id="statementSendForm" class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Send Invoices to Parents</h3>
+                    <p>Generate statements for this school only.</p>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Current Year
+                    <input type="number" value="2026">
+                  </label>
+                  <label>
+                    Send Option
+                    <select>
+                      <option>Send only to outstanding</option>
+                      <option>Send to all</option>
+                      <option>Send selected class</option>
+                      <option>Send selected students</option>
+                      <option>Send selected families</option>
+                    </select>
+                  </label>
+                </div>
+                <button class="primary-button" type="button">Preview Statements</button>
+                <button class="secondary-button" type="button">Send</button>
+              </form>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Statement Summary</h3>
+                    <p>Preview statements before sending.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <section class="table-panel page-table-panel">
+              <div id="recentInvoices" class="compact-list hidden"></div>
+              <p>Generated invoice and statement results use the Outstanding Fees page list.</p>
+            </section>
           </section>
 
           <section id="accountView" class="view">
             <div class="split-layout account-layout">
-            <section class="table-panel">
-              <div class="panel-header">
-                <h3>Account</h3>
-                <p>Current signed-in user and tenant scope.</p>
-              </div>
-              <dl class="profile-list">
-                <div>
-                  <dt>Username</dt>
-                  <dd id="profileUsername">-</dd>
+              <section class="table-panel">
+                <div class="panel-header">
+                  <h3>Account</h3>
+                  <p>Current signed-in user and school scope.</p>
                 </div>
-                <div>
-                  <dt>Email</dt>
-                  <dd id="profileEmail">-</dd>
-                </div>
-                <div>
-                  <dt>Role</dt>
-                  <dd id="profileRole">-</dd>
-                </div>
-                <div>
-                  <dt>School ID</dt>
-                  <dd id="profileSchool">-</dd>
-                </div>
-                <div>
-                  <dt>School</dt>
-                  <dd id="profileSchoolName">-</dd>
-                </div>
-              </dl>
-            </section>
+                <dl class="profile-list">
+                  <div><dt>Username</dt><dd id="profileUsername">-</dd></div>
+                  <div><dt>Email</dt><dd id="profileEmail">-</dd></div>
+                  <div><dt>Role</dt><dd id="profileRole">-</dd></div>
+                  <div><dt>School ID</dt><dd id="profileSchool">-</dd></div>
+                  <div><dt>School</dt><dd id="profileSchoolName">-</dd></div>
+                </dl>
+              </section>
 
-            <form id="accountSchoolForm" class="form-panel">
-              <div class="panel-header inline-panel-header">
-                <div>
-                  <h3>School account</h3>
-                  <p>Address, logo, and contact details.</p>
-                </div>
-                <span id="accountSchoolStatus" class="badge">Active</span>
-              </div>
-
-              <label id="accountSchoolSelector" class="hidden">
-                School
-                <select id="accountSchoolSelect" name="schoolId"></select>
-              </label>
-
-              <div class="logo-editor">
-                <div id="accountLogoPreview" class="logo-preview" aria-label="School logo preview">DFS</div>
-                <div>
-                  <input name="logoUrl" type="hidden">
-                  <div class="logo-source-tabs" aria-label="Logo source">
-                    <button class="logo-source-tab active" data-logo-source="link" type="button">Link</button>
-                    <button class="logo-source-tab" data-logo-source="upload" type="button">Upload</button>
+              <form id="accountSchoolForm" class="form-panel">
+                <div class="panel-header inline-panel-header">
+                  <div>
+                    <h3>School account</h3>
+                    <p>Address, logo, and contact details.</p>
                   </div>
-                  <label id="logoLinkField">
-                    Logo URL
-                    <input id="accountLogoUrlInput" type="url" inputmode="url" placeholder="https://example.com/logo.png">
+                  <span id="accountSchoolStatus" class="badge">Active</span>
+                </div>
+
+                <label id="accountSchoolSelector" class="hidden">
+                  School
+                  <select id="accountSchoolSelect" name="schoolId"></select>
+                </label>
+
+                <div class="logo-editor">
+                  <div id="accountLogoPreview" class="logo-preview" aria-label="School logo preview">SC</div>
+                  <div>
+                    <input name="logoUrl" type="hidden">
+                    <div class="logo-source-tabs" aria-label="Logo source">
+                      <button class="logo-source-tab active" data-logo-source="link" type="button">Link</button>
+                      <button class="logo-source-tab" data-logo-source="upload" type="button">Upload</button>
+                    </div>
+                    <label id="logoLinkField">
+                      Logo URL
+                      <input id="accountLogoUrlInput" type="url" inputmode="url" placeholder="https://example.com/logo.png">
+                    </label>
+                    <label id="logoUploadField" class="hidden">
+                      JPG or PNG logo
+                      <input id="accountLogoFileInput" type="file" accept="image/jpeg,image/png">
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <label>
+                    School name
+                    <input name="schoolName" type="text" autocomplete="organization" required>
                   </label>
-                  <label id="logoUploadField" class="hidden">
-                    JPG or PNG logo
-                    <input id="accountLogoFileInput" type="file" accept="image/jpeg,image/png">
+                  <label>
+                    Contact person
+                    <input name="contactPerson" type="text" autocomplete="name">
+                  </label>
+                  <label>
+                    Contact email
+                    <input name="contactEmail" type="email" autocomplete="email">
+                  </label>
+                  <label>
+                    Contact phone
+                    <input name="contactPhone" type="tel" autocomplete="tel">
+                  </label>
+                  <label class="wide">
+                    Website
+                    <input name="website" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com">
+                  </label>
+                  <label class="wide">
+                    Address
+                    <textarea name="address" rows="3" autocomplete="street-address"></textarea>
                   </label>
                 </div>
-              </div>
 
-              <div class="form-grid">
-                <label>
-                  School name
-                  <input name="schoolName" type="text" autocomplete="organization" required>
-                </label>
-                <label>
-                  Contact person
-                  <input name="contactPerson" type="text" autocomplete="name">
-                </label>
-                <label>
-                  Contact email
-                  <input name="contactEmail" type="email" autocomplete="email">
-                </label>
-                <label>
-                  Contact phone
-                  <input name="contactPhone" type="tel" autocomplete="tel">
-                </label>
-                <label class="wide">
-                  Website
-                  <input name="website" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com">
-                </label>
-                <label class="wide">
-                  Address
-                  <textarea name="address" rows="3" autocomplete="street-address"></textarea>
-                </label>
-              </div>
+                <button class="primary-button" type="submit">Save school account</button>
+              </form>
 
-              <button class="primary-button" type="submit">Save school account</button>
-            </form>
+              <section id="schoolUsersPanel" class="table-panel account-wide-panel">
+                <div class="panel-header">
+                  <h3>System users</h3>
+                  <p>Give trusted staff access to this school account.</p>
+                </div>
+
+                <form id="schoolUserForm" class="module-form">
+                  <div class="form-grid">
+                    <label>
+                      Username
+                      <input name="username" type="text" autocomplete="off" required>
+                    </label>
+                    <label>
+                      Email
+                      <input name="email" type="email" autocomplete="email" required>
+                    </label>
+                    <label>
+                      Temporary password
+                      <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+                    </label>
+                  </div>
+                  <button class="primary-button compact-button" type="submit">Add user</button>
+                </form>
+
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Created</th>
+                      </tr>
+                    </thead>
+                    <tbody id="schoolUsersTable"></tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section id="auditPanel" class="table-panel account-wide-panel hidden">
+                <div class="panel-header">
+                  <h3>Audit activity</h3>
+                  <p>Recent account and finance changes for this school.</p>
+                </div>
+              </section>
             </div>
           </section>
 
@@ -359,7 +1315,32 @@
           </section>
         </section>
 
-        <div id="toast" class="toast hidden" role="status"></div>
+        <div id="paymentDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="paymentDialogTitle">
+          <form id="paymentForm" class="modal-panel">
+            <div class="modal-header">
+              <div>
+                <h3 id="paymentDialogTitle">Record payment</h3>
+                <p id="paymentInvoiceLabel">-</p>
+              </div>
+              <button id="closePaymentDialogButton" class="ghost-button icon-button" type="button" aria-label="Close payment dialog">&times;</button>
+            </div>
+            <input name="invoiceId" type="hidden">
+            <div class="payment-summary">
+              <span>Remaining</span>
+              <strong id="paymentRemainingLabel">R0.00</strong>
+            </div>
+            <label>
+              Payment amount
+              <input id="paymentAmountInput" name="amount" type="number" min="0.01" step="0.01" required>
+            </label>
+            <div class="actions modal-actions">
+              <button class="secondary-button compact-button" type="button" id="cancelPaymentButton">Cancel</button>
+              <button class="primary-button compact-button" type="submit">Save payment</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
       </main>
     </div>
 

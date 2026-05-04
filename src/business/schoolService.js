@@ -66,21 +66,32 @@ class SchoolService {
 
   async isSchoolNameRegistered(schoolName) {
     const cleanedSchoolName = this.requiredString(schoolName, 'School name', 255);
-    const school = await this.schoolRepository.getSchoolByName(cleanedSchoolName);
+    const school = await this.schoolRepository.getSchoolByNormalizedName(cleanedSchoolName);
 
     return Boolean(school);
   }
 
-  // Create a new school tenant.
+  // Create a new school tenant. Uses normalized name check to prevent duplicates.
   async createSchool(schoolData) {
     const payload = this.buildSchoolPayload(schoolData);
-    const existingSchool = await this.schoolRepository.getSchoolByName(payload.schoolName);
+    const existingSchool = await this.schoolRepository.getSchoolByNormalizedName(payload.schoolName);
 
     if (existingSchool) {
-      throw new Error('This school is already registered');
+      const error = new Error('A school with this name already exists.');
+      error.statusCode = 409;
+      throw error;
     }
 
-    return await this.schoolRepository.createSchool(payload);
+    try {
+      return await this.schoolRepository.createSchool(payload);
+    } catch (err) {
+      if (err.number === 2601 || err.number === 2627 || (err.message && err.message.includes('UX_Schools_NormalizedSchoolName'))) {
+        const error = new Error('A school with this name already exists.');
+        error.statusCode = 409;
+        throw error;
+      }
+      throw err;
+    }
   }
 
   // Update school details.
@@ -98,14 +109,25 @@ class SchoolService {
     const schoolNameChanged = payload.schoolName.toLowerCase() !== existingSchool.SchoolName.toLowerCase();
 
     if (schoolNameChanged) {
-      const duplicateSchool = await this.schoolRepository.getSchoolByNameExcludingId(payload.schoolName, id);
+      const duplicateSchool = await this.schoolRepository.getSchoolByNormalizedNameExcludingId(payload.schoolName, id);
 
       if (duplicateSchool) {
-        throw new Error('This school is already registered');
+        const error = new Error('A school with this name already exists.');
+        error.statusCode = 409;
+        throw error;
       }
     }
 
-    return await this.schoolRepository.updateSchool(id, payload);
+    try {
+      return await this.schoolRepository.updateSchool(id, payload);
+    } catch (err) {
+      if (err.number === 2601 || err.number === 2627 || (err.message && err.message.includes('UX_Schools_NormalizedSchoolName'))) {
+        const error = new Error('A school with this name already exists.');
+        error.statusCode = 409;
+        throw error;
+      }
+      throw err;
+    }
   }
 
   // Delete a school after confirming it exists.
@@ -171,6 +193,8 @@ class SchoolService {
       website: this.optionalString(source.website ?? existingSchool.Website, 'Website', 255),
       currencyCode: currency.code,
       currencySymbol: currency.symbol,
+      defaultMonthlyFee: this.optionalDecimal(source.defaultMonthlyFee ?? existingSchool.DefaultMonthlyFee, 'Default monthly fee'),
+      paymentInstructions: this.optionalString(source.paymentInstructions ?? existingSchool.PaymentInstructions, 'Payment instructions', 2000),
       subscriptionStatus
     };
   }
@@ -199,6 +223,20 @@ class SchoolService {
     return cleaned || null;
   }
 
+  optionalDecimal(value, label) {
+    if (value === undefined || value === null || value === '') {
+      return 0.00;
+    }
+
+    const parsed = Number(value);
+
+    if (Number.isNaN(parsed) || parsed < 0) {
+      throw new Error(`${label} must be a non-negative number`);
+    }
+
+    return Number(parsed.toFixed(2));
+  }
+
   subscriptionStatus(value) {
     if (!this.allowedStatuses.includes(value)) {
       throw new Error('Subscription status is invalid');
@@ -210,6 +248,17 @@ class SchoolService {
   currency(value) {
     const code = String(value || '').trim().toUpperCase();
     const currency = this.currencies[code];
+    const symbolOverrides = {
+      EUR: 'EUR',
+      GBP: 'GBP',
+      JPY: 'JPY',
+      CNY: 'CNY',
+      INR: 'INR',
+      AED: 'AED',
+      SAR: 'SAR',
+      PLN: 'PLN',
+      TRY: 'TRY'
+    };
 
     if (!currency) {
       throw new Error('Currency is invalid');
@@ -217,7 +266,7 @@ class SchoolService {
 
     return {
       code,
-      symbol: currency.symbol
+      symbol: symbolOverrides[code] || currency.symbol
     };
   }
 }

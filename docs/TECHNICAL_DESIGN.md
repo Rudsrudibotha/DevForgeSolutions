@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-DevForegeSolutions is building a cloud-hosted School Finance and Management System for schools that need controlled administration, finance operations, subscription management, invoicing, and reporting. The current implementation is an Express.js API with a layered structure:
+DevForge Solutions is building a cloud-hosted School Finance and Management System for schools that need controlled administration, finance operations, subscription management, invoicing, and reporting. The current implementation is an Express.js API with a layered structure:
 
 - Application Layer: HTTP routing, request validation, response handling.
 - Business Layer: business rules, validation, authorization decisions, workflow logic.
