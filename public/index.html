@@ -127,6 +127,18 @@
           </section>
 
           <section id="staffView" class="view grouped-view" data-group="school">
+          <!-- TODO: School / Staff (README: Staff Section)
+    DONE: Add staff form (name, email, phone, role, department, start date, salary, leave balance)
+    DONE: Staff table with name, number, role, cell, email, status
+    DONE: Search by name, staff number, email
+    DONE: Filter by status and role
+    TODO: Mark staff as inactive instead of deleting (add Deactivate button to each row)
+    TODO: Store and display emergency contact details (fields exist in DB: EmergencyContactName, EmergencyContactPhone)
+    TODO: Staff documents upload/view (API exists: /api/features/staff-documents)
+    TODO: Staff role and permission management (API exists: /api/hr/roles)
+    TODO: Assign roles like Teacher, Finance, HR, Admin to staff users
+    TODO: Edit staff button to update details
+  -->
             <div class="icon-page-layout">
               <section class="form-panel">
                 <div class="panel-header">
@@ -238,6 +250,22 @@
           </section>
 
           <section id="studentsView" class="view grouped-view" data-group="school">
+          <!-- TODO: School / Students (README: Students Section)
+    DONE: Student table with name, family, billing, enrolled, status
+    DONE: Search by student name, surname, parent name, family code
+    DONE: Status filter (Current / Left / All)
+    DONE: Page size selector (10, 20, 40, 80, 160, All)
+    DONE: Edit student button (opens Register Learner page pre-filled)
+    DONE: Mark inactive with departure form
+    DONE: Add Student button at bottom
+    TODO: Allow search by parent surname
+    TODO: Student documents upload/view (API exists: /api/features/student-documents)
+    TODO: Behaviour / incident log per student (API exists: /api/features/behaviour)
+    TODO: Academic notes per term per student (API exists: /api/features/academic-notes)
+    TODO: Student medical information display (allergies, conditions, doctor, emergency contacts)
+    TODO: Bulk student import by CSV
+    TODO: Student birthday report data (DateOfBirth is stored)
+  -->
             <div class="icon-page-layout">
               <section class="form-panel">
                 <div class="panel-header">
@@ -362,6 +390,18 @@
           </section>
 
           <section id="parentsView" class="view grouped-view" data-group="school">
+          <!-- TODO: School / Parents (README: Parents Section)
+    DONE: Add parent/family form with full contact details
+    DONE: Family table with primary/secondary parent and emergency contact
+    DONE: Search by parent name, student name, family code, ID number, passport number
+    TODO: Filter by status (Active / Archived)
+    TODO: Archive family if student marked inactive and no other active student
+    TODO: Retrieve archived family by ID/passport if new student later
+    TODO: Parent communication log (API exists: /api/features/parent-communication)
+    TODO: Parent detail update approval workflow (API exists: /api/features/parent-detail-changes)
+    TODO: Show pending parent detail changes for school approval
+    TODO: Edit parent/family button on each row
+  -->
             <div class="icon-page-layout">
               <section id="parentsModulePanel" class="form-panel">
                 <div class="panel-header">
@@ -489,6 +529,17 @@
           </section>
 
           <section id="classesView" class="view grouped-view" data-group="school">
+          <!-- TODO: School / Classes (README: Classes Section)
+    DONE: Add class form (name, teacher, capacity)
+    DONE: Class search filter
+    DONE: Class table with student count and capacity
+    DONE: Edit / Deactivate / Activate class buttons
+    TODO: Add timetable / schedule management per class (API exists: GET/POST /api/classes/timetable)
+    TODO: Show weekly timetable grid per class with day, period, subject, teacher, start/end time
+    TODO: Warn user when assigning a student to a class at capacity (API exists: GET /api/classes/:id/capacity)
+    TODO: Teacher assigned class list view - teachers see only their assigned classes
+    TODO: Show student name, surname, student number, class, status, attendance for selected date
+  -->
             <div class="icon-page-layout">
               <section class="form-panel">
                 <div class="panel-header">
@@ -550,6 +601,17 @@
           </section>
 
           <section id="attendanceView" class="view grouped-view" data-group="school">
+          <!-- TODO: School / Attendance (README: Attendance Section)
+    DONE: Capture attendance form (student, date, status, note)
+    DONE: Attendance table with date, student, class, status, note
+    DONE: Attendance summary counts (Present, Absent, Late, Excused)
+    TODO: Filter attendance by class (add class dropdown)
+    TODO: Bulk attendance capture - mark all students in a class at once
+    TODO: Teacher attendance submission - teachers only see assigned classes
+    TODO: Attendance approval / review - show submitted vs missing per class/date
+    TODO: Attendance correction with mandatory reason and audit log
+    TODO: Show attendance history per student
+  -->
             <div class="icon-page-layout">
               <section class="form-panel">
                 <div class="panel-header">
@@ -624,6 +686,19 @@
           </section>
 
           <section id="admissionsView" class="view grouped-view" data-group="school">
+          <!-- TODO: School / Admissions / Enrolment (README: Admissions / Enrolment Section)
+    API: GET /api/school-features/admissions (list)
+    API: POST /api/school-features/admissions (create)
+    API: PUT /api/school-features/admissions/:id/status (update status)
+    NEEDS: Form to capture new applicant (firstName, lastName, dateOfBirth, className, notes)
+    NEEDS: Table showing all applications with status (New, In Review, Accepted, Waitlisted, Refused, Enrolled)
+    NEEDS: Status filter dropdown
+    NEEDS: Status update buttons (Accept, Waitlist, Refuse) per row
+    NEEDS: Convert accepted applicant to student (requires class, family, billing category, enrolment date)
+    NEEDS: Online enrolment form link generation per school
+    NEEDS: Terms and conditions management
+    NEEDS: Document upload for applicants
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -636,6 +711,19 @@
           </section>
 
           <section id="reenrolmentView" class="view grouped-view" data-group="school">
+          <!-- TODO: School / Re-Enrolment / Year Rollover (README: Re-Enrolment / Year Rollover Section)
+    API: GET /api/platform/re-enrolment?schoolId=X&year=Y (list)
+    API: POST /api/platform/re-enrolment (process single)
+    API: POST /api/platform/re-enrolment/bulk (process bulk)
+    NEEDS: Academic year selector
+    NEEDS: Student list with current class, suggested new class, action (Promoted/Left/Retained/Pending)
+    NEEDS: Preview before applying rollover
+    NEEDS: Manual override of suggested class
+    NEEDS: Bulk promote/retain/leave buttons
+    NEEDS: Age-based class movement using DOB and configured month ranges
+    NEEDS: Carry forward outstanding balances and advance credits
+    NEEDS: Audit log all rollover actions
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -648,6 +736,18 @@
           </section>
 
           <section id="schoolSettingsView" class="view grouped-view" data-group="school">
+          <!-- TODO: School / School Settings (README: School Settings Section)
+    DONE: Links to Settings side menu page
+    TODO: School logo management
+    TODO: Contact details management
+    TODO: Banking details management
+    TODO: Academic year configuration
+    TODO: Invoice settings (template, header, footer)
+    TODO: Statement settings
+    TODO: Attendance settings
+    TODO: Notification settings
+    TODO: Parent portal visibility settings (ShowBehaviourToParents, ShowAcademicNotesToParents, RequireParentUpdateApproval)
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -726,6 +826,18 @@
           </section>
 
           <section id="consentPermissionsView" class="view grouped-view" data-group="school">
+          <!-- TODO: School / Consent and Permissions (README: Consent and Permissions Section)
+    API: GET /api/school-features/consent (list)
+    API: POST /api/school-features/consent (create)
+    API: PUT /api/school-features/consent/:id/respond (respond)
+    API: GET /api/school-features/consent/missing (missing report)
+    NEEDS: Form to create consent request (student, consent type, notes)
+    NEEDS: Consent type options: photo, trip, medical, communication, data-processing
+    NEEDS: Table showing all consent records with student, parent, type, response, date
+    NEEDS: Filter by consent type, response status, student, class
+    NEEDS: Missing consent report view
+    NEEDS: Audit log all consent actions
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -738,6 +850,19 @@
           </section>
 
           <section id="bankView" class="view grouped-view" data-group="finance">
+          <!-- TODO: Finance / Bank Reconciliation (README: Bank Reconciliation Section)
+    DONE: Upload bank statement (OFX/QFX)
+    DONE: Payment summary (credits, debits, balance, outstanding)
+    DONE: Search by reference, family code, amount
+    DONE: Filter by allocation status
+    TODO: Statement-style transaction table with columns: Payment Date, Bank Reference, Description, Debit, Credit, Amount, Allocation Status, Allocated To, Action
+    TODO: One search field per unallocated row to find student/family (API exists: GET /api/bank-statements/allocation-search?q=)
+    TODO: Allocate to debtor button per row (API exists: POST /api/bank-statements/allocate/debtor)
+    TODO: Allocate to creditor button per row (API exists: POST /api/bank-statements/allocate/creditor)
+    TODO: Unallocate button (API exists: POST /api/bank-statements/unallocate)
+    TODO: Show suggested matches inline after upload (API exists: GET /api/bank-statements/match-suggestions)
+    TODO: Import summary showing total rows, imported, skipped duplicates, skipped pending
+  -->
             <div class="icon-page-layout">
               <section class="form-panel">
                 <div class="panel-header">
@@ -880,6 +1005,18 @@
           </section>
 
           <section id="outstandingView" class="view grouped-view" data-group="finance">
+          <!-- TODO: Finance / Outstanding Fees (README: Outstanding Fees Section)
+    DONE: Year calendar table with Jan-Dec columns
+    DONE: Student name, surname, class, parent 1 cell, parent 2 cell
+    DONE: Total outstanding column
+    DONE: Red highlighting for overdue amounts
+    DONE: Search filter
+    DONE: Year selector with smart default
+    DONE: Export to CSV button
+    TODO: Fee reminder and escalation rules (7/14/30 days overdue)
+    TODO: Promise-to-pay recording (API exists: /api/features/promise-to-pay)
+    TODO: Show promise-to-pay status in the table
+  -->
             <div class="icon-page-layout">
               <section class="form-panel">
                 <div class="panel-header">
@@ -952,6 +1089,17 @@
           </section>
 
           <section id="invoicesView" class="view grouped-view" data-group="finance">
+          <!-- TODO: Finance / Invoices (README: Invoices Section)
+    DONE: Create invoice form (school, student, amount, due date, description)
+    DONE: Invoice table with number, student, class, billing, amount, paid, status, due, actions
+    DONE: Filter by student, class, month, year, status
+    DONE: Record payment dialog
+    DONE: Auto monthly invoice generation (server scheduler)
+    TODO: Credit note issuing against existing invoice (API exists: /api/features/credit-notes)
+    TODO: Invoice template selection (API exists: /api/features/invoice-templates)
+    TODO: Show billing category name on each invoice
+    TODO: Soft delete confirmation dialog
+  -->
             <div class="icon-page-layout">
               <form id="invoiceForm" class="form-panel">
                 <div class="panel-header">
@@ -1062,6 +1210,15 @@
           </section>
 
           <section id="billingCategoriesView" class="view grouped-view" data-group="finance">
+          <!-- TODO: Finance / Billing Categories (README: Billing Categories Section)
+    DONE: Add/edit billing category form (name, amount, frequency, description)
+    DONE: Billing categories table with category, amount, term, status, actions
+    DONE: Edit and deactivate buttons
+    DONE: Automatic billing rule display
+    TODO: Discount and bursary management (API exists: /api/features/discounts)
+    TODO: Fixed amount, percentage, sibling, and bursary discount types
+    TODO: Pro-rata billing configuration per school
+  -->
             <div class="icon-page-layout">
               <form id="billingCategoryForm" class="form-panel">
                 <div class="panel-header">
@@ -1126,6 +1283,18 @@
           </section>
 
           <section id="payslipsView" class="view grouped-view" data-group="finance">
+          <!-- TODO: Finance / HR / Payroll - Payslips (README: HR / Payroll Section)
+    DONE: Create payslip form with itemised fields (basic salary, allowances, overtime, bonus, deductions, tax, UIF)
+    DONE: Payslip table with employee, period, net pay, status
+    DONE: Employee dropdown
+    DONE: Pay period selector
+    TODO: Show previous finalized payslips in a separate list
+    TODO: Payslip detail view with full breakdown (click row to expand)
+    TODO: Finalize button per draft payslip
+    TODO: Print/download payslip (printable layout with school logo, employee details, financial breakdown)
+    TODO: HR / Payroll summary report (total gross, deductions, net per period)
+    TODO: Staff contract expiry alerts (ContractEndDate field exists)
+  -->
             <div class="icon-page-layout">
               <section class="form-panel">
                 <div class="panel-header">
@@ -1203,6 +1372,18 @@
           </section>
 
           <section id="leaveView" class="view grouped-view" data-group="finance">
+          <!-- TODO: Finance / HR / Payroll - Leave (README: Leave Management)
+    DONE: Leave request form (type, start date, end date, reason)
+    DONE: Leave table with employee, type, dates, status
+    DONE: Approve/reject buttons for pending requests
+    TODO: Leave type management (API exists: /api/hr/leave-types) - school-configurable leave types
+    TODO: Leave balance tracking per employee per type per year (API exists: /api/hr/leave-balances)
+    TODO: Leave calendar view showing approved leave by staff and date
+    TODO: Check available balance before submitting
+    TODO: Check for overlapping leave requests
+    TODO: Supporting document upload for leave requiring documents
+    TODO: Link unpaid leave to payroll deduction
+  -->
             <div class="icon-page-layout">
               <section class="form-panel">
                 <div class="panel-header">
@@ -1254,6 +1435,14 @@
           </section>
 
           <section id="financialAdjustmentsView" class="view grouped-view" data-group="finance">
+          <!-- TODO: Finance / Financial Adjustments (README: Financial Adjustments Section)
+    API: GET /api/school-features/adjustments (list)
+    API: POST /api/school-features/adjustments (create)
+    NEEDS: Form with fields: student (dropdown), family (dropdown), invoice (dropdown), adjustment type (Write-off/Reversal/Credit Correction/Debit Correction/Fee Correction), amount, reason (required)
+    NEEDS: Table showing all adjustments with student, family, invoice, type, amount, reason, created by, date
+    NEEDS: Filter by adjustment type
+    NEEDS: All adjustments audit logged automatically
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -1266,6 +1455,17 @@
           </section>
 
           <section id="refundsView" class="view grouped-view" data-group="finance">
+          <!-- TODO: Finance / Refunds (README: Refunds Section)
+    API: GET /api/school-features/refunds (list)
+    API: POST /api/school-features/refunds (create)
+    API: PUT /api/school-features/refunds/:id/approve (approve)
+    API: PUT /api/school-features/refunds/:id/complete (complete)
+    NEEDS: Form with fields: family (dropdown), student (optional dropdown), amount, reason
+    NEEDS: Table showing all refunds with family, student, amount, reason, status (Pending/Approved/Completed/Rejected), approved by, date
+    NEEDS: Approve and Complete buttons per row
+    NEEDS: Refunds must reduce advance credit
+    NEEDS: All refund actions audit logged
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -1278,6 +1478,15 @@
           </section>
 
           <section id="registrationFeesView" class="view grouped-view" data-group="finance">
+          <!-- TODO: Finance / Registration / Deposit Fees (README: Registration / Deposit Fee Section)
+    API: GET /api/school-features/registration-fees (list)
+    API: POST /api/school-features/registration-fees (create)
+    API: PUT /api/school-features/registration-fees/:id/pay (mark paid)
+    NEEDS: Form with fields: student (dropdown), family (dropdown), fee type, amount, is refundable (checkbox), notes
+    NEEDS: Table showing all fees with student, family, type, amount, refundable, paid status, paid date, notes
+    NEEDS: Mark Paid button per unpaid row
+    NEEDS: Separate from monthly billing categories
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -1290,6 +1499,21 @@
           </section>
 
           <section id="yearEndClosingView" class="view grouped-view" data-group="finance">
+          <!-- TODO: Finance / Year-End Financial Closing (README: Year-End Financial Closing Section)
+    API: GET /api/hr/year-end (list)
+    API: POST /api/hr/year-end (create)
+    API: PUT /api/hr/year-end/:id/status (update status)
+    API: POST /api/hr/year-end/:id/carry-forward (carry forward balances)
+    API: PUT /api/hr/year-end/:id/reopen (reopen with reason)
+    NEEDS: Financial year selector
+    NEEDS: Status display (Open, In Review, Ready to Close, Closed, Reopened for Correction)
+    NEEDS: Summary showing total outstanding, advance credit, invoiced, paid before closing
+    NEEDS: Carry forward button to move balances to new year
+    NEEDS: Close year button (requires confirmation)
+    NEEDS: Reopen button with mandatory reason
+    NEEDS: Lock editing of closed-year records
+    NEEDS: All actions audit logged
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -1302,6 +1526,16 @@
           </section>
 
           <section id="studentReportsView" class="view grouped-view" data-group="reporting">
+          <!-- TODO: Reporting / Student Reports (README: Student Reports Section)
+    NEEDS: Birthday report - students with birthdays in selected day/week/month/range
+    NEEDS: Birthday report columns: student name, surname, class, date of birth, age
+    NEEDS: Student demographic report (gender, age group, class, enrolment status)
+    NEEDS: Ethnicity reporting (permission-controlled, aggregated by default, audit logged)
+    NEEDS: Enrolment report (active, left, inactive, new enrolments, counts by class)
+    NEEDS: Date range filter
+    NEEDS: Export birthday report as CSV
+    NEEDS: Export demographic report as CSV (restricted to authorised users)
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -1314,6 +1548,18 @@
           </section>
 
           <section id="reportView" class="view grouped-view" data-group="reporting">
+          <!-- TODO: Reporting / School Report (README: School Report Section)
+    DONE: Date range filter
+    DONE: Report type selector (Learners, Finance, Attendance)
+    DONE: Report table
+    TODO: Show total invoiced, total paid, outstanding fees, advance payments
+    TODO: Monthly breakdown
+    TODO: Class breakdown
+    TODO: Student account detail
+    TODO: Attendance report (per class, student, date range with present/absent/late/excused counts)
+    TODO: Class financial breakdown (invoiced, paid, outstanding, advance credit per class)
+    TODO: Fee collection rate report (collection % per month, per class, full year)
+  -->
             <div class="icon-page-layout">
               <section class="form-panel">
                 <div class="panel-header">
@@ -1356,6 +1602,18 @@
           </section>
 
           <section id="sendInvoicesView" class="view grouped-view" data-group="reporting">
+          <!-- TODO: Reporting / Send Invoices to Parents (README: Send Invoices to Parents Section)
+    DONE: Year input and send option selector
+    DONE: Preview and Send buttons
+    TODO: Wire Preview button to generate statement data
+    TODO: Wire Send button to send via email/SMS (depends on notification service)
+    TODO: Send options: outstanding only, all, selected class, selected students, selected families
+    TODO: Statement must show balance brought forward, invoices, payments, outstanding, advance credit
+    TODO: Invoice template selection before sending
+    TODO: Scheduled sending for future date/time
+    TODO: Delivery status tracking (sent, delivered, opened, failed)
+    TODO: Resend failed statements
+  -->
             <div class="icon-page-layout">
               <form id="statementSendForm" class="form-panel">
                 <div class="panel-header">
@@ -1400,6 +1658,17 @@
           </section>
 
           <section id="exportReportsView" class="view grouped-view" data-group="reporting">
+          <!-- TODO: Reporting / Export Reports (README: Export Reports Section)
+    API: GET /api/export/invoices (CSV)
+    API: GET /api/export/transactions (CSV)
+    API: GET /api/export/students (CSV)
+    API: GET /api/export/employees (CSV)
+    API: GET /api/export/outstanding-fees (CSV)
+    NEEDS: Export buttons for each report type: students, parents, birthdays, demographics, attendance, outstanding fees, invoices, payments, school finance
+    NEEDS: All exports scoped to logged-in SchoolID
+    NEEDS: Sensitive exports (ethnicity, medical, HR/payroll) require correct permission and audit log
+    NEEDS: PDF export as future option
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -1412,6 +1681,13 @@
           </section>
 
           <section id="communicationHistoryView" class="view grouped-view" data-group="reporting">
+          <!-- TODO: Reporting / Communication History (README: Communication History Section)
+    API: GET /api/features/communication-history (list)
+    NEEDS: Table showing sent invoices/statements with: date sent, parent, type (Invoice/Statement/Reminder), status (Sent/Delivered/Opened/Failed)
+    NEEDS: Filter by type, status, date range
+    NEEDS: Resend button for failed items
+    NEEDS: Fee reminder and parent follow-up history
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -1424,6 +1700,13 @@
           </section>
 
           <section id="admissionsReportView" class="view grouped-view" data-group="reporting">
+          <!-- TODO: Reporting / Admissions Report (README: Admissions Report Section)
+    API: GET /api/school-features/admissions (same data, filtered for reporting)
+    NEEDS: Date range filter
+    NEEDS: Status filter (New, In Review, Accepted, Waitlisted, Refused, Enrolled)
+    NEEDS: Table showing applications with status counts
+    NEEDS: Conversion rate from applicant to enrolled student
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -1436,6 +1719,12 @@
           </section>
 
           <section id="reenrolmentReportView" class="view grouped-view" data-group="reporting">
+          <!-- TODO: Reporting / Re-Enrolment Report (README: Re-Enrolment Report Section)
+    API: GET /api/platform/re-enrolment (same data, filtered for reporting)
+    NEEDS: Academic year filter
+    NEEDS: Table showing students promoted, left, retained, pending
+    NEEDS: Balances carried forward summary
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -1448,6 +1737,15 @@
           </section>
 
           <section id="consentReportView" class="view grouped-view" data-group="reporting">
+          <!-- TODO: Reporting / Consent Report (README: Consent Report Section)
+    API: GET /api/school-features/consent (list)
+    API: GET /api/school-features/consent/missing (missing report)
+    NEEDS: Filter by student, parent, class, consent type, date range
+    NEEDS: Table showing consent records with response status
+    NEEDS: Missing consent report
+    NEEDS: Export consent reports as CSV
+    NEEDS: Sensitive consent reports require correct permission
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
@@ -1460,6 +1758,15 @@
           </section>
 
           <section id="yearEndReportView" class="view grouped-view" data-group="reporting">
+          <!-- TODO: Reporting / Year-End Report (README: Year-End Report Section)
+    NEEDS: Year-end financial summary
+    NEEDS: Total invoiced, paid, outstanding, advance credit for the year
+    NEEDS: Balances carried forward
+    NEEDS: Students promoted, retained, left
+    NEEDS: Class movement summary
+    NEEDS: Unresolved accounts before year-end closing
+    NEEDS: Export as CSV
+  -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
