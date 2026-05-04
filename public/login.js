@@ -128,7 +128,13 @@ window.addEventListener('DOMContentLoaded', () => {
   const user = JSON.parse(localStorage.getItem('smsUser') || 'null');
 
   if (token && user) {
-    window.location.href = dashboardPath(user);
+    // Verify token is still valid before redirecting
+    fetch('/api/dashboard', { headers: { Authorization: 'Bearer ' + token } })
+      .then(r => {
+        if (r.ok) window.location.href = dashboardPath(user);
+        else { localStorage.removeItem('smsToken'); localStorage.removeItem('smsUser'); }
+      })
+      .catch(() => { localStorage.removeItem('smsToken'); localStorage.removeItem('smsUser'); });
   }
 });
 

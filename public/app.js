@@ -452,6 +452,12 @@ async function api(path, options = {}) {
   const payload = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem('smsToken');
+      localStorage.removeItem('smsUser');
+      window.location.href = '/school-login';
+      throw new Error('Session expired');
+    }
     const message = payload?.error?.message || payload?.error || 'Request failed';
 
     if ([401, 403].includes(response.status) && /token|session/i.test(message)) {
@@ -600,6 +606,7 @@ async function refreshData() {
       refreshAttendance(),
       refreshPayslips()
     ]);
+    await refreshOutstandingFees();
     renderData();
   } catch (error) {
     showToast(error.message);
