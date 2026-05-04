@@ -80,22 +80,23 @@ class StudentService {
       throw new Error('Family must belong to the selected school');
     }
 
-    const billingCategoryId = studentData.billingCategoryId !== undefined
-      ? (Number(studentData.billingCategoryId) || null)
-      : (existingStudent.BillingCategoryID || null);
+    const billingCategoryIds = this.normalizeBillingCategoryIds(studentData, existingStudent);
+    const billingCategoryId = billingCategoryIds[0] || null;
 
     if (!billingCategoryId) {
       throw new Error('Billing category is required for every student');
     }
 
-    const billingCategory = await this.billingCategoryRepository.getCategoryById(billingCategoryId);
+    for (const categoryId of billingCategoryIds) {
+      const billingCategory = await this.billingCategoryRepository.getCategoryById(categoryId);
 
-    if (!billingCategory || !billingCategory.IsActive) {
-      throw new Error('Billing category is not active');
-    }
+      if (!billingCategory || !billingCategory.IsActive) {
+        throw new Error('Billing category is not active');
+      }
 
-    if (billingCategory.SchoolID !== schoolId) {
-      throw new Error('Billing category must belong to the selected school');
+      if (billingCategory.SchoolID !== schoolId) {
+        throw new Error('Billing category must belong to the selected school');
+      }
     }
 
     return {
@@ -110,8 +111,35 @@ class StudentService {
       billingDate: this.requiredDate(studentData.billingDate ?? existingStudent.BillingDate, 'Billing date'),
       enrolledDate: this.requiredDate(studentData.enrolledDate ?? existingStudent.EnrolledDate, 'Enrolled date'),
       medicalNotes: this.optionalString(studentData.medicalNotes ?? existingStudent.MedicalNotes, 'Medical notes', 1000),
-      billingCategoryId
+      billingCategoryId,
+      billingCategoryIds
     };
+  }
+
+  normalizeBillingCategoryIds(studentData, existingStudent) {
+    let parsedExisting = [];
+
+    if (existingStudent.BillingCategoriesJson) {
+      try {
+        parsedExisting = JSON.parse(existingStudent.BillingCategoriesJson)
+          .map((category) => category.BillingCategoryID);
+      } catch (error) {
+        parsedExisting = [];
+      }
+    }
+
+    const raw = studentData.billingCategoryIds !== undefined
+      ? studentData.billingCategoryIds
+      : studentData.billingCategoryId !== undefined
+        ? [studentData.billingCategoryId]
+        : parsedExisting.length
+          ? parsedExisting
+          : [existingStudent.BillingCategoryID];
+
+    return [...new Set((Array.isArray(raw) ? raw : [raw])
+      .flatMap((value) => String(value || '').split(','))
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0))];
   }
 
   buildDeparturePayload(departureData) {

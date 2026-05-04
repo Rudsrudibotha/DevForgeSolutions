@@ -317,6 +317,36 @@ BEGIN
     ALTER TABLE dbo.Students ADD CONSTRAINT FK_Students_BillingCategories FOREIGN KEY (BillingCategoryID) REFERENCES dbo.BillingCategories(BillingCategoryID);
 END;
 
+IF OBJECT_ID('dbo.StudentBillingCategories', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.StudentBillingCategories (
+        StudentBillingCategoryID INT IDENTITY(1,1) PRIMARY KEY,
+        StudentID INT NOT NULL,
+        BillingCategoryID INT NOT NULL,
+        IsPrimary BIT NOT NULL DEFAULT 0,
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT FK_StudentBillingCategories_Students FOREIGN KEY (StudentID) REFERENCES dbo.Students(StudentID),
+        CONSTRAINT FK_StudentBillingCategories_BillingCategories FOREIGN KEY (BillingCategoryID) REFERENCES dbo.BillingCategories(BillingCategoryID),
+        CONSTRAINT UQ_StudentBillingCategories_Student_Category UNIQUE (StudentID, BillingCategoryID)
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StudentBillingCategories_StudentID' AND object_id = OBJECT_ID('dbo.StudentBillingCategories'))
+BEGIN
+    CREATE INDEX IX_StudentBillingCategories_StudentID ON dbo.StudentBillingCategories(StudentID);
+END;
+
+INSERT INTO dbo.StudentBillingCategories (StudentID, BillingCategoryID, IsPrimary)
+SELECT s.StudentID, s.BillingCategoryID, 1
+FROM dbo.Students s
+WHERE s.BillingCategoryID IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM dbo.StudentBillingCategories sbc
+      WHERE sbc.StudentID = s.StudentID
+        AND sbc.BillingCategoryID = s.BillingCategoryID
+  );
+
 IF OBJECT_ID('dbo.BankStatements', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.BankStatements (

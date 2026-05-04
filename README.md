@@ -2202,6 +2202,7 @@ Once the server starts, open the local app in your browser.
 
 ## Change History
 
+- **Learner enrolment and edit persistence:** School / Register Learner now captures learner, parent/family, billing, and medical details in a tabbed CRUD form. School / Students now edits learners in a popup and saves learner fields to `Students`, parent/family fields to `Families`, and multiple billing-category assignments to `StudentBillingCategories`.
 - **Three-level dashboard layout:** Updated the README and school/parent dashboard wiring to use Level 1 side navigation, Level 2 module landing pages with feature icons, and Level 3 dedicated feature pages. School, Finance, Reporting, DevForge, and Parent navigation now match the final layout rules.
 - **Port fallback:** Updated `src/app.js` to automatically try the next port if `3000` is already in use.
 - **Static route fix:** Disabled Express static index file serving so `/` now correctly serves `public/login.html` instead of `public/index.html`.

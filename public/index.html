@@ -255,7 +255,7 @@
     DONE: Search by student name, surname, parent name, family code
     DONE: Status filter (Current / Left / All)
     DONE: Page size selector (10, 20, 40, 80, 160, All)
-    DONE: Edit student button (opens Register Learner page pre-filled)
+    DONE: Edit student button (opens learner edit popup)
     DONE: Mark inactive with departure form
     DONE: Add Student button at bottom
     TODO: Allow search by parent surname
@@ -391,7 +391,7 @@
 
           <section id="parentsView" class="view grouped-view" data-group="school">
           <!-- TODO: School / Parents (README: Parents Section)
-    DONE: Add parent/family form with full contact details
+    DONE: Parent/family records are edited here only
     DONE: Family table with primary/secondary parent and emergency contact
     DONE: Search by parent name, student name, family code, ID number, passport number
     TODO: Filter by status (Active / Archived)
@@ -410,67 +410,7 @@
                     <p>Families and parent contacts for this school only.</p>
                   </div>
                 </div>
-                <form id="familyForm" class="module-form flush-form">
-                  <div class="form-grid">
-                    <label>
-                      Family name
-                      <input name="familyName" type="text" required>
-                    </label>
-                    <label>
-                      Home phone
-                      <input name="primaryParentPhone" type="tel">
-                    </label>
-                    <label>
-                      Mother or primary parent
-                      <input name="primaryParentName" type="text" required>
-                    </label>
-                    <label>
-                      Primary ID number
-                      <input name="primaryParentIdNumber" type="text">
-                    </label>
-                    <label>
-                      Primary email
-                      <input name="primaryParentEmail" type="email">
-                    </label>
-                    <label>
-                      Father or secondary parent
-                      <input name="secondaryParentName" type="text">
-                    </label>
-                    <label>
-                      Secondary ID number
-                      <input name="secondaryParentIdNumber" type="text">
-                    </label>
-                    <label>
-                      Secondary phone
-                      <input name="secondaryParentPhone" type="tel">
-                    </label>
-                    <label>
-                      Secondary email
-                      <input name="secondaryParentEmail" type="email">
-                    </label>
-                    <label class="wide">
-                      Home address
-                      <textarea name="homeAddress" rows="2"></textarea>
-                    </label>
-                    <label>
-                      Emergency contact
-                      <input name="emergencyContactName" type="text">
-                    </label>
-                    <label>
-                      Emergency phone
-                      <input name="emergencyContactPhone" type="tel">
-                    </label>
-                    <label>
-                      Family doctor
-                      <input name="familyDoctor" type="text">
-                    </label>
-                    <label>
-                      Medical aid and number
-                      <input name="medicalAidNumber" type="text">
-                    </label>
-                  </div>
-                  <button class="primary-button compact-button" type="submit">Add Parent</button>
-                </form>
+                <div class="form-message info">Parents are added during learner registration. Use Edit on the parent list to update family and contact details.</div>
                 <div class="form-grid section-spacer">
                   <label>
                     Search by
@@ -520,6 +460,7 @@
                       <th>Primary parent</th>
                       <th>Secondary parent</th>
                       <th>Emergency</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody id="familiesTable"></tbody>
@@ -768,48 +709,136 @@
                     <p>Register a new learner for this school.</p>
                   </div>
                 </div>
-                <form id="registerLearnerForm" class="module-form flush-form">
-                  <div class="form-grid">
-                    <label>
-                      Family
-                      <select id="registerLearnerFamilySelect" name="familyId" required></select>
-                    </label>
-                    <label>
-                      Billing category
-                      <select id="registerLearnerBillingSelect" name="billingCategoryId" required></select>
-                    </label>
-                    <label>
-                      First name
-                      <input name="firstName" type="text" required>
-                    </label>
-                    <label>
-                      Last name
-                      <input name="lastName" type="text" required>
-                    </label>
-                    <label>
-                      Date of birth
-                      <input name="dateOfBirth" type="date">
-                    </label>
-                    <label>
-                      Class
-                      <input name="className" type="text">
-                    </label>
-                    <label>
-                      Billing date
-                      <input name="billingDate" type="date" required>
-                    </label>
-                    <label>
-                      Enrolled date
-                      <input name="enrolledDate" type="date" required>
-                    </label>
-                    <label>
-                      Home phone
-                      <input name="homePhone" type="tel">
-                    </label>
-                    <label class="wide">
-                      Medical notes
-                      <textarea name="medicalNotes" rows="2"></textarea>
-                    </label>
+                <form id="registerLearnerForm" class="module-form flush-form" novalidate>
+                  <div class="form-tabs" aria-label="Learner registration sections">
+                    <button class="form-tab active" data-form-tab="learner" type="button">Learner</button>
+                    <button class="form-tab" data-form-tab="parents" type="button">Parents</button>
+                    <button class="form-tab" data-form-tab="billing" type="button">Billing</button>
+                    <button class="form-tab" data-form-tab="medical" type="button">Medical</button>
+                  </div>
+
+                  <div class="form-tab-panel active" data-form-panel="learner">
+                    <div class="form-grid">
+                      <label>
+                        First name <span class="required-marker">*</span>
+                        <input name="firstName" type="text" autocomplete="given-name" required>
+                      </label>
+                      <label>
+                        Last name <span class="required-marker">*</span>
+                        <input name="lastName" type="text" autocomplete="family-name" required>
+                      </label>
+                      <label>
+                        Date of birth
+                        <input name="dateOfBirth" type="date">
+                      </label>
+                      <label>
+                        Class
+                        <input name="className" type="text">
+                      </label>
+                      <label>
+                        Starting date <span class="required-marker">*</span>
+                        <input name="enrolledDate" type="date" required>
+                      </label>
+                      <label>
+                        Billing date <span class="required-marker">*</span>
+                        <input name="billingDate" type="date" required>
+                      </label>
+                      <label>
+                        Learner phone
+                        <input name="homePhone" type="tel">
+                      </label>
+                      <label class="wide">
+                        Learner address
+                        <textarea name="homeAddress" rows="2"></textarea>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="form-tab-panel" data-form-panel="parents">
+                    <div class="form-grid">
+                      <label class="wide">
+                        Existing family
+                        <select id="registerLearnerFamilySelect" name="familyId"></select>
+                      </label>
+                      <label>
+                        Family name <span class="required-marker">*</span>
+                        <input name="familyName" type="text">
+                      </label>
+                      <label>
+                        Primary parent <span class="required-marker">*</span>
+                        <input name="primaryParentName" type="text" autocomplete="name">
+                      </label>
+                      <label>
+                        Primary ID / passport
+                        <input name="primaryParentIdNumber" type="text">
+                      </label>
+                      <label>
+                        Primary cell <span class="required-marker">*</span>
+                        <input name="primaryParentPhone" type="tel" autocomplete="tel">
+                      </label>
+                      <label>
+                        Primary email
+                        <input name="primaryParentEmail" type="email" autocomplete="email">
+                      </label>
+                      <label>
+                        Secondary parent
+                        <input name="secondaryParentName" type="text">
+                      </label>
+                      <label>
+                        Secondary ID / passport
+                        <input name="secondaryParentIdNumber" type="text">
+                      </label>
+                      <label>
+                        Secondary cell
+                        <input name="secondaryParentPhone" type="tel">
+                      </label>
+                      <label>
+                        Secondary email
+                        <input name="secondaryParentEmail" type="email">
+                      </label>
+                      <label class="wide">
+                        Family address <span class="required-marker">*</span>
+                        <textarea name="familyHomeAddress" rows="2"></textarea>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="form-tab-panel" data-form-panel="billing">
+                    <div class="form-grid">
+                      <label class="wide">
+                        Billing categories <span class="required-marker">*</span>
+                        <select id="registerLearnerBillingSelect" name="billingCategoryIds" multiple required></select>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="form-tab-panel" data-form-panel="medical">
+                    <div class="form-grid">
+                      <label>
+                        Emergency contact <span class="required-marker">*</span>
+                        <input name="emergencyContactName" type="text">
+                      </label>
+                      <label>
+                        Emergency phone <span class="required-marker">*</span>
+                        <input name="emergencyContactPhone" type="tel">
+                      </label>
+                      <label>
+                        Family doctor
+                        <input name="familyDoctor" type="text">
+                      </label>
+                      <label>
+                        Medical aid
+                        <input name="medicalAidName" type="text">
+                      </label>
+                      <label>
+                        Medical aid number
+                        <input name="medicalAidNumber" type="text">
+                      </label>
+                      <label class="wide">
+                        Medical notes
+                        <textarea name="medicalNotes" rows="2"></textarea>
+                      </label>
+                    </div>
                   </div>
                   <button class="primary-button compact-button" type="submit">Register Learner</button>
                 </form>
@@ -1957,6 +1986,101 @@
             <div class="actions modal-actions">
               <button class="secondary-button compact-button" type="button" id="cancelPaymentButton">Cancel</button>
               <button class="primary-button compact-button" type="submit">Save payment</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="studentEditDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="studentEditDialogTitle">
+          <form id="studentEditForm" class="modal-panel student-edit-panel" novalidate>
+            <div class="modal-header">
+              <div>
+                <h3 id="studentEditDialogTitle">Edit learner</h3>
+                <p id="studentEditDialogSubtitle">Update learner, parent, billing, and starting date details.</p>
+              </div>
+              <button id="closeStudentEditDialogButton" class="ghost-button icon-button" type="button" aria-label="Close learner editor">&times;</button>
+            </div>
+            <input name="studentId" type="hidden">
+            <input name="familyId" type="hidden">
+            <div class="form-tabs" aria-label="Edit learner sections">
+              <button class="form-tab active" data-form-tab="editLearner" type="button">Learner</button>
+              <button class="form-tab" data-form-tab="editParents" type="button">Parents</button>
+              <button class="form-tab" data-form-tab="editBilling" type="button">Billing</button>
+            </div>
+            <div class="form-tab-panel active" data-form-panel="editLearner">
+              <div class="form-grid">
+                <label>First name <span class="required-marker">*</span><input name="firstName" type="text" required></label>
+                <label>Last name <span class="required-marker">*</span><input name="lastName" type="text" required></label>
+                <label>Date of birth<input name="dateOfBirth" type="date"></label>
+                <label>Class<input name="className" type="text"></label>
+                <label>Starting date <span class="required-marker">*</span><input name="enrolledDate" type="date" required></label>
+                <label>Billing date <span class="required-marker">*</span><input name="billingDate" type="date" required></label>
+                <label>Learner phone<input name="homePhone" type="tel"></label>
+                <label class="wide">Learner address<textarea name="homeAddress" rows="2"></textarea></label>
+                <label class="wide">Medical notes<textarea name="medicalNotes" rows="2"></textarea></label>
+              </div>
+            </div>
+            <div class="form-tab-panel" data-form-panel="editParents">
+              <div class="form-grid">
+                <label>Family name <span class="required-marker">*</span><input name="familyName" type="text" required></label>
+                <label>Primary parent <span class="required-marker">*</span><input name="primaryParentName" type="text" required></label>
+                <label>Primary ID / passport<input name="primaryParentIdNumber" type="text"></label>
+                <label>Primary cell <span class="required-marker">*</span><input name="primaryParentPhone" type="tel" required></label>
+                <label>Primary email<input name="primaryParentEmail" type="email"></label>
+                <label>Secondary parent<input name="secondaryParentName" type="text"></label>
+                <label>Secondary ID / passport<input name="secondaryParentIdNumber" type="text"></label>
+                <label>Secondary cell<input name="secondaryParentPhone" type="tel"></label>
+                <label>Secondary email<input name="secondaryParentEmail" type="email"></label>
+                <label class="wide">Family address <span class="required-marker">*</span><textarea name="familyHomeAddress" rows="2" required></textarea></label>
+                <label>Emergency contact <span class="required-marker">*</span><input name="emergencyContactName" type="text" required></label>
+                <label>Emergency phone <span class="required-marker">*</span><input name="emergencyContactPhone" type="tel" required></label>
+                <label>Family doctor<input name="familyDoctor" type="text"></label>
+                <label>Medical aid<input name="medicalAidName" type="text"></label>
+                <label>Medical aid number<input name="medicalAidNumber" type="text"></label>
+              </div>
+            </div>
+            <div class="form-tab-panel" data-form-panel="editBilling">
+              <label>
+                Billing categories <span class="required-marker">*</span>
+                <select id="studentEditBillingSelect" name="billingCategoryIds" multiple required></select>
+              </label>
+            </div>
+            <div class="actions modal-actions">
+              <button class="secondary-button compact-button" type="button" id="cancelStudentEditButton">Cancel</button>
+              <button class="primary-button compact-button" type="submit">Save learner</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="familyEditDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="familyEditDialogTitle">
+          <form id="familyEditForm" class="modal-panel student-edit-panel" novalidate>
+            <div class="modal-header">
+              <div>
+                <h3 id="familyEditDialogTitle">Edit parent / family</h3>
+                <p>Update parent and family contact details.</p>
+              </div>
+              <button id="closeFamilyEditDialogButton" class="ghost-button icon-button" type="button" aria-label="Close parent editor">&times;</button>
+            </div>
+            <input name="familyId" type="hidden">
+            <div class="form-grid">
+              <label>Family name <span class="required-marker">*</span><input name="familyName" type="text" required></label>
+              <label>Primary parent <span class="required-marker">*</span><input name="primaryParentName" type="text" required></label>
+              <label>Primary ID / passport<input name="primaryParentIdNumber" type="text"></label>
+              <label>Primary cell <span class="required-marker">*</span><input name="primaryParentPhone" type="tel" required></label>
+              <label>Primary email<input name="primaryParentEmail" type="email"></label>
+              <label>Secondary parent<input name="secondaryParentName" type="text"></label>
+              <label>Secondary ID / passport<input name="secondaryParentIdNumber" type="text"></label>
+              <label>Secondary cell<input name="secondaryParentPhone" type="tel"></label>
+              <label>Secondary email<input name="secondaryParentEmail" type="email"></label>
+              <label class="wide">Family address <span class="required-marker">*</span><textarea name="familyHomeAddress" rows="2" required></textarea></label>
+              <label>Emergency contact <span class="required-marker">*</span><input name="emergencyContactName" type="text" required></label>
+              <label>Emergency phone <span class="required-marker">*</span><input name="emergencyContactPhone" type="tel" required></label>
+              <label>Family doctor<input name="familyDoctor" type="text"></label>
+              <label>Medical aid<input name="medicalAidName" type="text"></label>
+              <label>Medical aid number<input name="medicalAidNumber" type="text"></label>
+            </div>
+            <div class="actions modal-actions">
+              <button class="secondary-button compact-button" type="button" id="cancelFamilyEditButton">Cancel</button>
+              <button class="primary-button compact-button" type="submit">Save parent</button>
             </div>
           </form>
         </div>

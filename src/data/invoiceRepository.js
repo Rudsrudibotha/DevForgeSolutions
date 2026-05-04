@@ -158,7 +158,7 @@ class InvoiceRepository {
       .input('endDate', sql.DateTime, endDate)
       .query(`SELECT DISTINCT StudentID, BillingCategoryID FROM Invoices
               WHERE SchoolID = @schoolId AND IssueDate >= @startDate AND IssueDate < @endDate AND IsDeleted = 0`);
-    return new Set(result.recordset.map((row) => row.StudentID));
+    return new Set(result.recordset.map((row) => `${row.StudentID}:${row.BillingCategoryID || 'none'}`));
   }
 
   async createInvoice(invoiceData) {

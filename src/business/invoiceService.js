@@ -127,7 +127,9 @@ class InvoiceService {
     const created = [];
 
     for (const student of students) {
-      if (existingSet.has(student.StudentID)) {
+      const billingCategories = this.studentBillingCategories(student);
+
+      if (!billingCategories.length) {
         continue;
       }
 
@@ -138,14 +140,17 @@ class InvoiceService {
         continue;
       }
 
-      // Use billing category amount if assigned, otherwise fall back to school default
-      let amount = 0;
-      let description = '';
+      for (const category of billingCategories) {
+        if (existingSet.has(`${student.StudentID}:${category.BillingCategoryID}`)) {
+          continue;
+        }
 
-      if (student.BillingCategoryID && student.CategoryAmount && student.CategoryIsActive !== false && student.CategoryIsActive !== 0) {
+        let amount = 0;
+        let description = '';
+
         const shouldGenerate = this.billingCategoryService.shouldGenerateInvoice({
-          Frequency: student.CategoryFrequency,
-          BaseAmount: student.CategoryAmount
+          Frequency: category.Frequency,
+          BaseAmount: category.BaseAmount
         });
 
         if (!shouldGenerate) {
@@ -153,32 +158,30 @@ class InvoiceService {
         }
 
         amount = this.billingCategoryService.calculateInvoiceAmount({
-          Frequency: student.CategoryFrequency,
-          BaseAmount: student.CategoryAmount
+          Frequency: category.Frequency,
+          BaseAmount: category.BaseAmount
         });
-        description = `${student.FirstName} ${student.LastName} - ${student.CategoryName} for ${today.toLocaleString('en-ZA', { month: 'long' })} ${currentYear}`;
-      } else {
-        continue;
+        description = `${student.FirstName} ${student.LastName} - ${category.CategoryName} for ${today.toLocaleString('en-ZA', { month: 'long' })} ${currentYear}`;
+
+        if (!amount || amount <= 0) {
+          continue;
+        }
+
+        const billingDate = student.BillingDate ? new Date(student.BillingDate) : null;
+        const day = billingDate ? billingDate.getDate() : 1;
+        const dueDate = new Date(currentYear, currentMonth, Math.min(day, 28));
+
+        const invoice = await this.createInvoice({
+          schoolId,
+          studentId: student.StudentID,
+          billingCategoryId: category.BillingCategoryID,
+          amount,
+          description,
+          dueDate: dueDate.toISOString().slice(0, 10)
+        });
+
+        created.push(invoice);
       }
-
-      if (!amount || amount <= 0) {
-        continue;
-      }
-
-      const billingDate = student.BillingDate ? new Date(student.BillingDate) : null;
-      const day = billingDate ? billingDate.getDate() : 1;
-      const dueDate = new Date(currentYear, currentMonth, Math.min(day, 28));
-
-      const invoice = await this.createInvoice({
-        schoolId,
-        studentId: student.StudentID,
-        billingCategoryId: student.BillingCategoryID || null,
-        amount,
-        description,
-        dueDate: dueDate.toISOString().slice(0, 10)
-      });
-
-      created.push(invoice);
     }
 
     return {
@@ -187,6 +190,32 @@ class InvoiceService {
       createdCount: created.length,
       invoices: created
     };
+  }
+
+  studentBillingCategories(student) {
+    if (student.BillingCategoriesJson) {
+      try {
+        const categories = JSON.parse(student.BillingCategoriesJson)
+          .filter((category) => category.IsActive !== false && category.IsActive !== 0);
+        if (categories.length) {
+          return categories;
+        }
+      } catch (error) {
+        // Fall back to the legacy single billing category fields below.
+      }
+    }
+
+    if (student.BillingCategoryID && student.CategoryAmount && student.CategoryIsActive !== false && student.CategoryIsActive !== 0) {
+      return [{
+        BillingCategoryID: student.BillingCategoryID,
+        CategoryName: student.CategoryName,
+        BaseAmount: student.CategoryAmount,
+        Frequency: student.CategoryFrequency,
+        IsActive: student.CategoryIsActive
+      }];
+    }
+
+    return [];
   }
 
   // Mark invoice as paid.
@@ -313,13 +342,21 @@ class InvoiceService {
       throw new Error('Student must belong to the selected school');
     }
 
-    payload.billingCategoryId = payload.billingCategoryId || student.BillingCategoryID || null;
+    const allowedBillingCategoryIds = this.studentBillingCategories(student)
+      .map((category) => Number(category.BillingCategoryID))
+      .filter((categoryId) => Number.isInteger(categoryId) && categoryId > 0);
+
+    payload.billingCategoryId = payload.billingCategoryId || allowedBillingCategoryIds[0] || student.BillingCategoryID || null;
 
     if (!payload.billingCategoryId) {
       throw new Error('Student must have a billing category before invoicing');
     }
 
-    if (student.BillingCategoryID && payload.billingCategoryId !== student.BillingCategoryID) {
+    if (allowedBillingCategoryIds.length && !allowedBillingCategoryIds.includes(payload.billingCategoryId)) {
+      throw new Error('Invoice billing category must be assigned to the student');
+    }
+
+    if (!allowedBillingCategoryIds.length && student.BillingCategoryID && payload.billingCategoryId !== student.BillingCategoryID) {
       throw new Error('Invoice billing category must match the student billing category');
     }
 

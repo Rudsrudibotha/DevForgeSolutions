@@ -265,6 +265,15 @@ const elements = {
   registerLearnerForm: document.getElementById('registerLearnerForm'),
   registerLearnerFamilySelect: document.getElementById('registerLearnerFamilySelect'),
   registerLearnerBillingSelect: document.getElementById('registerLearnerBillingSelect'),
+  studentEditDialog: document.getElementById('studentEditDialog'),
+  studentEditForm: document.getElementById('studentEditForm'),
+  studentEditBillingSelect: document.getElementById('studentEditBillingSelect'),
+  closeStudentEditDialogButton: document.getElementById('closeStudentEditDialogButton'),
+  cancelStudentEditButton: document.getElementById('cancelStudentEditButton'),
+  familyEditDialog: document.getElementById('familyEditDialog'),
+  familyEditForm: document.getElementById('familyEditForm'),
+  closeFamilyEditDialogButton: document.getElementById('closeFamilyEditDialogButton'),
+  cancelFamilyEditButton: document.getElementById('cancelFamilyEditButton'),
   billingCategoryForm: document.getElementById('billingCategoryForm'),
   billingCategoriesTable: document.getElementById('billingCategoriesTable'),
   cancelBillingCategoryEditButton: document.getElementById('cancelBillingCategoryEditButton'),
@@ -1672,6 +1681,107 @@ function renderFamilyOptions() {
   elements.studentFamilySelect.disabled = !families.length;
 }
 
+function billingCategoryIdsForStudent(student) {
+  if (student?.BillingCategoriesJson) {
+    try {
+      const ids = JSON.parse(student.BillingCategoriesJson)
+        .map((category) => Number(category.BillingCategoryID))
+        .filter((id) => Number.isInteger(id) && id > 0);
+      if (ids.length) {
+        return ids;
+      }
+    } catch (error) {
+      return student.BillingCategoryID ? [Number(student.BillingCategoryID)] : [];
+    }
+  }
+
+  return student?.BillingCategoryID ? [Number(student.BillingCategoryID)] : [];
+}
+
+function billingCategoryNamesForStudent(student) {
+  if (student?.BillingCategoriesJson) {
+    try {
+      const names = JSON.parse(student.BillingCategoriesJson)
+        .map((category) => category.CategoryName)
+        .filter(Boolean);
+      if (names.length) {
+        return names.join(', ');
+      }
+    } catch (error) {
+      return student.CategoryName || '-';
+    }
+  }
+
+  return student?.CategoryName || '-';
+}
+
+function populateBillingSelect(select, selectedIds = []) {
+  if (!select) {
+    return;
+  }
+
+  const selected = new Set(selectedIds.map((id) => String(id)));
+  const categories = state.billingCategories.filter((category) => category.IsActive !== false && category.IsActive !== 0);
+  select.innerHTML = categories.map((category) => `
+    <option value="${category.BillingCategoryID}" ${selected.has(String(category.BillingCategoryID)) ? 'selected' : ''}>
+      ${escapeHtml(category.CategoryName)} (${money(category.BaseAmount)})
+    </option>
+  `).join('');
+  select.disabled = !categories.length;
+}
+
+function selectedValues(select) {
+  return Array.from(select?.selectedOptions || [])
+    .map((option) => Number(option.value))
+    .filter((id) => Number.isInteger(id) && id > 0);
+}
+
+function familyPayloadFromForm(form) {
+  const data = formData(form);
+  return {
+    familyName: data.familyName,
+    primaryParentName: data.primaryParentName,
+    primaryParentIdNumber: data.primaryParentIdNumber,
+    primaryParentPhone: data.primaryParentPhone,
+    primaryParentEmail: data.primaryParentEmail,
+    secondaryParentName: data.secondaryParentName,
+    secondaryParentIdNumber: data.secondaryParentIdNumber,
+    secondaryParentPhone: data.secondaryParentPhone,
+    secondaryParentEmail: data.secondaryParentEmail,
+    homeAddress: data.familyHomeAddress || data.homeAddress,
+    emergencyContactName: data.emergencyContactName,
+    emergencyContactPhone: data.emergencyContactPhone,
+    familyDoctor: data.familyDoctor,
+    medicalAidName: data.medicalAidName,
+    medicalAidNumber: data.medicalAidNumber
+  };
+}
+
+function setFormValue(form, name, value) {
+  if (form?.elements?.[name]) {
+    form.elements[name].value = value ?? '';
+  }
+}
+
+function fillFamilyForm(form, family = {}) {
+  setFormValue(form, 'familyId', family.FamilyID);
+  setFormValue(form, 'familyName', family.FamilyName);
+  setFormValue(form, 'primaryParentName', family.PrimaryParentName);
+  setFormValue(form, 'primaryParentIdNumber', family.PrimaryParentIdNumber);
+  setFormValue(form, 'primaryParentPhone', family.PrimaryParentPhone);
+  setFormValue(form, 'primaryParentEmail', family.PrimaryParentEmail);
+  setFormValue(form, 'secondaryParentName', family.SecondaryParentName);
+  setFormValue(form, 'secondaryParentIdNumber', family.SecondaryParentIdNumber);
+  setFormValue(form, 'secondaryParentPhone', family.SecondaryParentPhone);
+  setFormValue(form, 'secondaryParentEmail', family.SecondaryParentEmail);
+  setFormValue(form, 'familyHomeAddress', family.HomeAddress || family.FamilyHomeAddress);
+  setFormValue(form, 'emergencyContactName', family.EmergencyContactName);
+  setFormValue(form, 'emergencyContactPhone', family.EmergencyContactPhone);
+  setFormValue(form, 'familyDoctor', family.FamilyDoctor);
+  setFormValue(form, 'medicalAidName', family.MedicalAidName);
+  setFormValue(form, 'medicalAidNumber', family.MedicalAidNumber);
+}
+
 function renderFamiliesTable() {
   const families = currentSchoolFamilies();
 
@@ -1693,8 +1803,11 @@ function renderFamiliesTable() {
         <strong>${escapeHtml(family.EmergencyContactName || '-')}</strong>
         <span class="table-subtext">${escapeHtml(family.EmergencyContactPhone || '')}</span>
       </td>
+      <td>
+        <button class="ghost-button" data-action="edit-family" data-id="${family.FamilyID}" type="button">Edit</button>
+      </td>
     </tr>
-  `).join('') || '<tr><td colspan="4">No families yet.</td></tr>';
+  `).join('') || '<tr><td colspan="5">No families yet.</td></tr>';
 }
 
 function renderStudentsTable() {
@@ -1705,7 +1818,7 @@ function renderStudentsTable() {
     switch (searchType) {
       case 'Student name': return (s.FirstName || '').toLowerCase().includes(q);
       case 'Student surname': return (s.LastName || '').toLowerCase().includes(q);
-      case 'Parent name': return (s.FamilyName || '').toLowerCase().includes(q);
+      case 'Parent name': return [s.FamilyName, s.PrimaryParentName, s.SecondaryParentName].join(' ').toLowerCase().includes(q);
       case 'Family code': return (s.FamilyName || '').toLowerCase().includes(q);
       default: return (s.FirstName + ' ' + s.LastName + ' ' + (s.FamilyName || '')).toLowerCase().includes(q);
     }
@@ -1716,6 +1829,7 @@ function renderStudentsTable() {
     const isActive = Boolean(student.IsActive);
     const statusClass = isActive ? 'badge' : 'badge danger';
     const fullName = `${student.FirstName} ${student.LastName}`;
+    const categoryNames = billingCategoryNamesForStudent(student);
 
     return `
       <tr>
@@ -1724,7 +1838,10 @@ function renderStudentsTable() {
           <span class="table-subtext">${escapeHtml(student.ClassName || 'No class assigned')}</span>
         </td>
         <td>${escapeHtml(student.FamilyName || '-')}</td>
-        <td>${dateOnly(student.BillingDate)}</td>
+        <td>
+          <strong>${escapeHtml(categoryNames)}</strong>
+          <span class="table-subtext">Billing date: ${dateOnly(student.BillingDate)}</span>
+        </td>
         <td>${dateOnly(student.EnrolledDate)}</td>
         <td>
           <span class="${statusClass}">${isActive ? 'Active' : 'Inactive'}</span>
@@ -1732,7 +1849,8 @@ function renderStudentsTable() {
         </td>
         <td>
           <div class="actions">
-            ${isActive ? `<button class="ghost-button" data-action="inactivate-student" data-id="${student.StudentID}" type="button">Mark inactive</button>` : '<span class="table-subtext">No actions</span>'}
+            <button class="ghost-button" data-action="edit-student" data-id="${student.StudentID}" type="button">Edit</button>
+            ${isActive ? `<button class="ghost-button" data-action="inactivate-student" data-id="${student.StudentID}" type="button">Mark inactive</button>` : ''}
           </div>
         </td>
       </tr>
@@ -1940,11 +2058,9 @@ function renderPayslips() {
 function renderRegisterLearnerOptions() {
   if (!elements.registerLearnerFamilySelect) return;
   const families = currentSchoolFamilies();
-  elements.registerLearnerFamilySelect.innerHTML = '<option value="">Select family</option>' +
+  elements.registerLearnerFamilySelect.innerHTML = '<option value="">New family / not listed</option>' +
     families.map((f) => '<option value="' + f.FamilyID + '">' + escapeHtml(f.FamilyName) + '</option>').join('');
-  const cats = state.billingCategories.filter((c) => c.IsActive !== false && c.IsActive !== 0);
-  elements.registerLearnerBillingSelect.innerHTML = '<option value="">Select category</option>' +
-    cats.map((c) => '<option value="' + c.BillingCategoryID + '">' + escapeHtml(c.CategoryName) + ' (' + money(c.BaseAmount) + ')</option>').join('');
+  populateBillingSelect(elements.registerLearnerBillingSelect);
 }
 
 
@@ -2122,6 +2238,85 @@ function closePaymentDialog() {
   elements.paymentDialog.classList.add('hidden');
   document.body.classList.remove('modal-open');
   elements.paymentForm.reset();
+}
+
+function activateFormTab(button) {
+  const form = button.closest('form');
+  if (!form) {
+    return;
+  }
+
+  const tabName = button.dataset.formTab;
+  form.querySelectorAll('.form-tab').forEach((tab) => tab.classList.toggle('active', tab === button));
+  form.querySelectorAll('.form-tab-panel').forEach((panel) => {
+    panel.classList.toggle('active', panel.dataset.formPanel === tabName);
+  });
+}
+
+function openStudentEditDialog(studentId) {
+  const student = state.students.find((item) => item.StudentID === Number(studentId));
+  if (!student) {
+    showToast('Student not found');
+    return;
+  }
+
+  const family = state.families.find((item) => item.FamilyID === student.FamilyID) || student;
+  const form = elements.studentEditForm;
+  form.reset();
+  setFormValue(form, 'studentId', student.StudentID);
+  setFormValue(form, 'familyId', student.FamilyID);
+  setFormValue(form, 'firstName', student.FirstName);
+  setFormValue(form, 'lastName', student.LastName);
+  setFormValue(form, 'dateOfBirth', student.DateOfBirth ? student.DateOfBirth.slice(0, 10) : '');
+  setFormValue(form, 'className', student.ClassName);
+  setFormValue(form, 'enrolledDate', student.EnrolledDate ? student.EnrolledDate.slice(0, 10) : '');
+  setFormValue(form, 'billingDate', student.BillingDate ? student.BillingDate.slice(0, 10) : '');
+  setFormValue(form, 'homePhone', student.HomePhone);
+  setFormValue(form, 'homeAddress', student.HomeAddress);
+  setFormValue(form, 'medicalNotes', student.MedicalNotes);
+  fillFamilyForm(form, family);
+  populateBillingSelect(elements.studentEditBillingSelect, billingCategoryIdsForStudent(student));
+  form.querySelector('[data-form-tab="editLearner"]')?.click();
+  elements.studentEditDialog.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  window.setTimeout(() => form.elements.firstName.focus(), 0);
+}
+
+function closeStudentEditDialog() {
+  elements.studentEditDialog.classList.add('hidden');
+  elements.studentEditForm.reset();
+  document.body.classList.remove('modal-open');
+}
+
+function openFamilyEditDialog(familyId) {
+  const family = state.families.find((item) => item.FamilyID === Number(familyId));
+  if (!family) {
+    showToast('Family not found');
+    return;
+  }
+
+  const form = elements.familyEditForm;
+  form.reset();
+  fillFamilyForm(form, family);
+  elements.familyEditDialog.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  window.setTimeout(() => form.elements.familyName.focus(), 0);
+}
+
+function closeFamilyEditDialog() {
+  elements.familyEditDialog.classList.add('hidden');
+  elements.familyEditForm.reset();
+  document.body.classList.remove('modal-open');
+}
+
+function requireFields(form, names) {
+  for (const name of names) {
+    const field = form.elements[name];
+    if (field && !String(field.value || '').trim()) {
+      field.focus();
+      throw new Error('Please fill in all required fields');
+    }
+  }
 }
 
 function getAccountSchool() {
@@ -2386,7 +2581,24 @@ function switchFinanceTab(tabName) {
 }
 
 function formData(form) {
-  return Object.fromEntries(new FormData(form).entries());
+  const data = {};
+  const formEntries = new FormData(form);
+
+  for (const [key, value] of formEntries.entries()) {
+    if (data[key] === undefined) {
+      data[key] = value;
+    } else if (Array.isArray(data[key])) {
+      data[key].push(value);
+    } else {
+      data[key] = [data[key], value];
+    }
+  }
+
+  form.querySelectorAll('select[multiple][name]').forEach((select) => {
+    data[select.name] = Array.from(select.selectedOptions).map((option) => option.value);
+  });
+
+  return data;
 }
 
 function validateUsername(username) {
@@ -2613,37 +2825,12 @@ elements.invoiceForm.addEventListener('submit', async (event) => {
   }
 });
 
-elements.familyForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  try {
-    const schoolId = currentSchoolId();
-
-    if (!schoolId) {
-      throw new Error('Create a school before adding families');
-    }
-
-    setFormBusy(elements.familyForm, true, 'Adding...');
-    const payload = {
-      ...formData(elements.familyForm),
-      schoolId
-    };
-
-    await api('/api/families', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-
-    elements.familyForm.reset();
-    elements.parentsModulePanel.classList.remove('hidden');
-    await refreshData();
-    showToast('Family added');
-  } catch (error) {
-    showToast(error.message);
-  } finally {
-    setFormBusy(elements.familyForm, false);
-  }
-});
+if (elements.familyForm) {
+  elements.familyForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    showToast('Parents are added from School / Register Learner');
+  });
+}
 
 if (elements.studentForm) {
   elements.studentForm.addEventListener('submit', async (event) => {
@@ -2904,8 +3091,106 @@ elements.departureForm.addEventListener('submit', async (event) => {
   }
 });
 
+elements.studentEditForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const form = elements.studentEditForm;
+  try {
+    requireFields(form, [
+      'firstName',
+      'lastName',
+      'enrolledDate',
+      'billingDate',
+      'familyName',
+      'primaryParentName',
+      'primaryParentPhone',
+      'familyHomeAddress',
+      'emergencyContactName',
+      'emergencyContactPhone'
+    ]);
+
+    const billingCategoryIds = selectedValues(elements.studentEditBillingSelect);
+    if (!billingCategoryIds.length) {
+      throw new Error('Select at least one billing category');
+    }
+
+    const studentId = Number(form.elements.studentId.value);
+    const familyId = Number(form.elements.familyId.value);
+    setFormBusy(form, true, 'Saving...');
+
+    await api(`/api/families/${familyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(familyPayloadFromForm(form))
+    });
+
+    const data = formData(form);
+    await api(`/api/students/${studentId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        familyId,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        dateOfBirth: data.dateOfBirth || null,
+        homePhone: data.homePhone,
+        homeAddress: data.homeAddress,
+        className: data.className,
+        billingDate: data.billingDate,
+        enrolledDate: data.enrolledDate,
+        medicalNotes: data.medicalNotes,
+        billingCategoryId: billingCategoryIds[0],
+        billingCategoryIds
+      })
+    });
+
+    closeStudentEditDialog();
+    await refreshData();
+    switchView('students');
+    showToast('Learner updated');
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setFormBusy(form, false);
+  }
+});
+
+elements.familyEditForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const form = elements.familyEditForm;
+  try {
+    requireFields(form, [
+      'familyName',
+      'primaryParentName',
+      'primaryParentPhone',
+      'familyHomeAddress',
+      'emergencyContactName',
+      'emergencyContactPhone'
+    ]);
+
+    const familyId = Number(form.elements.familyId.value);
+    setFormBusy(form, true, 'Saving...');
+    await api(`/api/families/${familyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(familyPayloadFromForm(form))
+    });
+
+    closeFamilyEditDialog();
+    await refreshData();
+    switchView('parents');
+    showToast('Parent details updated');
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setFormBusy(form, false);
+  }
+});
+
 elements.closePaymentDialogButton.addEventListener('click', closePaymentDialog);
 elements.cancelPaymentButton.addEventListener('click', closePaymentDialog);
+elements.closeStudentEditDialogButton?.addEventListener('click', closeStudentEditDialog);
+elements.cancelStudentEditButton?.addEventListener('click', closeStudentEditDialog);
+elements.closeFamilyEditDialogButton?.addEventListener('click', closeFamilyEditDialog);
+elements.cancelFamilyEditButton?.addEventListener('click', closeFamilyEditDialog);
 
 elements.paymentDialog.addEventListener('click', (event) => {
   if (event.target === elements.paymentDialog) {
@@ -2913,9 +3198,27 @@ elements.paymentDialog.addEventListener('click', (event) => {
   }
 });
 
+elements.studentEditDialog?.addEventListener('click', (event) => {
+  if (event.target === elements.studentEditDialog) {
+    closeStudentEditDialog();
+  }
+});
+
+elements.familyEditDialog?.addEventListener('click', (event) => {
+  if (event.target === elements.familyEditDialog) {
+    closeFamilyEditDialog();
+  }
+});
+
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !elements.paymentDialog.classList.contains('hidden')) {
     closePaymentDialog();
+  }
+  if (event.key === 'Escape' && elements.studentEditDialog && !elements.studentEditDialog.classList.contains('hidden')) {
+    closeStudentEditDialog();
+  }
+  if (event.key === 'Escape' && elements.familyEditDialog && !elements.familyEditDialog.classList.contains('hidden')) {
+    closeFamilyEditDialog();
   }
 });
 
@@ -3108,26 +3411,13 @@ document.addEventListener('click', async (event) => {
     return;
   }
 
-    if (action === 'edit-student') {
-    const student = state.students.find(s => s.StudentID === Number(button.dataset.id));
-    if (student) {
-      switchView('registerLearner');
-      setTimeout(() => {
-        const form = elements.registerLearnerForm;
-        if (!form) return;
-        if (form.elements.familyId) form.elements.familyId.value = student.FamilyID || '';
-        if (form.elements.billingCategoryId) form.elements.billingCategoryId.value = student.BillingCategoryID || '';
-        if (form.elements.firstName) form.elements.firstName.value = student.FirstName || '';
-        if (form.elements.lastName) form.elements.lastName.value = student.LastName || '';
-        if (form.elements.dateOfBirth) form.elements.dateOfBirth.value = student.DateOfBirth ? student.DateOfBirth.slice(0, 10) : '';
-        if (form.elements.className) form.elements.className.value = student.ClassName || '';
-        if (form.elements.billingDate) form.elements.billingDate.value = student.BillingDate ? student.BillingDate.slice(0, 10) : '';
-        if (form.elements.enrolledDate) form.elements.enrolledDate.value = student.EnrolledDate ? student.EnrolledDate.slice(0, 10) : '';
-        state.editingStudentId = student.StudentID;
-        const btn = form.querySelector('button[type="submit"]');
-        if (btn) btn.textContent = 'Save Changes';
-      }, 100);
-    }
+  if (action === 'edit-student') {
+    openStudentEditDialog(button.dataset.id);
+    return;
+  }
+
+  if (action === 'edit-family') {
+    openFamilyEditDialog(button.dataset.id);
     return;
   }
 
@@ -3265,6 +3555,13 @@ document.addEventListener('click', async (event) => {
   }
 });
 
+document.addEventListener('click', (event) => {
+  const tabButton = event.target.closest('[data-form-tab]');
+  if (tabButton) {
+    activateFormTab(tabButton);
+  }
+});
+
 document.querySelectorAll('.nav-item').forEach((button) => {
   button.addEventListener('click', () => switchView(button.dataset.view));
 });
@@ -3297,26 +3594,76 @@ document.querySelectorAll('[data-action="export-outstanding-fees"]').forEach((bt
 
 // Register Learner form
 if (elements.registerLearnerForm) {
+  elements.registerLearnerFamilySelect?.addEventListener('change', () => {
+    const selectedFamily = state.families.find((family) => family.FamilyID === Number(elements.registerLearnerFamilySelect.value));
+    if (selectedFamily) {
+      fillFamilyForm(elements.registerLearnerForm, selectedFamily);
+    }
+  });
+
   elements.registerLearnerForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = elements.registerLearnerForm;
-    const data = formData(form);
-    if (!data.familyId || !data.billingCategoryId || !data.firstName || !data.lastName) {
-      showToast('Please fill in all required fields');
-      return;
-    }
-    setFormBusy(form, true, 'Registering...');
+
     try {
-      if (state.editingStudentId) {
-        await api('/api/students/' + state.editingStudentId, { method: 'PUT', body: JSON.stringify(data) });
-        state.editingStudentId = null;
-        switchView('students');
-      } else {
-        await api('/api/students', { method: 'POST', body: JSON.stringify(data) });
+      requireFields(form, ['firstName', 'lastName', 'enrolledDate', 'billingDate']);
+
+      const billingCategoryIds = selectedValues(elements.registerLearnerBillingSelect);
+      if (!billingCategoryIds.length) {
+        throw new Error('Select at least one billing category');
       }
+
+      setFormBusy(form, true, 'Registering...');
+      const data = formData(form);
+      let familyId = Number(data.familyId || 0);
+
+      if (!familyId) {
+        requireFields(form, [
+          'familyName',
+          'primaryParentName',
+          'primaryParentPhone',
+          'familyHomeAddress',
+          'emergencyContactName',
+          'emergencyContactPhone'
+        ]);
+
+        const schoolId = currentSchoolId();
+        if (!schoolId) {
+          throw new Error('Create a school before registering learners');
+        }
+
+        const family = await api('/api/families', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...familyPayloadFromForm(form),
+            schoolId
+          })
+        });
+        familyId = family.FamilyID;
+      }
+
+      await api('/api/students', {
+        method: 'POST',
+        body: JSON.stringify({
+          familyId,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          dateOfBirth: data.dateOfBirth || null,
+          homePhone: data.homePhone,
+          homeAddress: data.homeAddress || data.familyHomeAddress,
+          className: data.className,
+          billingDate: data.billingDate,
+          enrolledDate: data.enrolledDate,
+          medicalNotes: data.medicalNotes,
+          billingCategoryId: billingCategoryIds[0],
+          billingCategoryIds
+        })
+      });
+
       form.reset();
       showToast('Learner registered successfully');
       await refreshData();
+      switchView('students');
     } catch (error) {
       showToast(error.message || 'Failed to register learner');
     } finally {
