@@ -13,8 +13,8 @@ SET IDENTITY_INSERT dbo.Schools OFF;
 -- USERS (school admin + parent)
 -- =============================================
 -- School admin user linked to SchoolID 7
-INSERT INTO dbo.Users (Email, Username, PasswordHash, Role, SchoolID, IsActive)
-VALUES ('schooltest@devforge.local', 'schooltest', '$2a$10$p0/5qWhiGHOTYPYJq3rK4ulWcZwYEjKGtk9eiWS5EW5W8kdUD8qCa', 'school', 7, 1);
+INSERT INTO dbo.Users (Email, Username, PasswordHash, Role, SchoolID, IsActive, HasHrPermission)
+VALUES ('schooltest@devforge.local', 'schooltest', '$2a$10$p0/5qWhiGHOTYPYJq3rK4ulWcZwYEjKGtk9eiWS5EW5W8kdUD8qCa', 'school', 7, 1, 1);
 
 -- Parent user
 INSERT INTO dbo.Users (Email, Username, PasswordHash, Role, SchoolID, IsActive)

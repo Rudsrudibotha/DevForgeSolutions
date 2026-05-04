@@ -1524,3 +1524,13 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_Allocatio
 BEGIN
     CREATE INDEX IX_Transactions_AllocationStatus ON dbo.Transactions(SchoolID, AllocationStatus);
 END;
+
+-- =============================================
+-- GRANT FULL ACCESS TO TEST USERS
+-- =============================================
+
+-- Ensure all existing school and admin users have HR permission for testing
+UPDATE dbo.Users SET HasHrPermission = 1 WHERE Role IN ('admin', 'school') AND HasHrPermission = 0;
+
+-- Enable staff payslip view for test schools
+UPDATE dbo.Schools SET AllowStaffPayslipView = 1 WHERE AllowStaffPayslipView = 0;
