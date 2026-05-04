@@ -80,6 +80,7 @@
                 <button class="module-tile" data-action="open-reenrolment" type="button"><span class="module-icon schools-icon" aria-hidden="true">RE</span><span>Re-Enrolment / Year Rollover</span></button>
                 <button class="module-tile" data-action="open-school-settings" type="button"><span class="module-icon schools-icon" aria-hidden="true">SE</span><span>School Settings</span></button>
                 <button class="module-tile" data-action="open-consent-permissions" type="button"><span class="module-icon schools-icon" aria-hidden="true">CP</span><span>Consent and Permissions</span></button>
+                <button class="module-tile" data-action="open-register-learner" type="button"><span class="module-icon schools-icon" aria-hidden="true">RL</span><span>Register Learner</span></button>
               </div>
             </section>
           </section>
@@ -97,7 +98,7 @@
                 <button class="module-tile" data-action="open-suggested-matches" type="button"><span class="module-icon finance-icon" aria-hidden="true">SM</span><span>Suggested Matches</span></button>
                 <button class="module-tile" data-action="open-invoices" type="button"><span class="module-icon finance-icon" aria-hidden="true">IN</span><span>Invoices</span></button>
                 <button class="module-tile" data-action="open-billing-categories" type="button"><span class="module-icon finance-icon" aria-hidden="true">BC</span><span>Billing Categories</span></button>
-                <button class="module-tile" data-action="open-hr-payroll" type="button"><span class="module-icon finance-icon" aria-hidden="true">HR</span><span>HR / Payroll</span></button>
+                <button class="module-tile" data-action="open-hr-payroll" data-permission="hr" type="button"><span class="module-icon finance-icon" aria-hidden="true">HR</span><span>HR / Payroll</span></button>
                 <button class="module-tile" data-action="open-financial-adjustments" type="button"><span class="module-icon finance-icon" aria-hidden="true">FA</span><span>Financial Adjustments</span></button>
                 <button class="module-tile" data-action="open-refunds" type="button"><span class="module-icon finance-icon" aria-hidden="true">RF</span><span>Refunds</span></button>
                 <button class="module-tile" data-action="open-registration-fees" type="button"><span class="module-icon finance-icon" aria-hidden="true">RD</span><span>Registration / Deposit Fees</span></button>
@@ -295,7 +296,7 @@
                 <div class="form-grid section-spacer">
                   <label>
                     Search Type
-                    <select>
+                    <select id="studentSearchTypeSelect">
                       <option>Student name</option>
                       <option>Student surname</option>
                       <option>Parent name</option>
@@ -304,7 +305,7 @@
                   </label>
                   <label>
                     Search Value
-                    <input type="search">
+                    <input id="studentSearchInput" type="search" placeholder="Search learners...">
                   </label>
                   <label>
                     Grade
@@ -706,6 +707,72 @@
             </section>
           </section>
 
+          <section id="registerLearnerView" class="view grouped-view" data-group="school">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Register Learner</h3>
+                    <p>Register a new learner for this school.</p>
+                  </div>
+                </div>
+                <form id="registerLearnerForm" class="module-form flush-form">
+                  <div class="form-grid">
+                    <label>
+                      Family
+                      <select id="registerLearnerFamilySelect" name="familyId" required></select>
+                    </label>
+                    <label>
+                      Billing category
+                      <select id="registerLearnerBillingSelect" name="billingCategoryId" required></select>
+                    </label>
+                    <label>
+                      First name
+                      <input name="firstName" type="text" required>
+                    </label>
+                    <label>
+                      Last name
+                      <input name="lastName" type="text" required>
+                    </label>
+                    <label>
+                      Date of birth
+                      <input name="dateOfBirth" type="date">
+                    </label>
+                    <label>
+                      Class
+                      <input name="className" type="text">
+                    </label>
+                    <label>
+                      Billing date
+                      <input name="billingDate" type="date" required>
+                    </label>
+                    <label>
+                      Enrolled date
+                      <input name="enrolledDate" type="date" required>
+                    </label>
+                    <label>
+                      Home phone
+                      <input name="homePhone" type="tel">
+                    </label>
+                    <label class="wide">
+                      Medical notes
+                      <textarea name="medicalNotes" rows="2"></textarea>
+                    </label>
+                  </div>
+                  <button class="primary-button compact-button" type="submit">Register Learner</button>
+                </form>
+              </section>
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Registration Info</h3>
+                    <p>Select a family and billing category, then fill in the learner details.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+
           <section id="consentPermissionsView" class="view grouped-view" data-group="school">
             <section class="table-panel page-table-panel">
               <div class="panel-header">
@@ -887,7 +954,7 @@
                     <select><option>Current</option></select>
                   </label>
                 </div>
-                <button class="secondary-button compact-button section-spacer" type="button">Export</button>
+                <button class="secondary-button compact-button section-spacer" data-action="export-outstanding-fees" type="button">Export Outstanding Fees</button>
               </section>
               <section class="table-panel summary-panel">
                 <div class="panel-header">

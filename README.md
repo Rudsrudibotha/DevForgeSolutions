@@ -307,8 +307,19 @@ The School landing page must show these feature icons:
 - Re-Enrolment / Year Rollover
 - School Settings
 - Consent and Permissions
+- Register Learner
 
 Each icon opens a dedicated page for that feature only.
+
+##### Register Learner Section
+
+The Register Learner section must:
+
+- Provide a dedicated registration form for new learners.
+- Require family selection, billing category, first name, last name, date of birth, class, billing date, enrolled date.
+- Allow optional home phone and medical notes.
+- Only register learners for the logged-in School ID.
+- Show a success message after registration.
 
 ##### Classes Section
 
@@ -2273,6 +2284,10 @@ Once the server starts, open the local app in your browser.
 - **Year-end financial closing module:** Added `YearEndClosing` and `BalanceBroughtForward` tables and `/api/hr/year-end` routes. Supports year-end record creation, status workflow (Open, In Review, Ready to Close, Closed, Reopened for Correction), balance carry-forward per student, and reopen with mandatory reason. All actions audit logged.
 - **School name uniqueness enforcement:** Added `NormalizedSchoolName` computed persisted column and `UX_Schools_NormalizedSchoolName` unique index to the schema. School creation and update now use case-insensitive, trim-aware normalized name checks. Duplicate attempts return HTTP 409 with "A school with this name already exists." SQL unique constraint violations are caught and returned as user-friendly errors. Duplicate registration and name update attempts are audit logged.
 - **School manager leave approval toggle:** Added `EnableManagerLeaveApproval` column to Schools.
+- **Student search fix:** Wired the student search inputs on the Students page. Search by student name, student surname, parent name, or family code now filters the learner table in real time.
+- **Outstanding Fees export fix:** The Export button on the Outstanding Fees page now downloads a CSV file via fetch with the auth token. Includes monthly Jan-Dec columns, parent details, promise-to-pay, school name, and export date. Shows error message on failure instead of downloading empty file.
+- **Register Learner icon:** Added Register Learner as a new icon on the School landing page with its own dedicated registration form page. The form includes family, billing category, name, DOB, class, billing date, enrolled date, and medical notes.
+- **Permission-based icon hiding:** Added data-permission attributes to icon tiles. Icons are hidden based on user permissions (e.g. HR/Payroll icon hidden if user lacks HasHrPermission). The applyIconPermissions function runs after login.
 - **Leave request type linking:** Added `LeaveTypeID` column to LeaveRequests for linking to configurable leave types.
 
 ## API Modules

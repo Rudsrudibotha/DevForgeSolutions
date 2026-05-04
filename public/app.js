@@ -51,6 +51,7 @@ const VIEW_TITLES = {
   reenrolment: 'School / Re-Enrolment / Year Rollover',
   schoolSettings: 'School / School Settings',
   consentPermissions: 'School / Consent and Permissions',
+  registerLearner: 'School / Register Learner',
   bank: 'Finance / Bank Reconciliation',
   outstanding: 'Finance / Outstanding Fees',
   bankTransactions: 'Finance / Bank Transactions',
@@ -84,6 +85,7 @@ const VIEW_MODULE = {
   reenrolment: 'school',
   schoolSettings: 'school',
   consentPermissions: 'school',
+  registerLearner: 'school',
   bank: 'finance',
   outstanding: 'finance',
   bankTransactions: 'finance',
@@ -123,6 +125,7 @@ const VIEW_ROUTES = {
   reenrolment: '/school/re-enrolment-year-rollover',
   schoolSettings: '/school/school-settings',
   consentPermissions: '/school/consent-permissions',
+  registerLearner: '/school/register-learner',
   bank: '/school/finance/bank-reconciliation',
   outstanding: '/school/finance/outstanding-fees',
   bankTransactions: '/school/finance/bank-transactions',
@@ -161,6 +164,7 @@ const ACTION_VIEWS = {
   'open-reenrolment': 'reenrolment',
   'open-school-settings': 'schoolSettings',
   'open-consent-permissions': 'consentPermissions',
+  'open-register-learner': 'registerLearner',
   'open-bank': 'bank',
   'open-outstanding': 'outstanding',
   'open-bank-transactions': 'bankTransactions',
@@ -206,7 +210,9 @@ const state = {
   selectedSettingsSchoolId: null,
   editingBillingCategoryId: null,
   studentStatusFilter: 'active',
-  selectedDepartureStudentId: null
+  selectedDepartureStudentId: null,
+  studentSearchQuery: '',
+  studentSearchType: 'Student name'
 };
 
 const elements = {
@@ -240,6 +246,9 @@ const elements = {
   studentFamilySelect: document.getElementById('studentFamilySelect'),
   studentBillingCategorySelect: document.getElementById('studentBillingCategorySelect'),
   studentsTable: document.getElementById('studentsTable'),
+  registerLearnerForm: document.getElementById('registerLearnerForm'),
+  registerLearnerFamilySelect: document.getElementById('registerLearnerFamilySelect'),
+  registerLearnerBillingSelect: document.getElementById('registerLearnerBillingSelect'),
   billingCategoryForm: document.getElementById('billingCategoryForm'),
   billingCategoriesTable: document.getElementById('billingCategoriesTable'),
   cancelBillingCategoryEditButton: document.getElementById('cancelBillingCategoryEditButton'),
@@ -293,6 +302,61 @@ const elements = {
 };
 
 let toastTimer = null;
+
+
+// === PERMISSION-BASED ICON HIDING ===
+function applyIconPermissions() {
+  const user = state.user;
+  if (!user) return;
+  document.querySelectorAll('[data-permission]').forEach((tile) => {
+    const perm = tile.dataset.permission;
+    let visible = true;
+    if (perm === 'hr' && !user.HasHrPermission) visible = false;
+    if (perm === 'admin-only' && user.Role !== 'admin') visible = false;
+    tile.style.display = visible ? '' : 'none';
+  });
+}
+
+// === OUTSTANDING FEES EXPORT ===
+function exportOutstandingFees() {
+  const year = new Date().getFullYear();
+  const url = '/api/export/outstanding-fees?year=' + year;
+  const token = state.token;
+  fetch(url, { headers: { Authorization: 'Bearer ' + token } })
+    .then((r) => {
+      if (!r.ok) return r.json().then((j) => { throw new Error(j.error || 'Export failed'); });
+      return r.blob();
+    })
+    .then((blob) => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'outstanding-fees-' + year + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      showToast('Outstanding fees exported successfully');
+    })
+    .catch((e) => showToast(e.message || 'Export failed. No data found or permission denied.'));
+}
+
+// === STUDENT SEARCH WIRING ===
+function wireStudentSearch() {
+  const searchInput = document.getElementById('studentSearchInput');
+  const searchTypeSelect = document.getElementById('studentSearchTypeSelect');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      state.studentSearchQuery = searchInput.value;
+      renderStudentsTable();
+    });
+  }
+  if (searchTypeSelect) {
+    searchTypeSelect.addEventListener('change', () => {
+      state.studentSearchType = searchTypeSelect.value;
+      renderStudentsTable();
+    });
+  }
+}
 
 function dashboardPath(user) {
   if (user?.role === 'admin') {
@@ -435,6 +499,8 @@ function setSession(authPayload) {
   localStorage.setItem('smsToken', state.token);
   localStorage.setItem('smsUser', JSON.stringify(state.user));
   renderShell();
+  applyIconPermissions();
+  wireStudentSearch();
 }
 
 function clearSession() {
@@ -607,6 +673,7 @@ function renderData() {
   renderFamiliesTable();
   renderStudentsTable();
   renderStudentStatusFilter();
+  renderRegisterLearnerOptions();
   renderClasses();
   renderAttendance();
   renderTransactions();
@@ -890,7 +957,19 @@ function renderFamiliesTable() {
 }
 
 function renderStudentsTable() {
-  elements.studentsTable.innerHTML = state.students.map((student) => {
+  const q = (state.studentSearchQuery || '').toLowerCase();
+  const searchType = state.studentSearchType || 'Student name';
+  const filtered = state.students.filter((s) => {
+    if (!q) return true;
+    switch (searchType) {
+      case 'Student name': return (s.FirstName || '').toLowerCase().includes(q);
+      case 'Student surname': return (s.LastName || '').toLowerCase().includes(q);
+      case 'Parent name': return (s.FamilyName || '').toLowerCase().includes(q);
+      case 'Family code': return (s.FamilyName || '').toLowerCase().includes(q);
+      default: return (s.FirstName + ' ' + s.LastName + ' ' + (s.FamilyName || '')).toLowerCase().includes(q);
+    }
+  });
+  elements.studentsTable.innerHTML = filtered.map((student) => {
     const isActive = Boolean(student.IsActive);
     const statusClass = isActive ? 'badge' : 'badge danger';
     const fullName = `${student.FirstName} ${student.LastName}`;
@@ -1080,6 +1159,17 @@ function renderPayslips() {
       </tr>
     `;
   }).join('') || '<tr><td colspan="4">No payslip records found.</td></tr>';
+}
+
+
+function renderRegisterLearnerOptions() {
+  if (!elements.registerLearnerFamilySelect) return;
+  const families = currentSchoolFamilies();
+  elements.registerLearnerFamilySelect.innerHTML = '<option value="">Select family</option>' +
+    families.map((f) => '<option value="' + f.FamilyID + '">' + escapeHtml(f.FamilyName) + '</option>').join('');
+  const cats = state.billingCategories.filter((c) => c.IsActive !== false && c.IsActive !== 0);
+  elements.registerLearnerBillingSelect.innerHTML = '<option value="">Select category</option>' +
+    cats.map((c) => '<option value="' + c.BillingCategoryID + '">' + escapeHtml(c.CategoryName) + ' (' + money(c.BaseAmount) + ')</option>').join('');
 }
 
 function renderStudentStatusFilter() {
@@ -2193,6 +2283,37 @@ document.querySelectorAll('.finance-tab').forEach((button) => {
   input?.addEventListener('input', renderInvoicesTable);
   input?.addEventListener('change', renderInvoicesTable);
 });
+
+
+// Outstanding fees export button
+document.querySelectorAll('[data-action="export-outstanding-fees"]').forEach((btn) => {
+  btn.addEventListener('click', exportOutstandingFees);
+});
+
+
+// Register Learner form
+if (elements.registerLearnerForm) {
+  elements.registerLearnerForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = elements.registerLearnerForm;
+    const data = formData(form);
+    if (!data.familyId || !data.billingCategoryId || !data.firstName || !data.lastName) {
+      showToast('Please fill in all required fields');
+      return;
+    }
+    setFormBusy(form, true, 'Registering...');
+    try {
+      await api('/api/students', { method: 'POST', body: JSON.stringify(data) });
+      form.reset();
+      showToast('Learner registered successfully');
+      await refreshData();
+    } catch (error) {
+      showToast(error.message || 'Failed to register learner');
+    } finally {
+      setFormBusy(form, false);
+    }
+  });
+}
 
 elements.logoutButton.addEventListener('click', () => {
   clearSession();
