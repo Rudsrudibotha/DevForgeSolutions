@@ -88,7 +88,7 @@ class PayslipService {
     }
 
     // Use provided values, fall back to previous month, then employee defaults
-    const basicSalary = Number(data.basicSalary ?? defaults.basicSalary ?? employee.Salary ?? 0);
+    const basicSalary = Number(data.basicSalary ?? data.grossAmount ?? defaults.basicSalary ?? employee.Salary ?? 0);
     const allowances = Number(data.allowances ?? defaults.allowances ?? employee.StandardAllowances ?? 0);
     const overtime = Number(data.overtime ?? defaults.overtime ?? 0);
     const bonus = Number(data.bonus ?? defaults.bonus ?? 0);

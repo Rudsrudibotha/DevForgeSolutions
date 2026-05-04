@@ -1155,7 +1155,7 @@ function renderPayslips() {
         <td>${escapeHtml(employeeName)}</td>
         <td>${escapeHtml(payslip.PayPeriod || '-')}</td>
         <td>${money(payslip.NetAmount || 0, getSettingsSchool() || employee)}</td>
-        <td><span class="badge">Created</span></td>
+        <td><span class="badge">${escapeHtml(payslip.Status || (payslip.IsFinalized ? "Finalized" : "Draft"))}</span></td>
       </tr>
     `;
   }).join('') || '<tr><td colspan="4">No payslip records found.</td></tr>';
@@ -1999,8 +1999,14 @@ elements.payslipForm.addEventListener('submit', async (event) => {
     setFormBusy(elements.payslipForm, true, 'Creating...');
     const payload = formData(elements.payslipForm);
     payload.employeeId = Number(payload.employeeId);
-    payload.grossAmount = Number(payload.grossAmount);
-    payload.deductions = Number(payload.deductions || 0);
+    payload.basicSalary = Number(payload.basicSalary || 0);
+    payload.allowances = Number(payload.allowances || 0);
+    payload.overtime = Number(payload.overtime || 0);
+    payload.bonus = Number(payload.bonus || 0);
+    payload.leaveDeduction = Number(payload.leaveDeduction || 0);
+    payload.taxPaye = Number(payload.taxPaye || 0);
+    payload.uifDeduction = Number(payload.uifDeduction || 0);
+    payload.otherDeductions = Number(payload.otherDeductions || 0);
 
     await api('/api/payslips', {
       method: 'POST',
