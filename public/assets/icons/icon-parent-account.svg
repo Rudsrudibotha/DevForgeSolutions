@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"><rect width="48" height="48" rx="8" fill="#1e3a5f" opacity="0.1"/><text x="24" y="28" text-anchor="middle" font-family="Arial" font-size="10" fill="#1e3a5f">Parent</text></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="icon-parent-account">
+  <defs>
+    <linearGradient id="blueGrad" x1="80" y1="60" x2="430" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1D7DFF"/>
+      <stop offset="0.55" stop-color="#0D58D8"/>
+      <stop offset="1" stop-color="#061F50"/>
+    </linearGradient>
+    <linearGradient id="softGrad" x1="100" y1="80" x2="420" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F7FBFF"/>
+      <stop offset="1" stop-color="#DCEBFF"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0B2458" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+    <rect x="110" y="160" width="292" height="210" rx="28" fill="url(#blueGrad)" stroke="#08265A" stroke-width="14"/><path d="M110 205 H360 C390 205 415 230 415 260 V370 H110 Z" fill="#0B2B67"/><circle cx="345" cy="270" r="22" fill="#FFFFFF"/><path d="M155 155 L340 120 C370 115 395 140 400 170 L400 205 H155 Z" fill="#0D64E8" stroke="#08265A" stroke-width="10"/>
+  </g>
+</svg>

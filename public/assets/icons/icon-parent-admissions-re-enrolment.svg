@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"><rect width="48" height="48" rx="8" fill="#1e3a5f" opacity="0.1"/><text x="24" y="28" text-anchor="middle" font-family="Arial" font-size="10" fill="#1e3a5f">Parent</text></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="icon-parent-admissions-re-enrolment">
+  <defs>
+    <linearGradient id="blueGrad" x1="80" y1="60" x2="430" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1D7DFF"/>
+      <stop offset="0.55" stop-color="#0D58D8"/>
+      <stop offset="1" stop-color="#061F50"/>
+    </linearGradient>
+    <linearGradient id="softGrad" x1="100" y1="80" x2="420" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F7FBFF"/>
+      <stop offset="1" stop-color="#DCEBFF"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0B2458" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+    <rect x="130" y="80" width="252" height="345" rx="30" fill="#FFFFFF" stroke="#08265A" stroke-width="14"/><circle cx="210" cy="173.25" r="21.6" fill="url(#blueGrad)" stroke="#08265A" stroke-width="4.5"/><path d="M 171.75 240.75 C 174.0 209.25, 192.0 200.25, 210 200.25 C 228.0 200.25, 246.0 209.25, 248.25 240.75 Z" fill="url(#blueGrad)" stroke="#08265A" stroke-width="4.5"/><line x1="255" y1="160" x2="335" y2="160" stroke="#08265A" stroke-width="18" stroke-linecap="round"/><line x1="190" y1="245" x2="335" y2="245" stroke="#08265A" stroke-width="18" stroke-linecap="round"/><line x1="190" y1="300" x2="320" y2="300" stroke="#08265A" stroke-width="18" stroke-linecap="round"/><path d="M340 335 C380 315 390 270 360 245" stroke="#0D64E8" stroke-width="18" stroke-linecap="round" fill="none"/><path d="M372 240 L358 246 L362 265" stroke="#0D64E8" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"><rect width="48" height="48" rx="8" fill="#1e3a5f" opacity="0.1"/><text x="24" y="28" text-anchor="middle" font-family="Arial" font-size="10" fill="#1e3a5f">Report</text></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="icon-reporting-admissions-report">
+  <defs>
+    <linearGradient id="blueGrad" x1="80" y1="60" x2="430" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1D7DFF"/>
+      <stop offset="0.55" stop-color="#0D58D8"/>
+      <stop offset="1" stop-color="#061F50"/>
+    </linearGradient>
+    <linearGradient id="softGrad" x1="100" y1="80" x2="420" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F7FBFF"/>
+      <stop offset="1" stop-color="#DCEBFF"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0B2458" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+    <rect x="130" y="80" width="252" height="345" rx="28" fill="#FFFFFF" stroke="#08265A" stroke-width="14"/><rect x="175" y="55" width="162" height="70" rx="22" fill="#0D64E8" stroke="#08265A" stroke-width="10"/><circle cx="205" cy="208.7" r="20.16" fill="url(#blueGrad)" stroke="#08265A" stroke-width="4.2"/><path d="M 169.3 271.7 C 171.4 242.3, 188.2 233.9, 205 233.9 C 221.8 233.9, 238.6 242.3, 240.7 271.7 Z" fill="url(#blueGrad)" stroke="#08265A" stroke-width="4.2"/><line x1="260" y1="180" x2="335" y2="180" stroke="#08265A" stroke-width="18" stroke-linecap="round"/><line x1="260" y1="230" x2="335" y2="230" stroke="#08265A" stroke-width="18" stroke-linecap="round"/><line x1="165" y1="305" x2="300" y2="305" stroke="#08265A" stroke-width="18" stroke-linecap="round"/><circle cx="355" cy="350" r="64" fill="#1267E8" stroke="#08265A" stroke-width="10"/><path d="M 329.0 356.0 L 356.0 383.0 L 407.0 329.0" stroke="#FFFFFF" stroke-width="13.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"><rect width="48" height="48" rx="8" fill="#1e3a5f" opacity="0.1"/><text x="24" y="28" text-anchor="middle" font-family="Arial" font-size="10" fill="#1e3a5f">Financ</text></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="icon-finance-invoices">
+  <defs>
+    <linearGradient id="blueGrad" x1="80" y1="60" x2="430" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1D7DFF"/>
+      <stop offset="0.55" stop-color="#0D58D8"/>
+      <stop offset="1" stop-color="#061F50"/>
+    </linearGradient>
+    <linearGradient id="softGrad" x1="100" y1="80" x2="420" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F7FBFF"/>
+      <stop offset="1" stop-color="#DCEBFF"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0B2458" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+    <rect x="128" y="70" width="256" height="340" rx="24" fill="#FFFFFF" stroke="#08265A" stroke-width="14"/><path d="M 320 70 L 384 134 L 320 134 Z" fill="#1267E8" stroke="#08265A" stroke-width="10" stroke-linejoin="round"/><line x1="170" y1="175" x2="305" y2="175" stroke="#08265A" stroke-width="14" stroke-linecap="round"/><line x1="170" y1="220" x2="315" y2="220" stroke="#08265A" stroke-width="14" stroke-linecap="round"/><line x1="170" y1="265" x2="285" y2="265" stroke="#08265A" stroke-width="14" stroke-linecap="round"/><text x="178" y="190" font-family="Arial, sans-serif" font-size="108" font-weight="800" fill="#0D64E8">R</text><circle cx="340" cy="342" r="62" fill="#1267E8" stroke="#08265A" stroke-width="10"/><path d="M 314.8 347.0 L 342.7 374.9 L 395.4 319.1" stroke="#FFFFFF" stroke-width="13.64" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"><rect width="48" height="48" rx="8" fill="#1e3a5f" opacity="0.1"/><text x="24" y="28" text-anchor="middle" font-family="Arial" font-size="10" fill="#1e3a5f">Financ</text></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="icon-finance-billing-categories">
+  <defs>
+    <linearGradient id="blueGrad" x1="80" y1="60" x2="430" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1D7DFF"/>
+      <stop offset="0.55" stop-color="#0D58D8"/>
+      <stop offset="1" stop-color="#061F50"/>
+    </linearGradient>
+    <linearGradient id="softGrad" x1="100" y1="80" x2="420" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F7FBFF"/>
+      <stop offset="1" stop-color="#DCEBFF"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0B2458" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+    <path d="M160 345 A120 120 0 1 1 360 180 L256 256 Z" fill="#0D64E8" stroke="#08265A" stroke-width="12"/><path d="M256 256 L360 180 A120 120 0 0 1 375 345 Z" fill="#08265A" stroke="#08265A" stroke-width="12"/><path d="M256 256 L160 345 A120 120 0 0 0 375 345 Z" fill="#DCEBFF" stroke="#08265A" stroke-width="12"/><circle cx="365" cy="350" r="62" fill="#1267E8" stroke="#08265A" stroke-width="10"/><text x="343" y="372" font-family="Arial, sans-serif" font-size="62" font-weight="800" fill="#FFFFFF">R</text>
+  </g>
+</svg>

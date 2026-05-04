@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"><rect width="48" height="48" rx="8" fill="#1e3a5f" opacity="0.1"/><text x="24" y="28" text-anchor="middle" font-family="Arial" font-size="10" fill="#1e3a5f">School</text></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="icon-school-re-enrolment-year-rollover">
+  <defs>
+    <linearGradient id="blueGrad" x1="80" y1="60" x2="430" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1D7DFF"/>
+      <stop offset="0.55" stop-color="#0D58D8"/>
+      <stop offset="1" stop-color="#061F50"/>
+    </linearGradient>
+    <linearGradient id="softGrad" x1="100" y1="80" x2="420" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F7FBFF"/>
+      <stop offset="1" stop-color="#DCEBFF"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0B2458" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+    <rect x="110" y="100" width="292" height="300" rx="24" fill="#FFFFFF" stroke="#08265A" stroke-width="14"/><rect x="110" y="100" width="292" height="70" rx="24" fill="#0D64E8"/><line x1="165" y1="80" x2="165" y2="128" stroke="#08265A" stroke-width="16" stroke-linecap="round"/><line x1="347" y1="80" x2="347" y2="128" stroke="#08265A" stroke-width="16" stroke-linecap="round"/><line x1="160" y1="210" x2="160" y2="340" stroke="#7DB4FF" stroke-width="8" stroke-linecap="round"/><line x1="225" y1="210" x2="225" y2="340" stroke="#7DB4FF" stroke-width="8" stroke-linecap="round"/><line x1="290" y1="210" x2="290" y2="340" stroke="#7DB4FF" stroke-width="8" stroke-linecap="round"/><line x1="355" y1="210" x2="355" y2="340" stroke="#7DB4FF" stroke-width="8" stroke-linecap="round"/><line x1="145" y1="220" x2="368" y2="220" stroke="#7DB4FF" stroke-width="8" stroke-linecap="round"/><line x1="145" y1="275" x2="368" y2="275" stroke="#7DB4FF" stroke-width="8" stroke-linecap="round"/><line x1="145" y1="330" x2="368" y2="330" stroke="#7DB4FF" stroke-width="8" stroke-linecap="round"/><path d="M350 315 C395 295 405 235 360 210" stroke="#0D64E8" stroke-width="18" stroke-linecap="round" fill="none"/><path d="M370 196 L360 210 L385 220" stroke="#0D64E8" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>
