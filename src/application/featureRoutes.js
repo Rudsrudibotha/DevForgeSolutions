@@ -146,6 +146,14 @@ router.get('/communication-history', authenticateToken, requireSchoolOrAdmin, as
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.post('/communication-history', authenticateToken, requireSchoolOrAdmin, audit('CommunicationHistory', 'Create'), async (req, res) => {
+  try {
+    if (!req.body.communicationType) return res.status(400).json({ error: 'Communication type is required' });
+    const data = { ...req.body, schoolId: schoolId(req.user) };
+    res.status(201).json(await commHistoryRepo.create(data));
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 // --- Parent Communication Log ---
 const parentCommRepo = new ParentCommunicationLogRepository();
 router.get('/parent-communication', authenticateToken, requireSchoolOrAdmin, async (req, res) => {

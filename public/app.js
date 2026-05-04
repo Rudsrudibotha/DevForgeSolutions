@@ -1081,12 +1081,14 @@ function wireFeatureForms() {
   bind('communicationTypeFilter', 'input', renderFeaturePages);
   bind('communicationStatusFilter', 'input', renderFeaturePages);
   bind('yearEndReportYearInput', 'change', renderFeaturePages);
+  bind('statementYearInput', 'input', renderFeaturePages);
+  bind('statementSendOption', 'change', renderFeaturePages);
 }
 
 async function submitFeatureForm(form, path, successMessage) {
   setFormBusy(form, true, 'Saving...');
   try {
-    const data = formData(form);
+    const data = normalizeFeaturePayload(formData(form));
     await api(path, { method: 'POST', body: JSON.stringify(data) });
     form.reset();
     await refreshFeatureData();
@@ -1097,6 +1099,28 @@ async function submitFeatureForm(form, path, successMessage) {
   } finally {
     setFormBusy(form, false);
   }
+}
+
+function normalizeFeaturePayload(data) {
+  const normalized = { ...data };
+  ['studentId', 'familyId', 'invoiceId', 'billingCategoryId', 'academicYear', 'financialYear'].forEach((key) => {
+    if (normalized[key] === '') {
+      delete normalized[key];
+    } else if (normalized[key] !== undefined) {
+      normalized[key] = Number(normalized[key]);
+    }
+  });
+  ['amount', 'balanceCarriedForward', 'advanceCreditCarriedForward'].forEach((key) => {
+    if (normalized[key] === '') {
+      delete normalized[key];
+    } else if (normalized[key] !== undefined) {
+      normalized[key] = Number(normalized[key]);
+    }
+  });
+  if (normalized.isRefundable !== undefined) {
+    normalized.isRefundable = normalized.isRefundable === true || normalized.isRefundable === 'true';
+  }
+  return normalized;
 }
 
 function renderFeatureSelects() {
@@ -1155,6 +1179,7 @@ function renderAdmissionsFeature() {
         <td><div class="actions">
           <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="In Review" type="button">Review</button>
           <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="Accepted" type="button">Accept</button>
+          <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="Waitlisted" type="button">Waitlist</button>
           <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="Refused" type="button">Refuse</button>
         </div></td>
       </tr>
@@ -1223,11 +1248,115 @@ function renderFinanceFeatureTables() {
 
 function renderReportingFeatureTables() {
   renderStudentReports();
+  renderSchoolReportSummary();
+  renderStatementPreview();
   renderAdmissionsReport();
   renderReenrolmentReport();
   renderConsentReport();
   renderCommunicationHistory();
   renderYearEndReport();
+}
+
+function statementPreviewRows() {
+  const year = Number(document.getElementById('statementYearInput')?.value || new Date().getFullYear());
+  const option = document.getElementById('statementSendOption')?.value || 'Send only to outstanding';
+  const invoices = state.invoices.filter((invoice) => {
+    const issueDate = invoice.IssueDate || invoice.DueDate;
+    const invoiceYear = issueDate ? new Date(issueDate).getFullYear() : year;
+    return invoiceYear === year;
+  });
+
+  return state.families.map((family) => {
+    const familyStudents = state.students.filter((student) => Number(student.FamilyID) === Number(family.FamilyID));
+    const studentIds = new Set(familyStudents.map((student) => Number(student.StudentID)));
+    const familyInvoices = invoices.filter((invoice) => studentIds.has(Number(invoice.StudentID)));
+    const totalInvoiced = familyInvoices.reduce((sum, invoice) => sum + Number(invoice.Amount || 0), 0);
+    const totalPaid = familyInvoices.reduce((sum, invoice) => sum + Number(invoice.AmountPaid || 0), 0);
+    const advanceCredit = familyInvoices.reduce((sum, invoice) => sum + Math.max(0, Number(invoice.AmountPaid || 0) - Number(invoice.Amount || 0)), 0);
+    const outstanding = familyInvoices.reduce((sum, invoice) => sum + Math.max(0, Number(invoice.Amount || 0) - Number(invoice.AmountPaid || 0)), 0);
+
+    return {
+      family,
+      students: familyStudents,
+      invoices: familyInvoices,
+      year,
+      option,
+      totalInvoiced,
+      totalPaid,
+      advanceCredit,
+      outstanding,
+      balanceBroughtForward: 0
+    };
+  }).filter((row) => {
+    if (option === 'Send only to outstanding') {
+      return row.outstanding > 0;
+    }
+    return row.students.length > 0;
+  });
+}
+
+function renderSchoolReportSummary() {
+  const summaryPanel = document.querySelector('#reportView .summary-panel');
+  if (!summaryPanel) return;
+
+  const totalInvoiced = state.invoices.reduce((sum, invoice) => sum + Number(invoice.Amount || 0), 0);
+  const totalPaid = state.invoices.reduce((sum, invoice) => sum + Number(invoice.AmountPaid || 0), 0);
+  const outstanding = state.invoices.reduce((sum, invoice) => sum + Math.max(0, Number(invoice.Amount || 0) - Number(invoice.AmountPaid || 0)), 0);
+  const advance = state.invoices.reduce((sum, invoice) => sum + Math.max(0, Number(invoice.AmountPaid || 0) - Number(invoice.Amount || 0)), 0);
+
+  summaryPanel.innerHTML = `
+    <div class="panel-header"><h3>Report Summary</h3></div>
+    <div class="metrics-grid">
+      ${metricCard('Total invoiced', money(totalInvoiced))}
+      ${metricCard('Total paid', money(totalPaid))}
+      ${metricCard('Outstanding', money(outstanding))}
+      ${metricCard('Advance credit', money(advance))}
+    </div>
+  `;
+}
+
+function renderStatementPreview() {
+  const summaryPanel = document.querySelector('#sendInvoicesView .summary-panel');
+  const resultPanel = document.querySelector('#sendInvoicesView .page-table-panel');
+  if (!summaryPanel || !resultPanel) return;
+
+  const rows = statementPreviewRows();
+  const totals = rows.reduce((acc, row) => {
+    acc.invoiced += row.totalInvoiced;
+    acc.paid += row.totalPaid;
+    acc.outstanding += row.outstanding;
+    acc.advance += row.advanceCredit;
+    return acc;
+  }, { invoiced: 0, paid: 0, outstanding: 0, advance: 0 });
+
+  summaryPanel.innerHTML = `
+    <div class="panel-header"><div><h3>Statement Summary</h3><p>Preview statements before sending.</p></div></div>
+    <div class="metrics-grid">
+      ${metricCard('Families', rows.length)}
+      ${metricCard('Invoiced', money(totals.invoiced))}
+      ${metricCard('Paid', money(totals.paid))}
+      ${metricCard('Outstanding', money(totals.outstanding))}
+      ${metricCard('Advance credit', money(totals.advance))}
+    </div>
+  `;
+
+  resultPanel.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Family</th><th>Students</th><th>Invoices</th><th>Paid</th><th>Outstanding</th><th>Advance Credit</th></tr></thead>
+        <tbody>${rows.map((row) => `
+          <tr>
+            <td>${escapeHtml(familyLabel(row.family))}</td>
+            <td>${escapeHtml(row.students.map(studentLabel).join(', ') || '-')}</td>
+            <td>${money(row.totalInvoiced)}</td>
+            <td>${money(row.totalPaid)}</td>
+            <td>${money(row.outstanding)}</td>
+            <td>${money(row.advanceCredit)}</td>
+          </tr>
+        `).join('') || '<tr><td colspan="6">No statements match the selected send option.</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 function renderStudentReports() {
@@ -2911,6 +3040,44 @@ document.addEventListener('click', async (event) => {
 
   if (action === 'download-export') {
     await downloadExport(button.dataset.export);
+    return;
+  }
+
+  if (action === 'preview-statements') {
+    renderStatementPreview();
+    showToast('Statement preview refreshed');
+    return;
+  }
+
+  if (action === 'send-statements') {
+    const rows = statementPreviewRows();
+    if (!rows.length) {
+      showToast('No statements match the selected send option');
+      return;
+    }
+
+    try {
+      button.disabled = true;
+      for (const row of rows) {
+        await api('/api/features/communication-history', {
+          method: 'POST',
+          body: JSON.stringify({
+            familyId: row.family.FamilyID,
+            communicationType: 'Statement',
+            subject: `Statement ${row.year} - ${familyLabel(row.family)}`,
+            status: 'Sent',
+            deliveryStatus: 'Queued'
+          })
+        });
+      }
+      await refreshFeatureData();
+      renderFeaturePages();
+      showToast(`Statements queued for ${rows.length} families`);
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      button.disabled = false;
+    }
     return;
   }
 

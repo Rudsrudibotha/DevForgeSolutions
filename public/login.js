@@ -124,6 +124,12 @@ function configureLoginPage() {
 
 window.addEventListener('DOMContentLoaded', () => {
   configureLoginPage();
+  const notice = sessionStorage.getItem('loginNotice');
+
+  if (notice) {
+    sessionStorage.removeItem('loginNotice');
+    showFormMessage(elements.loginMessage, notice, 'info');
+  }
 
   const token = localStorage.getItem('smsToken');
   const user = JSON.parse(localStorage.getItem('smsUser') || 'null');

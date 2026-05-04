@@ -1625,11 +1625,11 @@
                 <div class="form-grid">
                   <label>
                     Current Year
-                    <input type="number" value="2026">
+                    <input id="statementYearInput" type="number" value="2026">
                   </label>
                   <label>
                     Send Option
-                    <select>
+                    <select id="statementSendOption">
                       <option>Send only to outstanding</option>
                       <option>Send to all</option>
                       <option>Send selected class</option>
@@ -1638,8 +1638,8 @@
                     </select>
                   </label>
                 </div>
-                <button class="primary-button" type="button">Preview Statements</button>
-                <button class="secondary-button" type="button">Send</button>
+                <button class="primary-button" data-action="preview-statements" type="button">Preview Statements</button>
+                <button class="secondary-button" data-action="send-statements" type="button">Send</button>
               </form>
 
               <section class="table-panel summary-panel">
