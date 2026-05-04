@@ -2220,29 +2220,6 @@ elements.generateMonthlyButton.addEventListener('click', async () => {
 
 document.addEventListener('click', async (event) => {
 
-    // Class edit/deactivate/activate
-    if (action === 'edit-class') {
-      editClass(Number(target.dataset.id));
-      return;
-    }
-    if (action === 'deactivate-class') {
-      try {
-        await api('/api/classes/' + target.dataset.id, { method: 'PUT', body: JSON.stringify({ isActive: false, className: state.classes.find(c => c.ClassID === Number(target.dataset.id))?.ClassName || '' }) });
-        await refreshClasses();
-        renderClasses();
-        showToast('Class deactivated');
-      } catch (e) { showToast(e.message); }
-      return;
-    }
-    if (action === 'activate-class') {
-      try {
-        await api('/api/classes/' + target.dataset.id, { method: 'PUT', body: JSON.stringify({ isActive: true, className: state.classes.find(c => c.ClassID === Number(target.dataset.id))?.ClassName || '' }) });
-        await refreshClasses();
-        renderClasses();
-        showToast('Class activated');
-      } catch (e) { showToast(e.message); }
-      return;
-    }
   const button = event.target.closest('[data-action]');
 
   if (!button) {
@@ -2257,7 +2234,34 @@ document.addEventListener('click', async (event) => {
     return;
   }
 
-  if (action === 'inactivate-student') {
+  if (action === 'edit-class') {
+    editClass(Number(button.dataset.id));
+    return;
+  }
+
+  if (action === 'deactivate-class') {
+    try {
+      const cls = state.classes.find(c => c.ClassID === Number(button.dataset.id));
+      await api('/api/classes/' + button.dataset.id, { method: 'PUT', body: JSON.stringify({ isActive: false, className: cls ? cls.ClassName : '' }) });
+      await refreshClasses();
+      renderClasses();
+      showToast('Class deactivated');
+    } catch (e) { showToast(e.message); }
+    return;
+  }
+
+  if (action === 'activate-class') {
+    try {
+      const cls = state.classes.find(c => c.ClassID === Number(button.dataset.id));
+      await api('/api/classes/' + button.dataset.id, { method: 'PUT', body: JSON.stringify({ isActive: true, className: cls ? cls.ClassName : '' }) });
+      await refreshClasses();
+      renderClasses();
+      showToast('Class activated');
+    } catch (e) { showToast(e.message); }
+    return;
+  }
+
+    if (action === 'inactivate-student') {
     showDepartureForm(id);
     return;
   }
