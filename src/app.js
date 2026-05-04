@@ -148,6 +148,24 @@ app.get('/parent', (req, res) => {
 });
 
 // Overdue invoice flagging — runs every hour
+function startMonthlyInvoiceScheduler() {
+  const invoiceService = new InvoiceService();
+  // Run once on startup, then daily at midnight
+  const runGeneration = async () => {
+    try {
+      const result = await invoiceService.generateMonthlyInvoices({ Role: 'admin' });
+      const total = (result.generated || []).reduce((sum, s) => sum + (s.createdCount || 0), 0);
+      if (total > 0) console.log('[Scheduler] Generated', total, 'monthly invoices');
+    } catch (err) {
+      console.error('[Scheduler] Monthly invoice generation failed:', err.message);
+    }
+  };
+  // Run on startup after 10 seconds
+  setTimeout(runGeneration, 10000);
+  // Then run every 24 hours
+  setInterval(runGeneration, 24 * 60 * 60 * 1000);
+}
+
 function startOverdueScheduler() {
   const invoiceService = new InvoiceService();
   const interval = Number(process.env.OVERDUE_CHECK_INTERVAL_MS) || 3600000;
@@ -173,6 +191,7 @@ async function start() {
       try {
         await connectDB();
         startOverdueScheduler();
+        startMonthlyInvoiceScheduler();
       } catch (error) {
         console.error('Application started without database connection:', error.message);
       }

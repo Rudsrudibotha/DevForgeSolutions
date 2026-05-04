@@ -242,58 +242,11 @@
               <section class="form-panel">
                 <div class="panel-header">
                   <div>
-                    <h3>Learners</h3>
-                    <p>Register learners and search within the signed-in School ID.</p>
+                    <h3>Students</h3>
+                    <p>Search and manage students for this school.</p>
                   </div>
                 </div>
-
-                <form id="studentForm" class="module-form flush-form">
-                  <div class="form-grid">
-                    <label>
-                      Family
-                      <select id="studentFamilySelect" name="familyId" required></select>
-                    </label>
-                    <label>
-                      Billing category
-                      <select id="studentBillingCategorySelect" name="billingCategoryId" required></select>
-                    </label>
-                    <label>
-                      First name
-                      <input name="firstName" type="text" required>
-                    </label>
-                    <label>
-                      Last name
-                      <input name="lastName" type="text" required>
-                    </label>
-                    <label>
-                      Date of birth
-                      <input name="dateOfBirth" type="date">
-                    </label>
-                    <label>
-                      Class
-                      <input name="className" type="text">
-                    </label>
-                    <label>
-                      Billing date
-                      <input name="billingDate" type="date" required>
-                    </label>
-                    <label>
-                      Enrolled date
-                      <input name="enrolledDate" type="date" required>
-                    </label>
-                    <label>
-                      Home phone
-                      <input name="homePhone" type="tel">
-                    </label>
-                    <label class="wide">
-                      Medical notes
-                      <textarea name="medicalNotes" rows="2"></textarea>
-                    </label>
-                  </div>
-                  <button class="primary-button compact-button" type="submit">Register Learner</button>
-                </form>
-
-                <div class="form-grid section-spacer">
+                <div class="form-grid">
                   <label>
                     Search Type
                     <select id="studentSearchTypeSelect">
@@ -305,24 +258,17 @@
                   </label>
                   <label>
                     Search Value
-                    <input id="studentSearchInput" type="search" placeholder="Search learners...">
+                    <input id="studentSearchInput" type="search" placeholder="Search students...">
                   </label>
                   <label>
-                    Grade
-                    <select>
-                      <option>All Grades</option>
-                    </select>
-                  </label>
-                  <label>
-                    Class
-                    <select>
-                      <option>All Classes</option>
-                    </select>
-                  </label>
-                  <label>
-                    Gender
-                    <select>
-                      <option>Male and Female</option>
+                    Show
+                    <select id="studentPageSize">
+                      <option value="10" selected>10</option>
+                      <option value="20">20</option>
+                      <option value="40">40</option>
+                      <option value="80">80</option>
+                      <option value="160">160</option>
+                      <option value="9999">All</option>
                     </select>
                   </label>
                 </div>
@@ -409,6 +355,9 @@
                   <button class="secondary-button compact-button" id="cancelDepartureButton" type="button">Cancel</button>
                 </div>
               </form>
+              <div class="section-spacer" style="display:flex;gap:1rem;align-items:center">
+                <button class="primary-button compact-button" data-action="open-register-learner" type="button">Add Student</button>
+              </div>
             </section>
           </section>
 
@@ -1025,7 +974,7 @@
                   <textarea name="description" rows="4"></textarea>
                 </label>
                 <button class="primary-button" type="submit">Create invoice</button>
-                <button class="secondary-button" id="generateMonthlyButton" type="button">Generate Monthly Invoices</button>
+                
               </form>
 
               <section class="table-panel summary-panel">

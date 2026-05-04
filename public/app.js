@@ -506,6 +506,15 @@ function setSession(authPayload) {
   renderShell();
   applyIconPermissions();
   wireStudentSearch();
+
+const studentPageSizeSelect = document.getElementById('studentPageSize');
+if (studentPageSizeSelect) {
+  studentPageSizeSelect.addEventListener('change', () => {
+    state.studentPageSize = Number(studentPageSizeSelect.value);
+    renderStudentsTable();
+  });
+}
+
 }
 
 function clearSession() {
@@ -974,7 +983,9 @@ function renderStudentsTable() {
       default: return (s.FirstName + ' ' + s.LastName + ' ' + (s.FamilyName || '')).toLowerCase().includes(q);
     }
   });
-  elements.studentsTable.innerHTML = filtered.map((student) => {
+  const pageSize = state.studentPageSize || 10;
+  const limited = filtered.slice(0, pageSize);
+  elements.studentsTable.innerHTML = limited.map((student) => {
     const isActive = Boolean(student.IsActive);
     const statusClass = isActive ? 'badge' : 'badge danger';
     const fullName = `${student.FirstName} ${student.LastName}`;
@@ -1178,7 +1189,7 @@ function renderPayslips() {
     return;
   }
 
-  if (state.payslipStatusMessage) {
+  if (state.payslipStatusMessage && state.payslips.length === 0) {
     elements.payslipsTable.innerHTML = `<tr><td colspan="4">${escapeHtml(state.payslipStatusMessage)}</td></tr>`;
     return;
   }
@@ -2262,7 +2273,30 @@ document.addEventListener('click', async (event) => {
     return;
   }
 
-    if (action === 'inactivate-student') {
+    if (action === 'edit-student') {
+    const student = state.students.find(s => s.StudentID === Number(button.dataset.id));
+    if (student) {
+      switchView('registerLearner');
+      setTimeout(() => {
+        const form = elements.registerLearnerForm;
+        if (!form) return;
+        if (form.elements.familyId) form.elements.familyId.value = student.FamilyID || '';
+        if (form.elements.billingCategoryId) form.elements.billingCategoryId.value = student.BillingCategoryID || '';
+        if (form.elements.firstName) form.elements.firstName.value = student.FirstName || '';
+        if (form.elements.lastName) form.elements.lastName.value = student.LastName || '';
+        if (form.elements.dateOfBirth) form.elements.dateOfBirth.value = student.DateOfBirth ? student.DateOfBirth.slice(0, 10) : '';
+        if (form.elements.className) form.elements.className.value = student.ClassName || '';
+        if (form.elements.billingDate) form.elements.billingDate.value = student.BillingDate ? student.BillingDate.slice(0, 10) : '';
+        if (form.elements.enrolledDate) form.elements.enrolledDate.value = student.EnrolledDate ? student.EnrolledDate.slice(0, 10) : '';
+        state.editingStudentId = student.StudentID;
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) btn.textContent = 'Save Changes';
+      }, 100);
+    }
+    return;
+  }
+
+  if (action === 'inactivate-student') {
     showDepartureForm(id);
     return;
   }
@@ -2388,7 +2422,13 @@ if (elements.registerLearnerForm) {
     }
     setFormBusy(form, true, 'Registering...');
     try {
-      await api('/api/students', { method: 'POST', body: JSON.stringify(data) });
+      if (state.editingStudentId) {
+        await api('/api/students/' + state.editingStudentId, { method: 'PUT', body: JSON.stringify(data) });
+        state.editingStudentId = null;
+        switchView('students');
+      } else {
+        await api('/api/students', { method: 'POST', body: JSON.stringify(data) });
+      }
       form.reset();
       showToast('Learner registered successfully');
       await refreshData();
