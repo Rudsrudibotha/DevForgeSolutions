@@ -1,24 +1,24 @@
 const LOGIN_CONFIG = {
   '/devforge-login': {
     type: 'devforge',
-    title: 'DevForge Solutions Staff Login',
-    subtitle: 'DevForge staff access only.',
+    title: 'School Management Portal',
+    subtitle: 'DevForge Solutions Portal Login',
     identifierLabel: 'Email Address',
     showSchoolId: false,
     redirect: '/devforge'
   },
   '/school-login': {
     type: 'school',
-    title: 'School Management Staff Login',
-    subtitle: 'Client school staff access.',
+    title: 'School Management Portal',
+    subtitle: 'School Portal Login',
     identifierLabel: 'Email Address',
     showSchoolId: true,
     redirect: '/sms'
   },
   '/parent-login': {
     type: 'parent',
-    title: 'Parent Management Login',
-    subtitle: 'Parent account access.',
+    title: 'School Management Portal',
+    subtitle: 'Parent Portal Login',
     identifierLabel: 'Email / Cell Number',
     showSchoolId: false,
     redirect: '/parent'
