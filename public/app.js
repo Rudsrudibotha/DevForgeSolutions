@@ -212,6 +212,7 @@ const state = {
   selectedAccountSchoolId: null,
   selectedSettingsSchoolId: null,
   editingBillingCategoryId: null,
+  editingEmployeeId: null,
   studentStatusFilter: 'active',
   selectedDepartureStudentId: null,
   studentSearchQuery: '',
@@ -227,7 +228,9 @@ const state = {
   registrationFees: [],
   yearEndClosings: [],
   communicationHistory: [],
-  reportPreview: []
+  reportPreview: [],
+  outstandingFeesData: [],
+  outstandingFeesError: ''
 };
 
 const elements = {
@@ -289,7 +292,10 @@ const elements = {
   attendanceDateInput: document.getElementById('attendanceDateInput'),
   attendanceSummaryTable: document.getElementById('attendanceSummaryTable'),
   attendanceTable: document.getElementById('attendanceTable'),
+  employeeDialog: document.getElementById('employeeDialog'),
   employeeForm: document.getElementById('employeeForm'),
+  closeEmployeeDialogButton: document.getElementById('closeEmployeeDialogButton'),
+  cancelEmployeeButton: document.getElementById('cancelEmployeeButton'),
   employeesTable: document.getElementById('employeesTable'),
   leaveForm: document.getElementById('leaveForm'),
   leavesTable: document.getElementById('leavesTable'),
@@ -1975,10 +1981,11 @@ function renderEmployees() {
         <td>${escapeHtml(employee.JobTitle || employee.Department || '-')}</td>
         <td>${escapeHtml(employee.Phone || '-')}</td>
         <td>${escapeHtml(employee.Email || '-')}</td>
+        <td><button class="ghost-button" data-action="edit-employee" data-id="${employee.EmployeeID}" type="button">Edit</button></td>
         <td><span class="${isActive ? 'badge' : 'badge danger'}">${isActive ? 'Active' : 'Inactive'}</span></td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="7">No staff records found.</td></tr>';
+  }).join('') || '<tr><td colspan="8">No staff records found.</td></tr>';
 
   renderPayslipEmployeeOptions();
 }
@@ -2075,7 +2082,8 @@ function renderOutstandingFees() {
     : data;
 
   if (filtered.length === 0) {
-    table.innerHTML = '<tr><td colspan="18">No outstanding fees found for the selected year.</td></tr>';
+    const message = state.outstandingFeesError || 'No outstanding fees found for the selected year.';
+    table.innerHTML = `<tr><td colspan="18">${escapeHtml(message)}</td></tr>`;
     return;
   }
 
@@ -2104,12 +2112,14 @@ async function refreshOutstandingFees() {
   try {
     const ofResult = await api('/api/invoices/outstanding-fees?year=' + year);
     state.outstandingFeesData = ofResult.data || ofResult;
+    state.outstandingFeesError = '';
     // Update year input if server returned a different year
     if (ofResult.year && yearInput && Number(yearInput.value) !== ofResult.year) {
       yearInput.value = ofResult.year;
     }
   } catch (e) {
     state.outstandingFeesData = [];
+    state.outstandingFeesError = e.message || 'Failed to load outstanding fees';
   }
   renderOutstandingFees();
 }
@@ -2238,6 +2248,44 @@ function closePaymentDialog() {
   elements.paymentDialog.classList.add('hidden');
   document.body.classList.remove('modal-open');
   elements.paymentForm.reset();
+}
+
+function openEmployeeDialog(employeeId = null) {
+  const form = elements.employeeForm;
+  const employee = employeeId
+    ? state.employees.find((item) => item.EmployeeID === Number(employeeId))
+    : null;
+
+  if (employeeId && !employee) {
+    showToast('Staff member not found');
+    return;
+  }
+
+  state.editingEmployeeId = employee?.EmployeeID || null;
+  form.reset();
+  setFormValue(form, 'employeeId', employee?.EmployeeID || '');
+  setFormValue(form, 'firstName', employee?.FirstName || '');
+  setFormValue(form, 'lastName', employee?.LastName || '');
+  setFormValue(form, 'email', employee?.Email || '');
+  setFormValue(form, 'phone', employee?.Phone || '');
+  setFormValue(form, 'jobTitle', employee?.JobTitle || '');
+  setFormValue(form, 'department', employee?.Department || '');
+  setFormValue(form, 'startDate', employee?.StartDate ? employee.StartDate.slice(0, 10) : new Date().toISOString().slice(0, 10));
+  setFormValue(form, 'salary', Number(employee?.Salary || 0).toFixed(2));
+  setFormValue(form, 'leaveBalance', employee?.LeaveBalance ?? 21);
+  setFormValue(form, 'isActive', employee && employee.IsActive === false ? 'false' : 'true');
+  document.getElementById('employeeDialogTitle').textContent = employee ? 'Edit staff' : 'Add staff';
+  document.getElementById('employeeDialogSubtitle').textContent = employee ? 'Update staff details for this school.' : 'Capture staff details for this school.';
+  elements.employeeDialog.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  window.setTimeout(() => form.elements.firstName.focus(), 0);
+}
+
+function closeEmployeeDialog() {
+  state.editingEmployeeId = null;
+  elements.employeeDialog.classList.add('hidden');
+  elements.employeeForm.reset();
+  document.body.classList.remove('modal-open');
 }
 
 function activateFormTab(button) {
@@ -2977,19 +3025,26 @@ elements.employeeForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   try {
-    setFormBusy(elements.employeeForm, true, 'Adding...');
+    requireFields(elements.employeeForm, ['firstName', 'lastName', 'startDate']);
+    setFormBusy(elements.employeeForm, true, state.editingEmployeeId ? 'Saving...' : 'Adding...');
     const payload = formData(elements.employeeForm);
     payload.salary = Number(payload.salary || 0);
     payload.leaveBalance = Number(payload.leaveBalance || 21);
+    payload.isActive = payload.isActive === true || payload.isActive === 'true';
+    delete payload.employeeId;
 
-    await api('/api/employees', {
-      method: 'POST',
+    const isEditing = Boolean(state.editingEmployeeId);
+    const path = isEditing ? `/api/employees/${state.editingEmployeeId}` : '/api/employees';
+    const method = isEditing ? 'PUT' : 'POST';
+
+    await api(path, {
+      method,
       body: JSON.stringify(payload)
     });
 
-    elements.employeeForm.reset();
+    closeEmployeeDialog();
     await refreshData();
-    showToast('Staff member added');
+    showToast(isEditing ? 'Staff member updated' : 'Staff member added');
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -3187,6 +3242,8 @@ elements.familyEditForm?.addEventListener('submit', async (event) => {
 
 elements.closePaymentDialogButton.addEventListener('click', closePaymentDialog);
 elements.cancelPaymentButton.addEventListener('click', closePaymentDialog);
+elements.closeEmployeeDialogButton?.addEventListener('click', closeEmployeeDialog);
+elements.cancelEmployeeButton?.addEventListener('click', closeEmployeeDialog);
 elements.closeStudentEditDialogButton?.addEventListener('click', closeStudentEditDialog);
 elements.cancelStudentEditButton?.addEventListener('click', closeStudentEditDialog);
 elements.closeFamilyEditDialogButton?.addEventListener('click', closeFamilyEditDialog);
@@ -3195,6 +3252,12 @@ elements.cancelFamilyEditButton?.addEventListener('click', closeFamilyEditDialog
 elements.paymentDialog.addEventListener('click', (event) => {
   if (event.target === elements.paymentDialog) {
     closePaymentDialog();
+  }
+});
+
+elements.employeeDialog?.addEventListener('click', (event) => {
+  if (event.target === elements.employeeDialog) {
+    closeEmployeeDialog();
   }
 });
 
@@ -3213,6 +3276,9 @@ elements.familyEditDialog?.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !elements.paymentDialog.classList.contains('hidden')) {
     closePaymentDialog();
+  }
+  if (event.key === 'Escape' && elements.employeeDialog && !elements.employeeDialog.classList.contains('hidden')) {
+    closeEmployeeDialog();
   }
   if (event.key === 'Escape' && elements.studentEditDialog && !elements.studentEditDialog.classList.contains('hidden')) {
     closeStudentEditDialog();
@@ -3421,6 +3487,16 @@ document.addEventListener('click', async (event) => {
     return;
   }
 
+  if (action === 'open-employee-dialog') {
+    openEmployeeDialog();
+    return;
+  }
+
+  if (action === 'edit-employee') {
+    openEmployeeDialog(button.dataset.id);
+    return;
+  }
+
   if (action === 'inactivate-student') {
     showDepartureForm(id);
     return;
@@ -3591,6 +3667,8 @@ document.querySelectorAll('[data-action="export-outstanding-fees"]').forEach((bt
   btn.addEventListener('click', exportOutstandingFees);
 });
 
+document.getElementById('outstandingFeesSearch')?.addEventListener('input', renderOutstandingFees);
+document.getElementById('outstandingFeesYear')?.addEventListener('change', refreshOutstandingFees);
 
 // Register Learner form
 if (elements.registerLearnerForm) {

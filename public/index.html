@@ -132,6 +132,8 @@
     DONE: Staff table with name, number, role, cell, email, status
     DONE: Search by name, staff number, email
     DONE: Filter by status and role
+    DONE: Add staff opens a popup form from the bottom action button
+    DONE: Edit staff button on each row
     TODO: Mark staff as inactive instead of deleting (add Deactivate button to each row)
     TODO: Store and display emergency contact details (fields exist in DB: EmergencyContactName, EmergencyContactPhone)
     TODO: Staff documents upload/view (API exists: /api/features/staff-documents)
@@ -144,51 +146,10 @@
                 <div class="panel-header">
                   <div>
                     <h3>Staff</h3>
-                    <p>Add, search, and filter staff for this school.</p>
+                    <p>Search and filter staff for this school.</p>
                   </div>
                 </div>
-                <form id="employeeForm" class="module-form flush-form">
-                  <div class="form-grid">
-                    <label>
-                      First name
-                      <input name="firstName" type="text" required>
-                    </label>
-                    <label>
-                      Last name
-                      <input name="lastName" type="text" required>
-                    </label>
-                    <label>
-                      Email
-                      <input name="email" type="email">
-                    </label>
-                    <label>
-                      Cell Number
-                      <input name="phone" type="tel">
-                    </label>
-                    <label>
-                      Role
-                      <input name="jobTitle" type="text" placeholder="Teacher, Finance, Admin, HR">
-                    </label>
-                    <label>
-                      Department
-                      <input name="department" type="text">
-                    </label>
-                    <label>
-                      Start date
-                      <input name="startDate" type="date" required>
-                    </label>
-                    <label>
-                      Salary
-                      <input name="salary" type="number" min="0" step="0.01" value="0">
-                    </label>
-                    <label>
-                      Leave balance
-                      <input name="leaveBalance" type="number" min="0" step="1" value="21">
-                    </label>
-                  </div>
-                  <button class="primary-button compact-button" type="submit">Add Staff</button>
-                </form>
-                <div class="form-grid section-spacer">
+                <div class="form-grid">
                   <label>
                     Search Type
                     <select>
@@ -240,11 +201,15 @@
                       <th>Role</th>
                       <th>Cell Number</th>
                       <th>Email</th>
+                      <th>Actions</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody id="employeesTable"></tbody>
                 </table>
+              </div>
+              <div class="actions stacked-actions">
+                <button class="primary-button compact-button" data-action="open-employee-dialog" type="button">Add Staff</button>
               </div>
             </section>
           </section>
@@ -1986,6 +1951,40 @@
             <div class="actions modal-actions">
               <button class="secondary-button compact-button" type="button" id="cancelPaymentButton">Cancel</button>
               <button class="primary-button compact-button" type="submit">Save payment</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="employeeDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="employeeDialogTitle">
+          <form id="employeeForm" class="modal-panel student-edit-panel" novalidate>
+            <div class="modal-header">
+              <div>
+                <h3 id="employeeDialogTitle">Add staff</h3>
+                <p id="employeeDialogSubtitle">Capture staff details for this school.</p>
+              </div>
+              <button id="closeEmployeeDialogButton" class="ghost-button icon-button" type="button" aria-label="Close staff form">&times;</button>
+            </div>
+            <input name="employeeId" type="hidden">
+            <div class="form-grid">
+              <label>First name <span class="required-marker">*</span><input name="firstName" type="text" required></label>
+              <label>Last name <span class="required-marker">*</span><input name="lastName" type="text" required></label>
+              <label>Email<input name="email" type="email"></label>
+              <label>Cell Number<input name="phone" type="tel"></label>
+              <label>Role<input name="jobTitle" type="text" placeholder="Teacher, Finance, Admin, HR"></label>
+              <label>Department<input name="department" type="text"></label>
+              <label>Start date <span class="required-marker">*</span><input name="startDate" type="date" required></label>
+              <label>Salary<input name="salary" type="number" min="0" step="0.01" value="0"></label>
+              <label>Leave balance<input name="leaveBalance" type="number" min="0" step="1" value="21"></label>
+              <label>Status
+                <select name="isActive">
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </label>
+            </div>
+            <div class="actions modal-actions">
+              <button class="secondary-button compact-button" type="button" id="cancelEmployeeButton">Cancel</button>
+              <button class="primary-button compact-button" type="submit">Save staff</button>
             </div>
           </form>
         </div>

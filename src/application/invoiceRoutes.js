@@ -39,7 +39,34 @@ router.get('/school/:schoolId', authenticateToken, requireSchoolOrAdmin, async (
   }
 });
 
-router.get('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+// Outstanding fees view data. Keep this before the numeric invoice ID route.
+router.get('/outstanding-fees', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+  try {
+    const schoolId = req.user.SchoolID;
+    if (!schoolId && req.user.Role !== 'admin') {
+      return res.status(403).json({ error: 'School context required' });
+    }
+    let year = parseInt(req.query.year, 10) || new Date().getFullYear();
+    const invoiceRepository = new InvoiceRepository();
+    let rows = await invoiceRepository.getOutstandingFeesExport(schoolId, year);
+    // If current year has no data, try the most recent year that does.
+    if ((!rows || rows.length === 0) && !req.query.year) {
+      const { getPool, sql: mssql } = require('../data/db');
+      const pool = await getPool();
+      const latestYear = await pool.request().input('schoolId', mssql.Int, schoolId)
+        .query("SELECT TOP 1 YEAR(IssueDate) AS yr FROM Invoices WHERE SchoolID=@schoolId AND IsDeleted=0 AND Status<>'Paid' ORDER BY IssueDate DESC");
+      if (latestYear.recordset[0]) {
+        year = latestYear.recordset[0].yr;
+        rows = await invoiceRepository.getOutstandingFeesExport(schoolId, year);
+      }
+    }
+    res.json({ year, data: rows || [] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/:id(\\d+)', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   try {
     const invoice = await invoiceService.getInvoiceById(parseInt(req.params.id, 10), req.user);
     res.json(invoice);
@@ -57,7 +84,7 @@ router.post('/', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'Crea
   }
 });
 
-router.put('/:id', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'Update'), async (req, res) => {
+router.put('/:id(\\d+)', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'Update'), async (req, res) => {
   try {
     const updatedInvoice = await invoiceService.updateInvoice(parseInt(req.params.id, 10), req.body, req.user);
     res.json(updatedInvoice);
@@ -66,7 +93,7 @@ router.put('/:id', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'Up
   }
 });
 
-router.delete('/:id', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'Delete'), async (req, res) => {
+router.delete('/:id(\\d+)', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'Delete'), async (req, res) => {
   try {
     const result = await invoiceService.deleteInvoice(parseInt(req.params.id, 10), req.user);
     res.json(result);
@@ -112,33 +139,6 @@ router.post('/generate-monthly', authenticateToken, requireSchoolOrAdmin, async 
   try {
     const result = await invoiceService.generateMonthlyInvoices(req.user);
     res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Outstanding fees view data
-router.get('/outstanding-fees', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
-  try {
-    const schoolId = req.user.SchoolID;
-    if (!schoolId && req.user.Role !== 'admin') {
-      return res.status(403).json({ error: 'School context required' });
-    }
-    let year = parseInt(req.query.year, 10) || new Date().getFullYear();
-    const invoiceRepository = new InvoiceRepository();
-    let rows = await invoiceRepository.getOutstandingFeesExport(schoolId, year);
-    // If current year has no data, try the most recent year that does
-    if ((!rows || rows.length === 0) && !req.query.year) {
-      const { getPool, sql: mssql } = require('../data/db');
-      const pool = await getPool();
-      const latestYear = await pool.request().input('schoolId', mssql.Int, schoolId)
-        .query("SELECT TOP 1 YEAR(IssueDate) AS yr FROM Invoices WHERE SchoolID=@schoolId AND IsDeleted=0 AND Status<>'Paid' ORDER BY IssueDate DESC");
-      if (latestYear.recordset[0]) {
-        year = latestYear.recordset[0].yr;
-        rows = await invoiceRepository.getOutstandingFeesExport(schoolId, year);
-      }
-    }
-    res.json({ year, data: rows || [] });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

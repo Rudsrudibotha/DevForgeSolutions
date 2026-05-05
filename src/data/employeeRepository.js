@@ -68,12 +68,13 @@ class EmployeeRepository {
       .input('phone', sql.NVarChar, data.phone || null)
       .input('jobTitle', sql.NVarChar, data.jobTitle || null)
       .input('department', sql.NVarChar, data.department || null)
+      .input('startDate', sql.Date, data.startDate)
       .input('salary', sql.Decimal(10,2), data.salary || 0)
       .input('leaveBalance', sql.Int, data.leaveBalance ?? 21)
       .input('isActive', sql.Bit, data.isActive !== false)
       .query(`UPDATE Employees SET
                 FirstName = @firstName, LastName = @lastName, Email = @email, Phone = @phone,
-                JobTitle = @jobTitle, Department = @department, Salary = @salary,
+                JobTitle = @jobTitle, Department = @department, StartDate = @startDate, Salary = @salary,
                 LeaveBalance = @leaveBalance, IsActive = @isActive, UpdatedDate = GETDATE()
               OUTPUT INSERTED.*
               WHERE EmployeeID = @id`);
