@@ -334,7 +334,8 @@ class UserService {
         username: user.Username,
         email: user.Email,
         role: user.Role,
-        schoolId: user.SchoolID
+        schoolId: user.SchoolID,
+        hasHrPermission: Boolean(user.HasHrPermission)
       },
       token
     };
@@ -365,6 +366,7 @@ class UserService {
       email: user.Email,
       role: user.Role,
       schoolId: user.SchoolID,
+      hasHrPermission: Boolean(user.HasHrPermission),
       isActive: user.IsActive,
       createdDate: user.CreatedDate
     };

@@ -190,6 +190,7 @@ class SchoolService {
       contactPerson: this.optionalString(source.contactPerson ?? existingSchool.ContactPerson, 'Contact person', 255),
       contactEmail: this.optionalString(source.contactEmail ?? existingSchool.ContactEmail, 'Contact email', 255),
       contactPhone: this.optionalString(source.contactPhone ?? existingSchool.ContactPhone, 'Contact phone', 50),
+      registrationNumber: this.optionalString(source.registrationNumber ?? existingSchool.RegistrationNumber, 'Registration number', 100),
       website: this.optionalString(source.website ?? existingSchool.Website, 'Website', 255),
       currencyCode: currency.code,
       currencySymbol: currency.symbol,

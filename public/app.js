@@ -213,6 +213,7 @@ const state = {
   selectedSettingsSchoolId: null,
   editingBillingCategoryId: null,
   editingEmployeeId: null,
+  selectedPayslip: null,
   studentStatusFilter: 'active',
   selectedDepartureStudentId: null,
   studentSearchQuery: '',
@@ -302,6 +303,14 @@ const elements = {
   payslipForm: document.getElementById('payslipForm'),
   payslipEmployeeSelect: document.getElementById('payslipEmployeeSelect'),
   payslipsTable: document.getElementById('payslipsTable'),
+  payslipSummary: document.getElementById('payslipSummary'),
+  payslipDialog: document.getElementById('payslipDialog'),
+  payslipEditForm: document.getElementById('payslipEditForm'),
+  payslipDetailPreview: document.getElementById('payslipDetailPreview'),
+  closePayslipDialogButton: document.getElementById('closePayslipDialogButton'),
+  cancelPayslipButton: document.getElementById('cancelPayslipButton'),
+  printPayslipButton: document.getElementById('printPayslipButton'),
+  savePayslipButton: document.getElementById('savePayslipButton'),
   departureForm: document.getElementById('departureForm'),
   departureStudentName: document.getElementById('departureStudentName'),
   departureReasonSelect: document.getElementById('departureReasonSelect'),
@@ -543,6 +552,10 @@ function dateOnly(value) {
   return new Date(value).toLocaleDateString('en-ZA');
 }
 
+function dateInputValue(value) {
+  return value ? String(value).slice(0, 10) : '';
+}
+
 async function api(path, options = {}) {
   if (enforceInactivityTimeout()) {
     throw new Error('Session expired');
@@ -655,6 +668,7 @@ function clearSession() {
   state.selectedAccountSchoolId = null;
   state.selectedSettingsSchoolId = null;
   state.editingBillingCategoryId = null;
+  state.selectedPayslip = null;
   state.studentStatusFilter = 'active';
   state.selectedDepartureStudentId = null;
   localStorage.removeItem('smsToken');
@@ -1972,12 +1986,13 @@ function renderEmployees() {
 
   elements.employeesTable.innerHTML = state.employees.map((employee, index) => {
     const isActive = employee.IsActive !== false;
+    const employeeNumber = employee.EmployeeNumber || (employee.EmployeeID ? `S${String(employee.EmployeeID).padStart(3, '0')}` : '-');
 
     return `
       <tr>
         <td>${index + 1}</td>
         <td>${escapeHtml(`${employee.FirstName || ''} ${employee.LastName || ''}`.trim())}</td>
-        <td>${escapeHtml(employee.EmployeeID ? `S${String(employee.EmployeeID).padStart(3, '0')}` : '-')}</td>
+        <td>${escapeHtml(employeeNumber)}</td>
         <td>${escapeHtml(employee.JobTitle || employee.Department || '-')}</td>
         <td>${escapeHtml(employee.Phone || '-')}</td>
         <td>${escapeHtml(employee.Email || '-')}</td>
@@ -2002,6 +2017,17 @@ function renderPayslipEmployeeOptions() {
     `).join('')
     : '<option value="">Add staff first</option>';
   elements.payslipEmployeeSelect.disabled = !activeEmployees.length;
+}
+
+function applySelectedEmployeePayrollDefaults() {
+  if (!elements.payslipForm || !elements.payslipEmployeeSelect?.value) return;
+  const employee = state.employees.find((item) => item.EmployeeID === Number(elements.payslipEmployeeSelect.value));
+  if (!employee) return;
+  setFormValue(elements.payslipForm, 'basicSalary', Number(employee.Salary || 0).toFixed(2));
+  setFormValue(elements.payslipForm, 'allowances', Number(employee.StandardAllowances || 0).toFixed(2));
+  setFormValue(elements.payslipForm, 'taxPaye', Number(employee.TaxPaye || 0).toFixed(2));
+  setFormValue(elements.payslipForm, 'uifDeduction', Number(employee.UifDeduction || 0).toFixed(2));
+  setFormValue(elements.payslipForm, 'otherDeductions', Number(employee.StandardDeductions || 0).toFixed(2));
 }
 
 function renderLeaves() {
@@ -2042,23 +2068,55 @@ function renderPayslips() {
   }
 
   if (state.payslipStatusMessage && state.payslips.length === 0) {
-    elements.payslipsTable.innerHTML = `<tr><td colspan="4">${escapeHtml(state.payslipStatusMessage)}</td></tr>`;
+    elements.payslipsTable.innerHTML = `<tr><td colspan="7">${escapeHtml(state.payslipStatusMessage)}</td></tr>`;
+    if (elements.payslipSummary) {
+      elements.payslipSummary.innerHTML = '';
+    }
     return;
+  }
+
+  const school = getSettingsSchool();
+  const totals = state.payslips.reduce((summary, payslip) => {
+    summary.gross += Number(payslip.GrossAmount || 0);
+    summary.deductions += Number(payslip.Deductions || 0);
+    summary.net += Number(payslip.NetAmount || 0);
+    return summary;
+  }, { gross: 0, deductions: 0, net: 0 });
+
+  if (elements.payslipSummary) {
+    elements.payslipSummary.innerHTML = `
+      <div class="metric"><span>Total gross</span><strong>${money(totals.gross, school)}</strong></div>
+      <div class="metric"><span>Total deductions</span><strong>${money(totals.deductions, school)}</strong></div>
+      <div class="metric"><span>Total net pay</span><strong>${money(totals.net, school)}</strong></div>
+    `;
   }
 
   elements.payslipsTable.innerHTML = state.payslips.map((payslip) => {
     const employeeName = `${payslip.FirstName || ''} ${payslip.LastName || ''}`.trim() || `Employee ${payslip.EmployeeID}`;
     const employee = state.employees.find((item) => item.EmployeeID === payslip.EmployeeID);
+    const isFinalized = payslip.IsFinalized === true || payslip.IsFinalized === 1 || payslip.Status === 'Finalized';
+    const canManagePayroll = state.user?.role === 'admin' || state.user?.hasHrPermission;
+    const status = payslipStatus(payslip);
+    const statusClass = isFinalized ? 'badge' : 'badge warn';
 
     return `
       <tr>
         <td>${escapeHtml(employeeName)}</td>
         <td>${escapeHtml(payslip.PayPeriod || '-')}</td>
-        <td>${money(payslip.NetAmount || 0, getSettingsSchool() || employee)}</td>
-        <td><span class="badge">${escapeHtml(payslip.Status || (payslip.IsFinalized ? "Finalized" : "Draft"))}</span></td>
+        <td>${money(payslip.GrossAmount || 0, school || employee)}</td>
+        <td>${money(payslip.Deductions || 0, school || employee)}</td>
+        <td>${money(payslip.NetAmount || 0, school || employee)}</td>
+        <td><span class="${statusClass}">${escapeHtml(status)}</span></td>
+        <td>
+          <div class="actions stacked-actions">
+            <button class="ghost-button" data-action="view-payslip" data-id="${payslip.PayslipID}" type="button">View</button>
+            ${isFinalized || !canManagePayroll ? '' : `<button class="ghost-button" data-action="edit-payslip" data-id="${payslip.PayslipID}" type="button">Edit</button>`}
+            ${isFinalized || !canManagePayroll ? '' : `<button class="secondary-button" data-action="finalize-payslip" data-id="${payslip.PayslipID}" type="button">Finalize</button>`}
+          </div>
+        </td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="4">No payslip records found.</td></tr>';
+  }).join('') || '<tr><td colspan="7">No payslip records found.</td></tr>';
 }
 
 
@@ -2264,6 +2322,7 @@ function openEmployeeDialog(employeeId = null) {
   state.editingEmployeeId = employee?.EmployeeID || null;
   form.reset();
   setFormValue(form, 'employeeId', employee?.EmployeeID || '');
+  setFormValue(form, 'employeeNumber', employee?.EmployeeNumber || '');
   setFormValue(form, 'firstName', employee?.FirstName || '');
   setFormValue(form, 'lastName', employee?.LastName || '');
   setFormValue(form, 'email', employee?.Email || '');
@@ -2272,6 +2331,19 @@ function openEmployeeDialog(employeeId = null) {
   setFormValue(form, 'department', employee?.Department || '');
   setFormValue(form, 'startDate', employee?.StartDate ? employee.StartDate.slice(0, 10) : new Date().toISOString().slice(0, 10));
   setFormValue(form, 'salary', Number(employee?.Salary || 0).toFixed(2));
+  setFormValue(form, 'standardAllowances', Number(employee?.StandardAllowances || 0).toFixed(2));
+  setFormValue(form, 'standardDeductions', Number(employee?.StandardDeductions || 0).toFixed(2));
+  setFormValue(form, 'taxPaye', Number(employee?.TaxPaye || 0).toFixed(2));
+  setFormValue(form, 'uifDeduction', Number(employee?.UifDeduction || 0).toFixed(2));
+  setFormValue(form, 'idNumber', employee?.IdNumber || '');
+  setFormValue(form, 'passportNumber', employee?.PassportNumber || '');
+  setFormValue(form, 'taxNumber', employee?.TaxNumber || '');
+  setFormValue(form, 'uifNumber', employee?.UifNumber || '');
+  setFormValue(form, 'paymentMethod', employee?.PaymentMethod || '');
+  setFormValue(form, 'bankName', employee?.BankName || '');
+  setFormValue(form, 'bankAccountNumber', employee?.BankAccountNumber || '');
+  setFormValue(form, 'branchCode', employee?.BranchCode || '');
+  setFormValue(form, 'accountType', employee?.AccountType || '');
   setFormValue(form, 'leaveBalance', employee?.LeaveBalance ?? 21);
   setFormValue(form, 'isActive', employee && employee.IsActive === false ? 'false' : 'true');
   document.getElementById('employeeDialogTitle').textContent = employee ? 'Edit staff' : 'Add staff';
@@ -2286,6 +2358,194 @@ function closeEmployeeDialog() {
   elements.employeeDialog.classList.add('hidden');
   elements.employeeForm.reset();
   document.body.classList.remove('modal-open');
+}
+
+function payslipEmployeeNumber(payslip) {
+  return payslip.EmployeeNumber || (payslip.EmployeeID ? `S${String(payslip.EmployeeID).padStart(3, '0')}` : 'Not captured');
+}
+
+function payslipMoney(payslip, value) {
+  return money(value || 0, getSettingsSchool() || payslip);
+}
+
+function requiredText(value) {
+  const cleaned = String(value ?? '').trim();
+  return cleaned || 'Not captured';
+}
+
+function payslipStatus(payslip) {
+  return payslip.IsFinalized === true || payslip.IsFinalized === 1 ? 'Finalized' : (payslip.Status || 'Draft');
+}
+
+function payslipDetailRows(payslip) {
+  return [
+    ['School name', requiredText(payslip.SchoolName)],
+    ['School address', requiredText(payslip.SchoolAddress)],
+    ['School contact number', requiredText(payslip.SchoolPhone)],
+    ['School email address', requiredText(payslip.SchoolEmail)],
+    ['School registration number', requiredText(payslip.SchoolRegistrationNumber)],
+    ['Employee number', payslipEmployeeNumber(payslip)],
+    ['Employee name and surname', requiredText(`${payslip.FirstName || ''} ${payslip.LastName || ''}`.trim())],
+    ['ID or passport number', requiredText(payslip.IdNumber || payslip.PassportNumber)],
+    ['Tax number', requiredText(payslip.TaxNumber)],
+    ['UIF number', requiredText(payslip.UifNumber)],
+    ['Job title', requiredText(payslip.JobTitle)],
+    ['Department', requiredText(payslip.Department)],
+    ['Pay period', requiredText(payslip.PayPeriod)],
+    ['Payment date', dateOnly(payslip.PaymentDate)],
+    ['Payment method', requiredText(payslip.PaymentMethod)],
+    ['Bank details', requiredText([payslip.BankName, payslip.AccountType, payslip.BankAccountNumber, payslip.BranchCode].filter(Boolean).join(' / '))]
+  ];
+}
+
+function payslipFinancialRows(payslip) {
+  return [
+    ['Basic salary', payslipMoney(payslip, payslip.BasicSalary)],
+    ['Allowances', payslipMoney(payslip, payslip.Allowances)],
+    ['Overtime', payslipMoney(payslip, payslip.Overtime)],
+    ['Bonus', payslipMoney(payslip, payslip.Bonus)],
+    ['Gross pay', payslipMoney(payslip, payslip.GrossAmount)],
+    ['Deductions', payslipMoney(payslip, payslip.Deductions)],
+    ['Leave deduction', payslipMoney(payslip, payslip.LeaveDeduction)],
+    ['Tax / PAYE', payslipMoney(payslip, payslip.TaxPaye)],
+    ['UIF / statutory deductions', payslipMoney(payslip, payslip.UifDeduction)],
+    ['Other deductions', payslipMoney(payslip, payslip.OtherDeductions)],
+    ['Total deductions', payslipMoney(payslip, payslip.Deductions)],
+    ['Net pay', payslipMoney(payslip, payslip.NetAmount)],
+    ['Notes', requiredText(payslip.Notes || 'No notes')]
+  ];
+}
+
+function renderPayslipDetailPreview(payslip) {
+  if (!elements.payslipDetailPreview) return;
+  const detailRows = payslipDetailRows(payslip).map(([label, value]) => `
+    <div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
+  `).join('');
+  const financialRows = payslipFinancialRows(payslip).map(([label, value]) => `
+    <div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
+  `).join('');
+
+  elements.payslipDetailPreview.innerHTML = `
+    <div class="payslip-preview-heading">
+      ${payslip.SchoolLogo ? `<img src="${escapeHtml(payslip.SchoolLogo)}" alt="">` : '<span class="brand-mark">DFS</span>'}
+      <div>
+        <strong>${escapeHtml(requiredText(payslip.SchoolName))}</strong>
+        <span>${escapeHtml(payslipStatus(payslip))}</span>
+      </div>
+    </div>
+    <div class="payslip-preview-grid">${detailRows}</div>
+    <div class="payslip-preview-grid payslip-financial-grid">${financialRows}</div>
+  `;
+}
+
+async function openPayslipDialog(payslipId, mode = 'view') {
+  const payslip = await api(`/api/payslips/${payslipId}`);
+  state.selectedPayslip = payslip;
+  const form = elements.payslipEditForm;
+  const canEdit = mode === 'edit' && !(payslip.IsFinalized === true || payslip.IsFinalized === 1 || payslip.Status === 'Finalized');
+
+  form.reset();
+  setFormValue(form, 'payslipId', payslip.PayslipID);
+  setFormValue(form, 'basicSalary', Number(payslip.BasicSalary || 0).toFixed(2));
+  setFormValue(form, 'allowances', Number(payslip.Allowances || 0).toFixed(2));
+  setFormValue(form, 'overtime', Number(payslip.Overtime || 0).toFixed(2));
+  setFormValue(form, 'bonus', Number(payslip.Bonus || 0).toFixed(2));
+  setFormValue(form, 'leaveDeduction', Number(payslip.LeaveDeduction || 0).toFixed(2));
+  setFormValue(form, 'taxPaye', Number(payslip.TaxPaye || 0).toFixed(2));
+  setFormValue(form, 'uifDeduction', Number(payslip.UifDeduction || 0).toFixed(2));
+  setFormValue(form, 'otherDeductions', Number(payslip.OtherDeductions || 0).toFixed(2));
+  setFormValue(form, 'paymentDate', dateInputValue(payslip.PaymentDate));
+  setFormValue(form, 'notes', payslip.Notes || '');
+
+  form.querySelectorAll('input, textarea').forEach((field) => {
+    if (field.name !== 'payslipId') field.disabled = !canEdit;
+  });
+  elements.savePayslipButton.classList.toggle('hidden', !canEdit);
+  document.getElementById('payslipDialogTitle').textContent = canEdit ? 'Edit payslip' : 'View payslip';
+  document.getElementById('payslipDialogSubtitle').textContent = `${requiredText(`${payslip.FirstName || ''} ${payslip.LastName || ''}`.trim())} - ${requiredText(payslip.PayPeriod)}`;
+  renderPayslipDetailPreview(payslip);
+  elements.payslipDialog.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closePayslipDialog() {
+  state.selectedPayslip = null;
+  elements.payslipDialog?.classList.add('hidden');
+  elements.payslipEditForm?.reset();
+  document.body.classList.remove('modal-open');
+}
+
+function printPayslip(payslip) {
+  if (!payslip) {
+    showToast('Open a payslip before printing');
+    return;
+  }
+
+  const detailRows = payslipDetailRows(payslip).map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join('');
+  const financialRows = payslipFinancialRows(payslip).map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join('');
+  const footerRows = [
+    ['Generated date', dateOnly(new Date())],
+    ['Generated by', requiredText(payslip.CreatedByUsername || state.user?.username)],
+    ['Approved by', requiredText(payslip.FinalizedByUsername || (payslip.IsFinalized ? 'Approved' : 'Not finalized'))],
+    ['Finalized date', payslip.FinalizedDate ? dateOnly(payslip.FinalizedDate) : 'Not finalized']
+  ].map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join('');
+
+  const win = window.open('', '_blank', 'width=960,height=720');
+  if (!win) {
+    showToast('Allow popups to print the payslip');
+    return;
+  }
+
+  win.document.write(`<!doctype html>
+    <html>
+      <head>
+        <title>Payslip ${escapeHtml(payslip.PayPeriod)} - ${escapeHtml(payslipEmployeeNumber(payslip))}</title>
+        <style>
+          body { margin: 0; padding: 28px; color: #0f172a; font-family: Arial, sans-serif; background: #fff; }
+          .payslip { max-width: 860px; margin: 0 auto; border: 1px solid #cbd5e1; padding: 24px; }
+          .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #0f172a; padding-bottom: 18px; margin-bottom: 18px; }
+          .brand { display: flex; gap: 16px; align-items: center; }
+          .brand img { width: 82px; max-height: 82px; object-fit: contain; }
+          h1, h2, h3, p { margin: 0; }
+          h1 { font-size: 22px; }
+          h2 { font-size: 18px; text-align: right; }
+          h3 { margin: 22px 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 12px; text-align: left; vertical-align: top; }
+          th { width: 34%; background: #f8fafc; }
+          .net-row th, .net-row td { font-size: 15px; font-weight: 800; background: #eef6ff; }
+          .footer { margin-top: 22px; }
+          @media print { body { padding: 0; } .payslip { border: 0; } }
+        </style>
+      </head>
+      <body>
+        <main class="payslip">
+          <section class="header">
+            <div class="brand">
+              ${payslip.SchoolLogo ? `<img src="${escapeHtml(payslip.SchoolLogo)}" alt="">` : ''}
+              <div>
+                <h1>${escapeHtml(requiredText(payslip.SchoolName))}</h1>
+                <p>${escapeHtml(requiredText(payslip.SchoolAddress))}</p>
+                <p>${escapeHtml(requiredText(payslip.SchoolPhone))} | ${escapeHtml(requiredText(payslip.SchoolEmail))}</p>
+              </div>
+            </div>
+            <div>
+              <h2>Payslip</h2>
+              <p>${escapeHtml(requiredText(payslip.PayPeriod))}</p>
+              <p>${escapeHtml(payslipStatus(payslip))}</p>
+            </div>
+          </section>
+          <h3>School And Employee Details</h3>
+          <table>${detailRows}</table>
+          <h3>Payslip Financial Details</h3>
+          <table>${financialRows.replace('<tr><th>Net pay</th>', '<tr class="net-row"><th>Net pay</th>')}</table>
+          <h3>Payslip Footer</h3>
+          <table class="footer">${footerRows}</table>
+        </main>
+        <script>window.onload = function(){ window.print(); };</script>
+      </body>
+    </html>`);
+  win.document.close();
 }
 
 function activateFormTab(button) {
@@ -2424,6 +2684,7 @@ function renderAccount() {
   fields.contactPerson.value = school.ContactPerson || '';
   fields.contactEmail.value = school.ContactEmail || '';
   fields.contactPhone.value = school.ContactPhone || '';
+  fields.registrationNumber.value = school.RegistrationNumber || '';
   fields.website.value = school.Website || '';
   fields.address.value = school.Address || '';
 
@@ -2825,6 +3086,7 @@ elements.settingsForm.addEventListener('submit', async (event) => {
         contactPerson: school.ContactPerson,
         contactEmail: school.ContactEmail,
         contactPhone: school.ContactPhone,
+        registrationNumber: school.RegistrationNumber,
         website: school.Website,
         currencyCode: elements.currencySelect.value
       })
@@ -3030,6 +3292,10 @@ elements.employeeForm.addEventListener('submit', async (event) => {
     const payload = formData(elements.employeeForm);
     payload.salary = Number(payload.salary || 0);
     payload.leaveBalance = Number(payload.leaveBalance || 21);
+    payload.standardAllowances = Number(payload.standardAllowances || 0);
+    payload.standardDeductions = Number(payload.standardDeductions || 0);
+    payload.taxPaye = Number(payload.taxPaye || 0);
+    payload.uifDeduction = Number(payload.uifDeduction || 0);
     payload.isActive = payload.isActive === true || payload.isActive === 'true';
     delete payload.employeeId;
 
@@ -3079,6 +3345,7 @@ elements.payslipForm.addEventListener('submit', async (event) => {
     if (!elements.payslipEmployeeSelect.value) {
       throw new Error('Add staff before creating payslips');
     }
+    requireFields(elements.payslipForm, ['employeeId', 'payPeriod', 'basicSalary', 'paymentDate']);
 
     setFormBusy(elements.payslipForm, true, 'Creating...');
     const payload = formData(elements.payslipForm);
@@ -3104,6 +3371,57 @@ elements.payslipForm.addEventListener('submit', async (event) => {
     showToast(error.message);
   } finally {
     setFormBusy(elements.payslipForm, false);
+  }
+});
+
+elements.payslipEmployeeSelect?.addEventListener('change', applySelectedEmployeePayrollDefaults);
+
+elements.payslipEditForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const form = elements.payslipEditForm;
+  const payslipId = Number(form.elements.payslipId.value);
+
+  try {
+    requireFields(form, [
+      'basicSalary',
+      'allowances',
+      'overtime',
+      'bonus',
+      'leaveDeduction',
+      'taxPaye',
+      'uifDeduction',
+      'otherDeductions',
+      'paymentDate'
+    ]);
+    setFormBusy(form, true, 'Saving...');
+    const payload = formData(form);
+    delete payload.payslipId;
+    [
+      'basicSalary',
+      'allowances',
+      'overtime',
+      'bonus',
+      'leaveDeduction',
+      'taxPaye',
+      'uifDeduction',
+      'otherDeductions'
+    ].forEach((field) => {
+      payload[field] = Number(payload[field] || 0);
+    });
+
+    await api(`/api/payslips/${payslipId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+
+    closePayslipDialog();
+    await refreshData();
+    showToast('Payslip updated');
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setFormBusy(form, false);
   }
 });
 
@@ -3244,6 +3562,9 @@ elements.closePaymentDialogButton.addEventListener('click', closePaymentDialog);
 elements.cancelPaymentButton.addEventListener('click', closePaymentDialog);
 elements.closeEmployeeDialogButton?.addEventListener('click', closeEmployeeDialog);
 elements.cancelEmployeeButton?.addEventListener('click', closeEmployeeDialog);
+elements.closePayslipDialogButton?.addEventListener('click', closePayslipDialog);
+elements.cancelPayslipButton?.addEventListener('click', closePayslipDialog);
+elements.printPayslipButton?.addEventListener('click', () => printPayslip(state.selectedPayslip));
 elements.closeStudentEditDialogButton?.addEventListener('click', closeStudentEditDialog);
 elements.cancelStudentEditButton?.addEventListener('click', closeStudentEditDialog);
 elements.closeFamilyEditDialogButton?.addEventListener('click', closeFamilyEditDialog);
@@ -3258,6 +3579,12 @@ elements.paymentDialog.addEventListener('click', (event) => {
 elements.employeeDialog?.addEventListener('click', (event) => {
   if (event.target === elements.employeeDialog) {
     closeEmployeeDialog();
+  }
+});
+
+elements.payslipDialog?.addEventListener('click', (event) => {
+  if (event.target === elements.payslipDialog) {
+    closePayslipDialog();
   }
 });
 
@@ -3279,6 +3606,9 @@ document.addEventListener('keydown', (event) => {
   }
   if (event.key === 'Escape' && elements.employeeDialog && !elements.employeeDialog.classList.contains('hidden')) {
     closeEmployeeDialog();
+  }
+  if (event.key === 'Escape' && elements.payslipDialog && !elements.payslipDialog.classList.contains('hidden')) {
+    closePayslipDialog();
   }
   if (event.key === 'Escape' && elements.studentEditDialog && !elements.studentEditDialog.classList.contains('hidden')) {
     closeStudentEditDialog();
@@ -3494,6 +3824,30 @@ document.addEventListener('click', async (event) => {
 
   if (action === 'edit-employee') {
     openEmployeeDialog(button.dataset.id);
+    return;
+  }
+
+  if (action === 'view-payslip' || action === 'edit-payslip') {
+    try {
+      await openPayslipDialog(button.dataset.id, action === 'edit-payslip' ? 'edit' : 'view');
+    } catch (error) {
+      showToast(error.message);
+    }
+    return;
+  }
+
+  if (action === 'finalize-payslip') {
+    const confirmed = window.confirm('Finalize this payslip? Finalized payslips become read-only historical records.');
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await api(`/api/payslips/${button.dataset.id}/finalize`, { method: 'PUT' });
+      await refreshData();
+      showToast('Payslip finalized');
+    } catch (error) {
+      showToast(error.message);
+    }
     return;
   }
 

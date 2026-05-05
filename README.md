@@ -2202,6 +2202,7 @@ Once the server starts, open the local app in your browser.
 
 ## Change History
 
+- **HR / Payroll payslip view, edit, and PDF print flow:** Finance / HR / Payroll now opens payslips in a detail popup, shows required school and employee payroll details, allows draft payslip editing for HR-permitted users, finalizes payslips as read-only history, and provides a clean print layout that can be saved as PDF from the browser print dialog. Employee payroll defaults, school registration number, payment date, and itemised financial fields are stored in the database and used when generating payslips.
 - **Staff popup CRUD and Outstanding Fees data fix:** School / Staff now opens Add Staff in a popup, supports row-level Edit before the status column, and persists staff start-date edits. Finance / Outstanding Fees now routes correctly to the outstanding-fees data endpoint so the year-calendar table loads real invoice balances.
 - **Learner enrolment and edit persistence:** School / Register Learner now captures learner, parent/family, billing, and medical details in a tabbed CRUD form. School / Students now edits learners in a popup and saves learner fields to `Students`, parent/family fields to `Families`, and multiple billing-category assignments to `StudentBillingCategories`.
 - **Three-level dashboard layout:** Updated the README and school/parent dashboard wiring to use Level 1 side navigation, Level 2 module landing pages with feature icons, and Level 3 dedicated feature pages. School, Finance, Reporting, DevForge, and Parent navigation now match the final layout rules.
@@ -2410,8 +2411,7 @@ The current vertical slice includes:
 - **Leave balance management:** Per-staff leave balances by leave type and year are defined but not yet implemented.
 - **Leave approval workflow:** Full leave application, approval, decline, and cancellation flow is defined but not yet implemented.
 - **Leave-to-payroll deduction integration:** Unpaid leave deduction on payslips is defined but not yet implemented.
-- **HR / Payroll draft, review, approval, and finalization workflow:** Full payslip lifecycle with statuses is defined but not yet implemented.
-- **Previous payslip permission-controlled view:** Permission-gated historical payslip access is defined but not yet implemented.
+- **Payroll correction workflow:** Maker-checker corrections for already finalized payslips are defined but not yet implemented.
 - **Staff contract expiry alerts:** Contract expiry alerting for HR users is defined but not yet implemented.
 - **Full role and permission matrix enforcement:** Role-based permission matrix with per-role access rules is defined but not yet enforced at the route level.
 - **Permission key mapping per role:** Granular permission keys are defined but not yet stored or checked per user/role.

@@ -71,16 +71,17 @@ class SchoolRepository {
       .input('contactPerson', sql.NVarChar, optionalString(schoolData.contactPerson))
       .input('contactEmail', sql.NVarChar, schoolData.contactEmail)
       .input('contactPhone', sql.NVarChar, schoolData.contactPhone)
+      .input('registrationNumber', sql.NVarChar, optionalString(schoolData.registrationNumber))
       .input('website', sql.NVarChar, optionalString(schoolData.website))
       .input('currencyCode', sql.NVarChar, schoolData.currencyCode)
       .input('currencySymbol', sql.NVarChar, schoolData.currencySymbol)
       .input('defaultMonthlyFee', sql.Decimal(10,2), schoolData.defaultMonthlyFee)
       .input('paymentInstructions', sql.NVarChar(sql.MAX), optionalString(schoolData.paymentInstructions))
       .input('subscriptionStatus', sql.NVarChar, schoolData.subscriptionStatus || 'Active')
-      .query(`INSERT INTO Schools (SchoolName, Address, LogoUrl, ContactPerson, ContactEmail, ContactPhone, Website,
+      .query(`INSERT INTO Schools (SchoolName, Address, LogoUrl, ContactPerson, ContactEmail, ContactPhone, RegistrationNumber, Website,
               CurrencyCode, CurrencySymbol, DefaultMonthlyFee, PaymentInstructions, SubscriptionStatus)
               OUTPUT INSERTED.*
-              VALUES (@schoolName, @address, @logoUrl, @contactPerson, @contactEmail, @contactPhone, @website,
+              VALUES (@schoolName, @address, @logoUrl, @contactPerson, @contactEmail, @contactPhone, @registrationNumber, @website,
               @currencyCode, @currencySymbol, @defaultMonthlyFee, @paymentInstructions, @subscriptionStatus)`);
     return result.recordset[0];
   }
@@ -95,6 +96,7 @@ class SchoolRepository {
       .input('contactPerson', sql.NVarChar, optionalString(schoolData.contactPerson))
       .input('contactEmail', sql.NVarChar, schoolData.contactEmail)
       .input('contactPhone', sql.NVarChar, schoolData.contactPhone)
+      .input('registrationNumber', sql.NVarChar, optionalString(schoolData.registrationNumber))
       .input('website', sql.NVarChar, optionalString(schoolData.website))
       .input('currencyCode', sql.NVarChar, schoolData.currencyCode)
       .input('currencySymbol', sql.NVarChar, schoolData.currencySymbol)
@@ -103,7 +105,7 @@ class SchoolRepository {
       .input('subscriptionStatus', sql.NVarChar, schoolData.subscriptionStatus)
       .query(`UPDATE Schools SET SchoolName = @schoolName, Address = @address, ContactEmail = @contactEmail,
               LogoUrl = @logoUrl, ContactPerson = @contactPerson, ContactPhone = @contactPhone,
-              Website = @website, CurrencyCode = @currencyCode, CurrencySymbol = @currencySymbol,
+              RegistrationNumber = @registrationNumber, Website = @website, CurrencyCode = @currencyCode, CurrencySymbol = @currencySymbol,
               DefaultMonthlyFee = @defaultMonthlyFee, PaymentInstructions = @paymentInstructions,
               SubscriptionStatus = @subscriptionStatus, UpdatedDate = GETDATE()
               OUTPUT INSERTED.*

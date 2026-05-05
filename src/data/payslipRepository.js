@@ -29,7 +29,9 @@ class PayslipRepository {
       where += ' AND p.Status = @status';
     }
 
-    const result = await req.query(`SELECT p.*, e.FirstName, e.LastName, e.JobTitle, e.Department
+    const result = await req.query(`SELECT p.*, e.FirstName, e.LastName, e.EmployeeNumber, e.JobTitle, e.Department,
+              e.Email, e.Phone, e.IdNumber, e.PassportNumber, e.TaxNumber, e.UifNumber,
+              e.PaymentMethod, e.BankName, e.BankAccountNumber, e.BranchCode, e.AccountType
             FROM Payslips p
             INNER JOIN Employees e ON p.EmployeeID = e.EmployeeID
             ${where}
@@ -41,7 +43,7 @@ class PayslipRepository {
     const pool = await getPool();
     const result = await pool.request()
       .input('schoolId', sql.Int, schoolId)
-      .query(`SELECT p.*, e.FirstName, e.LastName, e.JobTitle, e.Department
+      .query(`SELECT p.*, e.FirstName, e.LastName, e.EmployeeNumber, e.JobTitle, e.Department
               FROM Payslips p
               INNER JOIN Employees e ON p.EmployeeID = e.EmployeeID
               WHERE e.SchoolID = @schoolId AND p.IsFinalized = 1
@@ -52,7 +54,7 @@ class PayslipRepository {
   async getAllPayslips() {
     const pool = await getPool();
     const result = await pool.request()
-      .query(`SELECT p.*, e.FirstName, e.LastName, e.JobTitle, s.SchoolName
+      .query(`SELECT p.*, e.FirstName, e.LastName, e.EmployeeNumber, e.JobTitle, s.SchoolName
               FROM Payslips p
               INNER JOIN Employees e ON p.EmployeeID = e.EmployeeID
               INNER JOIN Schools s ON e.SchoolID = s.SchoolID
@@ -64,13 +66,17 @@ class PayslipRepository {
     const pool = await getPool();
     const result = await pool.request()
       .input('id', sql.Int, id)
-      .query(`SELECT p.*, e.FirstName, e.LastName, e.SchoolID, e.JobTitle, e.Department,
-                e.IdNumber, e.PassportNumber, e.TaxNumber, e.UifNumber,
+      .query(`SELECT p.*, e.FirstName, e.LastName, e.EmployeeNumber, e.SchoolID, e.JobTitle, e.Department,
+                e.Email, e.Phone, e.StartDate, e.IdNumber, e.PassportNumber, e.TaxNumber, e.UifNumber,
+                e.PaymentMethod, e.BankName, e.BankAccountNumber, e.BranchCode, e.AccountType,
                 s.SchoolName, s.Address AS SchoolAddress, s.ContactPhone AS SchoolPhone,
-                s.ContactEmail AS SchoolEmail, s.LogoUrl AS SchoolLogo
+                s.ContactEmail AS SchoolEmail, s.LogoUrl AS SchoolLogo, s.RegistrationNumber AS SchoolRegistrationNumber,
+                created.Username AS CreatedByUsername, finalized.Username AS FinalizedByUsername
               FROM Payslips p
               INNER JOIN Employees e ON p.EmployeeID = e.EmployeeID
               INNER JOIN Schools s ON e.SchoolID = s.SchoolID
+              LEFT JOIN Users created ON p.CreatedBy = created.UserID
+              LEFT JOIN Users finalized ON p.FinalizedBy = finalized.UserID
               WHERE p.PayslipID = @id`);
     return result.recordset[0];
   }

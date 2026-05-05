@@ -51,6 +51,11 @@ BEGIN
     ALTER TABLE dbo.Schools ADD ContactPerson NVARCHAR(255) NULL;
 END;
 
+IF COL_LENGTH('dbo.Schools', 'RegistrationNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Schools ADD RegistrationNumber NVARCHAR(100) NULL;
+END;
+
 IF COL_LENGTH('dbo.Schools', 'Website') IS NULL
 BEGIN
     ALTER TABLE dbo.Schools ADD Website NVARCHAR(255) NULL;
@@ -1417,6 +1422,11 @@ BEGIN
 END;
 
 -- Employee payroll detail fields
+IF COL_LENGTH('dbo.Employees', 'EmployeeNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD EmployeeNumber NVARCHAR(50) NULL;
+END;
+
 IF COL_LENGTH('dbo.Employees', 'IdNumber') IS NULL
 BEGIN
     ALTER TABLE dbo.Employees ADD IdNumber NVARCHAR(50) NULL;
@@ -1542,6 +1552,50 @@ IF COL_LENGTH('dbo.Payslips', 'FinalizedBy') IS NULL
 BEGIN
     ALTER TABLE dbo.Payslips ADD FinalizedBy INT NULL;
 END;
+
+UPDATE dbo.Payslips
+SET Status = 'Finalized'
+WHERE IsFinalized = 1 AND ISNULL(Status, '') <> 'Finalized';
+
+UPDATE dbo.Payslips
+SET PaymentDate = CONVERT(date, FinalizedDate)
+WHERE PaymentDate IS NULL AND FinalizedDate IS NOT NULL;
+
+UPDATE dbo.Payslips
+SET BasicSalary = GrossAmount
+WHERE ISNULL(BasicSalary, 0) = 0 AND GrossAmount > 0;
+
+UPDATE dbo.Payslips
+SET TaxPaye = Deductions
+WHERE ISNULL(TaxPaye, 0) = 0 AND ISNULL(Deductions, 0) > 0;
+
+UPDATE dbo.Employees
+SET EmployeeNumber = 'EMP-' + RIGHT('00000' + CAST(EmployeeID AS NVARCHAR(10)), 5)
+WHERE EmployeeNumber IS NULL OR LTRIM(RTRIM(EmployeeNumber)) = '';
+
+UPDATE p
+SET CreatedBy = u.UserID
+FROM dbo.Payslips p
+INNER JOIN dbo.Employees e ON e.EmployeeID = p.EmployeeID
+OUTER APPLY (
+    SELECT TOP 1 UserID
+    FROM dbo.Users
+    WHERE SchoolID = e.SchoolID AND Role = 'school' AND ISNULL(HasHrPermission, 0) = 1 AND ISNULL(IsActive, 1) = 1
+    ORDER BY UserID
+) u
+WHERE p.CreatedBy IS NULL AND u.UserID IS NOT NULL;
+
+UPDATE p
+SET FinalizedBy = u.UserID
+FROM dbo.Payslips p
+INNER JOIN dbo.Employees e ON e.EmployeeID = p.EmployeeID
+OUTER APPLY (
+    SELECT TOP 1 UserID
+    FROM dbo.Users
+    WHERE SchoolID = e.SchoolID AND Role = 'school' AND ISNULL(HasHrPermission, 0) = 1 AND ISNULL(IsActive, 1) = 1
+    ORDER BY UserID
+) u
+WHERE p.IsFinalized = 1 AND p.FinalizedBy IS NULL AND u.UserID IS NOT NULL;
 
 -- Index for transaction duplicate key checking
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_BankTransactionKey' AND object_id = OBJECT_ID('dbo.Transactions'))

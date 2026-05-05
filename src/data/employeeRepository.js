@@ -41,6 +41,7 @@ class EmployeeRepository {
     const result = await pool.request()
       .input('schoolId', sql.Int, data.schoolId)
       .input('userId', sql.Int, data.userId || null)
+      .input('employeeNumber', sql.NVarChar, data.employeeNumber || null)
       .input('firstName', sql.NVarChar, data.firstName)
       .input('lastName', sql.NVarChar, data.lastName)
       .input('email', sql.NVarChar, data.email || null)
@@ -50,11 +51,28 @@ class EmployeeRepository {
       .input('startDate', sql.Date, data.startDate)
       .input('salary', sql.Decimal(10,2), data.salary || 0)
       .input('leaveBalance', sql.Int, data.leaveBalance ?? 21)
-      .query(`INSERT INTO Employees (SchoolID, UserID, FirstName, LastName, Email, Phone,
-                JobTitle, Department, StartDate, Salary, LeaveBalance)
+      .input('idNumber', sql.NVarChar, data.idNumber || null)
+      .input('passportNumber', sql.NVarChar, data.passportNumber || null)
+      .input('taxNumber', sql.NVarChar, data.taxNumber || null)
+      .input('uifNumber', sql.NVarChar, data.uifNumber || null)
+      .input('paymentMethod', sql.NVarChar, data.paymentMethod || null)
+      .input('bankName', sql.NVarChar, data.bankName || null)
+      .input('bankAccountNumber', sql.NVarChar, data.bankAccountNumber || null)
+      .input('branchCode', sql.NVarChar, data.branchCode || null)
+      .input('accountType', sql.NVarChar, data.accountType || null)
+      .input('standardAllowances', sql.Decimal(10,2), data.standardAllowances || 0)
+      .input('standardDeductions', sql.Decimal(10,2), data.standardDeductions || 0)
+      .input('taxPaye', sql.Decimal(10,2), data.taxPaye || 0)
+      .input('uifDeduction', sql.Decimal(10,2), data.uifDeduction || 0)
+      .query(`INSERT INTO Employees (SchoolID, UserID, EmployeeNumber, FirstName, LastName, Email, Phone,
+                JobTitle, Department, StartDate, Salary, LeaveBalance, IdNumber, PassportNumber,
+                TaxNumber, UifNumber, PaymentMethod, BankName, BankAccountNumber, BranchCode,
+                AccountType, StandardAllowances, StandardDeductions, TaxPaye, UifDeduction)
               OUTPUT INSERTED.*
-              VALUES (@schoolId, @userId, @firstName, @lastName, @email, @phone,
-                @jobTitle, @department, @startDate, @salary, @leaveBalance)`);
+              VALUES (@schoolId, @userId, @employeeNumber, @firstName, @lastName, @email, @phone,
+                @jobTitle, @department, @startDate, @salary, @leaveBalance, @idNumber, @passportNumber,
+                @taxNumber, @uifNumber, @paymentMethod, @bankName, @bankAccountNumber, @branchCode,
+                @accountType, @standardAllowances, @standardDeductions, @taxPaye, @uifDeduction)`);
     return result.recordset[0];
   }
 
@@ -62,6 +80,7 @@ class EmployeeRepository {
     const pool = await getPool();
     const result = await pool.request()
       .input('id', sql.Int, id)
+      .input('employeeNumber', sql.NVarChar, data.employeeNumber || null)
       .input('firstName', sql.NVarChar, data.firstName)
       .input('lastName', sql.NVarChar, data.lastName)
       .input('email', sql.NVarChar, data.email || null)
@@ -72,10 +91,28 @@ class EmployeeRepository {
       .input('salary', sql.Decimal(10,2), data.salary || 0)
       .input('leaveBalance', sql.Int, data.leaveBalance ?? 21)
       .input('isActive', sql.Bit, data.isActive !== false)
+      .input('idNumber', sql.NVarChar, data.idNumber || null)
+      .input('passportNumber', sql.NVarChar, data.passportNumber || null)
+      .input('taxNumber', sql.NVarChar, data.taxNumber || null)
+      .input('uifNumber', sql.NVarChar, data.uifNumber || null)
+      .input('paymentMethod', sql.NVarChar, data.paymentMethod || null)
+      .input('bankName', sql.NVarChar, data.bankName || null)
+      .input('bankAccountNumber', sql.NVarChar, data.bankAccountNumber || null)
+      .input('branchCode', sql.NVarChar, data.branchCode || null)
+      .input('accountType', sql.NVarChar, data.accountType || null)
+      .input('standardAllowances', sql.Decimal(10,2), data.standardAllowances || 0)
+      .input('standardDeductions', sql.Decimal(10,2), data.standardDeductions || 0)
+      .input('taxPaye', sql.Decimal(10,2), data.taxPaye || 0)
+      .input('uifDeduction', sql.Decimal(10,2), data.uifDeduction || 0)
       .query(`UPDATE Employees SET
-                FirstName = @firstName, LastName = @lastName, Email = @email, Phone = @phone,
+                EmployeeNumber = @employeeNumber, FirstName = @firstName, LastName = @lastName, Email = @email, Phone = @phone,
                 JobTitle = @jobTitle, Department = @department, StartDate = @startDate, Salary = @salary,
-                LeaveBalance = @leaveBalance, IsActive = @isActive, UpdatedDate = GETDATE()
+                LeaveBalance = @leaveBalance, IsActive = @isActive, IdNumber = @idNumber,
+                PassportNumber = @passportNumber, TaxNumber = @taxNumber, UifNumber = @uifNumber,
+                PaymentMethod = @paymentMethod, BankName = @bankName, BankAccountNumber = @bankAccountNumber,
+                BranchCode = @branchCode, AccountType = @accountType, StandardAllowances = @standardAllowances,
+                StandardDeductions = @standardDeductions, TaxPaye = @taxPaye, UifDeduction = @uifDeduction,
+                UpdatedDate = GETDATE()
               OUTPUT INSERTED.*
               WHERE EmployeeID = @id`);
     return result.recordset[0];

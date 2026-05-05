@@ -1072,6 +1072,73 @@ td[colspan],
   overflow: auto;
 }
 
+.payslip-edit-panel {
+  width: min(100%, 860px);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+}
+
+.payslip-detail-preview {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.payslip-preview-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel-soft);
+}
+
+.payslip-preview-heading img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+.payslip-preview-heading span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.payslip-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.payslip-preview-grid > div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.payslip-preview-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.payslip-preview-grid strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.payslip-financial-grid > div:last-child {
+  grid-column: 1 / -1;
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;

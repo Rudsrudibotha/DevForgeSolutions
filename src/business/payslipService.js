@@ -68,6 +68,8 @@ class PayslipService {
 
     const payPeriod = String(data.payPeriod || '').trim();
     if (!/^\d{4}-\d{2}$/.test(payPeriod)) throw new Error('Pay period must be in YYYY-MM format');
+    const paymentDate = String(data.paymentDate || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(paymentDate)) throw new Error('Payment date is required');
 
     const exists = await this.payslipRepository.payslipExistsForPeriod(employee.EmployeeID, payPeriod);
     if (exists) throw new Error('A payslip already exists for this employee and period');
@@ -102,12 +104,13 @@ class PayslipService {
     const netAmount = grossAmount - totalDeductions;
 
     if (grossAmount <= 0) throw new Error('Gross amount must be positive');
+    if (netAmount < 0) throw new Error('Net pay cannot be negative');
 
     return await this.payslipRepository.createPayslip({
       employeeId: employee.EmployeeID, payPeriod, basicSalary, allowances, overtime, bonus,
       grossAmount, deductions: totalDeductions, leaveDeduction, taxPaye, uifDeduction, otherDeductions,
       netAmount, notes: data.notes ? String(data.notes).trim().slice(0, 500) : null,
-      paymentDate: data.paymentDate || null, status: 'Draft', createdBy: currentUser.UserID
+      paymentDate, status: 'Draft', createdBy: currentUser.UserID
     });
   }
 
@@ -134,12 +137,16 @@ class PayslipService {
     const grossAmount = basicSalary + allowances + overtime + bonus;
     const totalDeductions = leaveDeduction + taxPaye + uifDeduction + otherDeductions;
     const netAmount = grossAmount - totalDeductions;
+    const paymentDate = String(data.paymentDate || payslip.PaymentDate || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(paymentDate)) throw new Error('Payment date is required');
+    if (grossAmount <= 0) throw new Error('Gross amount must be positive');
+    if (netAmount < 0) throw new Error('Net pay cannot be negative');
 
     return await this.payslipRepository.updatePayslip(id, {
       basicSalary, allowances, overtime, bonus, grossAmount,
       deductions: totalDeductions, leaveDeduction, taxPaye, uifDeduction, otherDeductions,
       netAmount, notes: data.notes !== undefined ? String(data.notes || '').trim().slice(0, 500) : payslip.Notes,
-      paymentDate: data.paymentDate || payslip.PaymentDate
+      paymentDate
     });
   }
 

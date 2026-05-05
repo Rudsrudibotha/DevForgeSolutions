@@ -5,8 +5,8 @@
 -- SCHOOL
 -- =============================================
 SET IDENTITY_INSERT dbo.Schools ON;
-INSERT INTO dbo.Schools (SchoolID, SchoolName, Address, ContactPerson, ContactEmail, ContactPhone, CurrencyCode, CurrencySymbol, DefaultMonthlyFee, SubscriptionStatus)
-VALUES (7, 'Sunshine Academy', '123 Main Road, Cape Town, 8001', 'Sarah Johnson', 'info@sunshineacademy.co.za', '021-555-0100', 'ZAR', 'R', 2500.00, 'Active');
+INSERT INTO dbo.Schools (SchoolID, SchoolName, Address, ContactPerson, ContactEmail, ContactPhone, RegistrationNumber, CurrencyCode, CurrencySymbol, DefaultMonthlyFee, SubscriptionStatus)
+VALUES (7, 'Sunshine Academy', '123 Main Road, Cape Town, 8001', 'Sarah Johnson', 'info@sunshineacademy.co.za', '021-555-0100', 'SUN-ACA-2024/001', 'ZAR', 'R', 2500.00, 'Active');
 SET IDENTITY_INSERT dbo.Schools OFF;
 
 -- =============================================
@@ -55,12 +55,12 @@ INSERT INTO dbo.Classes (SchoolID, ClassName, Capacity, IsActive) VALUES
 -- =============================================
 -- EMPLOYEES (5 staff)
 -- =============================================
-INSERT INTO dbo.Employees (SchoolID, FirstName, LastName, Email, Phone, JobTitle, Department, StartDate, Salary, LeaveBalance, IsActive) VALUES
-(7, 'Lisa', 'Fourie', 'lisa.fourie@sunshineacademy.co.za', '082-600-0001', 'Principal', 'Management', '2020-01-15', 45000.00, 21, 1),
-(7, 'David', 'Mthembu', 'david.m@sunshineacademy.co.za', '082-600-0002', 'Teacher - Grade R', 'Teaching', '2021-03-01', 28000.00, 18, 1),
-(7, 'Karen', 'Pretorius', 'karen.p@sunshineacademy.co.za', '082-600-0003', 'Teacher - Grade 1', 'Teaching', '2022-01-10', 27000.00, 21, 1),
-(7, 'James', 'Ndlovu', 'james.n@sunshineacademy.co.za', '082-600-0004', 'Teacher - Grade 2/3', 'Teaching', '2023-01-08', 26000.00, 21, 1),
-(7, 'Zanele', 'Khumalo', 'zanele.k@sunshineacademy.co.za', '082-600-0005', 'Admin & Finance', 'Administration', '2021-06-01', 22000.00, 15, 1);
+INSERT INTO dbo.Employees (SchoolID, EmployeeNumber, FirstName, LastName, Email, Phone, JobTitle, Department, StartDate, Salary, LeaveBalance, IdNumber, TaxNumber, UifNumber, PaymentMethod, BankName, BankAccountNumber, BranchCode, AccountType, StandardAllowances, StandardDeductions, TaxPaye, UifDeduction, IsActive) VALUES
+(7, 'SUN-EMP-001', 'Lisa', 'Fourie', 'lisa.fourie@sunshineacademy.co.za', '082-600-0001', 'Principal', 'Management', '2020-01-15', 45000.00, 21, '7802145800081', '9123456780', 'UIF-100001', 'EFT', 'First National Bank', '6200010001', '250655', 'Cheque', 1500.00, 0.00, 7800.00, 450.00, 1),
+(7, 'SUN-EMP-002', 'David', 'Mthembu', 'david.m@sunshineacademy.co.za', '082-600-0002', 'Teacher - Grade R', 'Teaching', '2021-03-01', 28000.00, 18, '8505065800082', '9123456781', 'UIF-100002', 'EFT', 'Standard Bank', '6200010002', '051001', 'Savings', 900.00, 0.00, 3900.00, 280.00, 1),
+(7, 'SUN-EMP-003', 'Karen', 'Pretorius', 'karen.p@sunshineacademy.co.za', '082-600-0003', 'Teacher - Grade 1', 'Teaching', '2022-01-10', 27000.00, 21, '8809175800083', '9123456782', 'UIF-100003', 'EFT', 'ABSA', '6200010003', '632005', 'Cheque', 850.00, 0.00, 3650.00, 270.00, 1),
+(7, 'SUN-EMP-004', 'James', 'Ndlovu', 'james.n@sunshineacademy.co.za', '082-600-0004', 'Teacher - Grade 2/3', 'Teaching', '2023-01-08', 26000.00, 21, '9003215800084', '9123456783', 'UIF-100004', 'EFT', 'Nedbank', '6200010004', '198765', 'Savings', 800.00, 0.00, 3400.00, 260.00, 1),
+(7, 'SUN-EMP-005', 'Zanele', 'Khumalo', 'zanele.k@sunshineacademy.co.za', '082-600-0005', 'Admin & Finance', 'Administration', '2021-06-01', 22000.00, 15, '9307285800085', '9123456784', 'UIF-100005', 'EFT', 'Capitec', '6200010005', '470010', 'Savings', 650.00, 0.00, 2500.00, 220.00, 1);
 
 -- =============================================
 -- STUDENTS (20 students across 4 classes, 2 per family)
@@ -190,12 +190,22 @@ INSERT INTO dbo.LeaveRequests (EmployeeID, LeaveType, StartDate, EndDate, Days, 
 DECLARE @pm INT = 1;
 WHILE @pm <= 11
 BEGIN
-    INSERT INTO dbo.Payslips (EmployeeID, PayPeriod, GrossAmount, Deductions, NetAmount, IsFinalized, FinalizedDate)
+    INSERT INTO dbo.Payslips (EmployeeID, PayPeriod, BasicSalary, Allowances, Overtime, Bonus, GrossAmount, Deductions, LeaveDeduction, TaxPaye, UifDeduction, OtherDeductions, NetAmount, PaymentDate, Status, IsFinalized, FinalizedDate)
     SELECT e.EmployeeID,
         CONCAT('2024-', FORMAT(@pm, '00')),
+        e.Salary + e.StandardAllowances + CASE WHEN @pm = 6 THEN 1000.00 ELSE 0.00 END,
+        e.StandardAllowances,
+        0.00,
+        CASE WHEN @pm = 6 THEN 1000.00 ELSE 0.00 END,
         e.Salary,
-        ROUND(e.Salary * 0.18, 2),
-        ROUND(e.Salary * 0.82, 2),
+        ROUND(e.TaxPaye + e.UifDeduction + e.StandardDeductions, 2),
+        0.00,
+        e.TaxPaye,
+        e.UifDeduction,
+        e.StandardDeductions,
+        ROUND((e.Salary + e.StandardAllowances + CASE WHEN @pm = 6 THEN 1000.00 ELSE 0.00 END) - (e.TaxPaye + e.UifDeduction + e.StandardDeductions), 2),
+        DATEFROMPARTS(2024, @pm, 25),
+        'Finalized',
         1,
         DATEFROMPARTS(2024, @pm, 25)
     FROM dbo.Employees e WHERE e.SchoolID = 7;

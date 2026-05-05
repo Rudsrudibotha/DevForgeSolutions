@@ -1282,11 +1282,12 @@
     DONE: Payslip table with employee, period, net pay, status
     DONE: Employee dropdown
     DONE: Pay period selector
+    DONE: Payslip detail view with full breakdown
+    DONE: Finalize button per draft payslip
+    DONE: Print/download payslip through browser PDF print layout
+    DONE: HR users can edit draft payslips
+    DONE: HR / Payroll summary report totals gross, deductions, and net pay
     TODO: Show previous finalized payslips in a separate list
-    TODO: Payslip detail view with full breakdown (click row to expand)
-    TODO: Finalize button per draft payslip
-    TODO: Print/download payslip (printable layout with school logo, employee details, financial breakdown)
-    TODO: HR / Payroll summary report (total gross, deductions, net per period)
     TODO: Staff contract expiry alerts (ContractEndDate field exists)
   -->
             <div class="icon-page-layout">
@@ -1341,7 +1342,7 @@
                     </label>
                     <label>
                       Payment date
-                      <input name="paymentDate" type="date">
+                      <input name="paymentDate" type="date" required>
                     </label>
                     <label class="wide">
                       Notes
@@ -1353,12 +1354,13 @@
               </section>
               <section class="table-panel summary-panel">
                 <div class="panel-header"><h3>Payslip Summary</h3></div>
+                <div id="payslipSummary" class="metrics-grid"></div>
               </section>
             </div>
             <section class="table-panel page-table-panel">
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Employee</th><th>Period</th><th>Net Pay</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Employee</th><th>Period</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Actions</th></tr></thead>
                   <tbody id="payslipsTable"></tbody>
                 </table>
               </div>
@@ -1838,6 +1840,10 @@
                     Contact phone
                     <input name="contactPhone" type="tel" autocomplete="tel">
                   </label>
+                  <label>
+                    Registration number
+                    <input name="registrationNumber" type="text">
+                  </label>
                   <label class="wide">
                     Website
                     <input name="website" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com">
@@ -1968,12 +1974,26 @@
             <div class="form-grid">
               <label>First name <span class="required-marker">*</span><input name="firstName" type="text" required></label>
               <label>Last name <span class="required-marker">*</span><input name="lastName" type="text" required></label>
+              <label>Employee number<input name="employeeNumber" type="text" placeholder="EMP001"></label>
               <label>Email<input name="email" type="email"></label>
               <label>Cell Number<input name="phone" type="tel"></label>
               <label>Role<input name="jobTitle" type="text" placeholder="Teacher, Finance, Admin, HR"></label>
               <label>Department<input name="department" type="text"></label>
               <label>Start date <span class="required-marker">*</span><input name="startDate" type="date" required></label>
               <label>Salary<input name="salary" type="number" min="0" step="0.01" value="0"></label>
+              <label>Standard allowances<input name="standardAllowances" type="number" min="0" step="0.01" value="0"></label>
+              <label>Standard deductions<input name="standardDeductions" type="number" min="0" step="0.01" value="0"></label>
+              <label>Tax / PAYE<input name="taxPaye" type="number" min="0" step="0.01" value="0"></label>
+              <label>UIF deduction<input name="uifDeduction" type="number" min="0" step="0.01" value="0"></label>
+              <label>ID number<input name="idNumber" type="text"></label>
+              <label>Passport number<input name="passportNumber" type="text"></label>
+              <label>Tax number<input name="taxNumber" type="text"></label>
+              <label>UIF number<input name="uifNumber" type="text"></label>
+              <label>Payment method<input name="paymentMethod" type="text" placeholder="EFT"></label>
+              <label>Bank name<input name="bankName" type="text"></label>
+              <label>Bank account number<input name="bankAccountNumber" type="text"></label>
+              <label>Branch code<input name="branchCode" type="text"></label>
+              <label>Account type<input name="accountType" type="text"></label>
               <label>Leave balance<input name="leaveBalance" type="number" min="0" step="1" value="21"></label>
               <label>Status
                 <select name="isActive">
@@ -1985,6 +2005,37 @@
             <div class="actions modal-actions">
               <button class="secondary-button compact-button" type="button" id="cancelEmployeeButton">Cancel</button>
               <button class="primary-button compact-button" type="submit">Save staff</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="payslipDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="payslipDialogTitle">
+          <form id="payslipEditForm" class="modal-panel payslip-edit-panel" novalidate>
+            <div class="modal-header">
+              <div>
+                <h3 id="payslipDialogTitle">Payslip</h3>
+                <p id="payslipDialogSubtitle">View, edit, finalize, or print this payslip.</p>
+              </div>
+              <button id="closePayslipDialogButton" class="ghost-button icon-button" type="button" aria-label="Close payslip">&times;</button>
+            </div>
+            <input name="payslipId" type="hidden">
+            <div id="payslipDetailPreview" class="payslip-detail-preview"></div>
+            <div class="form-grid">
+              <label>Basic salary <span class="required-marker">*</span><input name="basicSalary" type="number" min="0" step="0.01" required></label>
+              <label>Allowances <span class="required-marker">*</span><input name="allowances" type="number" min="0" step="0.01" required></label>
+              <label>Overtime <span class="required-marker">*</span><input name="overtime" type="number" min="0" step="0.01" required></label>
+              <label>Bonus <span class="required-marker">*</span><input name="bonus" type="number" min="0" step="0.01" required></label>
+              <label>Leave deduction <span class="required-marker">*</span><input name="leaveDeduction" type="number" min="0" step="0.01" required></label>
+              <label>Tax / PAYE <span class="required-marker">*</span><input name="taxPaye" type="number" min="0" step="0.01" required></label>
+              <label>UIF <span class="required-marker">*</span><input name="uifDeduction" type="number" min="0" step="0.01" required></label>
+              <label>Other deductions <span class="required-marker">*</span><input name="otherDeductions" type="number" min="0" step="0.01" required></label>
+              <label>Payment date <span class="required-marker">*</span><input name="paymentDate" type="date" required></label>
+              <label class="wide">Notes <textarea name="notes" rows="2"></textarea></label>
+            </div>
+            <div class="actions modal-actions">
+              <button class="secondary-button compact-button" type="button" id="cancelPayslipButton">Close</button>
+              <button class="ghost-button compact-button" type="button" id="printPayslipButton">Print / PDF</button>
+              <button class="primary-button compact-button" type="submit" id="savePayslipButton">Save changes</button>
             </div>
           </form>
         </div>

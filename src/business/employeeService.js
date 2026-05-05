@@ -48,6 +48,7 @@ class EmployeeService {
     return {
       schoolId,
       userId: data.userId ?? existing.UserID ?? null,
+      employeeNumber: this.optionalString(data.employeeNumber ?? existing.EmployeeNumber, 'Employee number', 50),
       firstName: this.requiredString(data.firstName ?? existing.FirstName, 'First name', 255),
       lastName: this.requiredString(data.lastName ?? existing.LastName, 'Last name', 255),
       email: this.optionalString(data.email ?? existing.Email, 'Email', 255),
@@ -57,7 +58,20 @@ class EmployeeService {
       startDate: data.startDate ?? existing.StartDate ?? new Date().toISOString().slice(0, 10),
       salary: Number(data.salary ?? existing.Salary ?? 0),
       leaveBalance: Number.isInteger(Number(data.leaveBalance)) ? Number(data.leaveBalance) : (existing.LeaveBalance ?? 21),
-      isActive: data.isActive !== undefined ? data.isActive : (existing.IsActive !== undefined ? existing.IsActive : true)
+      isActive: data.isActive !== undefined ? data.isActive : (existing.IsActive !== undefined ? existing.IsActive : true),
+      idNumber: this.optionalString(data.idNumber ?? existing.IdNumber, 'ID number', 50),
+      passportNumber: this.optionalString(data.passportNumber ?? existing.PassportNumber, 'Passport number', 50),
+      taxNumber: this.optionalString(data.taxNumber ?? existing.TaxNumber, 'Tax number', 50),
+      uifNumber: this.optionalString(data.uifNumber ?? existing.UifNumber, 'UIF number', 50),
+      paymentMethod: this.optionalString(data.paymentMethod ?? existing.PaymentMethod, 'Payment method', 50),
+      bankName: this.optionalString(data.bankName ?? existing.BankName, 'Bank name', 100),
+      bankAccountNumber: this.optionalString(data.bankAccountNumber ?? existing.BankAccountNumber, 'Bank account number', 50),
+      branchCode: this.optionalString(data.branchCode ?? existing.BranchCode, 'Branch code', 20),
+      accountType: this.optionalString(data.accountType ?? existing.AccountType, 'Account type', 50),
+      standardAllowances: Number(data.standardAllowances ?? existing.StandardAllowances ?? 0),
+      standardDeductions: Number(data.standardDeductions ?? existing.StandardDeductions ?? 0),
+      taxPaye: Number(data.taxPaye ?? existing.TaxPaye ?? 0),
+      uifDeduction: Number(data.uifDeduction ?? existing.UifDeduction ?? 0)
     };
   }
 
