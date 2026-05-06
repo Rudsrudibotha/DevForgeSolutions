@@ -11,7 +11,7 @@ class ClassRepository {
                 (SELECT COUNT(1) FROM Students s WHERE s.ClassName = c.ClassName AND s.SchoolID = c.SchoolID AND s.IsActive = 1) AS StudentCount
               FROM Classes c
               LEFT JOIN Employees e ON c.TeacherID = e.EmployeeID
-              WHERE c.SchoolID = @schoolId ORDER BY c.ClassName`);
+              WHERE c.SchoolID = @schoolId ORDER BY c.ActiveYear DESC, c.ClassName`);
     return result.recordset;
   }
 
@@ -29,8 +29,9 @@ class ClassRepository {
       .input('className', sql.NVarChar, data.className)
       .input('teacherId', sql.Int, data.teacherId || null)
       .input('capacity', sql.Int, data.capacity || null)
-      .query(`INSERT INTO Classes (SchoolID, ClassName, TeacherID, Capacity)
-              OUTPUT INSERTED.* VALUES (@schoolId, @className, @teacherId, @capacity)`);
+      .input('activeYear', sql.Int, data.activeYear)
+      .query(`INSERT INTO Classes (SchoolID, ClassName, TeacherID, Capacity, ActiveYear)
+              OUTPUT INSERTED.* VALUES (@schoolId, @className, @teacherId, @capacity, @activeYear)`);
     return result.recordset[0];
   }
 
@@ -41,8 +42,9 @@ class ClassRepository {
       .input('className', sql.NVarChar, data.className)
       .input('teacherId', sql.Int, data.teacherId || null)
       .input('capacity', sql.Int, data.capacity || null)
+      .input('activeYear', sql.Int, data.activeYear)
       .input('isActive', sql.Bit, data.isActive !== false)
-      .query(`UPDATE Classes SET ClassName=@className, TeacherID=@teacherId, Capacity=@capacity,
+      .query(`UPDATE Classes SET ClassName=@className, TeacherID=@teacherId, Capacity=@capacity, ActiveYear=@activeYear,
               IsActive=@isActive, UpdatedDate=GETDATE() OUTPUT INSERTED.* WHERE ClassID=@id`);
     return result.recordset[0];
   }

@@ -23,12 +23,29 @@ class ClassService {
   async createClass(data, currentUser) {
     const schoolId = this.resolveSchoolId(currentUser);
     if (!data.className || !String(data.className).trim()) throw new Error('Class name is required');
-    return await this.repo.create({ schoolId, className: data.className.trim(), teacherId: data.teacherId || null, capacity: data.capacity || null });
+    return await this.repo.create({
+      schoolId,
+      className: data.className.trim(),
+      teacherId: data.teacherId || null,
+      capacity: data.capacity || null,
+      activeYear: this.resolveActiveYear(data.classYear ?? data.activeYear)
+    });
   }
 
   async updateClass(id, data, currentUser) {
-    await this.getClassById(id, currentUser);
-    return await this.repo.update(id, data);
+    const existing = await this.getClassById(id, currentUser);
+    const className = data.className !== undefined ? String(data.className || '').trim() : existing.ClassName;
+    if (!className) throw new Error('Class name is required');
+
+    return await this.repo.update(id, {
+      className,
+      teacherId: data.teacherId !== undefined ? data.teacherId : existing.TeacherID,
+      capacity: data.capacity !== undefined ? data.capacity : existing.Capacity,
+      activeYear: data.classYear !== undefined || data.activeYear !== undefined
+        ? this.resolveActiveYear(data.classYear ?? data.activeYear)
+        : existing.ActiveYear,
+      isActive: data.isActive !== undefined ? data.isActive : existing.IsActive !== false
+    });
   }
 
   async checkCapacity(classId, currentUser) {
@@ -52,6 +69,18 @@ class ClassService {
     if (currentUser.Role === 'admin') return currentUser.SchoolID;
     if (!currentUser.SchoolID) throw new Error('School users must be linked to a school');
     return currentUser.SchoolID;
+  }
+
+  resolveActiveYear(value) {
+    const year = value === undefined || value === null || value === ''
+      ? new Date().getFullYear()
+      : Number(value);
+
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      throw new Error('Class year must be between 2000 and 2100');
+    }
+
+    return year;
   }
 }
 

@@ -741,6 +741,145 @@ form[aria-busy="true"] button[type="submit"] {
   margin-top: 18px;
 }
 
+.class-filter-panel {
+  grid-column: 1 / -1;
+  padding: 12px 14px;
+}
+
+.class-filter-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.filter-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+}
+
+.filter-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.class-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(5, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.student-filter-grid {
+  grid-template-columns: minmax(150px, 1fr) minmax(220px, 1.6fr) minmax(100px, 0.7fr) minmax(140px, 0.9fr);
+}
+
+.class-filter-grid label {
+  gap: 5px;
+  font-size: 11px;
+}
+
+.thin-input {
+  min-height: 34px;
+  padding: 7px 9px;
+}
+
+.billing-assignment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.billing-assignment-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.billing-assignment-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+}
+
+.billing-assignment-header h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.billing-assignment-header span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.billing-drop-zone {
+  display: grid;
+  gap: 8px;
+  min-height: 190px;
+  align-content: start;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.billing-drop-zone.drag-over {
+  outline: 2px solid #2563eb;
+  outline-offset: -6px;
+  background: #eff6ff;
+}
+
+.billing-card {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: #0f172a;
+  text-align: left;
+  cursor: grab;
+}
+
+.billing-card:active {
+  cursor: grabbing;
+}
+
+.billing-card strong,
+.billing-card span {
+  display: block;
+}
+
+.billing-card span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.drop-zone-empty {
+  margin: 0;
+  align-self: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .flush-form {
   margin-top: 0;
 }
@@ -1076,6 +1215,53 @@ td[colspan],
   width: min(100%, 860px);
   max-height: calc(100vh - 44px);
   overflow: auto;
+}
+
+.attendance-view-panel {
+  width: min(100%, 920px);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+}
+
+.attendance-class-tabs {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.attendance-class-panels {
+  display: grid;
+  gap: 12px;
+}
+
+.empty-state {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-weight: 800;
+  padding: 14px;
+}
+
+.inline-name-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.attendance-recorded-row {
+  background: #f8fbff;
+}
+
+.attendance-field-value {
+  margin-top: 6px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.attendance-field-value {
+  display: block;
 }
 
 .payslip-detail-preview {
@@ -1513,6 +1699,18 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  .class-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .billing-assignment-grid {
+    grid-template-columns: 1fr;
+  }
+
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(150px, 1fr));
   }
@@ -1531,6 +1729,18 @@ tbody tr:hover {
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .class-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-assignment-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1654,3 +1864,11 @@ tbody tr:hover {
 }
 
 .outstanding-cell { color: #dc2626; font-weight: 600; }
+
+
+.time-filled {
+  background-color: #dcfce7 !important;
+  border-color: #16a34a !important;
+  color: #15803d !important;
+  font-weight: 600;
+}

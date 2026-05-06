@@ -37,16 +37,16 @@ const CURRENCY_SYMBOL_OVERRIDES = {
 
 const VIEW_TITLES = {
   overview: 'School Management Dashboard',
-  school: 'School',
+  school: 'School Management',
   finance: 'Finance',
   reporting: 'Reporting',
   account: 'Account',
   settings: 'Settings',
-  classes: 'School / Classes',
-  staff: 'School / Staff',
-  students: 'School / Students',
-  parents: 'School / Parents',
-  attendance: 'School / Attendance',
+  classes: 'Class Managment',
+  staff: 'Staff Management',
+  students: 'Student Management',
+  parents: 'Parent Management',
+  attendance: 'Attendance',
   admissions: 'School / Admissions / Enrolment',
   reenrolment: 'School / Re-Enrolment / Year Rollover',
   schoolSettings: 'School / School Settings',
@@ -203,6 +203,7 @@ const state = {
   classes: [],
   attendance: [],
   employees: [],
+  staffRoles: [],
   leaves: [],
   payslips: [],
   payslipStatusMessage: '',
@@ -218,7 +219,17 @@ const state = {
   selectedDepartureStudentId: null,
   studentSearchQuery: '',
   studentSearchType: 'Student name',
+  parentSearchQuery: '',
+  parentSearchType: 'Parent Name',
+  parentStatusFilter: 'active',
   editingClassId: null,
+  selectedAttendanceClassKey: null,
+  attendanceSearchQuery: '',
+  attendanceSearchType: 'Student name',
+  attendanceStatusFilter: 'all',
+  attendanceClassFilter: 'all',
+  attendancePageSize: 9999,
+  selectedAttendanceUndoId: null,
   admissions: [],
   reEnrolments: [],
   reEnrolmentPending: [],
@@ -231,7 +242,8 @@ const state = {
   communicationHistory: [],
   reportPreview: [],
   outstandingFeesData: [],
-  outstandingFeesError: ''
+  outstandingFeesError: '',
+  registerLearnerBillingIds: []
 };
 
 const elements = {
@@ -259,6 +271,9 @@ const elements = {
   settingsSchoolSelector: document.getElementById('settingsSchoolSelector'),
   currencySelect: document.getElementById('currencySelect'),
   parentsModulePanel: document.getElementById('parentsModulePanel'),
+  parentSearchTypeSelect: document.getElementById('parentSearchTypeSelect'),
+  parentSearchInput: document.getElementById('parentSearchInput'),
+  parentStatusFilterInput: document.getElementById('parentStatusFilterInput'),
   familyForm: document.getElementById('familyForm'),
   familiesTable: document.getElementById('familiesTable'),
   studentForm: document.getElementById('studentForm'),
@@ -269,6 +284,8 @@ const elements = {
   registerLearnerForm: document.getElementById('registerLearnerForm'),
   registerLearnerFamilySelect: document.getElementById('registerLearnerFamilySelect'),
   registerLearnerBillingSelect: document.getElementById('registerLearnerBillingSelect'),
+  registerLearnerBillingAvailable: document.getElementById('registerLearnerBillingAvailable'),
+  registerLearnerBillingAssigned: document.getElementById('registerLearnerBillingAssigned'),
   studentEditDialog: document.getElementById('studentEditDialog'),
   studentEditForm: document.getElementById('studentEditForm'),
   studentEditBillingSelect: document.getElementById('studentEditBillingSelect'),
@@ -281,23 +298,55 @@ const elements = {
   billingCategoryForm: document.getElementById('billingCategoryForm'),
   billingCategoriesTable: document.getElementById('billingCategoriesTable'),
   cancelBillingCategoryEditButton: document.getElementById('cancelBillingCategoryEditButton'),
+  classDialog: document.getElementById('classDialog'),
   classForm: document.getElementById('classForm'),
   classTeacherSelect: document.getElementById('classTeacherSelect'),
   classSearchInput: document.getElementById('classSearchInput'),
+  classNameFilterInput: document.getElementById('classNameFilterInput'),
+  classTeacherFilterInput: document.getElementById('classTeacherFilterInput'),
+  classLearnerFilterInput: document.getElementById('classLearnerFilterInput'),
+  classStatusFilterInput: document.getElementById('classStatusFilterInput'),
+  classYearFilterInput: document.getElementById('classYearFilterInput'),
+  classYearInput: document.getElementById('classYearInput'),
   classesTable: document.getElementById('classesTable'),
   editClassId: document.getElementById('editClassId'),
+  openClassDialogButton: document.getElementById('openClassDialogButton'),
+  closeClassDialogButton: document.getElementById('closeClassDialogButton'),
   classSubmitButton: document.getElementById('classSubmitButton'),
   cancelClassEditButton: document.getElementById('cancelClassEditButton'),
   attendanceForm: document.getElementById('attendanceForm'),
   attendanceStudentSelect: document.getElementById('attendanceStudentSelect'),
   attendanceDateInput: document.getElementById('attendanceDateInput'),
-  attendanceSummaryTable: document.getElementById('attendanceSummaryTable'),
+  attendanceSearchTypeSelect: document.getElementById('attendanceSearchTypeSelect'),
+  attendanceSearchInput: document.getElementById('attendanceSearchInput'),
+  attendancePageSize: document.getElementById('attendancePageSize'),
+  attendanceStatusFilterInput: document.getElementById('attendanceStatusFilterInput'),
+  attendanceClassFilterInput: document.getElementById('attendanceClassFilterInput'),
   attendanceTable: document.getElementById('attendanceTable'),
+  viewAttendanceButton: document.getElementById('viewAttendanceButton'),
+  attendanceDialog: document.getElementById('attendanceDialog'),
+  attendanceDialogSubtitle: document.getElementById('attendanceDialogSubtitle'),
+  attendanceClassTabs: document.getElementById('attendanceClassTabs'),
+  attendanceClassPanels: document.getElementById('attendanceClassPanels'),
+  closeAttendanceDialogButton: document.getElementById('closeAttendanceDialogButton'),
+  cancelAttendanceDialogButton: document.getElementById('cancelAttendanceDialogButton'),
+  attendanceUndoDialog: document.getElementById('attendanceUndoDialog'),
+  attendanceUndoDialogText: document.getElementById('attendanceUndoDialogText'),
+  closeAttendanceUndoDialogButton: document.getElementById('closeAttendanceUndoDialogButton'),
+  undoArrivalButton: document.getElementById('undoArrivalButton'),
+  undoDepartureButton: document.getElementById('undoDepartureButton'),
+  cancelAttendanceUndoButton: document.getElementById('cancelAttendanceUndoButton'),
   employeeDialog: document.getElementById('employeeDialog'),
   employeeForm: document.getElementById('employeeForm'),
+  employeeRoleSelect: document.getElementById('employeeRoleSelect'),
+  employeeDepartmentSelect: document.getElementById('employeeDepartmentSelect'),
   closeEmployeeDialogButton: document.getElementById('closeEmployeeDialogButton'),
   cancelEmployeeButton: document.getElementById('cancelEmployeeButton'),
   employeesTable: document.getElementById('employeesTable'),
+  staffSearchTypeInput: document.getElementById('staffSearchTypeInput'),
+  staffSearchInput: document.getElementById('staffSearchInput'),
+  staffStatusFilterInput: document.getElementById('staffStatusFilterInput'),
+  staffRoleFilterInput: document.getElementById('staffRoleFilterInput'),
   leaveForm: document.getElementById('leaveForm'),
   leavesTable: document.getElementById('leavesTable'),
   payslipForm: document.getElementById('payslipForm'),
@@ -346,6 +395,9 @@ const elements = {
 
 let toastTimer = null;
 let inactivityTimer = null;
+let studentSearchWired = false;
+let parentSearchWired = false;
+const attendanceAutosaveTimers = new Map();
 
 function rememberActivity() {
   if (state.token) {
@@ -463,8 +515,12 @@ async function downloadExport(exportName) {
 
 // === STUDENT SEARCH WIRING ===
 function wireStudentSearch() {
+  if (studentSearchWired) return;
+  studentSearchWired = true;
   const searchInput = document.getElementById('studentSearchInput');
   const searchTypeSelect = document.getElementById('studentSearchTypeSelect');
+  const statusSelect = document.getElementById('studentStatusFilterInput');
+  const pageSizeSelect = document.getElementById('studentPageSize');
   if (searchInput) {
     searchInput.addEventListener('input', () => {
       state.studentSearchQuery = searchInput.value;
@@ -477,6 +533,37 @@ function wireStudentSearch() {
       renderStudentsTable();
     });
   }
+  if (statusSelect) {
+    statusSelect.value = state.studentStatusFilter;
+    statusSelect.addEventListener('change', async () => {
+      state.studentStatusFilter = statusSelect.value;
+      hideDepartureForm();
+      await refreshData();
+    });
+  }
+  if (pageSizeSelect) {
+    pageSizeSelect.addEventListener('change', () => {
+      state.studentPageSize = Number(pageSizeSelect.value);
+      renderStudentsTable();
+    });
+  }
+}
+
+function wireParentSearch() {
+  if (parentSearchWired) return;
+  parentSearchWired = true;
+  elements.parentSearchTypeSelect?.addEventListener('change', () => {
+    state.parentSearchType = elements.parentSearchTypeSelect.value;
+    renderFamiliesTable();
+  });
+  elements.parentSearchInput?.addEventListener('input', () => {
+    state.parentSearchQuery = elements.parentSearchInput.value;
+    renderFamiliesTable();
+  });
+  elements.parentStatusFilterInput?.addEventListener('change', () => {
+    state.parentStatusFilter = elements.parentStatusFilterInput.value;
+    renderFamiliesTable();
+  });
 }
 
 function dashboardPath(user) {
@@ -554,6 +641,34 @@ function dateOnly(value) {
 
 function dateInputValue(value) {
   return value ? String(value).slice(0, 10) : '';
+}
+
+function timeInputValue(value) {
+  if (!value) {
+    return '';
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`;
+  }
+
+  if (typeof value === 'object') {
+    const hours = value.hours ?? value.hour ?? value.Hours ?? value.Hour;
+    const minutes = value.minutes ?? value.minute ?? value.Minutes ?? value.Minute;
+    if (hours !== undefined && minutes !== undefined) {
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+  }
+
+  const raw = String(value);
+  // Handle ISO datetime like "1970-01-01T07:30:00.000Z"
+  const isoMatch = raw.match(/T(\d{2}):(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[1]}:${isoMatch[2]}`;
+  }
+  // Handle plain time like "07:30" or "07:30:00"
+  const plainMatch = raw.match(/^(\d{1,2}):(\d{2})/);
+  return plainMatch ? `${String(plainMatch[1]).padStart(2, '0')}:${plainMatch[2]}` : '';
 }
 
 async function api(path, options = {}) {
@@ -637,14 +752,7 @@ function setSession(authPayload) {
   renderShell();
   applyIconPermissions();
   wireStudentSearch();
-
-const studentPageSizeSelect = document.getElementById('studentPageSize');
-if (studentPageSizeSelect) {
-  studentPageSizeSelect.addEventListener('change', () => {
-    state.studentPageSize = Number(studentPageSizeSelect.value);
-    renderStudentsTable();
-  });
-}
+  wireParentSearch();
 
 }
 
@@ -738,6 +846,7 @@ async function refreshData() {
       refreshAuditLogs(),
       refreshMatchSuggestions(),
       refreshClasses(),
+      refreshStaffRoles(),
       refreshAttendance(),
       refreshPayslips(),
       refreshFeatureData()
@@ -790,6 +899,14 @@ async function refreshClasses() {
     state.classes = await api('/api/classes');
   } catch (error) {
     state.classes = [];
+  }
+}
+
+async function refreshStaffRoles() {
+  try {
+    state.staffRoles = await api('/api/hr/roles');
+  } catch (error) {
+    state.staffRoles = [];
   }
 }
 
@@ -1460,6 +1577,16 @@ function setTable(id, rows, colspan, emptyText) {
 }
 
 function renderMetrics() {
+  const primaryMetricLabel = document.getElementById('primaryMetricLabel');
+  const schoolCount = document.getElementById('schoolCount');
+  const invoiceCount = document.getElementById('invoiceCount');
+  const pendingValue = document.getElementById('pendingValue');
+  const paidValue = document.getElementById('paidValue');
+
+  if (!primaryMetricLabel || !schoolCount || !invoiceCount || !pendingValue || !paidValue) {
+    return;
+  }
+
   const displaySchool = getSettingsSchool();
   const activeStudents = state.students.filter((student) => student.IsActive !== false).length;
   const pending = state.invoices
@@ -1469,14 +1596,15 @@ function renderMetrics() {
   const paid = state.invoices
     .reduce((total, invoice) => total + Number(invoice.AmountPaid || 0), 0);
 
-  document.getElementById('primaryMetricLabel').textContent = 'Students';
-  document.getElementById('schoolCount').textContent = activeStudents;
-  document.getElementById('invoiceCount').textContent = state.invoices.length;
-  document.getElementById('pendingValue').textContent = money(pending, displaySchool);
-  document.getElementById('paidValue').textContent = money(paid, displaySchool);
+  primaryMetricLabel.textContent = 'Students';
+  schoolCount.textContent = activeStudents;
+  invoiceCount.textContent = state.invoices.length;
+  pendingValue.textContent = money(pending, displaySchool);
+  paidValue.textContent = money(paid, displaySchool);
 }
 
 function renderSchoolOptions() {
+  if (!elements.invoiceSchool) return;
   elements.invoiceSchool.innerHTML = state.schools.length
     ? state.schools
         .map((school) => `<option value="${school.SchoolID}">${escapeHtml(school.SchoolName)}</option>`)
@@ -1530,7 +1658,7 @@ function renderClassOptions() {
 }
 
 function renderInvoiceFilters() {
-  if (!elements.invoiceFilterStudent) {
+  if (!elements.invoiceFilterStudent || !elements.invoiceFilterClass) {
     return;
   }
 
@@ -1564,6 +1692,7 @@ function filteredInvoices() {
 }
 
 function renderInvoicesTable() {
+  if (!elements.invoicesTable) return;
   elements.invoicesTable.innerHTML = filteredInvoices().map((invoice) => {
     const school = state.schools.find((item) => item.SchoolID === invoice.SchoolID);
     const statusClass = invoice.Status === 'Paid' ? 'badge' : invoice.Status === 'Overdue' ? 'badge danger' : 'badge warn';
@@ -1600,7 +1729,9 @@ function renderInvoicesTable() {
 }
 
 function renderRecentLists() {
-  document.getElementById('recentInvoices').innerHTML = state.invoices.slice(0, 5).map((invoice) => {
+  const recentInvoicesEl = document.getElementById('recentInvoices');
+  if (!recentInvoicesEl) return;
+  recentInvoicesEl.innerHTML = state.invoices.slice(0, 5).map((invoice) => {
     const school = state.schools.find((item) => item.SchoolID === invoice.SchoolID);
 
     return `
@@ -1750,6 +1881,62 @@ function populateBillingSelect(select, selectedIds = []) {
   select.disabled = !categories.length;
 }
 
+function activeBillingCategories() {
+  return state.billingCategories.filter((category) => category.IsActive !== false && category.IsActive !== 0);
+}
+
+function billingCard(category, zone) {
+  return `
+    <button class="billing-card" draggable="true" data-billing-id="${category.BillingCategoryID}" data-billing-card="${zone}" type="button">
+      <strong>${escapeHtml(category.CategoryName)}</strong>
+      <span>${money(category.BaseAmount)} ${escapeHtml(category.Frequency || '')}</span>
+    </button>
+  `;
+}
+
+function syncRegisterLearnerBillingSelect() {
+  if (!elements.registerLearnerBillingSelect) return;
+  const selected = new Set(state.registerLearnerBillingIds.map((id) => String(id)));
+  elements.registerLearnerBillingSelect.innerHTML = activeBillingCategories().map((category) => `
+    <option value="${category.BillingCategoryID}" ${selected.has(String(category.BillingCategoryID)) ? 'selected' : ''}>
+      ${escapeHtml(category.CategoryName)}
+    </option>
+  `).join('');
+}
+
+function renderRegisterLearnerBillingPicker() {
+  if (!elements.registerLearnerBillingAvailable || !elements.registerLearnerBillingAssigned) return;
+  const validIds = new Set(activeBillingCategories().map((category) => Number(category.BillingCategoryID)));
+  state.registerLearnerBillingIds = state.registerLearnerBillingIds.filter((id) => validIds.has(Number(id)));
+  const selected = new Set(state.registerLearnerBillingIds.map((id) => String(id)));
+  const categories = activeBillingCategories();
+  const available = categories.filter((category) => !selected.has(String(category.BillingCategoryID)));
+  const assigned = categories.filter((category) => selected.has(String(category.BillingCategoryID)));
+
+  elements.registerLearnerBillingAvailable.innerHTML = available.length
+    ? available.map((category) => billingCard(category, 'available')).join('')
+    : '<p class="drop-zone-empty">All active billing categories are assigned.</p>';
+  elements.registerLearnerBillingAssigned.innerHTML = assigned.length
+    ? assigned.map((category) => billingCard(category, 'assigned')).join('')
+    : '<p class="drop-zone-empty">Drag billing categories here.</p>';
+  syncRegisterLearnerBillingSelect();
+}
+
+function assignRegisterLearnerBilling(categoryId) {
+  const parsedId = Number(categoryId);
+  if (!Number.isInteger(parsedId) || parsedId <= 0) return;
+  if (!state.registerLearnerBillingIds.includes(parsedId)) {
+    state.registerLearnerBillingIds.push(parsedId);
+  }
+  renderRegisterLearnerBillingPicker();
+}
+
+function unassignRegisterLearnerBilling(categoryId) {
+  const parsedId = Number(categoryId);
+  state.registerLearnerBillingIds = state.registerLearnerBillingIds.filter((id) => id !== parsedId);
+  renderRegisterLearnerBillingPicker();
+}
+
 function selectedValues(select) {
   return Array.from(select?.selectedOptions || [])
     .map((option) => Number(option.value))
@@ -1803,7 +1990,7 @@ function fillFamilyForm(form, family = {}) {
 }
 
 function renderFamiliesTable() {
-  const families = currentSchoolFamilies();
+  const families = filteredFamilies();
 
   elements.familiesTable.innerHTML = families.map((family) => `
     <tr>
@@ -1828,6 +2015,45 @@ function renderFamiliesTable() {
       </td>
     </tr>
   `).join('') || '<tr><td colspan="5">No families yet.</td></tr>';
+}
+
+function familyIsArchived(family) {
+  return family.IsArchived === true
+    || family.IsArchived === 1
+    || family.IsActive === false
+    || family.IsActive === 0
+    || Boolean(family.ArchivedDate);
+}
+
+function familyStudentSearchText(family) {
+  return state.students
+    .filter((student) => Number(student.FamilyID) === Number(family.FamilyID))
+    .map((student) => `${student.FirstName || ''} ${student.LastName || ''}`)
+    .join(' ');
+}
+
+function filteredFamilies() {
+  const query = String(state.parentSearchQuery || '').trim().toLowerCase();
+  const searchType = state.parentSearchType || 'Parent Name';
+  const status = state.parentStatusFilter || 'active';
+
+  return currentSchoolFamilies()
+    .filter((family) => {
+      if (status === 'all') return true;
+      const archived = familyIsArchived(family);
+      return status === 'archived' ? archived : !archived;
+    })
+    .filter((family) => {
+      if (!query) return true;
+      const values = {
+        'Parent Name': [family.PrimaryParentName, family.SecondaryParentName].join(' '),
+        'Student Name': familyStudentSearchText(family),
+        'Family Code': [family.FamilyCode, family.FamilyName].join(' '),
+        'ID Number': [family.PrimaryParentIdNumber, family.SecondaryParentIdNumber].join(' '),
+        'Passport Number': [family.PrimaryParentIdNumber, family.SecondaryParentIdNumber].join(' ')
+      };
+      return String(values[searchType] || '').toLowerCase().includes(query);
+    });
 }
 
 function renderStudentsTable() {
@@ -1879,6 +2105,21 @@ function renderStudentsTable() {
 }
 
 
+function openClassDialog() {
+  const currentYear = new Date().getFullYear();
+  state.editingClassId = null;
+  elements.editClassId.value = '';
+  elements.classForm.reset();
+  if (elements.classYearInput) {
+    elements.classYearInput.value = currentYear;
+  }
+  elements.classSubmitButton.textContent = 'Add Class';
+  document.getElementById('classDialogTitle').textContent = 'Add class';
+  document.getElementById('classDialogSubtitle').textContent = 'Class setup and teacher assignment.';
+  elements.classDialog?.classList.remove('hidden');
+  elements.classForm.elements.className?.focus();
+}
+
 function editClass(classId) {
   const cls = state.classes.find((c) => c.ClassID === classId);
   if (!cls) return;
@@ -1886,12 +2127,18 @@ function editClass(classId) {
   elements.editClassId.value = classId;
   elements.classForm.elements.className.value = cls.ClassName || '';
   elements.classForm.elements.capacity.value = cls.Capacity || '';
+  if (elements.classYearInput) {
+    elements.classYearInput.value = classYear(cls);
+  }
   // Set teacher dropdown
   if (elements.classTeacherSelect) {
     elements.classTeacherSelect.value = cls.TeacherID || '';
   }
-  elements.classSubmitButton.textContent = 'Save Changes';
-  elements.cancelClassEditButton.classList.remove('hidden');
+  elements.classSubmitButton.textContent = 'Save Class';
+  document.getElementById('classDialogTitle').textContent = 'Edit class';
+  document.getElementById('classDialogSubtitle').textContent = 'Update class setup and teacher assignment.';
+  elements.classDialog?.classList.remove('hidden');
+  elements.classForm.elements.className?.focus();
 }
 
 function resetClassForm() {
@@ -1899,21 +2146,134 @@ function resetClassForm() {
   elements.editClassId.value = '';
   elements.classForm.reset();
   elements.classSubmitButton.textContent = 'Add Class';
-  elements.cancelClassEditButton.classList.add('hidden');
+  elements.classDialog?.classList.add('hidden');
+}
+
+async function openAttendanceDialog() {
+  await refreshAttendance();
+  renderAttendance();
+  elements.attendanceDialog?.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeAttendanceDialog() {
+  elements.attendanceDialog?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
+
+function closeAttendanceUndoDialog() {
+  state.selectedAttendanceUndoId = null;
+  elements.attendanceUndoDialog?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
+async function undoAttendanceTime(field) {
+  if (!state.selectedAttendanceUndoId) {
+    return;
+  }
+
+  try {
+    await api(`/api/attendance/${state.selectedAttendanceUndoId}/undo`, {
+      method: 'PATCH',
+      body: JSON.stringify({ field })
+    });
+    await refreshAttendance();
+    renderAttendance();
+    closeAttendanceUndoDialog();
+    showToast(field === 'arrival' ? 'Arrival undone' : 'Departure undone');
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+function attendancePayloadForStudent(student, row, overrides = {}) {
+  const selectedDate = elements.attendanceDateInput?.value || new Date().toISOString().slice(0, 10);
+  const studentClass = student.ClassName
+    ? state.classes.find((item) => String(item.ClassName || '').trim().toLowerCase() === String(student.ClassName).trim().toLowerCase())
+    : null;
+  const existingRecord = attendanceRecordForStudent(student.StudentID);
+  const status = row?.querySelector('[data-attendance-field="status"]')?.value || 'Present';
+  const arrivalInput = row?.querySelector('[data-attendance-field="arrivalTime"]')?.value || '';
+  const departureInput = row?.querySelector('[data-attendance-field="departureTime"]')?.value || '';
+
+  const clearTimes = status === 'Absent';
+
+  const payload = {
+    studentId: student.StudentID,
+    attendanceDate: selectedDate,
+    status,
+    arrivalTime: clearTimes ? '' : (arrivalInput || timeInputValue(existingRecord?.ArrivalTimeDisplay || existingRecord?.ArrivalTime)),
+    departureTime: clearTimes ? '' : (departureInput || timeInputValue(existingRecord?.DepartureTimeDisplay || existingRecord?.DepartureTime)),
+    notes: row?.querySelector('[data-attendance-field="notes"]')?.value || '',
+    ...overrides
+  };
+
+  if (studentClass?.ClassID) {
+    payload.classId = studentClass.ClassID;
+  }
+
+  return payload;
+}
+
+async function saveAttendanceRow(row) {
+  const studentId = Number(row?.dataset.attendanceStudent);
+  const student = state.students.find((item) => Number(item.StudentID) === studentId);
+  if (!student) {
+    showToast('Student record not found');
+    return;
+  }
+
+  try {
+    await api('/api/attendance', {
+      method: 'POST',
+      body: JSON.stringify(attendancePayloadForStudent(student, row))
+    });
+    await refreshAttendance();
+    renderAttendance();
+    showToast('Attendance saved');
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+function classYear(item) {
+  return Number(item.AcademicYear || item.ActiveYear || item.ClassYear || item.Year || new Date().getFullYear());
 }
 
 function filteredClasses() {
   const search = String(elements.classSearchInput?.value || '').trim().toLowerCase();
+  const classNameSort = String(elements.classNameFilterInput?.value || '');
+  const teacherSort = String(elements.classTeacherFilterInput?.value || '');
+  const learnerSort = String(elements.classLearnerFilterInput?.value || '');
+  const status = String(elements.classStatusFilterInput?.value || '');
+  const year = elements.classYearFilterInput?.value === '' ? null : Number(elements.classYearFilterInput?.value);
 
-  if (!search) {
-    return state.classes;
-  }
-
-  return state.classes.filter((item) => [
+  const rows = state.classes.filter((item) => [
     item.ClassName,
     item.TeacherFirstName,
     item.TeacherLastName
-  ].some((value) => String(value || '').toLowerCase().includes(search)));
+  ].some((value) => String(value || '').toLowerCase().includes(search)))
+    .filter((item) => !status || (status === 'active' ? item.IsActive !== false : item.IsActive === false))
+    .filter((item) => year === null || classYear(item) === year);
+
+  return rows.sort((a, b) => {
+    if (classNameSort) {
+      return String(a.ClassName || '').localeCompare(String(b.ClassName || '')) * (classNameSort === 'za' ? -1 : 1);
+    }
+
+    if (teacherSort) {
+      const teacherA = `${a.TeacherFirstName || ''} ${a.TeacherLastName || ''}`.trim();
+      const teacherB = `${b.TeacherFirstName || ''} ${b.TeacherLastName || ''}`.trim();
+      return teacherA.localeCompare(teacherB) * (teacherSort === 'za' ? -1 : 1);
+    }
+
+    if (learnerSort) {
+      return (Number(a.StudentCount || 0) - Number(b.StudentCount || 0)) * (learnerSort === 'desc' ? -1 : 1);
+    }
+
+    return 0;
+  });
 }
 
 function renderClasses() {
@@ -1924,12 +2284,14 @@ function renderClasses() {
   elements.classesTable.innerHTML = filteredClasses().map((item, index) => {
     const teacherName = `${item.TeacherFirstName || ''} ${item.TeacherLastName || ''}`.trim() || '-';
     const isActive = item.IsActive !== false;
+    const year = classYear(item);
 
     return `
       <tr>
         <td>${index + 1}</td>
         <td>${escapeHtml(item.ClassName || '-')}</td>
         <td>${escapeHtml(teacherName)}</td>
+        <td>${escapeHtml(year)}</td>
         <td>${escapeHtml(item.StudentCount ?? 0)}${item.Capacity ? ` / ${escapeHtml(item.Capacity)}` : ''}</td>
         <td><span class="${isActive ? 'badge' : 'badge danger'}">${isActive ? 'Active' : 'Inactive'}</span></td>
         <td>
@@ -1942,41 +2304,241 @@ function renderClasses() {
         </td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="6">No class records found.</td></tr>';
+  }).join('') || '<tr><td colspan="7">No class records found.</td></tr>';
 }
 
-function renderAttendance() {
+function attendanceClassKey(value) {
+  return String(value || 'unassigned')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'unassigned';
+}
+
+function attendanceStatusClass(status) {
+  if (status === 'Present') return 'badge';
+  if (status === 'Absent') return 'badge danger';
+  return 'badge';
+}
+
+function attendanceClassGroups() {
+  const classes = state.classes
+    .map((item) => ({
+      key: attendanceClassKey(item.ClassName || item.ClassID),
+      name: item.ClassName || `Class ${item.ClassID}`,
+      records: []
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const groups = new Map(classes.map((item) => [item.key, item]));
+
+  state.attendance.forEach((record) => {
+    const className = record.ClassName || 'Unassigned';
+    const key = attendanceClassKey(className);
+    if (!groups.has(key)) {
+      groups.set(key, { key, name: className, records: [] });
+    }
+    groups.get(key).records.push(record);
+  });
+
+  return Array.from(groups.values()).sort((a, b) => {
+    if (a.name === 'Unassigned') return 1;
+    if (b.name === 'Unassigned') return -1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function attendanceRecordForStudent(studentId) {
+  return state.attendance.find((record) => Number(record.StudentID) === Number(studentId));
+}
+
+function attendanceRegisterRows() {
+  return state.students
+    .filter((student) => student.IsActive !== false)
+    .map((student) => ({
+      student,
+      record: attendanceRecordForStudent(student.StudentID)
+    }));
+}
+
+function filteredAttendanceRegisterRows() {
+  const query = String(state.attendanceSearchQuery || '').trim().toLowerCase();
+  const searchType = state.attendanceSearchType || 'Student name';
+  const statusFilter = state.attendanceStatusFilter || 'all';
+  const classFilter = state.attendanceClassFilter || 'all';
+
+  return attendanceRegisterRows()
+    .filter(({ student }) => {
+      if (classFilter === 'all') return true;
+      return String(student.ClassName || '').trim().toLowerCase() === classFilter.toLowerCase();
+    })
+    .filter(({ record }) => {
+      if (statusFilter === 'all') return true;
+      if (statusFilter === 'completed') return Boolean(record);
+      if (statusFilter === 'incomplete') return !record;
+      return record?.Status === statusFilter;
+    })
+    .filter(({ student, record }) => {
+      if (!query) return true;
+      const values = {
+        'Student name': student.FirstName || '',
+        'Student surname': student.LastName || '',
+        Class: student.ClassName || '',
+        Status: record?.Status || 'Not Recorded'
+      };
+      return String(values[searchType] || '').toLowerCase().includes(query);
+    })
+    .slice(0, Number(state.attendancePageSize || 9999));
+}
+
+function renderAttendanceRegister() {
   if (!elements.attendanceTable) {
     return;
   }
 
-  const counts = state.attendance.reduce((summary, record) => {
-    const status = record.Status || 'Present';
-    summary[status] = (summary[status] || 0) + 1;
-    return summary;
-  }, {});
+  // Populate class filter dropdown
+  if (elements.attendanceClassFilterInput) {
+    const classNames = [...new Set(state.students.filter(s => s.IsActive !== false).map(s => s.ClassName).filter(Boolean))].sort();
+    const currentVal = state.attendanceClassFilter || 'all';
+    elements.attendanceClassFilterInput.innerHTML = '<option value="all">All classes</option>' +
+      classNames.map(name => `<option value="${escapeHtml(name)}" ${currentVal === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
+    elements.attendanceClassFilterInput.value = currentVal;
+  }
 
-  elements.attendanceSummaryTable.innerHTML = ['Present', 'Absent', 'Late', 'Excused'].map((status) => `
-    <tr>
-      <td>${status}</td>
-      <td>${counts[status] || 0}</td>
-    </tr>
-  `).join('');
+  const selectedDate = elements.attendanceDateInput?.value || new Date().toISOString().slice(0, 10);
+  const rows = filteredAttendanceRegisterRows();
 
-  elements.attendanceTable.innerHTML = state.attendance.map((record) => {
-    const statusClass = record.Status === 'Present' ? 'badge' : record.Status === 'Absent' ? 'badge danger' : 'badge warn';
-    const studentName = `${record.FirstName || ''} ${record.LastName || ''}`.trim() || `Student ${record.StudentID}`;
+  elements.attendanceTable.innerHTML = rows.map(({ student, record }) => {
+    const studentName = `${student.FirstName || ''} ${student.LastName || ''}`.trim() || `Student ${student.StudentID}`;
+    const status = record?.Status || 'Present';
+    const rowId = record?.AttendanceID || '';
+    const arrival = timeInputValue(record?.ArrivalTimeDisplay || record?.ArrivalTime);
+    const departure = timeInputValue(record?.DepartureTimeDisplay || record?.DepartureTime);
+    const isRecorded = Boolean(record);
+    const selected = (value) => status === value ? 'selected' : '';
 
     return `
-      <tr>
-        <td>${dateOnly(record.AttendanceDate)}</td>
-        <td>${escapeHtml(studentName)}</td>
-        <td>${escapeHtml(record.ClassName || '-')}</td>
-        <td><span class="${statusClass}">${escapeHtml(record.Status || '-')}</span></td>
-        <td>${escapeHtml(record.Notes || '-')}</td>
+      <tr class="${isRecorded ? 'attendance-recorded-row' : ''}" data-attendance-student="${student.StudentID}" data-attendance-record="${escapeHtml(rowId)}">
+        <td>
+          <strong>${escapeHtml(studentName)}</strong>
+        </td>
+        <td>${escapeHtml(student.ClassName || 'No class assigned')}</td>
+        <td>
+          <select class="thin-input" data-attendance-field="status">
+            <option value="Present" ${selected('Present')}>Present</option>
+            <option value="Absent" ${selected('Absent')}>Absent</option>
+          </select>
+        </td>
+        <td>
+          <input class="thin-input ${arrival ? 'time-filled' : ''}" data-attendance-field="arrivalTime" type="time" value="${escapeHtml(arrival)}" ${status === 'Absent' ? 'disabled' : ''}>
+        </td>
+        <td>
+          <input class="thin-input ${departure ? 'time-filled' : ''}" data-attendance-field="departureTime" type="time" value="${escapeHtml(departure)}" ${status === 'Absent' ? 'disabled' : ''}>
+        </td>
+        <td>
+          <input class="thin-input" data-attendance-field="notes" type="text" value="${escapeHtml(record?.Notes || '')}">
+          ${record?.Notes ? `<span class="attendance-field-value">${escapeHtml(record.Notes)}</span>` : ''}
+        </td>
+        <td>
+          <button class="primary-button compact-button" data-action="save-attendance-row" type="button">Save</button>
+        </td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="5">No attendance records found for this date.</td></tr>';
+  }).join('') || '<tr><td colspan="7">No students found for attendance.</td></tr>';
+}
+
+function renderAttendance() {
+  renderAttendanceRegister();
+
+  if (!elements.attendanceClassTabs || !elements.attendanceClassPanels) {
+    return;
+  }
+
+  const groups = attendanceClassGroups();
+
+  if (!groups.length) {
+    state.selectedAttendanceClassKey = null;
+    elements.attendanceClassTabs.innerHTML = '';
+    elements.attendanceClassPanels.innerHTML = '<p class="empty-state">No classes found for this school.</p>';
+    return;
+  }
+
+  if (!state.selectedAttendanceClassKey || !groups.some((group) => group.key === state.selectedAttendanceClassKey)) {
+    state.selectedAttendanceClassKey = groups[0].key;
+  }
+
+  const selectedDate = elements.attendanceDateInput?.value || new Date().toISOString().slice(0, 10);
+  if (elements.attendanceDialogSubtitle) {
+    elements.attendanceDialogSubtitle.textContent = `Completed attendance for ${dateOnly(selectedDate)}, grouped by class.`;
+  }
+
+  elements.attendanceClassTabs.innerHTML = groups.map((group) => `
+    <button class="form-tab ${group.key === state.selectedAttendanceClassKey ? 'active' : ''}" data-attendance-class="${escapeHtml(group.key)}" type="button">
+      ${escapeHtml(group.name)}
+    </button>
+  `).join('');
+
+  elements.attendanceClassPanels.innerHTML = groups.map((group) => {
+    const rows = group.records.map((record) => {
+      const studentName = `${record.FirstName || ''} ${record.LastName || ''}`.trim() || `Student ${record.StudentID}`;
+
+      return `
+        <tr>
+          <td>${dateOnly(record.AttendanceDate)}</td>
+          <td>${escapeHtml(studentName)}</td>
+          <td><span class="${attendanceStatusClass(record.Status)}">${escapeHtml(record.Status || '-')}</span></td>
+          <td>${escapeHtml(record.Notes || '-')}</td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="4">No completed attendance found for this class on the selected date.</td></tr>';
+
+    return `
+      <section class="form-tab-panel ${group.key === state.selectedAttendanceClassKey ? 'active' : ''}" data-attendance-panel="${escapeHtml(group.key)}">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Student</th>
+                <th>Status</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </section>
+    `;
+  }).join('');
+}
+
+function filteredEmployees() {
+  const searchType = String(elements.staffSearchTypeInput?.value || 'Name');
+  const search = String(elements.staffSearchInput?.value || '').trim().toLowerCase();
+  const status = String(elements.staffStatusFilterInput?.value || '');
+  const role = String(elements.staffRoleFilterInput?.value || 'All roles');
+
+  return state.employees
+    .filter((employee) => {
+      if (!search) return true;
+      const employeeNumber = employee.EmployeeNumber || (employee.EmployeeID ? `S${String(employee.EmployeeID).padStart(3, '0')}` : '');
+      const values = {
+        Name: `${employee.FirstName || ''} ${employee.LastName || ''}`,
+        'Staff number': employeeNumber,
+        Email: employee.Email || ''
+      };
+      return String(values[searchType] || '').toLowerCase().includes(search);
+    })
+    .filter((employee) => {
+      if (!status) return true;
+      const isActive = employee.IsActive !== false;
+      return status === 'Active' ? isActive : !isActive;
+    })
+    .filter((employee) => {
+      if (!role || role === 'All roles') return true;
+      const jobTitle = String(employee.JobTitle || employee.Department || '').toLowerCase();
+      return jobTitle.includes(role.toLowerCase());
+    });
 }
 
 function renderEmployees() {
@@ -1984,7 +2546,7 @@ function renderEmployees() {
     return;
   }
 
-  elements.employeesTable.innerHTML = state.employees.map((employee, index) => {
+  elements.employeesTable.innerHTML = filteredEmployees().map((employee, index) => {
     const isActive = employee.IsActive !== false;
     const employeeNumber = employee.EmployeeNumber || (employee.EmployeeID ? `S${String(employee.EmployeeID).padStart(3, '0')}` : '-');
 
@@ -2003,6 +2565,41 @@ function renderEmployees() {
   }).join('') || '<tr><td colspan="8">No staff records found.</td></tr>';
 
   renderPayslipEmployeeOptions();
+}
+
+function renderEmployeeRoleOptions(selectedRole = '') {
+  if (!elements.employeeRoleSelect) {
+    return;
+  }
+
+  const roleNames = [...new Set(state.staffRoles
+    .map((role) => String(role.RoleName || '').trim())
+    .filter(Boolean))];
+
+  if (selectedRole && !roleNames.includes(selectedRole)) {
+    roleNames.push(selectedRole);
+  }
+
+  elements.employeeRoleSelect.innerHTML = roleNames.length
+    ? '<option value="">Select role</option>' + roleNames.map((roleName) => `<option value="${escapeHtml(roleName)}">${escapeHtml(roleName)}</option>`).join('')
+    : '<option value="">No roles configured</option>';
+  elements.employeeRoleSelect.disabled = roleNames.length === 0;
+  elements.employeeRoleSelect.value = selectedRole || '';
+}
+
+function renderEmployeeDepartmentOptions(selectedDepartment = '') {
+  if (!elements.employeeDepartmentSelect) {
+    return;
+  }
+
+  const departments = ['Pre-School', 'Primary'];
+  if (selectedDepartment && !departments.includes(selectedDepartment)) {
+    departments.push(selectedDepartment);
+  }
+
+  elements.employeeDepartmentSelect.innerHTML = '<option value="">Select department</option>'
+    + departments.map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`).join('');
+  elements.employeeDepartmentSelect.value = selectedDepartment || '';
 }
 
 function renderPayslipEmployeeOptions() {
@@ -2125,7 +2722,7 @@ function renderRegisterLearnerOptions() {
   const families = currentSchoolFamilies();
   elements.registerLearnerFamilySelect.innerHTML = '<option value="">New family / not listed</option>' +
     families.map((f) => '<option value="' + f.FamilyID + '">' + escapeHtml(f.FamilyName) + '</option>').join('');
-  populateBillingSelect(elements.registerLearnerBillingSelect);
+  renderRegisterLearnerBillingPicker();
 }
 
 
@@ -2183,9 +2780,10 @@ async function refreshOutstandingFees() {
 }
 
 function renderStudentStatusFilter() {
-  document.querySelectorAll('[data-student-status]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.studentStatus === state.studentStatusFilter);
-  });
+  const statusSelect = document.getElementById('studentStatusFilterInput');
+  if (statusSelect) {
+    statusSelect.value = state.studentStatusFilter;
+  }
 }
 
 function renderTransactions() {
@@ -2308,7 +2906,7 @@ function closePaymentDialog() {
   elements.paymentForm.reset();
 }
 
-function openEmployeeDialog(employeeId = null) {
+async function openEmployeeDialog(employeeId = null) {
   const form = elements.employeeForm;
   const employee = employeeId
     ? state.employees.find((item) => item.EmployeeID === Number(employeeId))
@@ -2321,14 +2919,17 @@ function openEmployeeDialog(employeeId = null) {
 
   state.editingEmployeeId = employee?.EmployeeID || null;
   form.reset();
+  if (!state.staffRoles.length) {
+    await refreshStaffRoles();
+  }
   setFormValue(form, 'employeeId', employee?.EmployeeID || '');
   setFormValue(form, 'employeeNumber', employee?.EmployeeNumber || '');
   setFormValue(form, 'firstName', employee?.FirstName || '');
   setFormValue(form, 'lastName', employee?.LastName || '');
   setFormValue(form, 'email', employee?.Email || '');
   setFormValue(form, 'phone', employee?.Phone || '');
-  setFormValue(form, 'jobTitle', employee?.JobTitle || '');
-  setFormValue(form, 'department', employee?.Department || '');
+  renderEmployeeRoleOptions(employee?.JobTitle || '');
+  renderEmployeeDepartmentOptions(employee?.Department || '');
   setFormValue(form, 'startDate', employee?.StartDate ? employee.StartDate.slice(0, 10) : new Date().toISOString().slice(0, 10));
   setFormValue(form, 'salary', Number(employee?.Salary || 0).toFixed(2));
   setFormValue(form, 'standardAllowances', Number(employee?.StandardAllowances || 0).toFixed(2));
@@ -3222,6 +3823,7 @@ elements.classForm.addEventListener('submit', async (event) => {
     const payload = formData(elements.classForm);
     payload.teacherId = payload.teacherId ? Number(payload.teacherId) : null;
     payload.capacity = payload.capacity ? Number(payload.capacity) : null;
+    payload.classYear = payload.classYear ? Number(payload.classYear) : new Date().getFullYear();
 
     if (isEdit) {
       await api('/api/classes/' + state.editingClassId, {
@@ -3250,6 +3852,24 @@ elements.classForm.addEventListener('submit', async (event) => {
 
 elements.classSearchInput.addEventListener('input', renderClasses);
 
+[
+  elements.classNameFilterInput,
+  elements.classTeacherFilterInput,
+  elements.classLearnerFilterInput,
+  elements.classStatusFilterInput,
+  elements.classYearFilterInput
+].forEach((input) => {
+  input?.addEventListener('input', renderClasses);
+  input?.addEventListener('change', renderClasses);
+});
+
+if (elements.classYearFilterInput && !elements.classYearFilterInput.value) {
+  elements.classYearFilterInput.value = new Date().getFullYear();
+}
+
+elements.openClassDialogButton?.addEventListener('click', openClassDialog);
+elements.closeClassDialogButton?.addEventListener('click', resetClassForm);
+
 if (elements.cancelClassEditButton) {
   elements.cancelClassEditButton.addEventListener('click', resetClassForm);
 }
@@ -3258,6 +3878,76 @@ elements.attendanceDateInput.addEventListener('change', async () => {
   await refreshAttendance();
   renderAttendance();
 });
+
+elements.attendanceSearchTypeSelect?.addEventListener('change', () => {
+  state.attendanceSearchType = elements.attendanceSearchTypeSelect.value;
+  renderAttendance();
+});
+
+elements.attendanceSearchInput?.addEventListener('input', () => {
+  state.attendanceSearchQuery = elements.attendanceSearchInput.value;
+  renderAttendance();
+});
+
+elements.attendancePageSize?.addEventListener('change', () => {
+  state.attendancePageSize = Number(elements.attendancePageSize.value);
+  renderAttendance();
+});
+
+elements.attendanceStatusFilterInput?.addEventListener('change', () => {
+  state.attendanceStatusFilter = elements.attendanceStatusFilterInput.value;
+  renderAttendance();
+});
+
+elements.attendanceClassFilterInput?.addEventListener('change', () => {
+  state.attendanceClassFilter = elements.attendanceClassFilterInput.value;
+  renderAttendance();
+});
+
+elements.viewAttendanceButton?.addEventListener('click', openAttendanceDialog);
+elements.closeAttendanceDialogButton?.addEventListener('click', closeAttendanceDialog);
+elements.cancelAttendanceDialogButton?.addEventListener('click', closeAttendanceDialog);
+elements.closeAttendanceUndoDialogButton?.addEventListener('click', closeAttendanceUndoDialog);
+elements.cancelAttendanceUndoButton?.addEventListener('click', closeAttendanceUndoDialog);
+elements.undoArrivalButton?.addEventListener('click', () => undoAttendanceTime('arrival'));
+elements.undoDepartureButton?.addEventListener('click', () => undoAttendanceTime('departure'));
+
+elements.attendanceClassTabs?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-attendance-class]');
+  if (!button) {
+    return;
+  }
+
+  state.selectedAttendanceClassKey = button.dataset.attendanceClass;
+  renderAttendance();
+});
+
+elements.attendanceTable?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-action]');
+  if (!button) {
+    return;
+  }
+
+  const row = button.closest('tr');
+  if (button.dataset.action === 'save-attendance-row') {
+    saveAttendanceRow(row);
+  }
+});
+
+elements.attendanceTable?.addEventListener('change', (event) => {
+  const select = event.target.closest('[data-attendance-field="status"]');
+  if (!select) return;
+  const row = select.closest('tr');
+  const isAbsent = select.value === 'Absent';
+  const arrivalInput = row.querySelector('[data-attendance-field="arrivalTime"]');
+  const departureInput = row.querySelector('[data-attendance-field="departureTime"]');
+  if (arrivalInput) { arrivalInput.disabled = isAbsent; if (isAbsent) arrivalInput.value = ''; }
+  if (departureInput) { departureInput.disabled = isAbsent; if (isAbsent) departureInput.value = ''; }
+});
+
+// Autosave removed - attendance saves only via Save button
+
+// Autosave on time input removed - saves only via Save button
 
 elements.attendanceForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -3268,9 +3958,18 @@ elements.attendanceForm.addEventListener('submit', async (event) => {
     }
 
     setFormBusy(elements.attendanceForm, true, 'Saving...');
+    const payload = formData(elements.attendanceForm);
+    const selectedStudent = state.students.find((student) => Number(student.StudentID) === Number(payload.studentId));
+    const studentClass = selectedStudent?.ClassName
+      ? state.classes.find((item) => String(item.ClassName || '').trim().toLowerCase() === String(selectedStudent.ClassName).trim().toLowerCase())
+      : null;
+    if (studentClass?.ClassID) {
+      payload.classId = studentClass.ClassID;
+    }
+
     await api('/api/attendance', {
       method: 'POST',
-      body: JSON.stringify(formData(elements.attendanceForm))
+      body: JSON.stringify(payload)
     });
 
     await refreshAttendance();
@@ -3376,6 +4075,16 @@ elements.payslipForm.addEventListener('submit', async (event) => {
 
 elements.payslipEmployeeSelect?.addEventListener('change', applySelectedEmployeePayrollDefaults);
 
+[
+  elements.staffSearchTypeInput,
+  elements.staffSearchInput,
+  elements.staffStatusFilterInput,
+  elements.staffRoleFilterInput
+].forEach((input) => {
+  input?.addEventListener('input', renderEmployees);
+  input?.addEventListener('change', renderEmployees);
+});
+
 elements.payslipEditForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
@@ -3423,15 +4132,6 @@ elements.payslipEditForm?.addEventListener('submit', async (event) => {
   } finally {
     setFormBusy(form, false);
   }
-});
-
-document.querySelectorAll('[data-student-status]').forEach((button) => {
-  button.addEventListener('click', async () => {
-    state.studentStatusFilter = button.dataset.studentStatus;
-    hideDepartureForm();
-    renderStudentStatusFilter();
-    await refreshData();
-  });
 });
 
 elements.departureReasonSelect.addEventListener('change', () => {
@@ -3576,6 +4276,12 @@ elements.paymentDialog.addEventListener('click', (event) => {
   }
 });
 
+elements.classDialog?.addEventListener('click', (event) => {
+  if (event.target === elements.classDialog) {
+    resetClassForm();
+  }
+});
+
 elements.employeeDialog?.addEventListener('click', (event) => {
   if (event.target === elements.employeeDialog) {
     closeEmployeeDialog();
@@ -3603,6 +4309,9 @@ elements.familyEditDialog?.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !elements.paymentDialog.classList.contains('hidden')) {
     closePaymentDialog();
+  }
+  if (event.key === 'Escape' && elements.classDialog && !elements.classDialog.classList.contains('hidden')) {
+    resetClassForm();
   }
   if (event.key === 'Escape' && elements.employeeDialog && !elements.employeeDialog.classList.contains('hidden')) {
     closeEmployeeDialog();
@@ -3818,12 +4527,12 @@ document.addEventListener('click', async (event) => {
   }
 
   if (action === 'open-employee-dialog') {
-    openEmployeeDialog();
+    await openEmployeeDialog();
     return;
   }
 
   if (action === 'edit-employee') {
-    openEmployeeDialog(button.dataset.id);
+    await openEmployeeDialog(button.dataset.id);
     return;
   }
 
@@ -4033,6 +4742,40 @@ if (elements.registerLearnerForm) {
     }
   });
 
+  document.addEventListener('dragstart', (event) => {
+    const card = event.target.closest('[data-billing-card]');
+    if (!card) return;
+    event.dataTransfer.setData('text/plain', card.dataset.billingId);
+    event.dataTransfer.effectAllowed = 'move';
+  });
+
+  [elements.registerLearnerBillingAvailable, elements.registerLearnerBillingAssigned].forEach((zone) => {
+    zone?.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      zone.classList.add('drag-over');
+    });
+    zone?.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone?.addEventListener('drop', (event) => {
+      event.preventDefault();
+      zone.classList.remove('drag-over');
+      const billingId = event.dataTransfer.getData('text/plain');
+      if (zone.dataset.billingZone === 'assigned') {
+        assignRegisterLearnerBilling(billingId);
+      } else {
+        unassignRegisterLearnerBilling(billingId);
+      }
+    });
+    zone?.addEventListener('click', (event) => {
+      const card = event.target.closest('[data-billing-card]');
+      if (!card) return;
+      if (card.dataset.billingCard === 'available') {
+        assignRegisterLearnerBilling(card.dataset.billingId);
+      } else {
+        unassignRegisterLearnerBilling(card.dataset.billingId);
+      }
+    });
+  });
+
   elements.registerLearnerForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = elements.registerLearnerForm;
@@ -4093,6 +4836,8 @@ if (elements.registerLearnerForm) {
       });
 
       form.reset();
+      state.registerLearnerBillingIds = [];
+      renderRegisterLearnerBillingPicker();
       showToast('Learner registered successfully');
       await refreshData();
       switchView('students');
@@ -4109,4 +4854,13 @@ elements.logoutButton.addEventListener('click', () => {
   window.location.href = '/school-login';
 });
 
+window.addEventListener('error', (event) => {
+  if (event.message && event.message.includes('null') && event.message.includes('innerHTML')) {
+    console.warn('[DEBUG] innerHTML null error at:', event.filename, 'line:', event.lineno, 'col:', event.colno);
+    event.preventDefault();
+  }
+});
+
+wireStudentSearch();
+wireParentSearch();
 renderShell();

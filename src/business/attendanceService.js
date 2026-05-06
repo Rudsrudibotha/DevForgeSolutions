@@ -7,7 +7,7 @@ class AttendanceService {
   constructor() {
     this.repo = new AttendanceRepository();
     this.parentRepository = new ParentRepository();
-    this.validStatuses = ['Present', 'Absent', 'Late', 'Excused'];
+    this.validStatuses = ['Present', 'Absent'];
   }
 
   async recordAttendance(data, currentUser) {
@@ -21,6 +21,8 @@ class AttendanceService {
     return await this.repo.recordAttendance({
       schoolId, studentId: Number(data.studentId), classId: data.classId ? Number(data.classId) : null,
       attendanceDate: data.attendanceDate, status: data.status,
+      arrivalTime: this.optionalTime(data.arrivalTime),
+      departureTime: this.optionalTime(data.departureTime),
       notes: data.notes || null, recordedBy: currentUser.UserID
     });
   }
@@ -33,11 +35,31 @@ class AttendanceService {
       const result = await this.repo.recordAttendance({
         schoolId, studentId: Number(record.studentId), classId: record.classId ? Number(record.classId) : null,
         attendanceDate: record.attendanceDate, status: record.status,
+        arrivalTime: this.optionalTime(record.arrivalTime),
+        departureTime: this.optionalTime(record.departureTime),
         notes: record.notes || null, recordedBy: currentUser.UserID
       });
       results.push(result);
     }
     return results;
+  }
+
+  async undoTime(attendanceId, field, currentUser) {
+    const parsedId = Number(attendanceId);
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+      throw new Error('Attendance ID must be a positive integer');
+    }
+
+    if (!['arrival', 'departure'].includes(field)) {
+      throw new Error('Undo field must be arrival or departure');
+    }
+
+    const updated = await this.repo.undoTime(parsedId, this.resolveSchoolId(currentUser), field, currentUser.UserID);
+    if (!updated) {
+      throw new Error('Attendance record not found');
+    }
+
+    return updated;
   }
 
   async getByDate(date, currentUser) {
@@ -74,6 +96,23 @@ class AttendanceService {
     if (currentUser.Role === 'admin') return currentUser.SchoolID;
     if (!currentUser.SchoolID) throw new Error('School users must be linked to a school');
     return currentUser.SchoolID;
+  }
+
+  optionalTime(value) {
+    if (value === '') {
+      return '';
+    }
+
+    if (!value) {
+      return null;
+    }
+
+    const normalized = String(value).trim();
+    if (!/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(normalized)) {
+      throw new Error('Time must use HH:mm format');
+    }
+
+    return normalized.length === 5 ? `${normalized}:00` : normalized;
   }
 }
 

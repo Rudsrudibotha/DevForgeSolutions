@@ -11,15 +11,42 @@ class AttendanceRepository {
       .input('classId', sql.Int, data.classId || null)
       .input('attendanceDate', sql.Date, data.attendanceDate)
       .input('status', sql.NVarChar, data.status)
+      .input('arrivalTime', sql.NVarChar, data.arrivalTime !== undefined ? data.arrivalTime : null)
+      .input('departureTime', sql.NVarChar, data.departureTime !== undefined ? data.departureTime : null)
       .input('notes', sql.NVarChar, data.notes || null)
       .input('recordedBy', sql.Int, data.recordedBy || null)
       .query(`MERGE Attendance AS t
               USING (SELECT @schoolId AS SchoolID, @studentId AS StudentID, @attendanceDate AS AttendanceDate) AS s
               ON t.SchoolID = s.SchoolID AND t.StudentID = s.StudentID AND t.AttendanceDate = s.AttendanceDate
-              WHEN MATCHED THEN UPDATE SET Status = @status, Notes = @notes, RecordedBy = @recordedBy, UpdatedDate = GETDATE()
-              WHEN NOT MATCHED THEN INSERT (SchoolID, StudentID, ClassID, AttendanceDate, Status, Notes, RecordedBy)
-                VALUES (@schoolId, @studentId, @classId, @attendanceDate, @status, @notes, @recordedBy)
-              OUTPUT INSERTED.*;`);
+              WHEN MATCHED THEN UPDATE SET
+                Status = @status,
+                ClassID = @classId,
+                ArrivalTime = CASE WHEN @arrivalTime IS NOT NULL AND LEN(@arrivalTime) > 0 THEN TRY_CONVERT(TIME, @arrivalTime) WHEN @arrivalTime = '' THEN NULL ELSE t.ArrivalTime END,
+                DepartureTime = CASE WHEN @departureTime IS NOT NULL AND LEN(@departureTime) > 0 THEN TRY_CONVERT(TIME, @departureTime) WHEN @departureTime = '' THEN NULL ELSE t.DepartureTime END,
+                Notes = @notes,
+                RecordedBy = @recordedBy,
+                UpdatedDate = GETDATE()
+              WHEN NOT MATCHED THEN INSERT (SchoolID, StudentID, ClassID, AttendanceDate, Status, ArrivalTime, DepartureTime, Notes, RecordedBy)
+                VALUES (@schoolId, @studentId, @classId, @attendanceDate, @status, TRY_CONVERT(TIME, @arrivalTime), TRY_CONVERT(TIME, @departureTime), @notes, @recordedBy)
+              OUTPUT INSERTED.*,
+                CONVERT(VARCHAR(5), INSERTED.ArrivalTime, 108) AS ArrivalTimeDisplay,
+                CONVERT(VARCHAR(5), INSERTED.DepartureTime, 108) AS DepartureTimeDisplay;`);
+    return result.recordset[0];
+  }
+
+  async undoTime(attendanceId, schoolId, field, recordedBy) {
+    const column = field === 'arrival' ? 'ArrivalTime' : 'DepartureTime';
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('attendanceId', sql.Int, attendanceId)
+      .input('schoolId', sql.Int, schoolId)
+      .input('recordedBy', sql.Int, recordedBy || null)
+      .query(`UPDATE Attendance
+              SET ${column} = NULL, RecordedBy = @recordedBy, UpdatedDate = GETDATE()
+              OUTPUT INSERTED.*,
+                CONVERT(VARCHAR(5), INSERTED.ArrivalTime, 108) AS ArrivalTimeDisplay,
+                CONVERT(VARCHAR(5), INSERTED.DepartureTime, 108) AS DepartureTimeDisplay
+              WHERE AttendanceID = @attendanceId AND SchoolID = @schoolId`);
     return result.recordset[0];
   }
 
@@ -28,7 +55,10 @@ class AttendanceRepository {
     const result = await pool.request()
       .input('schoolId', sql.Int, schoolId)
       .input('date', sql.Date, date)
-      .query(`SELECT a.*, s.FirstName, s.LastName, s.ClassName
+      .query(`SELECT a.*,
+                CONVERT(VARCHAR(5), a.ArrivalTime, 108) AS ArrivalTimeDisplay,
+                CONVERT(VARCHAR(5), a.DepartureTime, 108) AS DepartureTimeDisplay,
+                s.FirstName, s.LastName, s.ClassName
               FROM Attendance a
               INNER JOIN Students s ON a.StudentID = s.StudentID
               WHERE a.SchoolID = @schoolId AND a.AttendanceDate = @date
@@ -42,7 +72,10 @@ class AttendanceRepository {
     let where = 'WHERE a.StudentID = @studentId';
     if (fromDate) { req.input('fromDate', sql.Date, fromDate); where += ' AND a.AttendanceDate >= @fromDate'; }
     if (toDate) { req.input('toDate', sql.Date, toDate); where += ' AND a.AttendanceDate <= @toDate'; }
-    const result = await req.query(`SELECT a.* FROM Attendance a ${where} ORDER BY a.AttendanceDate DESC`);
+    const result = await req.query(`SELECT a.*,
+                                      CONVERT(VARCHAR(5), a.ArrivalTime, 108) AS ArrivalTimeDisplay,
+                                      CONVERT(VARCHAR(5), a.DepartureTime, 108) AS DepartureTimeDisplay
+                                    FROM Attendance a ${where} ORDER BY a.AttendanceDate DESC`);
     return result.recordset;
   }
 
@@ -54,7 +87,10 @@ class AttendanceRepository {
     let where = 'WHERE a.StudentID = @studentId AND a.SchoolID = @schoolId';
     if (fromDate) { req.input('fromDate', sql.Date, fromDate); where += ' AND a.AttendanceDate >= @fromDate'; }
     if (toDate) { req.input('toDate', sql.Date, toDate); where += ' AND a.AttendanceDate <= @toDate'; }
-    const result = await req.query(`SELECT a.* FROM Attendance a ${where} ORDER BY a.AttendanceDate DESC`);
+    const result = await req.query(`SELECT a.*,
+                                      CONVERT(VARCHAR(5), a.ArrivalTime, 108) AS ArrivalTimeDisplay,
+                                      CONVERT(VARCHAR(5), a.DepartureTime, 108) AS DepartureTimeDisplay
+                                    FROM Attendance a ${where} ORDER BY a.AttendanceDate DESC`);
     return result.recordset;
   }
 
@@ -67,8 +103,6 @@ class AttendanceRepository {
       .query(`SELECT s.ClassName,
                 SUM(CASE WHEN a.Status = 'Present' THEN 1 ELSE 0 END) AS PresentCount,
                 SUM(CASE WHEN a.Status = 'Absent' THEN 1 ELSE 0 END) AS AbsentCount,
-                SUM(CASE WHEN a.Status = 'Late' THEN 1 ELSE 0 END) AS LateCount,
-                SUM(CASE WHEN a.Status = 'Excused' THEN 1 ELSE 0 END) AS ExcusedCount,
                 COUNT(1) AS TotalRecords
               FROM Attendance a
               INNER JOIN Students s ON a.StudentID = s.StudentID

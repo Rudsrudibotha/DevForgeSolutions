@@ -21,6 +21,15 @@ INSERT INTO dbo.Users (Email, Username, PasswordHash, Role, SchoolID, IsActive)
 VALUES ('parenttest@devforge.local', 'parenttest', '$2a$10$uYEOUMFLEs7ZxXOrEqaGZuGUwRV1jzfozvMJ0QcthNYQ1ELHsTu/S', 'parent', NULL, 1);
 
 -- =============================================
+-- STAFF ROLES
+-- =============================================
+INSERT INTO dbo.StaffRoles (SchoolID, RoleName, Description, Permissions) VALUES
+(7, 'Teacher', 'Classroom teacher permissions', '["classes.view","attendance.capture","students.view"]'),
+(7, 'Finance', 'School finance permissions', '["finance.view","invoices.manage","payments.allocate","reports.finance"]'),
+(7, 'Admin', 'School administration permissions', '["students.manage","parents.manage","classes.manage","users.manage"]'),
+(7, 'HR', 'HR and payroll permissions', '["hr.view","hr.manage_payslips","hr.manage_leave","staff.manage"]');
+
+-- =============================================
 -- BILLING CATEGORIES
 -- =============================================
 INSERT INTO dbo.BillingCategories (SchoolID, CategoryName, Description, BaseAmount, Frequency) VALUES
@@ -46,11 +55,11 @@ INSERT INTO dbo.Families (SchoolID, FamilyName, PrimaryParentName, PrimaryParent
 -- =============================================
 -- CLASSES
 -- =============================================
-INSERT INTO dbo.Classes (SchoolID, ClassName, Capacity, IsActive) VALUES
-(7, 'Grade R', 25, 1),
-(7, 'Grade 1', 25, 1),
-(7, 'Grade 2', 25, 1),
-(7, 'Grade 3', 25, 1);
+INSERT INTO dbo.Classes (SchoolID, ClassName, Capacity, ActiveYear, IsActive) VALUES
+(7, 'Grade R', 25, 2026, 1),
+(7, 'Grade 1', 25, 2026, 1),
+(7, 'Grade 2', 25, 2026, 1),
+(7, 'Grade 3', 25, 2026, 1);
 
 -- =============================================
 -- EMPLOYEES (5 staff)
@@ -147,7 +156,7 @@ WHILE @d <= '2024-11-29'
 BEGIN
     IF DATEPART(WEEKDAY, @d) NOT IN (1, 7) -- skip weekends
     BEGIN
-        INSERT INTO dbo.Attendance (SchoolID, StudentID, AttendanceDate, Status, Notes)
+        INSERT INTO dbo.Attendance (SchoolID, StudentID, AttendanceDate, Status, ArrivalTime, DepartureTime, Notes)
         SELECT 7, s.StudentID, @d,
             CASE ABS(CHECKSUM(NEWID())) % 20
                 WHEN 0 THEN 'Absent'
@@ -155,6 +164,8 @@ BEGIN
                 WHEN 2 THEN 'Excused'
                 ELSE 'Present'
             END,
+            CASE WHEN ABS(CHECKSUM(NEWID())) % 20 = 0 THEN NULL ELSE CAST('07:30:00' AS TIME) END,
+            CASE WHEN ABS(CHECKSUM(NEWID())) % 20 = 0 THEN NULL ELSE CAST('14:00:00' AS TIME) END,
             NULL
         FROM dbo.Students s WHERE s.SchoolID = 7 AND s.IsActive = 1;
     END;

@@ -639,6 +639,8 @@ BEGIN
         ClassID INT NULL,
         AttendanceDate DATE NOT NULL,
         Status NVARCHAR(20) NOT NULL DEFAULT 'Present',
+        ArrivalTime TIME NULL,
+        DepartureTime TIME NULL,
         Notes NVARCHAR(500) NULL,
         RecordedBy INT NULL,
         CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
@@ -648,6 +650,16 @@ BEGIN
         CONSTRAINT FK_Attendance_Students FOREIGN KEY (StudentID) REFERENCES dbo.Students(StudentID),
         CONSTRAINT FK_Attendance_RecordedBy FOREIGN KEY (RecordedBy) REFERENCES dbo.Users(UserID)
     );
+END;
+
+IF COL_LENGTH('dbo.Attendance', 'ArrivalTime') IS NULL
+BEGIN
+    ALTER TABLE dbo.Attendance ADD ArrivalTime TIME NULL;
+END;
+
+IF COL_LENGTH('dbo.Attendance', 'DepartureTime') IS NULL
+BEGIN
+    ALTER TABLE dbo.Attendance ADD DepartureTime TIME NULL;
 END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Attendance_SchoolID_Date' AND object_id = OBJECT_ID('dbo.Attendance'))
@@ -669,6 +681,7 @@ BEGIN
         ClassName NVARCHAR(100) NOT NULL,
         TeacherID INT NULL,
         Capacity INT NULL,
+        ActiveYear INT NOT NULL DEFAULT (YEAR(GETDATE())),
         IsActive BIT NOT NULL DEFAULT 1,
         CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
         UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
@@ -677,9 +690,19 @@ BEGIN
     );
 END;
 
+IF COL_LENGTH('dbo.Classes', 'ActiveYear') IS NULL
+BEGIN
+    ALTER TABLE dbo.Classes ADD ActiveYear INT NOT NULL DEFAULT (YEAR(GETDATE()));
+END;
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Classes_SchoolID' AND object_id = OBJECT_ID('dbo.Classes'))
 BEGIN
     CREATE INDEX IX_Classes_SchoolID ON dbo.Classes(SchoolID);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Classes_SchoolID_ActiveYear' AND object_id = OBJECT_ID('dbo.Classes'))
+BEGIN
+    CREATE INDEX IX_Classes_SchoolID_ActiveYear ON dbo.Classes(SchoolID, ActiveYear);
 END;
 
 -- Timetable

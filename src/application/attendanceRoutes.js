@@ -36,4 +36,12 @@ router.post('/bulk', authenticateToken, requireSchoolOrAdmin, audit('Attendance'
   catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+router.patch('/:attendanceId/undo', authenticateToken, requireSchoolOrAdmin, audit('Attendance', 'UndoTime'), async (req, res) => {
+  try { res.json(await attendanceService.undoTime(req.params.attendanceId, req.body.field, req.user)); }
+  catch (e) {
+    const status = e.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ error: e.message });
+  }
+});
+
 module.exports = router;

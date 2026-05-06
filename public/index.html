@@ -19,7 +19,7 @@
 
         <nav class="nav-list" aria-label="Primary">
           <button class="nav-item active" data-view="overview" type="button" aria-current="page">Home</button>
-          <button class="nav-item" data-view="school" type="button">School</button>
+          <button class="nav-item" data-view="school" type="button">School Management</button>
           <button class="nav-item" data-view="finance" type="button">Finance</button>
           <button class="nav-item" data-view="reporting" type="button">Reporting</button>
           <button class="nav-item" data-view="account" type="button">Account</button>
@@ -50,7 +50,7 @@
                 <div class="module-grid">
                   <button class="module-tile" data-action="open-school" type="button">
                     <span class="module-icon schools-icon" aria-hidden="true">SC</span>
-                    <span>School</span>
+                    <span>School Management</span>
                   </button>
                   <button class="module-tile" data-action="open-finance" type="button">
                     <span class="module-icon finance-icon" aria-hidden="true">FI</span>
@@ -142,17 +142,19 @@
     TODO: Edit staff button to update details
   -->
             <div class="icon-page-layout">
-              <section class="form-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Staff</h3>
-                    <p>Search and filter staff for this school.</p>
-                  </div>
+              <section class="table-panel class-filter-panel">
+                <div class="class-filter-heading">
+                  <span class="filter-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M4 6h16l-6 7v5l-4 2v-7L4 6z"></path>
+                    </svg>
+                  </span>
+                  <span>Filter staff</span>
                 </div>
-                <div class="form-grid">
+                <div class="class-filter-grid student-filter-grid">
                   <label>
                     Search Type
-                    <select>
+                    <select id="staffSearchTypeInput" class="thin-input">
                       <option>Name</option>
                       <option>Staff number</option>
                       <option>Email</option>
@@ -160,18 +162,19 @@
                   </label>
                   <label>
                     Search Value
-                    <input type="search">
+                    <input id="staffSearchInput" class="thin-input" type="search">
                   </label>
                   <label>
                     Status
-                    <select>
+                    <select id="staffStatusFilterInput" class="thin-input">
+                      <option value="">All</option>
                       <option>Active</option>
                       <option>Inactive</option>
                     </select>
                   </label>
                   <label>
                     Role
-                    <select>
+                    <select id="staffRoleFilterInput" class="thin-input">
                       <option>All roles</option>
                       <option>Teacher</option>
                       <option>Finance</option>
@@ -179,14 +182,6 @@
                       <option>HR</option>
                     </select>
                   </label>
-                </div>
-              </section>
-              <section class="table-panel summary-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Staff Summary Chart</h3>
-                    <p>Employee module data appears here.</p>
-                  </div>
                 </div>
               </section>
             </div>
@@ -232,17 +227,19 @@
     TODO: Student birthday report data (DateOfBirth is stored)
   -->
             <div class="icon-page-layout">
-              <section class="form-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Students</h3>
-                    <p>Search and manage students for this school.</p>
-                  </div>
+              <section class="table-panel class-filter-panel">
+                <div class="class-filter-heading">
+                  <span class="filter-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M4 6h16l-6 7v5l-4 2v-7L4 6z"></path>
+                    </svg>
+                  </span>
+                  <span>Filter students</span>
                 </div>
-                <div class="form-grid">
+                <div class="class-filter-grid">
                   <label>
                     Search Type
-                    <select id="studentSearchTypeSelect">
+                    <select id="studentSearchTypeSelect" class="thin-input">
                       <option>Student name</option>
                       <option>Student surname</option>
                       <option>Parent name</option>
@@ -251,11 +248,11 @@
                   </label>
                   <label>
                     Search Value
-                    <input id="studentSearchInput" type="search" placeholder="Search students...">
+                    <input id="studentSearchInput" class="thin-input" type="search" placeholder="Search students...">
                   </label>
                   <label>
                     Show
-                    <select id="studentPageSize">
+                    <select id="studentPageSize" class="thin-input">
                       <option value="10" selected>10</option>
                       <option value="20">20</option>
                       <option value="40">40</option>
@@ -264,38 +261,14 @@
                       <option value="9999">All</option>
                     </select>
                   </label>
-                </div>
-                <div class="status-filter section-spacer" aria-label="Student status filter">
-                  <button class="filter-button active" data-student-status="active" type="button">Current</button>
-                  <button class="filter-button" data-student-status="inactive" type="button">Left / Inactive</button>
-                  <button class="filter-button" data-student-status="all" type="button">All</button>
-                </div>
-              </section>
-
-              <section class="table-panel summary-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Learner Count Chart</h3>
-                    <p>Current school learner summary.</p>
-                  </div>
-                </div>
-                <div class="metrics-grid">
-                  <div class="metric">
-                    <span id="primaryMetricLabel">Students</span>
-                    <strong id="schoolCount">0</strong>
-                  </div>
-                  <div class="metric">
-                    <span>Invoices</span>
-                    <strong id="invoiceCount">0</strong>
-                  </div>
-                  <div class="metric">
-                    <span>Pending value</span>
-                    <strong id="pendingValue">R0.00</strong>
-                  </div>
-                  <div class="metric">
-                    <span>Paid value</span>
-                    <strong id="paidValue">R0.00</strong>
-                  </div>
+                  <label>
+                    Status
+                    <select id="studentStatusFilterInput" class="thin-input">
+                      <option value="active">Current</option>
+                      <option value="inactive">Left / Inactive</option>
+                      <option value="all">All</option>
+                    </select>
+                  </label>
                 </div>
               </section>
             </div>
@@ -368,18 +341,19 @@
     TODO: Edit parent/family button on each row
   -->
             <div class="icon-page-layout">
-              <section id="parentsModulePanel" class="form-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Parents</h3>
-                    <p>Families and parent contacts for this school only.</p>
-                  </div>
+              <section id="parentsModulePanel" class="table-panel class-filter-panel">
+                <div class="class-filter-heading">
+                  <span class="filter-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M4 6h16l-6 7v5l-4 2v-7L4 6z"></path>
+                    </svg>
+                  </span>
+                  <span>Filter parents</span>
                 </div>
-                <div class="form-message info">Parents are added during learner registration. Use Edit on the parent list to update family and contact details.</div>
-                <div class="form-grid section-spacer">
+                <div class="class-filter-grid student-filter-grid">
                   <label>
                     Search by
-                    <select>
+                    <select id="parentSearchTypeSelect" class="thin-input">
                       <option>Parent Name</option>
                       <option>Student Name</option>
                       <option>Family Code</option>
@@ -389,24 +363,16 @@
                   </label>
                   <label>
                     Search Value
-                    <input type="search">
+                    <input id="parentSearchInput" class="thin-input" type="search">
                   </label>
                   <label>
                     Status
-                    <select>
-                      <option>Active</option>
-                      <option>Archived</option>
+                    <select id="parentStatusFilterInput" class="thin-input">
+                      <option value="active">Active</option>
+                      <option value="archived">Archived</option>
+                      <option value="all">All</option>
                     </select>
                   </label>
-                </div>
-              </section>
-
-              <section class="table-panel summary-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Parent Summary Chart</h3>
-                    <p>Parent/family totals for this school.</p>
-                  </div>
                 </div>
               </section>
             </div>
@@ -438,6 +404,8 @@
           <!-- TODO: School / Classes (README: Classes Section)
     DONE: Add class form (name, teacher, capacity)
     DONE: Class search filter
+    DONE: Column filters for class name, teacher, learner count, active status, and year
+    TODO: Wire class active year to the database and only show classes active for the selected academic year
     DONE: Class table with student count and capacity
     DONE: Edit / Deactivate / Activate class buttons
     TODO: Add timetable / schedule management per class (API exists: GET/POST /api/classes/timetable)
@@ -447,43 +415,56 @@
     TODO: Show student name, surname, student number, class, status, attendance for selected date
   -->
             <div class="icon-page-layout">
-              <section class="form-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Classes</h3>
-                    <p>Class setup and teacher assignment.</p>
-                  </div>
+              <section class="table-panel class-filter-panel">
+                <div class="class-filter-heading">
+                  <span class="filter-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M4 6h16l-6 7v5l-4 2v-7L4 6z"></path>
+                    </svg>
+                  </span>
+                  <span>Filter classes</span>
                 </div>
-                <form id="classForm" class="module-form flush-form">
-                  <input id="editClassId" name="classId" type="hidden">
-                  <div class="form-grid">
-                    <label>
-                      Class Name
-                      <input name="className" type="text" required>
-                    </label>
-                    <label>
-                      Teacher
-                      <select id="classTeacherSelect" name="teacherId"></select>
-                    </label>
-                    <label>
-                      Capacity
-                      <input name="capacity" type="number" min="1" step="1">
-                    </label>
-                  </div>
-                  <button id="classSubmitButton" class="primary-button compact-button" type="submit">Add Class</button>
-                  <button id="cancelClassEditButton" class="secondary-button compact-button hidden" type="button">Cancel Edit</button>
-                </form>
-                <label class="section-spacer">
-                  Search Class
-                  <input id="classSearchInput" type="search">
-                </label>
-              </section>
-              <section class="table-panel summary-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Class Summary Chart</h3>
-                    <p>Class totals appear here.</p>
-                  </div>
+                <div class="class-filter-grid">
+                  <label>
+                    Search Class
+                    <input id="classSearchInput" class="thin-input" type="search">
+                  </label>
+                  <label>
+                    Class Name
+                    <select id="classNameFilterInput" class="thin-input">
+                      <option value="">Default</option>
+                      <option value="az">A-Z</option>
+                      <option value="za">Z-A</option>
+                    </select>
+                  </label>
+                  <label>
+                    Teacher
+                    <select id="classTeacherFilterInput" class="thin-input">
+                      <option value="">Default</option>
+                      <option value="az">A-Z</option>
+                      <option value="za">Z-A</option>
+                    </select>
+                  </label>
+                  <label>
+                    Amount of Learners
+                    <select id="classLearnerFilterInput" class="thin-input">
+                      <option value="">Default</option>
+                      <option value="asc">0-100</option>
+                      <option value="desc">100-0</option>
+                    </select>
+                  </label>
+                  <label>
+                    Active
+                    <select id="classStatusFilterInput" class="thin-input">
+                      <option value="">All</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </label>
+                  <label>
+                    Year
+                    <input id="classYearFilterInput" class="thin-input" type="number" min="2000" max="2100" step="1">
+                  </label>
                 </div>
               </section>
             </div>
@@ -495,23 +476,31 @@
                       <th>#</th>
                       <th>Class Name</th>
                       <th>Teacher</th>
-                      <th>Learners</th>
-                      <th>Status</th>
+                      <th>Year</th>
+                      <th>Amount of Learners</th>
+                      <th>Active</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody id="classesTable"></tbody>
                 </table>
               </div>
+              <div class="actions stacked-actions">
+                <button id="openClassDialogButton" class="primary-button compact-button" type="button">Add Class</button>
+              </div>
             </section>
           </section>
 
           <section id="attendanceView" class="view grouped-view" data-group="school">
-          <!-- TODO: School / Attendance (README: Attendance Section)
+          <!-- TODO: Attendance (README: Attendance Section)
     DONE: Capture attendance form (student, date, status, note)
-    DONE: Attendance table with date, student, class, status, note
-    DONE: Attendance summary counts (Present, Absent, Late, Excused)
-    TODO: Filter attendance by class (add class dropdown)
+    DONE: Capture arrival time and departure time
+    DONE: Bottom attendance register table for completing today's attendance
+    DONE: Attendance register filters matching Student Management style
+    DONE: Undo popup for selected arrival/departure values
+    DONE: View completed attendance behind a button
+    DONE: Completed attendance grouped into tabs generated from school classes
+    DONE: Attendance table with date, student, status, note inside each class tab
     TODO: Bulk attendance capture - mark all students in a class at once
     TODO: Teacher attendance submission - teachers only see assigned classes
     TODO: Attendance approval / review - show submitted vs missing per class/date
@@ -545,6 +534,14 @@
                         <option value="Excused">Excused</option>
                       </select>
                     </label>
+                    <label>
+                      Arrival Time
+                      <input name="arrivalTime" type="time">
+                    </label>
+                    <label>
+                      Departure Time
+                      <input name="departureTime" type="time">
+                    </label>
                     <label class="wide">
                       Note
                       <input name="notes" type="text">
@@ -556,33 +553,87 @@
               <section class="table-panel summary-panel">
                 <div class="panel-header">
                   <div>
-                    <h3>Attendance Summary</h3>
-                    <p>Counts for the selected date.</p>
+                    <h3>Completed Attendance</h3>
+                    <p>View saved attendance grouped by class for the selected date.</p>
                   </div>
                 </div>
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Status</th>
-                        <th>Count</th>
-                      </tr>
-                    </thead>
-                    <tbody id="attendanceSummaryTable"></tbody>
-                  </table>
+                <div class="actions">
+                  <button id="viewAttendanceButton" class="primary-button compact-button" type="button">View Attendance</button>
+                </div>
+              </section>
+            </div>
+            <div class="icon-page-layout">
+              <section class="table-panel class-filter-panel">
+                <div class="class-filter-heading">
+                  <span class="filter-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M4 6h16l-6 7v5l-4 2v-7L4 6z"></path>
+                    </svg>
+                  </span>
+                  <span>Filter attendance</span>
+                </div>
+                <div class="class-filter-grid student-filter-grid">
+                  <label>
+                    Search Type
+                    <select id="attendanceSearchTypeSelect" class="thin-input">
+                      <option>Student name</option>
+                      <option>Student surname</option>
+                      <option>Class</option>
+                      <option>Status</option>
+                    </select>
+                  </label>
+                  <label>
+                    Search Value
+                    <input id="attendanceSearchInput" class="thin-input" type="search" placeholder="Search attendance...">
+                  </label>
+                  <label>
+                    Show
+                    <select id="attendancePageSize" class="thin-input">
+                      <option value="10">10</option>
+                      <option value="20">20</option>
+                      <option value="40">40</option>
+                      <option value="80">80</option>
+                      <option value="160">160</option>
+                      <option value="9999" selected>All</option>
+                    </select>
+                  </label>
+                  <label>
+                    Class
+                    <select id="attendanceClassFilterInput" class="thin-input">
+                      <option value="all">All classes</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    Status
+                    <select id="attendanceStatusFilterInput" class="thin-input">
+                      <option value="all">All</option>
+                      <option value="completed">Completed</option>
+                      <option value="incomplete">Incomplete</option>
+                      <option value="Present">Present</option>
+                      <option value="Absent">Absent</option>
+                    </select>
+                  </label>
                 </div>
               </section>
             </div>
             <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Today&apos;s Attendance Register</h3>
+                </div>
+              </div>
               <div class="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th>Date</th>
                       <th>Student</th>
                       <th>Class</th>
                       <th>Status</th>
+                      <th>Arrival</th>
+                      <th>Departure</th>
                       <th>Note</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody id="attendanceTable"></tbody>
@@ -622,6 +673,7 @@
     API: POST /api/platform/re-enrolment (process single)
     API: POST /api/platform/re-enrolment/bulk (process bulk)
     NEEDS: Academic year selector
+    TODO: When wired, year rollover must create or activate classes for the new academic year and archive classes that are no longer active for that year.
     NEEDS: Student list with current class, suggested new class, action (Promoted/Left/Retained/Pending)
     NEEDS: Preview before applying rollover
     NEEDS: Manual override of suggested class
@@ -769,12 +821,23 @@
                   </div>
 
                   <div class="form-tab-panel" data-form-panel="billing">
-                    <div class="form-grid">
-                      <label class="wide">
-                        Billing categories <span class="required-marker">*</span>
-                        <select id="registerLearnerBillingSelect" name="billingCategoryIds" multiple required></select>
-                      </label>
+                    <div class="billing-assignment-grid">
+                      <section class="billing-assignment-panel">
+                        <div class="billing-assignment-header">
+                          <h4>Billing Categories</h4>
+                          <span>Active school categories</span>
+                        </div>
+                        <div id="registerLearnerBillingAvailable" class="billing-drop-zone" data-billing-zone="available" aria-label="Available billing categories"></div>
+                      </section>
+                      <section class="billing-assignment-panel">
+                        <div class="billing-assignment-header">
+                          <h4>Assigned Billing</h4>
+                          <span>Used to bill this student monthly</span>
+                        </div>
+                        <div id="registerLearnerBillingAssigned" class="billing-drop-zone" data-billing-zone="assigned" aria-label="Assigned billing categories"></div>
+                      </section>
                     </div>
+                    <select id="registerLearnerBillingSelect" class="hidden" name="billingCategoryIds" multiple required></select>
                   </div>
 
                   <div class="form-tab-panel" data-form-panel="medical">
@@ -1961,6 +2024,41 @@
           </form>
         </div>
 
+        <div id="classDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="classDialogTitle">
+          <form id="classForm" class="modal-panel" novalidate>
+            <div class="modal-header">
+              <div>
+                <h3 id="classDialogTitle">Add class</h3>
+                <p id="classDialogSubtitle">Class setup and teacher assignment.</p>
+              </div>
+              <button id="closeClassDialogButton" class="ghost-button icon-button" type="button" aria-label="Close class form">&times;</button>
+            </div>
+            <input id="editClassId" name="classId" type="hidden">
+            <div class="form-grid">
+              <label>
+                Class Name
+                <input name="className" type="text" required>
+              </label>
+              <label>
+                Teacher
+                <select id="classTeacherSelect" name="teacherId"></select>
+              </label>
+              <label>
+                Capacity
+                <input name="capacity" type="number" min="1" step="1">
+              </label>
+              <label>
+                Year
+                <input id="classYearInput" name="classYear" type="number" min="2000" max="2100" step="1" required>
+              </label>
+            </div>
+            <div class="actions modal-actions">
+              <button id="cancelClassEditButton" class="secondary-button compact-button" type="button">Cancel</button>
+              <button id="classSubmitButton" class="primary-button compact-button" type="submit">Add Class</button>
+            </div>
+          </form>
+        </div>
+
         <div id="employeeDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="employeeDialogTitle">
           <form id="employeeForm" class="modal-panel student-edit-panel" novalidate>
             <div class="modal-header">
@@ -1977,8 +2075,18 @@
               <label>Employee number<input name="employeeNumber" type="text" placeholder="EMP001"></label>
               <label>Email<input name="email" type="email"></label>
               <label>Cell Number<input name="phone" type="tel"></label>
-              <label>Role<input name="jobTitle" type="text" placeholder="Teacher, Finance, Admin, HR"></label>
-              <label>Department<input name="department" type="text"></label>
+              <label>Role
+                <select id="employeeRoleSelect" name="jobTitle" required>
+                  <option value="">Select role</option>
+                </select>
+              </label>
+              <label>Department
+                <select id="employeeDepartmentSelect" name="department">
+                  <option value="">Select department</option>
+                  <option value="Pre-School">Pre-School</option>
+                  <option value="Primary">Primary</option>
+                </select>
+              </label>
               <label>Start date <span class="required-marker">*</span><input name="startDate" type="date" required></label>
               <label>Salary<input name="salary" type="number" min="0" step="0.01" value="0"></label>
               <label>Standard allowances<input name="standardAllowances" type="number" min="0" step="0.01" value="0"></label>
@@ -2007,6 +2115,40 @@
               <button class="primary-button compact-button" type="submit">Save staff</button>
             </div>
           </form>
+        </div>
+
+        <div id="attendanceDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="attendanceDialogTitle">
+          <div class="modal-panel attendance-view-panel">
+            <div class="modal-header">
+              <div>
+                <h3 id="attendanceDialogTitle">View Attendance</h3>
+                <p id="attendanceDialogSubtitle">Completed attendance grouped by class.</p>
+              </div>
+              <button id="closeAttendanceDialogButton" class="ghost-button icon-button" type="button" aria-label="Close attendance dialog">&times;</button>
+            </div>
+            <div id="attendanceClassTabs" class="form-tabs attendance-class-tabs" aria-label="Attendance class tabs"></div>
+            <div id="attendanceClassPanels" class="attendance-class-panels"></div>
+            <div class="actions modal-actions">
+              <button id="cancelAttendanceDialogButton" class="ghost-button" type="button">Close</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="attendanceUndoDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="attendanceUndoDialogTitle">
+          <div class="modal-panel">
+            <div class="modal-header">
+              <div>
+                <h3 id="attendanceUndoDialogTitle">Undo Attendance</h3>
+                <p id="attendanceUndoDialogText">Are you sure you would like to undo the selected record?</p>
+              </div>
+              <button id="closeAttendanceUndoDialogButton" class="ghost-button icon-button" type="button" aria-label="Close undo dialog">&times;</button>
+            </div>
+            <div class="actions modal-actions">
+              <button id="undoArrivalButton" class="ghost-button" type="button">Undo Arrival</button>
+              <button id="undoDepartureButton" class="ghost-button" type="button">Undo Departure</button>
+              <button id="cancelAttendanceUndoButton" class="secondary-button compact-button" type="button">Cancel</button>
+            </div>
+          </div>
         </div>
 
         <div id="payslipDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="payslipDialogTitle">
