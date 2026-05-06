@@ -733,6 +733,14 @@ form[aria-busy="true"] button[type="submit"] {
   align-items: start;
 }
 
+.register-learner-layout {
+  grid-template-columns: 1fr;
+}
+
+.register-learner-panel {
+  grid-column: 1 / -1;
+}
+
 .summary-panel .metrics-grid {
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
@@ -1424,6 +1432,22 @@ td[colspan],
 
 .required-marker {
   color: var(--danger);
+}
+
+.required-info-list {
+  margin: 0 0 16px;
+  padding-left: 22px;
+  color: #991b1b;
+  font-weight: 800;
+  line-height: 1.7;
+}
+
+.field-help {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 select[multiple] {

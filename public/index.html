@@ -76,7 +76,6 @@
                 <button class="module-tile" data-action="open-students" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-students.svg" alt="" aria-hidden="true"><span>Students</span></button>
                 <button class="module-tile" data-action="open-parents" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-parents.svg" alt="" aria-hidden="true"><span>Parents</span></button>
                 <button class="module-tile" data-action="open-attendance" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-attendance.svg" alt="" aria-hidden="true"><span>Attendance</span></button>
-                <button class="module-tile" data-action="open-admissions" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-admissions-enrolment.svg" alt="" aria-hidden="true"><span>Admissions / Enrolment</span></button>
                 <button class="module-tile" data-action="open-reenrolment" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-re-enrolment-year-rollover.svg" alt="" aria-hidden="true"><span>Re-Enrolment / Year Rollover</span></button>
                 <button class="module-tile" data-action="open-school-settings" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-settings.svg" alt="" aria-hidden="true"><span>School Settings</span></button>
                 <button class="module-tile" data-action="open-consent-permissions" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-consent-permissions.svg" alt="" aria-hidden="true"><span>Consent and Permissions</span></button>
@@ -591,31 +590,6 @@
             </section>
           </section>
 
-          <section id="admissionsView" class="view grouped-view" data-group="school">
-          <!-- TODO: School / Admissions / Enrolment (README: Admissions / Enrolment Section)
-    API: GET /api/school-features/admissions (list)
-    API: POST /api/school-features/admissions (create)
-    API: PUT /api/school-features/admissions/:id/status (update status)
-    NEEDS: Form to capture new applicant (firstName, lastName, dateOfBirth, className, notes)
-    NEEDS: Table showing all applications with status (New, In Review, Accepted, Waitlisted, Refused, Enrolled)
-    NEEDS: Status filter dropdown
-    NEEDS: Status update buttons (Accept, Waitlist, Refuse) per row
-    NEEDS: Convert accepted applicant to student (requires class, family, billing category, enrolment date)
-    NEEDS: Online enrolment form link generation per school
-    NEEDS: Terms and conditions management
-    NEEDS: Document upload for applicants
-  -->
-            <section class="table-panel page-table-panel">
-              <div class="panel-header">
-                <div>
-                  <h3>Admissions / Enrolment</h3>
-                  <p>Review and manage admissions for the signed-in School ID.</p>
-                </div>
-              </div>
-              <p>Admissions records and enrolment actions will appear here.</p>
-            </section>
-          </section>
-
           <section id="reenrolmentView" class="view grouped-view" data-group="school">
           <!-- TODO: School / Re-Enrolment / Year Rollover (README: Re-Enrolment / Year Rollover Section)
     API: GET /api/platform/re-enrolment?schoolId=X&year=Y (list)
@@ -667,12 +641,12 @@
           </section>
 
           <section id="registerLearnerView" class="view grouped-view" data-group="school">
-            <div class="icon-page-layout">
-              <section class="form-panel">
+            <div class="icon-page-layout register-learner-layout">
+              <section class="form-panel register-learner-panel">
                 <div class="panel-header">
                   <div>
                     <h3>Register Learner</h3>
-                    <p>Register a new learner for this school.</p>
+                    <p>Register a New Learner</p>
                   </div>
                 </div>
                 <form id="registerLearnerForm" class="module-form flush-form" novalidate>
@@ -698,8 +672,8 @@
                         <input name="dateOfBirth" type="date">
                       </label>
                       <label>
-                        Class
-                        <input name="className" type="text">
+                        Class <span class="required-marker">*</span>
+                        <select id="registerLearnerClassSelect" name="className"></select>
                       </label>
                       <label>
                         Starting date <span class="required-marker">*</span>
@@ -727,42 +701,52 @@
                         <select id="registerLearnerFamilySelect" name="familyId"></select>
                       </label>
                       <label>
+                        Select Parent <span class="required-marker">*</span>
+                        <select id="registerLearnerParentTypeSelect" name="parentType" required>
+                          <option value="">Select Parent</option>
+                          <option value="Mother">Mother</option>
+                          <option value="Father">Father</option>
+                          <option value="Both">Both parents</option>
+                        </select>
+                        <span class="field-help">Select the Parents information for the student to add a parent.</span>
+                      </label>
+                      <label data-parent-detail-field>
                         Family name <span class="required-marker">*</span>
                         <input name="familyName" type="text">
                       </label>
-                      <label>
-                        Primary parent <span class="required-marker">*</span>
+                      <label data-parent-detail-field>
+                        <span id="registerPrimaryParentNameLabel">Parent name</span> <span class="required-marker">*</span>
                         <input name="primaryParentName" type="text" autocomplete="name">
                       </label>
-                      <label>
-                        Primary ID / passport
+                      <label data-parent-detail-field>
+                        <span id="registerPrimaryParentIdLabel">Parent ID / passport</span>
                         <input name="primaryParentIdNumber" type="text">
                       </label>
-                      <label>
-                        Primary cell <span class="required-marker">*</span>
+                      <label data-parent-detail-field>
+                        <span id="registerPrimaryParentPhoneLabel">Parent cell</span> <span class="required-marker">*</span>
                         <input name="primaryParentPhone" type="tel" autocomplete="tel">
                       </label>
-                      <label>
-                        Primary email
+                      <label data-parent-detail-field>
+                        <span id="registerPrimaryParentEmailLabel">Parent email</span> <span class="required-marker">*</span>
                         <input name="primaryParentEmail" type="email" autocomplete="email">
                       </label>
-                      <label>
-                        Secondary parent
+                      <label data-parent-detail-field data-parent-secondary-field>
+                        Father name <span class="required-marker">*</span>
                         <input name="secondaryParentName" type="text">
                       </label>
-                      <label>
-                        Secondary ID / passport
+                      <label data-parent-detail-field data-parent-secondary-field>
+                        Father ID / passport
                         <input name="secondaryParentIdNumber" type="text">
                       </label>
-                      <label>
-                        Secondary cell
+                      <label data-parent-detail-field data-parent-secondary-field>
+                        Father cell <span class="required-marker">*</span>
                         <input name="secondaryParentPhone" type="tel">
                       </label>
-                      <label>
-                        Secondary email
+                      <label data-parent-detail-field data-parent-secondary-field>
+                        Father email <span class="required-marker">*</span>
                         <input name="secondaryParentEmail" type="email">
                       </label>
-                      <label class="wide">
+                      <label class="wide" data-parent-detail-field>
                         Family address <span class="required-marker">*</span>
                         <textarea name="familyHomeAddress" rows="2"></textarea>
                       </label>
@@ -819,14 +803,6 @@
                   </div>
                   <button class="primary-button compact-button" type="submit">Register Learner</button>
                 </form>
-              </section>
-              <section class="table-panel summary-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Registration Info</h3>
-                    <p>Select a family and billing category, then fill in the learner details.</p>
-                  </div>
-                </div>
               </section>
             </div>
           </section>
@@ -1971,6 +1947,22 @@
               <button class="primary-button compact-button" type="submit">Save payment</button>
             </div>
           </form>
+        </div>
+
+        <div id="requiredInfoDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="requiredInfoDialogTitle">
+          <div class="modal-panel">
+            <div class="modal-header">
+              <div>
+                <h3 id="requiredInfoDialogTitle">Fill in the Required Information</h3>
+                <p>The following fields are still outstanding.</p>
+              </div>
+              <button id="closeRequiredInfoDialogButton" class="ghost-button icon-button" type="button" aria-label="Close required information">&times;</button>
+            </div>
+            <ul id="requiredInfoList" class="required-info-list"></ul>
+            <div class="actions modal-actions">
+              <button id="cancelRequiredInfoDialogButton" class="primary-button compact-button" type="button">OK</button>
+            </div>
+          </div>
         </div>
 
         <div id="classDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="classDialogTitle">

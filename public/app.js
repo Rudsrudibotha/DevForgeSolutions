@@ -47,11 +47,10 @@ const VIEW_TITLES = {
   students: 'Student Management',
   parents: 'Parent Management',
   attendance: 'Attendance',
-  admissions: 'School / Admissions / Enrolment',
   reenrolment: 'School / Re-Enrolment / Year Rollover',
   schoolSettings: 'School / School Settings',
   consentPermissions: 'School / Consent and Permissions',
-  registerLearner: 'School / Register Learner',
+  registerLearner: 'Register Learner',
   bank: 'Finance / Bank Reconciliation',
   outstanding: 'Finance / Outstanding Fees',
   bankTransactions: 'Finance / Bank Transactions',
@@ -81,7 +80,6 @@ const VIEW_MODULE = {
   students: 'school',
   parents: 'school',
   attendance: 'school',
-  admissions: 'school',
   reenrolment: 'school',
   schoolSettings: 'school',
   consentPermissions: 'school',
@@ -121,7 +119,6 @@ const VIEW_ROUTES = {
   students: '/school/students',
   parents: '/school/parents',
   attendance: '/school/attendance',
-  admissions: '/school/admissions-enrolment',
   reenrolment: '/school/re-enrolment-year-rollover',
   schoolSettings: '/school/school-settings',
   consentPermissions: '/school/consent-permissions',
@@ -163,7 +160,6 @@ const ACTION_VIEWS = {
   'open-students': 'students',
   'open-parents': 'parents',
   'open-attendance': 'attendance',
-  'open-admissions': 'admissions',
   'open-reenrolment': 'reenrolment',
   'open-school-settings': 'schoolSettings',
   'open-consent-permissions': 'consentPermissions',
@@ -286,6 +282,8 @@ const elements = {
   outstandingFeesTable: document.getElementById('outstandingFeesTable'),
   registerLearnerForm: document.getElementById('registerLearnerForm'),
   registerLearnerFamilySelect: document.getElementById('registerLearnerFamilySelect'),
+  registerLearnerClassSelect: document.getElementById('registerLearnerClassSelect'),
+  registerLearnerParentTypeSelect: document.getElementById('registerLearnerParentTypeSelect'),
   registerLearnerBillingSelect: document.getElementById('registerLearnerBillingSelect'),
   registerLearnerBillingAvailable: document.getElementById('registerLearnerBillingAvailable'),
   registerLearnerBillingAssigned: document.getElementById('registerLearnerBillingAssigned'),
@@ -400,6 +398,10 @@ const elements = {
   paymentAmountInput: document.getElementById('paymentAmountInput'),
   closePaymentDialogButton: document.getElementById('closePaymentDialogButton'),
   cancelPaymentButton: document.getElementById('cancelPaymentButton'),
+  requiredInfoDialog: document.getElementById('requiredInfoDialog'),
+  requiredInfoList: document.getElementById('requiredInfoList'),
+  closeRequiredInfoDialogButton: document.getElementById('closeRequiredInfoDialogButton'),
+  cancelRequiredInfoDialogButton: document.getElementById('cancelRequiredInfoDialogButton'),
   toast: document.getElementById('toast')
 };
 
@@ -1057,24 +1059,6 @@ function setPanel(viewId, content) {
 }
 
 function installFeaturePanels() {
-  setPanel('admissionsView', `
-    <div class="panel-header"><div><h3>Admissions / Enrolment</h3><p>Applicant capture and status review.</p></div></div>
-    <form id="admissionForm" class="module-form flush-form">
-      <div class="form-grid">
-        <label>First name<input name="firstName" type="text" required></label>
-        <label>Last name<input name="lastName" type="text" required></label>
-        <label>Date of birth<input name="dateOfBirth" type="date"></label>
-        <label>Class<input name="className" type="text"></label>
-        <label>Family<select name="familyId" id="admissionFamilySelect"></select></label>
-        <label>Billing category<select name="billingCategoryId" id="admissionBillingSelect"></select></label>
-        <label class="wide">Notes<textarea name="notes" rows="2"></textarea></label>
-      </div>
-      <button class="primary-button compact-button" type="submit">Add Applicant</button>
-    </form>
-    <div class="form-grid section-spacer"><label>Status filter<select id="admissionStatusFilter"><option value="">All statuses</option><option>New</option><option>In Review</option><option>Accepted</option><option>Waitlisted</option><option>Refused</option><option>Enrolled</option></select></label></div>
-    <div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Family</th><th>Class</th><th>Status</th><th>Applied</th><th>Actions</th></tr></thead><tbody id="admissionsTable"></tbody></table></div>
-  `);
-
   setPanel('reenrolmentView', `
     <div class="panel-header"><div><h3>Re-Enrolment / Year Rollover</h3><p>Process promoted, retained, left, and pending learners.</p></div></div>
     <form id="reenrolmentForm" class="module-form flush-form">
@@ -1226,13 +1210,6 @@ function wireFeatureForms() {
     element.addEventListener(event, handler);
   };
 
-  bind('admissionForm', 'submit', async (event) => {
-    event.preventDefault();
-    await submitFeatureForm(event.currentTarget, '/api/school-features/admissions', 'Applicant added');
-  });
-
-  bind('admissionStatusFilter', 'change', renderFeaturePages);
-
   bind('reenrolmentForm', 'submit', async (event) => {
     event.preventDefault();
     await submitFeatureForm(event.currentTarget, '/api/platform/re-enrolment', 'Re-enrolment processed');
@@ -1323,8 +1300,6 @@ function renderFeatureSelects() {
   const pendingOptions = optionsFor(state.reEnrolmentPending.length ? state.reEnrolmentPending : state.students, 'StudentID', studentLabel, 'Select student');
 
   [
-    ['admissionFamilySelect', familyOptions],
-    ['admissionBillingSelect', billingOptions],
     ['consentStudentSelect', studentOptions],
     ['adjustmentStudentSelect', studentOptions],
     ['adjustmentFamilySelect', familyOptions],
@@ -1349,34 +1324,11 @@ function metricCard(label, value) {
 
 function renderFeaturePages() {
   renderFeatureSelects();
-  renderAdmissionsFeature();
   renderReenrolmentFeature();
   renderSchoolSettingsSummary();
   renderConsentFeature();
   renderFinanceFeatureTables();
   renderReportingFeatureTables();
-}
-
-function renderAdmissionsFeature() {
-  const filter = document.getElementById('admissionStatusFilter')?.value || '';
-  const rows = state.admissions
-    .filter((item) => !filter || item.Status === filter)
-    .map((item) => `
-      <tr>
-        <td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td>
-        <td>${escapeHtml(item.FamilyName || '-')}</td>
-        <td>${escapeHtml(item.ClassName || '-')}</td>
-        <td><span class="badge">${escapeHtml(item.Status || 'New')}</span></td>
-        <td>${dateOnly(item.AppliedDate)}</td>
-        <td><div class="actions">
-          <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="In Review" type="button">Review</button>
-          <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="Accepted" type="button">Accept</button>
-          <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="Waitlisted" type="button">Waitlist</button>
-          <button class="ghost-button" data-action="admission-status" data-id="${item.AdmissionID}" data-status="Refused" type="button">Refuse</button>
-        </div></td>
-      </tr>
-    `).join('');
-  setTable('admissionsTable', rows, 6, 'No admissions records found.');
 }
 
 function renderReenrolmentFeature() {
@@ -2027,12 +1979,16 @@ function fillFamilyForm(form, family = {}) {
   setFormValue(form, 'secondaryParentIdNumber', family.SecondaryParentIdNumber);
   setFormValue(form, 'secondaryParentPhone', family.SecondaryParentPhone);
   setFormValue(form, 'secondaryParentEmail', family.SecondaryParentEmail);
+  setFormValue(form, 'parentType', family.SecondaryParentName ? 'Both' : 'Mother');
   setFormValue(form, 'familyHomeAddress', family.HomeAddress || family.FamilyHomeAddress);
   setFormValue(form, 'emergencyContactName', family.EmergencyContactName);
   setFormValue(form, 'emergencyContactPhone', family.EmergencyContactPhone);
   setFormValue(form, 'familyDoctor', family.FamilyDoctor);
   setFormValue(form, 'medicalAidName', family.MedicalAidName);
   setFormValue(form, 'medicalAidNumber', family.MedicalAidNumber);
+  if (form === elements.registerLearnerForm) {
+    updateRegisterLearnerParentFields();
+  }
 }
 
 function renderFamiliesTable() {
@@ -2796,6 +2752,18 @@ function renderRegisterLearnerOptions() {
   const families = currentSchoolFamilies();
   elements.registerLearnerFamilySelect.innerHTML = '<option value="">New family / not listed</option>' +
     families.map((f) => '<option value="' + f.FamilyID + '">' + escapeHtml(f.FamilyName) + '</option>').join('');
+  if (elements.registerLearnerClassSelect) {
+    const currentYear = new Date().getFullYear();
+    const activeClasses = state.classes.filter((item) => item.IsActive !== false);
+    const currentClasses = activeClasses.filter((item) => classYear(item) === currentYear);
+    const classOptions = (currentClasses.length ? currentClasses : activeClasses)
+      .sort((a, b) => String(a.ClassName || '').localeCompare(String(b.ClassName || '')))
+      .map((item) => `<option value="${escapeHtml(item.ClassName || '')}">${escapeHtml(item.ClassName || '')}</option>`)
+      .join('');
+
+    elements.registerLearnerClassSelect.innerHTML = classOptions || '<option value="">No active classes available</option>';
+    elements.registerLearnerClassSelect.disabled = !classOptions;
+  }
   renderRegisterLearnerBillingPicker();
 }
 
@@ -3300,6 +3268,110 @@ function requireFields(form, names) {
       throw new Error('Please fill in all required fields');
     }
   }
+}
+
+function formValue(form, name) {
+  return String(form?.elements?.[name]?.value || '').trim();
+}
+
+function showRequiredInfoDialog(fields) {
+  if (!elements.requiredInfoDialog || !elements.requiredInfoList) {
+    window.alert(`Fill in the Required Information\n\n${fields.join('\n')}`);
+    return;
+  }
+
+  elements.requiredInfoList.innerHTML = fields.map((field) => `<li>${escapeHtml(field)}</li>`).join('');
+  elements.requiredInfoDialog.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeRequiredInfoDialog() {
+  elements.requiredInfoDialog?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
+function updateRegisterLearnerParentFields() {
+  const parentType = elements.registerLearnerParentTypeSelect?.value || '';
+  const hasParentSelection = Boolean(parentType);
+  const isBoth = parentType === 'Both';
+  const primaryLabel = parentType === 'Father' ? 'Father' : 'Mother';
+
+  document.getElementById('registerPrimaryParentNameLabel').textContent = `${primaryLabel} name`;
+  document.getElementById('registerPrimaryParentIdLabel').textContent = `${primaryLabel} ID / passport`;
+  document.getElementById('registerPrimaryParentPhoneLabel').textContent = `${primaryLabel} cell`;
+  document.getElementById('registerPrimaryParentEmailLabel').textContent = `${primaryLabel} email`;
+
+  document.querySelectorAll('[data-parent-detail-field]').forEach((field) => {
+    const isSecondary = field.hasAttribute('data-parent-secondary-field');
+    field.classList.toggle('hidden', !hasParentSelection || (isSecondary && !isBoth));
+  });
+
+  if ((!hasParentSelection || !isBoth) && elements.registerLearnerForm) {
+    ['secondaryParentName', 'secondaryParentIdNumber', 'secondaryParentPhone', 'secondaryParentEmail'].forEach((name) => {
+      if (elements.registerLearnerForm.elements[name]) {
+        elements.registerLearnerForm.elements[name].value = '';
+      }
+    });
+  }
+
+  if (!hasParentSelection && elements.registerLearnerForm) {
+    ['familyName', 'primaryParentName', 'primaryParentIdNumber', 'primaryParentPhone', 'primaryParentEmail', 'familyHomeAddress'].forEach((name) => {
+      if (elements.registerLearnerForm.elements[name]) {
+        elements.registerLearnerForm.elements[name].value = '';
+      }
+    });
+  }
+}
+
+function registerLearnerMissingFields(form) {
+  const missing = [];
+  const parentType = formValue(form, 'parentType');
+  const primaryParent = parentType === 'Father' ? 'Father' : 'Mother';
+
+  [
+    ['firstName', 'Learner first name'],
+    ['lastName', 'Learner last name'],
+    ['className', 'Class'],
+    ['enrolledDate', 'Starting date'],
+    ['billingDate', 'Billing date'],
+    ['parentType', 'Select Parent'],
+    ['familyName', 'Family name'],
+    ['familyHomeAddress', 'Family address'],
+    ['emergencyContactName', 'Emergency contact'],
+    ['emergencyContactPhone', 'Emergency phone']
+  ].forEach(([name, label]) => {
+    if (!formValue(form, name)) {
+      missing.push(label);
+    }
+  });
+
+  [
+    ['primaryParentName', `${primaryParent} name`],
+    ['primaryParentPhone', `${primaryParent} cell`],
+    ['primaryParentEmail', `${primaryParent} email`]
+  ].forEach(([name, label]) => {
+    if (!formValue(form, name)) {
+      missing.push(label);
+    }
+  });
+
+  if (parentType === 'Both') {
+    [
+      ['secondaryParentName', 'Father name'],
+      ['secondaryParentPhone', 'Father cell'],
+      ['secondaryParentEmail', 'Father email']
+    ].forEach(([name, label]) => {
+      if (!formValue(form, name)) {
+        missing.push(label);
+      }
+    });
+  }
+
+  if (!selectedValues(elements.registerLearnerBillingSelect).length) {
+    missing.push('Billing information');
+  }
+
+  return missing;
 }
 
 function getAccountSchool() {
@@ -4342,6 +4414,8 @@ elements.familyEditForm?.addEventListener('submit', async (event) => {
 
 elements.closePaymentDialogButton.addEventListener('click', closePaymentDialog);
 elements.cancelPaymentButton.addEventListener('click', closePaymentDialog);
+elements.closeRequiredInfoDialogButton?.addEventListener('click', closeRequiredInfoDialog);
+elements.cancelRequiredInfoDialogButton?.addEventListener('click', closeRequiredInfoDialog);
 elements.closeEmployeeDialogButton?.addEventListener('click', closeEmployeeDialog);
 elements.cancelEmployeeButton?.addEventListener('click', closeEmployeeDialog);
 elements.closePayslipDialogButton?.addEventListener('click', closePayslipDialog);
@@ -4355,6 +4429,12 @@ elements.cancelFamilyEditButton?.addEventListener('click', closeFamilyEditDialog
 elements.paymentDialog.addEventListener('click', (event) => {
   if (event.target === elements.paymentDialog) {
     closePaymentDialog();
+  }
+});
+
+elements.requiredInfoDialog?.addEventListener('click', (event) => {
+  if (event.target === elements.requiredInfoDialog) {
+    closeRequiredInfoDialog();
   }
 });
 
@@ -4403,6 +4483,9 @@ elements.familyEditDialog?.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !elements.paymentDialog.classList.contains('hidden')) {
     closePaymentDialog();
+  }
+  if (event.key === 'Escape' && elements.requiredInfoDialog && !elements.requiredInfoDialog.classList.contains('hidden')) {
+    closeRequiredInfoDialog();
   }
   if (event.key === 'Escape' && elements.classDialog && !elements.classDialog.classList.contains('hidden')) {
     resetClassForm();
@@ -4666,17 +4749,6 @@ document.addEventListener('click', async (event) => {
   }
 
   try {
-    if (action === 'admission-status') {
-      await api(`/api/school-features/admissions/${id}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: button.dataset.status })
-      });
-      await refreshFeatureData();
-      renderFeaturePages();
-      showToast('Admission status updated');
-      return;
-    }
-
     if (action === 'consent-response') {
       await api(`/api/school-features/consent/${id}/respond`, {
         method: 'PUT',
@@ -4835,6 +4907,10 @@ document.getElementById('outstandingFeesYear')?.addEventListener('change', refre
 
 // Register Learner form
 if (elements.registerLearnerForm) {
+  updateRegisterLearnerParentFields();
+
+  elements.registerLearnerParentTypeSelect?.addEventListener('change', updateRegisterLearnerParentFields);
+
   elements.registerLearnerFamilySelect?.addEventListener('change', () => {
     const selectedFamily = state.families.find((family) => family.FamilyID === Number(elements.registerLearnerFamilySelect.value));
     if (selectedFamily) {
@@ -4881,27 +4957,19 @@ if (elements.registerLearnerForm) {
     const form = elements.registerLearnerForm;
 
     try {
-      requireFields(form, ['firstName', 'lastName', 'enrolledDate', 'billingDate']);
+      const missingFields = registerLearnerMissingFields(form);
+      if (missingFields.length) {
+        showRequiredInfoDialog(missingFields);
+        return;
+      }
 
       const billingCategoryIds = selectedValues(elements.registerLearnerBillingSelect);
-      if (!billingCategoryIds.length) {
-        throw new Error('Select at least one billing category');
-      }
 
       setFormBusy(form, true, 'Registering...');
       const data = formData(form);
       let familyId = Number(data.familyId || 0);
 
       if (!familyId) {
-        requireFields(form, [
-          'familyName',
-          'primaryParentName',
-          'primaryParentPhone',
-          'familyHomeAddress',
-          'emergencyContactName',
-          'emergencyContactPhone'
-        ]);
-
         const schoolId = currentSchoolId();
         if (!schoolId) {
           throw new Error('Create a school before registering learners');
@@ -4937,6 +5005,7 @@ if (elements.registerLearnerForm) {
 
       form.reset();
       state.registerLearnerBillingIds = [];
+      updateRegisterLearnerParentFields();
       renderRegisterLearnerBillingPicker();
       showToast('Learner registered successfully');
       await refreshData();
