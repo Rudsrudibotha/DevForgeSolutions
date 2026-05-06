@@ -13,6 +13,11 @@ router.get('/date/:date', authenticateToken, requireSchoolOrAdmin, async (req, r
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/range', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+  try { res.json(await attendanceService.getByRange(req.query.from, req.query.to, req.user)); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 router.get('/student/:studentId', authenticateToken, async (req, res) => {
   try { res.json(await attendanceService.getByStudent(parseInt(req.params.studentId, 10), req.query.from, req.query.to, req.user)); }
   catch (e) {

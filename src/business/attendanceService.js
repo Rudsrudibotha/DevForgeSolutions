@@ -66,6 +66,29 @@ class AttendanceService {
     return await this.repo.getBySchoolAndDate(this.resolveSchoolId(currentUser), date);
   }
 
+  async getByRange(fromDate, toDate, currentUser) {
+    if (!fromDate || !toDate) {
+      throw new Error('From date and to date are required');
+    }
+
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      throw new Error('Date range is invalid');
+    }
+    if (from > to) {
+      throw new Error('From date must be before to date');
+    }
+    if (to >= today) {
+      throw new Error('Completed attendance excludes today');
+    }
+
+    return await this.repo.getBySchoolAndRange(this.resolveSchoolId(currentUser), fromDate, toDate);
+  }
+
   async getByStudent(studentId, fromDate, toDate, currentUser) {
     const parsedStudentId = Number(studentId);
 

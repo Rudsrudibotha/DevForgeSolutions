@@ -672,6 +672,12 @@ BEGIN
     CREATE INDEX IX_Attendance_StudentID ON dbo.Attendance(StudentID);
 END;
 
+-- Composite unique index to support the MERGE upsert pattern
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Attendance_School_Student_Date' AND object_id = OBJECT_ID('dbo.Attendance'))
+BEGIN
+    CREATE UNIQUE INDEX UX_Attendance_School_Student_Date ON dbo.Attendance(SchoolID, StudentID, AttendanceDate);
+END;
+
 -- Classes
 IF OBJECT_ID('dbo.Classes', 'U') IS NULL
 BEGIN

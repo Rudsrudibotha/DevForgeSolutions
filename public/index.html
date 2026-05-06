@@ -508,61 +508,6 @@
     TODO: Show attendance history per student
   -->
             <div class="icon-page-layout">
-              <section class="form-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Attendance</h3>
-                    <p>Capture and review daily attendance for the signed-in school.</p>
-                  </div>
-                </div>
-                <form id="attendanceForm" class="module-form flush-form">
-                  <div class="form-grid">
-                    <label>
-                      Student
-                      <select id="attendanceStudentSelect" name="studentId" required></select>
-                    </label>
-                    <label>
-                      Date
-                      <input id="attendanceDateInput" name="attendanceDate" type="date" required>
-                    </label>
-                    <label>
-                      Status
-                      <select name="status" required>
-                        <option value="Present">Present</option>
-                        <option value="Absent">Absent</option>
-                        <option value="Late">Late</option>
-                        <option value="Excused">Excused</option>
-                      </select>
-                    </label>
-                    <label>
-                      Arrival Time
-                      <input name="arrivalTime" type="time">
-                    </label>
-                    <label>
-                      Departure Time
-                      <input name="departureTime" type="time">
-                    </label>
-                    <label class="wide">
-                      Note
-                      <input name="notes" type="text">
-                    </label>
-                  </div>
-                  <button class="primary-button compact-button" type="submit">Save Attendance</button>
-                </form>
-              </section>
-              <section class="table-panel summary-panel">
-                <div class="panel-header">
-                  <div>
-                    <h3>Completed Attendance</h3>
-                    <p>View saved attendance grouped by class for the selected date.</p>
-                  </div>
-                </div>
-                <div class="actions">
-                  <button id="viewAttendanceButton" class="primary-button compact-button" type="button">View Attendance</button>
-                </div>
-              </section>
-            </div>
-            <div class="icon-page-layout">
               <section class="table-panel class-filter-panel">
                 <div class="class-filter-heading">
                   <span class="filter-icon" aria-hidden="true">
@@ -638,6 +583,10 @@
                   </thead>
                   <tbody id="attendanceTable"></tbody>
                 </table>
+              </div>
+              <div class="section-spacer" style="display:flex;gap:1rem;align-items:center">
+                <button id="openAttendanceEditButton" class="primary-button compact-button" type="button">Edit Attendance</button>
+                <button id="viewAttendanceButton" class="secondary-button compact-button" type="button">Completed Attendance</button>
               </div>
             </section>
           </section>
@@ -2117,6 +2066,51 @@
           </form>
         </div>
 
+        <div id="attendanceEditDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="attendanceEditDialogTitle">
+          <form id="attendanceForm" class="modal-panel attendance-edit-panel" novalidate>
+            <div class="modal-header">
+              <div>
+                <h3 id="attendanceEditDialogTitle">Edit Attendance</h3>
+                <p>Capture and review daily attendance for the signed-in school.</p>
+              </div>
+              <button id="closeAttendanceEditDialogButton" class="ghost-button icon-button" type="button" aria-label="Close attendance form">&times;</button>
+            </div>
+            <div class="form-grid">
+              <label>
+                Student
+                <select id="attendanceStudentSelect" name="studentId" required></select>
+              </label>
+              <label>
+                Date
+                <input id="attendanceDateInput" name="attendanceDate" type="date" required>
+              </label>
+              <label>
+                Status
+                <select name="status" required>
+                  <option value="Present">Present</option>
+                  <option value="Absent">Absent</option>
+                </select>
+              </label>
+              <label>
+                Arrival Time
+                <input name="arrivalTime" type="time">
+              </label>
+              <label>
+                Departure Time
+                <input name="departureTime" type="time">
+              </label>
+              <label class="wide">
+                Note
+                <input name="notes" type="text">
+              </label>
+            </div>
+            <div class="actions modal-actions">
+              <button id="cancelAttendanceEditButton" class="secondary-button compact-button" type="button">Cancel</button>
+              <button class="primary-button compact-button" type="submit">Save Attendance</button>
+            </div>
+          </form>
+        </div>
+
         <div id="attendanceDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="attendanceDialogTitle">
           <div class="modal-panel attendance-view-panel">
             <div class="modal-header">
@@ -2125,6 +2119,22 @@
                 <p id="attendanceDialogSubtitle">Completed attendance grouped by class.</p>
               </div>
               <button id="closeAttendanceDialogButton" class="ghost-button icon-button" type="button" aria-label="Close attendance dialog">&times;</button>
+            </div>
+            <div class="class-filter-panel attendance-range-panel">
+              <div class="class-filter-grid attendance-range-grid">
+                <label>
+                  From
+                  <input id="attendanceHistoryFromInput" class="thin-input" type="date">
+                </label>
+                <label>
+                  To
+                  <input id="attendanceHistoryToInput" class="thin-input" type="date">
+                </label>
+                <label>
+                  &nbsp;
+                  <button id="loadAttendanceHistoryButton" class="primary-button compact-button" type="button">View Attendance</button>
+                </label>
+              </div>
             </div>
             <div id="attendanceClassTabs" class="form-tabs attendance-class-tabs" aria-label="Attendance class tabs"></div>
             <div id="attendanceClassPanels" class="attendance-class-panels"></div>

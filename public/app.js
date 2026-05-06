@@ -202,6 +202,7 @@ const state = {
   billingCategories: [],
   classes: [],
   attendance: [],
+  completedAttendance: [],
   employees: [],
   staffRoles: [],
   leaves: [],
@@ -224,6 +225,8 @@ const state = {
   parentStatusFilter: 'active',
   editingClassId: null,
   selectedAttendanceClassKey: null,
+  attendanceHistoryFrom: '',
+  attendanceHistoryTo: '',
   attendanceSearchQuery: '',
   attendanceSearchType: 'Student name',
   attendanceStatusFilter: 'all',
@@ -323,9 +326,16 @@ const elements = {
   attendanceStatusFilterInput: document.getElementById('attendanceStatusFilterInput'),
   attendanceClassFilterInput: document.getElementById('attendanceClassFilterInput'),
   attendanceTable: document.getElementById('attendanceTable'),
+  openAttendanceEditButton: document.getElementById('openAttendanceEditButton'),
+  attendanceEditDialog: document.getElementById('attendanceEditDialog'),
+  closeAttendanceEditDialogButton: document.getElementById('closeAttendanceEditDialogButton'),
+  cancelAttendanceEditButton: document.getElementById('cancelAttendanceEditButton'),
   viewAttendanceButton: document.getElementById('viewAttendanceButton'),
   attendanceDialog: document.getElementById('attendanceDialog'),
   attendanceDialogSubtitle: document.getElementById('attendanceDialogSubtitle'),
+  attendanceHistoryFromInput: document.getElementById('attendanceHistoryFromInput'),
+  attendanceHistoryToInput: document.getElementById('attendanceHistoryToInput'),
+  loadAttendanceHistoryButton: document.getElementById('loadAttendanceHistoryButton'),
   attendanceClassTabs: document.getElementById('attendanceClassTabs'),
   attendanceClassPanels: document.getElementById('attendanceClassPanels'),
   closeAttendanceDialogButton: document.getElementById('closeAttendanceDialogButton'),
@@ -921,6 +931,42 @@ async function refreshAttendance() {
     state.attendance = await api(`/api/attendance/date/${encodeURIComponent(selectedDate)}`);
   } catch (error) {
     state.attendance = [];
+  }
+}
+
+async function refreshCompletedAttendance() {
+  const today = new Date().toISOString().slice(0, 10);
+  const defaultFromDate = new Date();
+  defaultFromDate.setDate(defaultFromDate.getDate() - 30);
+  const defaultFrom = defaultFromDate.toISOString().slice(0, 10);
+  const defaultToDate = new Date();
+  defaultToDate.setDate(defaultToDate.getDate() - 1);
+  const defaultTo = defaultToDate.toISOString().slice(0, 10);
+
+  const from = elements.attendanceHistoryFromInput?.value || state.attendanceHistoryFrom || defaultFrom;
+  let to = elements.attendanceHistoryToInput?.value || state.attendanceHistoryTo || defaultTo;
+
+  if (to >= today) {
+    to = defaultTo;
+  }
+
+  state.attendanceHistoryFrom = from;
+  state.attendanceHistoryTo = to;
+
+  if (elements.attendanceHistoryFromInput) {
+    elements.attendanceHistoryFromInput.value = from;
+  }
+  if (elements.attendanceHistoryToInput) {
+    elements.attendanceHistoryToInput.value = to;
+    elements.attendanceHistoryToInput.max = defaultTo;
+  }
+
+  try {
+    const query = new URLSearchParams({ from, to }).toString();
+    state.completedAttendance = await api(`/api/attendance/range?${query}`);
+  } catch (error) {
+    state.completedAttendance = [];
+    showToast(error.message);
   }
 }
 
@@ -2150,7 +2196,7 @@ function resetClassForm() {
 }
 
 async function openAttendanceDialog() {
-  await refreshAttendance();
+  await refreshCompletedAttendance();
   renderAttendance();
   elements.attendanceDialog?.classList.remove('hidden');
   document.body.classList.add('modal-open');
@@ -2161,6 +2207,16 @@ function closeAttendanceDialog() {
   document.body.classList.remove('modal-open');
 }
 
+function openAttendanceEditDialog() {
+  elements.attendanceEditDialog?.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  elements.attendanceStudentSelect?.focus();
+}
+
+function closeAttendanceEditDialog() {
+  elements.attendanceEditDialog?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
 
 function closeAttendanceUndoDialog() {
   state.selectedAttendanceUndoId = null;
@@ -2224,16 +2280,35 @@ async function saveAttendanceRow(row) {
     return;
   }
 
+  const saveBtn = row?.querySelector('[data-action="save-attendance-row"]');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+
   try {
-    await api('/api/attendance', {
+    const saved = await api('/api/attendance', {
       method: 'POST',
       body: JSON.stringify(attendancePayloadForStudent(student, row))
     });
-    await refreshAttendance();
-    renderAttendance();
+
+    // Update local state without re-fetching all records
+    const idx = state.attendance.findIndex((r) => Number(r.StudentID) === studentId);
+    const merged = { ...saved, FirstName: student.FirstName, LastName: student.LastName, ClassName: student.ClassName };
+    if (idx >= 0) {
+      state.attendance[idx] = merged;
+    } else {
+      state.attendance.push(merged);
+    }
+
+    // Update just this row's visual state
+    if (row) {
+      row.classList.add('attendance-recorded-row');
+      row.dataset.attendanceRecord = String(saved.AttendanceID || '');
+    }
+
     showToast('Attendance saved');
   } catch (error) {
     showToast(error.message);
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
   }
 }
 
@@ -2321,7 +2396,7 @@ function attendanceStatusClass(status) {
   return 'badge';
 }
 
-function attendanceClassGroups() {
+function attendanceClassGroups(records = state.completedAttendance) {
   const classes = state.classes
     .map((item) => ({
       key: attendanceClassKey(item.ClassName || item.ClassID),
@@ -2332,7 +2407,7 @@ function attendanceClassGroups() {
 
   const groups = new Map(classes.map((item) => [item.key, item]));
 
-  state.attendance.forEach((record) => {
+  records.forEach((record) => {
     const className = record.ClassName || 'Unassigned';
     const key = attendanceClassKey(className);
     if (!groups.has(key)) {
@@ -2454,7 +2529,7 @@ function renderAttendance() {
     return;
   }
 
-  const groups = attendanceClassGroups();
+  const groups = attendanceClassGroups(state.completedAttendance);
 
   if (!groups.length) {
     state.selectedAttendanceClassKey = null;
@@ -2467,9 +2542,8 @@ function renderAttendance() {
     state.selectedAttendanceClassKey = groups[0].key;
   }
 
-  const selectedDate = elements.attendanceDateInput?.value || new Date().toISOString().slice(0, 10);
   if (elements.attendanceDialogSubtitle) {
-    elements.attendanceDialogSubtitle.textContent = `Completed attendance for ${dateOnly(selectedDate)}, grouped by class.`;
+    elements.attendanceDialogSubtitle.textContent = `Past attendance from ${dateOnly(state.attendanceHistoryFrom)} to ${dateOnly(state.attendanceHistoryTo)}, grouped by class.`;
   }
 
   elements.attendanceClassTabs.innerHTML = groups.map((group) => `
@@ -2490,7 +2564,7 @@ function renderAttendance() {
           <td>${escapeHtml(record.Notes || '-')}</td>
         </tr>
       `;
-    }).join('') || '<tr><td colspan="4">No completed attendance found for this class on the selected date.</td></tr>';
+    }).join('') || '<tr><td colspan="4">No past attendance found for this class in the selected date range.</td></tr>';
 
     return `
       <section class="form-tab-panel ${group.key === state.selectedAttendanceClassKey ? 'active' : ''}" data-attendance-panel="${escapeHtml(group.key)}">
@@ -3904,7 +3978,14 @@ elements.attendanceClassFilterInput?.addEventListener('change', () => {
   renderAttendance();
 });
 
+elements.openAttendanceEditButton?.addEventListener('click', openAttendanceEditDialog);
+elements.closeAttendanceEditDialogButton?.addEventListener('click', closeAttendanceEditDialog);
+elements.cancelAttendanceEditButton?.addEventListener('click', closeAttendanceEditDialog);
 elements.viewAttendanceButton?.addEventListener('click', openAttendanceDialog);
+elements.loadAttendanceHistoryButton?.addEventListener('click', async () => {
+  await refreshCompletedAttendance();
+  renderAttendance();
+});
 elements.closeAttendanceDialogButton?.addEventListener('click', closeAttendanceDialog);
 elements.cancelAttendanceDialogButton?.addEventListener('click', closeAttendanceDialog);
 elements.closeAttendanceUndoDialogButton?.addEventListener('click', closeAttendanceUndoDialog);
@@ -3974,6 +4055,7 @@ elements.attendanceForm.addEventListener('submit', async (event) => {
 
     await refreshAttendance();
     renderAttendance();
+    closeAttendanceEditDialog();
     showToast('Attendance saved');
   } catch (error) {
     showToast(error.message);
@@ -4288,6 +4370,18 @@ elements.employeeDialog?.addEventListener('click', (event) => {
   }
 });
 
+elements.attendanceEditDialog?.addEventListener('click', (event) => {
+  if (event.target === elements.attendanceEditDialog) {
+    closeAttendanceEditDialog();
+  }
+});
+
+elements.attendanceDialog?.addEventListener('click', (event) => {
+  if (event.target === elements.attendanceDialog) {
+    closeAttendanceDialog();
+  }
+});
+
 elements.payslipDialog?.addEventListener('click', (event) => {
   if (event.target === elements.payslipDialog) {
     closePayslipDialog();
@@ -4315,6 +4409,12 @@ document.addEventListener('keydown', (event) => {
   }
   if (event.key === 'Escape' && elements.employeeDialog && !elements.employeeDialog.classList.contains('hidden')) {
     closeEmployeeDialog();
+  }
+  if (event.key === 'Escape' && elements.attendanceEditDialog && !elements.attendanceEditDialog.classList.contains('hidden')) {
+    closeAttendanceEditDialog();
+  }
+  if (event.key === 'Escape' && elements.attendanceDialog && !elements.attendanceDialog.classList.contains('hidden')) {
+    closeAttendanceDialog();
   }
   if (event.key === 'Escape' && elements.payslipDialog && !elements.payslipDialog.classList.contains('hidden')) {
     closePayslipDialog();

@@ -1223,6 +1223,20 @@ td[colspan],
   overflow: auto;
 }
 
+.attendance-edit-panel {
+  width: min(100%, 720px);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+}
+
+.attendance-range-panel {
+  margin-bottom: 14px;
+}
+
+.attendance-range-grid {
+  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) auto;
+}
+
 .attendance-class-tabs {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }

@@ -66,6 +66,26 @@ class AttendanceRepository {
     return result.recordset;
   }
 
+  async getBySchoolAndRange(schoolId, fromDate, toDate) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('schoolId', sql.Int, schoolId)
+      .input('fromDate', sql.Date, fromDate)
+      .input('toDate', sql.Date, toDate)
+      .query(`SELECT a.*,
+                CONVERT(VARCHAR(5), a.ArrivalTime, 108) AS ArrivalTimeDisplay,
+                CONVERT(VARCHAR(5), a.DepartureTime, 108) AS DepartureTimeDisplay,
+                s.FirstName, s.LastName, s.ClassName
+              FROM Attendance a
+              INNER JOIN Students s ON a.StudentID = s.StudentID
+              WHERE a.SchoolID = @schoolId
+                AND a.AttendanceDate >= @fromDate
+                AND a.AttendanceDate <= @toDate
+                AND a.AttendanceDate < CAST(GETDATE() AS DATE)
+              ORDER BY s.ClassName, a.AttendanceDate DESC, s.LastName`);
+    return result.recordset;
+  }
+
   async getByStudent(studentId, fromDate, toDate) {
     const pool = await getPool();
     const req = pool.request().input('studentId', sql.Int, studentId);
