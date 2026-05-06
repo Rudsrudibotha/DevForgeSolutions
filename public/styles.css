@@ -1063,22 +1063,78 @@ td[colspan],
   margin: 0;
 }
 
-.account-layout {
-  grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
 }
 
-.account-wide-panel {
-  grid-column: 1 / -1;
+.settings-sidebar {
+  display: grid;
+  gap: 4px;
+  border-right: 1px solid var(--line);
+  padding-right: 16px;
 }
 
-.account-wide-panel .table-wrap {
-  margin-top: 16px;
+.settings-tab {
+  min-height: 36px;
+  border: 0;
+  border-left: 4px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0 12px;
+  text-align: left;
+}
+
+.settings-tab.active {
+  border-left-color: var(--primary);
+  background: #eef3f8;
+}
+
+.settings-content {
+  min-width: 0;
+}
+
+.settings-panel {
+  display: none;
+}
+
+.settings-panel.active {
+  display: block;
 }
 
 .settings-surface {
   display: grid;
   gap: 18px;
-  max-width: 860px;
+  max-width: 920px;
+}
+
+.settings-profile-list {
+  max-width: 760px;
+}
+
+.settings-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+
+.settings-page-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 24px;
+}
+
+.settings-page-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
 }
 
 .settings-section {
@@ -1733,8 +1789,15 @@ tbody tr:hover {
 
   .auth-layout,
   .split-layout,
-  .icon-page-layout {
+  .icon-page-layout,
+  .settings-layout {
     grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 0 0 12px;
   }
 
   .class-filter-grid {

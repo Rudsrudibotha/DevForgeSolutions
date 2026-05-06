@@ -40,7 +40,6 @@ const VIEW_TITLES = {
   school: 'School Management',
   finance: 'Finance',
   reporting: 'Reporting',
-  account: 'Account',
   settings: 'Settings',
   classes: 'Class Managment',
   staff: 'Staff Management',
@@ -48,7 +47,6 @@ const VIEW_TITLES = {
   parents: 'Parent Management',
   attendance: 'Attendance',
   reenrolment: 'School / Re-Enrolment / Year Rollover',
-  schoolSettings: 'School / School Settings',
   consentPermissions: 'School / Consent and Permissions',
   registerLearner: 'Register Learner',
   bank: 'Finance / Bank Reconciliation',
@@ -81,7 +79,6 @@ const VIEW_MODULE = {
   parents: 'school',
   attendance: 'school',
   reenrolment: 'school',
-  schoolSettings: 'school',
   consentPermissions: 'school',
   registerLearner: 'school',
   bank: 'finance',
@@ -112,7 +109,6 @@ const VIEW_ROUTES = {
   school: '/school',
   finance: '/school/finance',
   reporting: '/school/reporting',
-  account: '/school/account',
   settings: '/school/settings',
   classes: '/school/classes',
   staff: '/school/staff',
@@ -120,7 +116,6 @@ const VIEW_ROUTES = {
   parents: '/school/parents',
   attendance: '/school/attendance',
   reenrolment: '/school/re-enrolment-year-rollover',
-  schoolSettings: '/school/school-settings',
   consentPermissions: '/school/consent-permissions',
   registerLearner: '/school/register-learner',
   bank: '/school/finance/bank-reconciliation',
@@ -161,7 +156,6 @@ const ACTION_VIEWS = {
   'open-parents': 'parents',
   'open-attendance': 'attendance',
   'open-reenrolment': 'reenrolment',
-  'open-school-settings': 'schoolSettings',
   'open-consent-permissions': 'consentPermissions',
   'open-register-learner': 'registerLearner',
   'open-bank': 'bank',
@@ -1073,12 +1067,6 @@ function installFeaturePanels() {
     <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Previous class</th><th>New class</th><th>Action</th><th>Balance BF</th><th>Advance BF</th></tr></thead><tbody id="reenrolmentTable"></tbody></table></div>
   `);
 
-  setPanel('schoolSettingsView', `
-    <div class="panel-header"><div><h3>School Settings</h3><p>School logo, contact, banking, currency, and portal settings.</p></div></div>
-    <div class="actions"><button class="primary-button compact-button" data-action="open-settings-page" type="button">Open Settings</button><button class="secondary-button compact-button" data-action="open-account-page" type="button">Open Account</button></div>
-    <div class="compact-list section-spacer" id="schoolSettingsSummary"></div>
-  `);
-
   setPanel('consentPermissionsView', `
     <div class="panel-header"><div><h3>Consent and Permissions</h3><p>Consent requests and missing consent review.</p></div></div>
     <form id="consentForm" class="module-form flush-form">
@@ -1325,7 +1313,6 @@ function metricCard(label, value) {
 function renderFeaturePages() {
   renderFeatureSelects();
   renderReenrolmentFeature();
-  renderSchoolSettingsSummary();
   renderConsentFeature();
   renderFinanceFeatureTables();
   renderReportingFeatureTables();
@@ -1343,17 +1330,6 @@ function renderReenrolmentFeature() {
     </tr>
   `).join('');
   setTable('reenrolmentTable', rows, 6, 'No re-enrolment records found for the selected year.');
-}
-
-function renderSchoolSettingsSummary() {
-  const school = getSettingsSchool();
-  const container = document.getElementById('schoolSettingsSummary');
-  if (!container) return;
-  container.innerHTML = school ? `
-    <div class="compact-item"><strong>${escapeHtml(school.SchoolName || 'Current school')}</strong><span>${escapeHtml(school.ContactEmail || '-')}</span></div>
-    <div class="compact-item"><span>Currency</span><strong>${escapeHtml(school.CurrencyCode || 'ZAR')}</strong></div>
-    <div class="compact-item"><span>Parent detail approval</span><strong>${school.RequireParentUpdateApproval ? 'Required' : 'Optional'}</strong></div>
-  ` : '<p>No school settings are loaded.</p>';
 }
 
 function renderConsentFeature() {
@@ -3636,6 +3612,18 @@ function switchFinanceTab(tabName) {
   elements.viewTitle.textContent = `Finance / ${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
 }
 
+function switchSettingsTab(tabName) {
+  document.querySelectorAll('[data-settings-tab]').forEach((button) => {
+    const isActive = button.dataset.settingsTab === tabName;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-selected', String(isActive));
+  });
+
+  document.querySelectorAll('[data-settings-panel]').forEach((panel) => {
+    panel.classList.toggle('active', panel.dataset.settingsPanel === tabName);
+  });
+}
+
 function formData(form) {
   const data = {};
   const formEntries = new FormData(form);
@@ -4624,11 +4612,6 @@ document.addEventListener('click', async (event) => {
     return;
   }
 
-  if (action === 'open-account-page') {
-    switchView('account');
-    return;
-  }
-
   if (action === 'download-export') {
     await downloadExport(button.dataset.export);
     return;
@@ -4883,6 +4866,10 @@ window.addEventListener('popstate', () => {
 
 document.querySelectorAll('.finance-tab').forEach((button) => {
   button.addEventListener('click', () => switchFinanceTab(button.dataset.financeTab));
+});
+
+document.querySelectorAll('[data-settings-tab]').forEach((button) => {
+  button.addEventListener('click', () => switchSettingsTab(button.dataset.settingsTab));
 });
 
 [

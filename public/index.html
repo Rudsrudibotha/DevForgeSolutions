@@ -22,7 +22,6 @@
           <button class="nav-item" data-view="school" type="button">School Management</button>
           <button class="nav-item" data-view="finance" type="button">Finance</button>
           <button class="nav-item" data-view="reporting" type="button">Reporting</button>
-          <button class="nav-item" data-view="account" type="button">Account</button>
           <button class="nav-item" data-view="settings" type="button">Settings</button>
         </nav>
 
@@ -77,7 +76,6 @@
                 <button class="module-tile" data-action="open-parents" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-parents.svg" alt="" aria-hidden="true"><span>Parents</span></button>
                 <button class="module-tile" data-action="open-attendance" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-attendance.svg" alt="" aria-hidden="true"><span>Attendance</span></button>
                 <button class="module-tile" data-action="open-reenrolment" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-re-enrolment-year-rollover.svg" alt="" aria-hidden="true"><span>Re-Enrolment / Year Rollover</span></button>
-                <button class="module-tile" data-action="open-school-settings" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-settings.svg" alt="" aria-hidden="true"><span>School Settings</span></button>
                 <button class="module-tile" data-action="open-consent-permissions" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-consent-permissions.svg" alt="" aria-hidden="true"><span>Consent and Permissions</span></button>
                 <button class="module-tile" data-action="open-register-learner" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-students.svg" alt="" aria-hidden="true"><span>Register Learner</span></button>
               </div>
@@ -613,30 +611,6 @@
                 </div>
               </div>
               <p>Re-enrolment and year rollover records will appear here.</p>
-            </section>
-          </section>
-
-          <section id="schoolSettingsView" class="view grouped-view" data-group="school">
-          <!-- TODO: School / School Settings (README: School Settings Section)
-    DONE: Links to Settings side menu page
-    TODO: School logo management
-    TODO: Contact details management
-    TODO: Banking details management
-    TODO: Academic year configuration
-    TODO: Invoice settings (template, header, footer)
-    TODO: Statement settings
-    TODO: Attendance settings
-    TODO: Notification settings
-    TODO: Parent portal visibility settings (ShowBehaviourToParents, ShowAcademicNotesToParents, RequireParentUpdateApproval)
-  -->
-            <section class="table-panel page-table-panel">
-              <div class="panel-header">
-                <div>
-                  <h3>School Settings</h3>
-                  <p>School-specific academic, invoice, attendance, and portal settings.</p>
-                </div>
-              </div>
-              <p>Use the Settings side-menu page for the currently wired school configuration controls.</p>
             </section>
           </section>
 
@@ -1762,165 +1736,177 @@
             </section>
           </section>
 
-          <section id="accountView" class="view">
-            <div class="split-layout account-layout">
-              <section class="table-panel">
-                <div class="panel-header">
-                  <h3>Account</h3>
-                  <p>Current signed-in user and school scope.</p>
-                </div>
-                <dl class="profile-list">
-                  <div><dt>Username</dt><dd id="profileUsername">-</dd></div>
-                  <div><dt>Email</dt><dd id="profileEmail">-</dd></div>
-                  <div><dt>Role</dt><dd id="profileRole">-</dd></div>
-                  <div><dt>School ID</dt><dd id="profileSchool">-</dd></div>
-                  <div><dt>School</dt><dd id="profileSchoolName">-</dd></div>
-                </dl>
-              </section>
-
-              <form id="accountSchoolForm" class="form-panel">
-                <div class="panel-header inline-panel-header">
-                  <div>
-                    <h3>School account</h3>
-                    <p>Address, logo, and contact details.</p>
-                  </div>
-                  <span id="accountSchoolStatus" class="badge">Active</span>
-                </div>
-
-                <label id="accountSchoolSelector" class="hidden">
-                  School
-                  <select id="accountSchoolSelect" name="schoolId"></select>
-                </label>
-
-                <div class="logo-editor">
-                  <div id="accountLogoPreview" class="logo-preview" aria-label="School logo preview">SC</div>
-                  <div>
-                    <input name="logoUrl" type="hidden">
-                    <div class="logo-source-tabs" aria-label="Logo source">
-                      <button class="logo-source-tab active" data-logo-source="link" type="button">Link</button>
-                      <button class="logo-source-tab" data-logo-source="upload" type="button">Upload</button>
-                    </div>
-                    <label id="logoLinkField">
-                      Logo URL
-                      <input id="accountLogoUrlInput" type="url" inputmode="url" placeholder="https://example.com/logo.png">
-                    </label>
-                    <label id="logoUploadField" class="hidden">
-                      JPG or PNG logo
-                      <input id="accountLogoFileInput" type="file" accept="image/jpeg,image/png">
-                    </label>
-                  </div>
-                </div>
-
-                <div class="form-grid">
-                  <label>
-                    School name
-                    <input name="schoolName" type="text" autocomplete="organization" required>
-                  </label>
-                  <label>
-                    Contact person
-                    <input name="contactPerson" type="text" autocomplete="name">
-                  </label>
-                  <label>
-                    Contact email
-                    <input name="contactEmail" type="email" autocomplete="email">
-                  </label>
-                  <label>
-                    Contact phone
-                    <input name="contactPhone" type="tel" autocomplete="tel">
-                  </label>
-                  <label>
-                    Registration number
-                    <input name="registrationNumber" type="text">
-                  </label>
-                  <label class="wide">
-                    Website
-                    <input name="website" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com">
-                  </label>
-                  <label class="wide">
-                    Address
-                    <textarea name="address" rows="3" autocomplete="street-address"></textarea>
-                  </label>
-                </div>
-
-                <button class="primary-button" type="submit">Save school account</button>
-              </form>
-
-              <section id="schoolUsersPanel" class="table-panel account-wide-panel">
-                <div class="panel-header">
-                  <h3>System users</h3>
-                  <p>Give trusted staff access to this school account.</p>
-                </div>
-
-                <form id="schoolUserForm" class="module-form">
-                  <div class="form-grid">
-                    <label>
-                      Username
-                      <input name="username" type="text" autocomplete="off" required>
-                    </label>
-                    <label>
-                      Email
-                      <input name="email" type="email" autocomplete="email" required>
-                    </label>
-                    <label>
-                      Temporary password
-                      <input name="password" type="password" autocomplete="new-password" minlength="8" required>
-                    </label>
-                  </div>
-                  <button class="primary-button compact-button" type="submit">Add user</button>
-                </form>
-
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Created</th>
-                      </tr>
-                    </thead>
-                    <tbody id="schoolUsersTable"></tbody>
-                  </table>
-                </div>
-              </section>
-
-              <section id="auditPanel" class="table-panel account-wide-panel hidden">
-                <div class="panel-header">
-                  <h3>Audit activity</h3>
-                  <p>Recent account and finance changes for this school.</p>
-                </div>
-              </section>
-            </div>
-          </section>
-
           <section id="settingsView" class="view">
-            <form id="settingsForm" class="settings-surface">
-              <section class="settings-section">
-                <div class="settings-section-header">
-                  <div>
-                    <h3>Finance</h3>
-                    <p id="settingsSchoolName">-</p>
+            <div class="settings-layout">
+              <aside class="settings-sidebar" aria-label="Settings sections">
+                <button class="settings-tab active" data-settings-tab="general" type="button">General</button>
+                <button class="settings-tab" data-settings-tab="school-account" type="button">School Account</button>
+                <button class="settings-tab" data-settings-tab="users" type="button">System Users</button>
+                <button class="settings-tab" data-settings-tab="audit" type="button">Audit Activity</button>
+                <button class="settings-tab" data-settings-tab="finance" type="button">Finance</button>
+              </aside>
+
+              <div class="settings-content">
+                <section class="settings-panel active" data-settings-panel="general">
+                  <div class="settings-page-header">
+                    <h3>General</h3>
+                    <p>Current signed-in user and school scope.</p>
                   </div>
-                </div>
+                  <dl class="profile-list settings-profile-list">
+                    <div><dt>Username</dt><dd id="profileUsername">-</dd></div>
+                    <div><dt>Email</dt><dd id="profileEmail">-</dd></div>
+                    <div><dt>Role</dt><dd id="profileRole">-</dd></div>
+                    <div><dt>School ID</dt><dd id="profileSchool">-</dd></div>
+                    <div><dt>School</dt><dd id="profileSchoolName">-</dd></div>
+                  </dl>
+                </section>
 
-                <label id="settingsSchoolSelector" class="hidden">
-                  School
-                  <select id="settingsSchoolSelect" name="schoolId"></select>
-                </label>
+                <section class="settings-panel" data-settings-panel="school-account">
+                  <form id="accountSchoolForm" class="settings-surface">
+                    <div class="settings-page-header inline-panel-header">
+                      <div>
+                        <h3>School Account</h3>
+                        <p>Address, logo, and contact details.</p>
+                      </div>
+                      <span id="accountSchoolStatus" class="badge">Active</span>
+                    </div>
 
-                <div class="settings-row">
-                  <div>
-                    <h4>Currency</h4>
-                    <p id="settingsCurrencyLabel">South African Rand - R</p>
-                  </div>
-                  <select id="currencySelect" name="currencyCode" required></select>
-                </div>
-              </section>
+                    <label id="accountSchoolSelector" class="hidden">
+                      School
+                      <select id="accountSchoolSelect" name="schoolId"></select>
+                    </label>
 
-              <div class="settings-actions">
-                <button class="primary-button compact-button" type="submit">Save settings</button>
+                    <div class="logo-editor">
+                      <div id="accountLogoPreview" class="logo-preview" aria-label="School logo preview">SC</div>
+                      <div>
+                        <input name="logoUrl" type="hidden">
+                        <div class="logo-source-tabs" aria-label="Logo source">
+                          <button class="logo-source-tab active" data-logo-source="link" type="button">Link</button>
+                          <button class="logo-source-tab" data-logo-source="upload" type="button">Upload</button>
+                        </div>
+                        <label id="logoLinkField">
+                          Logo URL
+                          <input id="accountLogoUrlInput" type="url" inputmode="url" placeholder="https://example.com/logo.png">
+                        </label>
+                        <label id="logoUploadField" class="hidden">
+                          JPG or PNG logo
+                          <input id="accountLogoFileInput" type="file" accept="image/jpeg,image/png">
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="form-grid">
+                      <label>
+                        School name
+                        <input name="schoolName" type="text" autocomplete="organization" required>
+                      </label>
+                      <label>
+                        Contact person
+                        <input name="contactPerson" type="text" autocomplete="name">
+                      </label>
+                      <label>
+                        Contact email
+                        <input name="contactEmail" type="email" autocomplete="email">
+                      </label>
+                      <label>
+                        Contact phone
+                        <input name="contactPhone" type="tel" autocomplete="tel">
+                      </label>
+                      <label>
+                        Registration number
+                        <input name="registrationNumber" type="text">
+                      </label>
+                      <label class="wide">
+                        Website
+                        <input name="website" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com">
+                      </label>
+                      <label class="wide">
+                        Address
+                        <textarea name="address" rows="3" autocomplete="street-address"></textarea>
+                      </label>
+                    </div>
+
+                    <button class="primary-button compact-button" type="submit">Save school account</button>
+                  </form>
+                </section>
+
+                <section class="settings-panel" data-settings-panel="users">
+                  <section id="schoolUsersPanel" class="settings-surface">
+                    <div class="settings-page-header">
+                      <h3>System Users</h3>
+                      <p>Give trusted staff access to this school account.</p>
+                    </div>
+
+                    <form id="schoolUserForm" class="module-form">
+                      <div class="form-grid">
+                        <label>
+                          Username
+                          <input name="username" type="text" autocomplete="off" required>
+                        </label>
+                        <label>
+                          Email
+                          <input name="email" type="email" autocomplete="email" required>
+                        </label>
+                        <label>
+                          Temporary password
+                          <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+                        </label>
+                      </div>
+                      <button class="primary-button compact-button" type="submit">Add user</button>
+                    </form>
+
+                    <div class="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Created</th>
+                          </tr>
+                        </thead>
+                        <tbody id="schoolUsersTable"></tbody>
+                      </table>
+                    </div>
+                  </section>
+                </section>
+
+                <section class="settings-panel" data-settings-panel="audit">
+                  <section id="auditPanel" class="settings-surface hidden">
+                    <div class="settings-page-header">
+                      <h3>Audit Activity</h3>
+                      <p>Recent account and finance changes for this school.</p>
+                    </div>
+                  </section>
+                </section>
+
+                <section class="settings-panel" data-settings-panel="finance">
+                  <form id="settingsForm" class="settings-surface">
+                    <div class="settings-page-header">
+                      <h3>Finance</h3>
+                      <p id="settingsSchoolName">-</p>
+                    </div>
+
+                    <label id="settingsSchoolSelector" class="hidden">
+                      School
+                      <select id="settingsSchoolSelect" name="schoolId"></select>
+                    </label>
+
+                    <div class="settings-row">
+                      <div>
+                        <h4>Currency</h4>
+                        <p id="settingsCurrencyLabel">South African Rand - R</p>
+                      </div>
+                      <select id="currencySelect" name="currencyCode" required></select>
+                    </div>
+
+                    <div class="settings-actions">
+                      <button class="primary-button compact-button" type="submit">Save settings</button>
+                    </div>
+                  </form>
+                </section>
               </div>
-            </form>
+            </div>
           </section>
         </section>
 
