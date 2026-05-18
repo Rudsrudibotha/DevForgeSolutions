@@ -7,8 +7,7 @@ const state = {
   dashboard: null
 };
 
-document.body.classList.remove('platform-user');
-document.body.classList.add('school-user');
+document.body.classList.add('school-user', 'platform-user');
 
 const elements = {
   workspace: document.getElementById('workspace'),
