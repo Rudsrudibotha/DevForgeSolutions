@@ -7,6 +7,18 @@ const { audit } = require('../middleware/audit');
 
 const router = express.Router();
 const attendanceService = new AttendanceService();
+const requireStudentAttendanceAccess = (req, res, next) => {
+  if (req.user.Role === 'parent') {
+    return next();
+  }
+
+  return requireSchoolPermission(
+    'attendance.view_all',
+    'attendance.edit_all',
+    'attendance.view_assigned',
+    'attendance.submit_assigned'
+  )(req, res, next);
+};
 
 router.get('/date/:date', authenticateToken, requireSchoolPermission('attendance.view_all', 'attendance.edit_all', 'attendance.view_assigned', 'attendance.submit_assigned'), async (req, res) => {
   try { res.json(await attendanceService.getByDate(req.params.date, req.user)); }
@@ -18,7 +30,7 @@ router.get('/range', authenticateToken, requireSchoolPermission('attendance.view
   catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-router.get('/student/:studentId', authenticateToken, requireSchoolPermission('attendance.view_all', 'attendance.edit_all', 'attendance.view_assigned', 'attendance.submit_assigned'), async (req, res) => {
+router.get('/student/:studentId', authenticateToken, requireStudentAttendanceAccess, async (req, res) => {
   try { res.json(await attendanceService.getByStudent(parseInt(req.params.studentId, 10), req.query.from, req.query.to, req.user)); }
   catch (e) {
     const status = e.message.includes('only view attendance') ? 403 : 500;
