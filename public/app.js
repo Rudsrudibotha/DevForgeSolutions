@@ -3667,10 +3667,12 @@ function renderInvoicesTable() {
     const amountPaid = Number(invoice.AmountPaid || 0);
     const remaining = Math.max(0, Number(invoice.Amount || 0) - amountPaid);
     const studentName = [invoice.FirstName, invoice.LastName].filter(Boolean).join(' ') || '-';
-    const actions = invoice.StudentID
+    const studentId = Number(invoice.StudentID);
+    const hasLinkedStudent = Number.isInteger(studentId) && studentId > 0;
+    const actions = hasLinkedStudent
       ? `
-            <button class="ghost-button" data-action="view-student-finance" data-id="${invoice.StudentID}" type="button">View invoices</button>
-            <button class="ghost-button" data-action="issue-student-receipt" data-id="${invoice.StudentID}" type="button">Issue receipt</button>
+            <button class="ghost-button" data-action="view-student-finance" data-id="${studentId}" type="button">View invoices</button>
+            <button class="ghost-button" data-action="issue-student-receipt" data-id="${studentId}" type="button">Issue receipt</button>
         `
       : `
             <span class="table-subtext">No learner linked</span>
@@ -5435,6 +5437,12 @@ function hideDepartureForm() {
 
 async function openStudentFinanceDialog(studentId, focusReceipt = false) {
   const parsedStudentId = Number(studentId);
+
+  if (!Number.isInteger(parsedStudentId) || parsedStudentId <= 0) {
+    showToast('This invoice is not linked to a learner.');
+    return;
+  }
+
   const student = state.students.find((item) => Number(item.StudentID) === parsedStudentId);
 
   state.selectedStudentFinanceId = parsedStudentId;

@@ -48,7 +48,7 @@ class InvoiceRepository {
     req.input('offset', sql.Int, offset);
 
     const result = await req.query(`
-      SELECT i.*, s.StudentID, s.FirstName, s.LastName, s.ClassName, bc.CategoryName
+      SELECT i.*, s.FirstName, s.LastName, s.ClassName, bc.CategoryName
       FROM Invoices i
       LEFT JOIN Students s ON i.StudentID = s.StudentID
       LEFT JOIN BillingCategories bc ON i.BillingCategoryID = bc.BillingCategoryID
@@ -64,7 +64,7 @@ class InvoiceRepository {
     const result = await pool.request()
       .input('id', sql.Int, id)
       .query(`
-        SELECT i.*, s.StudentID, s.FirstName, s.LastName, s.ClassName, bc.CategoryName
+        SELECT i.*, s.FirstName, s.LastName, s.ClassName, bc.CategoryName
         FROM Invoices i
         LEFT JOIN Students s ON i.StudentID = s.StudentID
         LEFT JOIN BillingCategories bc ON i.BillingCategoryID = bc.BillingCategoryID
@@ -110,7 +110,7 @@ class InvoiceRepository {
     req.input('offset', sql.Int, offset);
 
     const result = await req.query(`
-      SELECT i.*, s.StudentID, s.FirstName, s.LastName, s.ClassName, bc.CategoryName
+      SELECT i.*, s.FirstName, s.LastName, s.ClassName, bc.CategoryName
       FROM Invoices i
       LEFT JOIN Students s ON i.StudentID = s.StudentID
       LEFT JOIN BillingCategories bc ON i.BillingCategoryID = bc.BillingCategoryID
