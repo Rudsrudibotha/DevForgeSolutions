@@ -8495,11 +8495,16 @@ if (elements.registerLearnerForm) {
       state.registerLearnerBillingIds = [];
       state.studentSearchType = 'Student surname';
       state.studentSearchQuery = data.lastName || createdStudent.LastName || '';
+      const primaryBillingCategory = state.billingCategories.find((category) => (
+        Number(category.BillingCategoryID) === Number(billingCategoryIds[0])
+      ));
       state.students = [
         {
           ...createdStudent,
           FamilyName: data.familyName || createdStudent.FamilyName,
           ClassName: data.className || createdStudent.ClassName,
+          BillingCategoryID: createdStudent.BillingCategoryID || billingCategoryIds[0],
+          CategoryName: primaryBillingCategory?.CategoryName || createdStudent.CategoryName,
           IsActive: createdStudent.IsActive !== false,
           PrimaryParentName: data.primaryParentName || createdStudent.PrimaryParentName,
           PrimaryParentPhone: data.primaryParentPhone || createdStudent.PrimaryParentPhone,
@@ -8509,6 +8514,8 @@ if (elements.registerLearnerForm) {
       ];
       updateRegisterLearnerParentFields();
       renderRegisterLearnerBillingPicker();
+      renderBillingCategoryOptions();
+      renderInvoiceFilters();
       showToast('Learner registered successfully');
       switchView('students');
       syncStudentSearchControls();
