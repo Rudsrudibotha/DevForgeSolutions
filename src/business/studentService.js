@@ -3,6 +3,7 @@
 const StudentRepository = require('../data/studentRepository');
 const FamilyRepository = require('../data/familyRepository');
 const BillingCategoryRepository = require('../data/billingCategoryRepository');
+const { hasSchoolPermission } = require('../security/schoolPermissions');
 
 class StudentService {
   constructor() {
@@ -21,10 +22,12 @@ class StudentService {
         return [];
       }
 
-      return await this.studentRepository.getStudentsBySchool(currentUser.SchoolID, normalizedStatus);
+      const students = await this.studentRepository.getStudentsBySchool(currentUser.SchoolID, normalizedStatus, this.teacherScopeUserId(currentUser));
+      return students.map((student) => this.sanitizeStudentForUser(student, currentUser));
     }
 
-    return await this.studentRepository.getAllStudents(normalizedStatus);
+    const students = await this.studentRepository.getAllStudents(normalizedStatus);
+    return students.map((student) => this.sanitizeStudentForUser(student, currentUser));
   }
 
   async getStudentById(id, currentUser) {
@@ -37,8 +40,9 @@ class StudentService {
     }
 
     this.ensureStudentAccess(student, currentUser);
+    await this.ensureTeacherStudentAccess(student, currentUser);
 
-    return student;
+    return this.sanitizeStudentForUser(student, currentUser);
   }
 
   async createStudent(studentData, currentUser) {
@@ -108,11 +112,84 @@ class StudentService {
       homePhone: this.optionalString(studentData.homePhone ?? existingStudent.HomePhone, 'Home phone', 50),
       homeAddress: this.optionalString(studentData.homeAddress ?? existingStudent.HomeAddress, 'Home address', 500),
       className: this.optionalString(studentData.className ?? existingStudent.ClassName, 'Class', 100),
+      currentAcademicYear: this.academicYear(studentData.currentAcademicYear ?? existingStudent.CurrentAcademicYear),
       billingDate: this.requiredDate(studentData.billingDate ?? existingStudent.BillingDate, 'Billing date'),
       enrolledDate: this.requiredDate(studentData.enrolledDate ?? existingStudent.EnrolledDate, 'Enrolled date'),
       medicalNotes: this.optionalString(studentData.medicalNotes ?? existingStudent.MedicalNotes, 'Medical notes', 1000),
       billingCategoryId,
-      billingCategoryIds
+      billingCategoryIds,
+      ...this.buildResponsiblePayerPayload(studentData, existingStudent, family)
+    };
+  }
+
+  buildResponsiblePayerPayload(studentData, existingStudent, family) {
+    const type = this.normalizeResponsiblePayerType(
+      studentData.responsiblePayerType ?? existingStudent.ResponsiblePayerType ?? 'Primary parent'
+    );
+    const parentContact = this.familyPayerContact(family, type);
+    const responsiblePayerName = this.optionalString(
+      studentData.responsiblePayerName ?? existingStudent.ResponsiblePayerName ?? parentContact.name,
+      'Responsible payer name',
+      255
+    );
+    const responsiblePayerPhone = this.optionalString(
+      studentData.responsiblePayerPhone ?? existingStudent.ResponsiblePayerPhone ?? parentContact.phone,
+      'Responsible payer phone',
+      50
+    );
+    const responsiblePayerEmail = this.optionalString(
+      studentData.responsiblePayerEmail ?? existingStudent.ResponsiblePayerEmail ?? parentContact.email,
+      'Responsible payer email',
+      255
+    );
+
+    if (!responsiblePayerName) {
+      throw new Error('Responsible payer is required');
+    }
+
+    return {
+      responsiblePayerType: type,
+      responsiblePayerName,
+      responsiblePayerPhone,
+      responsiblePayerEmail
+    };
+  }
+
+  normalizeResponsiblePayerType(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+
+    if (['secondary', 'secondary parent', 'father'].includes(normalized)) {
+      return 'Secondary parent';
+    }
+
+    if (['other', 'custom', 'guardian'].includes(normalized)) {
+      return 'Other';
+    }
+
+    return 'Primary parent';
+  }
+
+  familyPayerContact(family, type) {
+    if (type === 'Secondary parent') {
+      return {
+        name: family.SecondaryParentName,
+        phone: family.SecondaryParentPhone,
+        email: family.SecondaryParentEmail
+      };
+    }
+
+    if (type === 'Primary parent') {
+      return {
+        name: family.PrimaryParentName,
+        phone: family.PrimaryParentPhone,
+        email: family.PrimaryParentEmail
+      };
+    }
+
+    return {
+      name: null,
+      phone: null,
+      email: null
     };
   }
 
@@ -190,6 +267,62 @@ class StudentService {
     }
   }
 
+  async ensureTeacherStudentAccess(student, currentUser) {
+    const teacherUserId = this.teacherScopeUserId(currentUser);
+    if (!teacherUserId) return;
+
+    const assignedStudents = await this.studentRepository.getStudentsBySchool(student.SchoolID, 'all', teacherUserId);
+    const canAccess = assignedStudents.some((item) => Number(item.StudentID) === Number(student.StudentID));
+    if (!canAccess) throw new Error('You can only access students in your assigned classes');
+  }
+
+  teacherScopeUserId(currentUser) {
+    if (!currentUser || currentUser.Role === 'admin') return null;
+    if (hasSchoolPermission(currentUser, ['school.students.view', 'school.students.manage'])) return null;
+    if (hasSchoolPermission(currentUser, ['classes.view_assigned', 'attendance.view_assigned', 'attendance.submit_assigned'])) {
+      return currentUser.UserID;
+    }
+    return null;
+  }
+
+  sanitizeStudentForUser(student, currentUser) {
+    if (this.canViewStudentBilling(currentUser)) {
+      return student;
+    }
+
+    const clone = { ...student };
+    [
+      'BillingDate',
+      'BillingCategoryID',
+      'BillingCategoriesJson',
+      'CategoryName',
+      'CategoryAmount',
+      'CategoryFrequency',
+      'CategoryIsActive',
+      'ResponsiblePayerType',
+      'ResponsiblePayerName',
+      'ResponsiblePayerPhone',
+      'ResponsiblePayerEmail'
+    ].forEach((field) => {
+      delete clone[field];
+    });
+    return clone;
+  }
+
+  canViewStudentBilling(currentUser) {
+    if (!currentUser || currentUser.Role === 'admin') return true;
+    return hasSchoolPermission(currentUser, [
+      'school.students.manage',
+      'finance.invoices.view',
+      'finance.invoices.create',
+      'finance.invoices.edit',
+      'finance.payments.view',
+      'finance.payments.allocate',
+      'finance.outstanding_fees.view',
+      'reports.finance.view'
+    ]);
+  }
+
   requiredId(value, label) {
     if (!Number.isInteger(value) || value <= 0) {
       throw new Error(`${label} ID must be a positive integer`);
@@ -202,6 +335,14 @@ class StudentService {
     if (!Number.isInteger(id) || id <= 0) {
       throw new Error(`${label} must be a positive integer`);
     }
+  }
+
+  academicYear(value) {
+    const year = Number(value || new Date().getFullYear());
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      throw new Error('Academic year must be between 2000 and 2100');
+    }
+    return year;
   }
 
   requiredString(value, label, maxLength) {

@@ -2,21 +2,22 @@
 
 const express = require('express');
 const BillingCategoryService = require('../business/billingCategoryService');
-const { authenticateToken, requireSchoolOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireSchoolPermission } = require('../middleware/auth');
 
 const router = express.Router();
 const billingCategoryService = new BillingCategoryService();
 
-router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/', authenticateToken, requireSchoolPermission('finance.billing_categories.manage', 'finance.invoices.view', 'finance.invoices.create'), async (req, res) => {
   try {
-    const categories = await billingCategoryService.getCategories(req.user);
+    const schoolId = req.query.schoolId ? parseInt(req.query.schoolId, 10) : null;
+    const categories = await billingCategoryService.getCategories(req.user, { schoolId });
     res.json(categories);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.get('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/:id', authenticateToken, requireSchoolPermission('finance.billing_categories.manage', 'finance.invoices.view', 'finance.invoices.create'), async (req, res) => {
   try {
     const category = await billingCategoryService.getCategoryById(parseInt(req.params.id, 10), req.user);
     res.json(category);
@@ -25,7 +26,7 @@ router.get('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => 
   }
 });
 
-router.post('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.post('/', authenticateToken, requireSchoolPermission('finance.billing_categories.manage'), async (req, res) => {
   try {
     const category = await billingCategoryService.createCategory(req.body, req.user);
     res.status(201).json(category);
@@ -34,7 +35,7 @@ router.post('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.put('/:id', authenticateToken, requireSchoolPermission('finance.billing_categories.manage'), async (req, res) => {
   try {
     const category = await billingCategoryService.updateCategory(parseInt(req.params.id, 10), req.body, req.user);
     res.json(category);
@@ -43,7 +44,7 @@ router.put('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => 
   }
 });
 
-router.delete('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.delete('/:id', authenticateToken, requireSchoolPermission('finance.billing_categories.manage'), async (req, res) => {
   try {
     const result = await billingCategoryService.deleteCategory(parseInt(req.params.id, 10), req.user);
     res.json(result);

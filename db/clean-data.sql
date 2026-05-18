@@ -11,6 +11,7 @@ EXEC sp_executesql @sql;
 -- Delete from all tables
 DELETE FROM dbo.BalanceBroughtForward;
 DELETE FROM dbo.YearEndClosing;
+DELETE FROM dbo.FinancePeriodLocks;
 DELETE FROM dbo.LeaveBalances;
 DELETE FROM dbo.UserRoleAssignments;
 DELETE FROM dbo.StaffRoles;

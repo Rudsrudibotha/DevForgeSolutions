@@ -38,10 +38,10 @@ const CURRENCY_SYMBOL_OVERRIDES = {
 const VIEW_TITLES = {
   overview: 'School Management Dashboard',
   school: 'School Management',
-  finance: 'Finance',
+  finance: 'Financial Management',
   reporting: 'Reporting',
   settings: 'Settings',
-  classes: 'Class Managment',
+  classes: 'Class Management',
   staff: 'Staff Management',
   students: 'Student Management',
   parents: 'Parent Management',
@@ -49,18 +49,18 @@ const VIEW_TITLES = {
   reenrolment: 'School / Re-Enrolment / Year Rollover',
   consentPermissions: 'Consent and Permissions',
   registerLearner: 'Register Learner',
-  bank: 'Finance / Bank Reconciliation',
-  outstanding: 'Finance / Outstanding Fees',
-  bankTransactions: 'Finance / Bank Transactions',
-  bankStatements: 'Finance / Bank Statements',
-  suggestedMatches: 'Finance / Suggested Matches',
-  invoices: 'Finance / Invoices',
-  billingCategories: 'Finance / Billing Categories',
-  payslips: 'Finance / HR / Payroll',
-  financialAdjustments: 'Finance / Financial Adjustments',
-  refunds: 'Finance / Refunds',
-  registrationFees: 'Finance / Registration / Deposit Fees',
-  yearEndClosing: 'Finance / Year-End Financial Closing',
+  bank: 'Bank Reconciliation',
+  outstanding: 'Outstanding Fees',
+  bankTransactions: 'Bank Transactions',
+  bankStatements: 'Bank Statements',
+  invoices: 'Invoices',
+  billingCategories: 'Billing Categories',
+  payslips: 'HR / Payroll',
+  financialAdjustments: 'Financial Adjustments',
+  refunds: 'Refunds',
+  registrationFees: 'Registration / Deposit Fees',
+  yearEndClosing: 'Year-End Financial Closing',
+  financeAudit: 'Finance Audit',
   studentReports: 'Reporting / Student Reports',
   report: 'Reporting / School Report',
   sendInvoices: 'Reporting / Send Invoices to Parents',
@@ -85,7 +85,6 @@ const VIEW_MODULE = {
   outstanding: 'finance',
   bankTransactions: 'finance',
   bankStatements: 'finance',
-  suggestedMatches: 'finance',
   invoices: 'finance',
   billingCategories: 'finance',
   payslips: 'finance',
@@ -93,6 +92,7 @@ const VIEW_MODULE = {
   refunds: 'finance',
   registrationFees: 'finance',
   yearEndClosing: 'finance',
+  financeAudit: 'finance',
   studentReports: 'reporting',
   report: 'reporting',
   sendInvoices: 'reporting',
@@ -122,7 +122,6 @@ const VIEW_ROUTES = {
   outstanding: '/school/finance/outstanding-fees',
   bankTransactions: '/school/finance/bank-transactions',
   bankStatements: '/school/finance/bank-statements',
-  suggestedMatches: '/school/finance/suggested-matches',
   invoices: '/school/finance/invoices',
   billingCategories: '/school/finance/billing-categories',
   payslips: '/school/finance/hr-payroll',
@@ -130,6 +129,7 @@ const VIEW_ROUTES = {
   refunds: '/school/finance/refunds',
   registrationFees: '/school/finance/registration-deposit-fees',
   yearEndClosing: '/school/finance/year-end-financial-closing',
+  financeAudit: '/school/finance/audit',
   studentReports: '/school/reporting/student-reports',
   report: '/school/reporting/school-report',
   sendInvoices: '/school/reporting/send-invoices-to-parents',
@@ -162,15 +162,14 @@ const ACTION_VIEWS = {
   'open-outstanding': 'outstanding',
   'open-bank-transactions': 'bankTransactions',
   'open-bank-statements': 'bankStatements',
-  'open-suggested-matches': 'suggestedMatches',
   'open-invoices': 'invoices',
   'open-billing-categories': 'billingCategories',
   'open-hr-payroll': 'payslips',
-  'open-payslips': 'payslips',
   'open-financial-adjustments': 'financialAdjustments',
   'open-refunds': 'refunds',
   'open-registration-fees': 'registrationFees',
   'open-year-end-closing': 'yearEndClosing',
+  'open-finance-audit': 'financeAudit',
   'open-student-reports': 'studentReports',
   'open-report': 'report',
   'open-send-invoices': 'sendInvoices',
@@ -180,6 +179,529 @@ const ACTION_VIEWS = {
   'open-reenrolment-report': 'reenrolmentReport',
   'open-consent-report': 'consentReport',
   'open-year-end-report': 'yearEndReport'
+};
+
+const PERMISSION_ALIAS_MAP = {
+  'classes.view': ['school.classes.view', 'classes.view_assigned'],
+  'classes.manage': ['school.classes.manage', 'school.classes.view'],
+  'students.view': ['school.students.view'],
+  'students.manage': ['school.students.manage', 'school.students.view'],
+  'parents.view': ['school.parents.view'],
+  'parents.manage': ['school.parents.manage', 'school.parents.view'],
+  'staff.view': ['school.staff.view'],
+  'staff.manage': ['school.staff.manage', 'school.staff.view'],
+  'users.manage': [
+    'school.staff.permissions.manage',
+    'school.staff.manage',
+    'school.staff.view',
+    'school.consent.manage',
+    'school.consent.view',
+    'school.year_rollover.preview',
+    'school.year_rollover.apply',
+    'attendance.view_all',
+    'attendance.edit_all',
+    'reports.view'
+  ],
+  'attendance.capture': ['attendance.submit_assigned', 'attendance.view_assigned'],
+  'finance.view': [
+    'finance.invoices.view',
+    'finance.payments.view',
+    'finance.outstanding_fees.view',
+    'finance.bank_reconciliation.view',
+    'finance.registration_fees.view',
+    'finance.audit.view'
+  ],
+  'invoices.manage': ['finance.invoices.create', 'finance.invoices.edit', 'finance.invoices.view'],
+  'payments.allocate': ['finance.payments.allocate', 'finance.payments.view'],
+  'reports.finance': ['reports.finance.view', 'reports.finance.export'],
+  'hr.view': ['school.staff.view', 'leave.view_all', 'hr.view_payslips'],
+  'hr.manage_leave': ['leave.manage_types', 'leave.manage_balances', 'leave.adjust_balances', 'leave.view_all'],
+  'hr.manage_payslips': [
+    'hr.manage_payslips',
+    'hr.view_payslips',
+    'payroll.generate',
+    'payroll.review',
+    'payroll.finalize',
+    'payroll.view_previous',
+    'sensitive.payroll.view'
+  ]
+};
+
+const PERMISSION_GROUPS = [
+  {
+    key: 'assigned_classes',
+    label: 'Assigned Class Lists',
+    area: 'Teacher',
+    description: 'View only classes linked to the staff member.',
+    permissions: ['classes.view_assigned']
+  },
+  {
+    key: 'assigned_attendance_view',
+    label: 'Assigned Attendance View',
+    area: 'Teacher',
+    description: 'View attendance for assigned classes.',
+    permissions: ['attendance.view_assigned']
+  },
+  {
+    key: 'assigned_attendance_capture',
+    label: 'Assigned Attendance Capture',
+    area: 'Teacher',
+    description: 'Capture attendance for assigned classes.',
+    permissions: ['attendance.submit_assigned']
+  },
+  {
+    key: 'attendance_all_view',
+    label: 'Whole School Attendance View',
+    area: 'School Management',
+    description: 'View attendance across every class in the school.',
+    permissions: ['attendance.view_all']
+  },
+  {
+    key: 'attendance_all_correction',
+    label: 'Whole School Attendance Corrections',
+    area: 'School Management',
+    description: 'Correct or edit attendance across the school.',
+    permissions: ['attendance.edit_all', 'attendance.correct']
+  },
+  {
+    key: 'student_view',
+    label: 'Student Records View',
+    area: 'School Management',
+    description: 'View learner profiles without finance permissions.',
+    permissions: ['school.students.view']
+  },
+  {
+    key: 'student_manage',
+    label: 'Student Records Create and Edit',
+    area: 'School Management',
+    description: 'Add learners, update details, and manage enrolment status.',
+    permissions: ['school.students.manage']
+  },
+  {
+    key: 'parent_view',
+    label: 'Parent Records View',
+    area: 'School Management',
+    description: 'View parent and family contact information.',
+    permissions: ['school.parents.view']
+  },
+  {
+    key: 'parent_manage',
+    label: 'Parent Records Create and Edit',
+    area: 'School Management',
+    description: 'Add and update family or parent records.',
+    permissions: ['school.parents.manage']
+  },
+  {
+    key: 'class_view',
+    label: 'Class Setup View',
+    area: 'School Management',
+    description: 'View classes and timetables.',
+    permissions: ['school.classes.view']
+  },
+  {
+    key: 'class_manage',
+    label: 'Class Setup Create and Edit',
+    area: 'School Management',
+    description: 'Create classes, assign teachers, and maintain timetables.',
+    permissions: ['school.classes.manage']
+  },
+  {
+    key: 'consent_view',
+    label: 'Consent Responses View',
+    area: 'School Management',
+    description: 'View consent requests and signed permission slips.',
+    permissions: ['school.consent.view']
+  },
+  {
+    key: 'consent_manage',
+    label: 'Consent Requests Create and Edit',
+    area: 'School Management',
+    description: 'Create permission slips and manage response tracking.',
+    permissions: ['school.consent.manage']
+  },
+  {
+    key: 'admissions_view',
+    label: 'Admissions View',
+    area: 'School Management',
+    description: 'View applications and supporting admission information.',
+    permissions: ['admissions.view']
+  },
+  {
+    key: 'admissions_decisions',
+    label: 'Admissions Review and Decisions',
+    area: 'School Management',
+    description: 'Review, accept, waitlist, or refuse applications.',
+    permissions: ['admissions.review', 'admissions.accept', 'admissions.waitlist', 'admissions.refuse']
+  },
+  {
+    key: 'year_rollover_preview',
+    label: 'Year Rollover Preview',
+    area: 'School Management',
+    description: 'Preview re-enrolment, promotions, and year-end movement.',
+    permissions: ['school.year_rollover.preview']
+  },
+  {
+    key: 'year_rollover_apply',
+    label: 'Year Rollover Apply',
+    area: 'School Management',
+    description: 'Apply next-year enrolment and promotion changes.',
+    permissions: ['school.year_rollover.apply'],
+    sensitive: true
+  },
+  {
+    key: 'finance_invoice_view',
+    label: 'Student Invoice View',
+    area: 'Financial Management',
+    description: 'View student invoices and account statements.',
+    permissions: ['finance.invoices.view']
+  },
+  {
+    key: 'finance_payment_view',
+    label: 'Student Payment View',
+    area: 'Financial Management',
+    description: 'View receipts, payments, and payment history.',
+    permissions: ['finance.payments.view']
+  },
+  {
+    key: 'finance_outstanding_view',
+    label: 'Outstanding Fees View',
+    area: 'Financial Management',
+    description: 'View overdue balances and outstanding payment reports.',
+    permissions: ['finance.outstanding_fees.view']
+  },
+  {
+    key: 'finance_invoice_manage',
+    label: 'Invoice Create and Edit',
+    area: 'Financial Management',
+    description: 'Create, edit, and maintain invoices.',
+    permissions: ['finance.invoices.create', 'finance.invoices.edit']
+  },
+  {
+    key: 'finance_invoice_delete',
+    label: 'Invoice Soft Delete',
+    area: 'Financial Management',
+    description: 'Cancel or hide invoices through a controlled soft delete.',
+    permissions: ['finance.invoices.soft_delete'],
+    sensitive: true
+  },
+  {
+    key: 'finance_billing_categories',
+    label: 'Billing Categories',
+    area: 'Financial Management',
+    description: 'Create and update school billing categories.',
+    permissions: ['finance.billing_categories.manage']
+  },
+  {
+    key: 'finance_payment_allocate',
+    label: 'Receipt and Payment Allocation',
+    area: 'Financial Management',
+    description: 'Issue receipts and allocate payments to invoices or advance credit.',
+    permissions: ['finance.payments.allocate']
+  },
+  {
+    key: 'finance_adjustments',
+    label: 'Discounts, Credits, and Adjustments',
+    area: 'Financial Management',
+    description: 'Apply discounts, credit notes, and accounting adjustments.',
+    permissions: ['finance.discounts.manage', 'finance.credit_notes.create', 'finance.credit_notes.approve', 'finance.adjustments.create'],
+    sensitive: true
+  },
+  {
+    key: 'finance_registration_fees',
+    label: 'Registration Fees',
+    area: 'Financial Management',
+    description: 'View and manage registration fee payments.',
+    permissions: ['finance.registration_fees.view', 'finance.registration_fees.manage', 'finance.registration_fees.mark_paid']
+  },
+  {
+    key: 'bank_reconciliation_view',
+    label: 'Bank Statements and Reconciliations View',
+    area: 'Financial Management',
+    description: 'View uploaded bank statements and completed reconciliations.',
+    permissions: ['finance.bank_reconciliation.view']
+  },
+  {
+    key: 'bank_reconciliation_match',
+    label: 'Bank Match Approval',
+    area: 'Financial Management',
+    description: 'Approve suggested matches between bank payments and invoices.',
+    permissions: ['finance.bank_reconciliation.approve_match']
+  },
+  {
+    key: 'bank_reconciliation_correct',
+    label: 'Bank Reallocation Corrections',
+    area: 'Financial Management',
+    description: 'Correct allocations through the controlled reallocation workflow.',
+    permissions: ['finance.bank_reconciliation.correct'],
+    sensitive: true
+  },
+  {
+    key: 'finance_refund_create',
+    label: 'Refund Requests',
+    area: 'Financial Management',
+    description: 'Create refund requests for review.',
+    permissions: ['finance.refunds.create']
+  },
+  {
+    key: 'finance_refund_approve',
+    label: 'Refund Approval and Completion',
+    area: 'Financial Management',
+    description: 'Approve and complete refunds.',
+    permissions: ['finance.refunds.approve', 'finance.refunds.complete'],
+    sensitive: true
+  },
+  {
+    key: 'finance_audit_view',
+    label: 'Finance Audit View',
+    area: 'Financial Management',
+    description: 'View sensitive finance audit activity.',
+    permissions: ['finance.audit.view'],
+    sensitive: true
+  },
+  {
+    key: 'finance_period_lock',
+    label: 'Finance Period Locking',
+    area: 'Financial Management',
+    description: 'Lock and unlock finance months or year-end periods.',
+    permissions: ['finance.period_lock.manage'],
+    sensitive: true
+  },
+  {
+    key: 'finance_year_end',
+    label: 'Finance Year-End Close and Reopen',
+    area: 'Financial Management',
+    description: 'Close or reopen financial years.',
+    permissions: ['finance.year_end_close', 'finance.year_end_reopen'],
+    sensitive: true
+  },
+  {
+    key: 'staff_view',
+    label: 'Staff Records View',
+    area: 'HR',
+    description: 'View staff profiles.',
+    permissions: ['school.staff.view']
+  },
+  {
+    key: 'staff_manage',
+    label: 'Staff Records Create and Edit',
+    area: 'HR',
+    description: 'Add employees and update staff profiles.',
+    permissions: ['school.staff.manage']
+  },
+  {
+    key: 'leave_view',
+    label: 'Leave View',
+    area: 'HR',
+    description: 'View leave records for staff.',
+    permissions: ['leave.view_all']
+  },
+  {
+    key: 'leave_approve',
+    label: 'Leave Approval',
+    area: 'HR',
+    description: 'Approve or decline leave requests.',
+    permissions: ['leave.approve', 'leave.decline']
+  },
+  {
+    key: 'leave_setup',
+    label: 'Leave Setup and Balances',
+    area: 'HR',
+    description: 'Manage leave types, balances, and adjustments.',
+    permissions: ['leave.manage_types', 'leave.manage_balances', 'leave.adjust_balances']
+  },
+  {
+    key: 'payslip_view',
+    label: 'Payslip View',
+    area: 'HR',
+    description: 'View staff payslips.',
+    permissions: ['hr.view_payslips']
+  },
+  {
+    key: 'payslip_manage',
+    label: 'Payroll Generate and Finalize',
+    area: 'HR',
+    description: 'Generate, review, finalize, and view previous payroll runs.',
+    permissions: ['hr.manage_payslips', 'payroll.generate', 'payroll.review', 'payroll.finalize', 'payroll.view_previous'],
+    sensitive: true
+  },
+  {
+    key: 'payroll_sensitive',
+    label: 'Sensitive Payroll Export',
+    area: 'HR',
+    description: 'View and export sensitive payroll values.',
+    permissions: ['sensitive.payroll.view', 'sensitive.payroll.export'],
+    sensitive: true
+  },
+  {
+    key: 'reports_general',
+    label: 'General Reports View',
+    area: 'Reporting',
+    description: 'Open the reporting area and view general school stats.',
+    permissions: ['reports.view']
+  },
+  {
+    key: 'reports_finance',
+    label: 'Finance Reports View',
+    area: 'Reporting',
+    description: 'View finance reports and reconciliation summaries.',
+    permissions: ['reports.finance.view']
+  },
+  {
+    key: 'reports_attendance',
+    label: 'Attendance Reports View',
+    area: 'Reporting',
+    description: 'View attendance reports and trends.',
+    permissions: ['reports.attendance.view']
+  },
+  {
+    key: 'reports_demographics',
+    label: 'Demographic Reports View',
+    area: 'Reporting',
+    description: 'View learner demographics and enrolment analysis.',
+    permissions: ['reports.demographics.view']
+  },
+  {
+    key: 'reports_year_end',
+    label: 'Year-End Reports View',
+    area: 'Reporting',
+    description: 'View year-end and rollover reports.',
+    permissions: ['reports.year_end.view']
+  },
+  {
+    key: 'reports_communication',
+    label: 'Communication History View',
+    area: 'Reporting',
+    description: 'View invoice, consent, and parent communication history.',
+    permissions: ['communication.history.view']
+  },
+  {
+    key: 'exports_general',
+    label: 'General Exports',
+    area: 'Reporting',
+    description: 'Export readable school reports.',
+    permissions: ['reports.export'],
+    sensitive: true
+  },
+  {
+    key: 'exports_finance',
+    label: 'Finance Exports',
+    area: 'Reporting',
+    description: 'Export financial reports and outstanding payment files.',
+    permissions: ['reports.finance.export'],
+    sensitive: true
+  },
+  {
+    key: 'exports_school',
+    label: 'School Report Exports',
+    area: 'Reporting',
+    description: 'Export attendance, demographics, consent, and year-end reports.',
+    permissions: ['reports.attendance.export', 'reports.demographics.export', 'reports.consent.export', 'reports.year_end.export'],
+    sensitive: true
+  },
+  {
+    key: 'role_security',
+    label: 'Users and Role Security',
+    area: 'Security',
+    description: 'Manage school users, roles, and permission setup.',
+    permissions: ['school.staff.permissions.manage'],
+    sensitive: true
+  },
+  {
+    key: 'sensitive_student_medical',
+    label: 'Sensitive Medical Information',
+    area: 'Security',
+    description: 'View sensitive learner medical information.',
+    permissions: ['sensitive.student_medical.view'],
+    sensitive: true
+  },
+  {
+    key: 'sensitive_student_documents',
+    label: 'Sensitive Student Documents',
+    area: 'Security',
+    description: 'View or upload sensitive learner documents.',
+    permissions: ['sensitive.student_documents.view', 'documents.student.view', 'documents.student.upload'],
+    sensitive: true
+  },
+  {
+    key: 'sensitive_identity_demographics',
+    label: 'Sensitive Identity and Demographics',
+    area: 'Security',
+    description: 'View ID documents, ethnicity, and protected demographic fields.',
+    permissions: ['sensitive.ethnicity.view', 'sensitive.id_documents.view'],
+    sensitive: true
+  }
+];
+
+const ROLE_PERMISSION_TEMPLATES = {
+  teacher: {
+    roleName: 'Teacher',
+    description: 'Classroom teacher permissions: attendance and assigned class access only.',
+    allowed: ['assigned_classes', 'assigned_attendance_view', 'assigned_attendance_capture']
+  },
+  finance: {
+    roleName: 'Finance',
+    description: 'Financial Management permissions without payroll access.',
+    allowed: [
+      'finance_invoice_view',
+      'finance_payment_view',
+      'finance_outstanding_view',
+      'finance_invoice_manage',
+      'finance_billing_categories',
+      'finance_payment_allocate',
+      'finance_registration_fees',
+      'bank_reconciliation_view',
+      'bank_reconciliation_match',
+      'bank_reconciliation_correct',
+      'finance_audit_view',
+      'finance_period_lock',
+      'reports_general',
+      'reports_finance',
+      'exports_finance'
+    ]
+  },
+  hr: {
+    roleName: 'HR',
+    description: 'HR and payroll permissions without learner finance access.',
+    allowed: [
+      'staff_view',
+      'staff_manage',
+      'leave_view',
+      'leave_approve',
+      'leave_setup',
+      'payslip_view',
+      'payslip_manage',
+      'payroll_sensitive',
+      'reports_general'
+    ]
+  },
+  admin: {
+    roleName: 'School Admin',
+    description: 'School administration permissions for learners, classes, parents, consent, reports, and role setup.',
+    allowed: [
+      'attendance_all_view',
+      'attendance_all_correction',
+      'student_view',
+      'student_manage',
+      'parent_view',
+      'parent_manage',
+      'class_view',
+      'class_manage',
+      'consent_view',
+      'consent_manage',
+      'admissions_view',
+      'admissions_decisions',
+      'year_rollover_preview',
+      'year_rollover_apply',
+      'staff_view',
+      'staff_manage',
+      'reports_general',
+      'reports_attendance',
+      'reports_demographics',
+      'reports_year_end',
+      'reports_communication',
+      'role_security'
+    ]
+  }
 };
 
 const state = {
@@ -199,7 +721,10 @@ const state = {
   payslips: [],
   payslipStatusMessage: '',
   schoolUsers: [],
+  schoolUserRoles: {},
   auditLogs: [],
+  financeAuditLogs: [],
+  dashboardWarnings: [],
   matchSuggestions: [],
   selectedAccountSchoolId: null,
   selectedSettingsSchoolId: null,
@@ -210,6 +735,8 @@ const state = {
   selectedDepartureStudentId: null,
   studentSearchQuery: '',
   studentSearchType: 'Student name',
+  selectedStudentFinanceId: null,
+  selectedStudentFinanceStatement: null,
   parentSearchQuery: '',
   parentSearchType: 'Parent Name',
   parentStatusFilter: 'active',
@@ -226,24 +753,52 @@ const state = {
   admissions: [],
   reEnrolments: [],
   reEnrolmentPending: [],
+  featureRolloverYear: null,
   consentRecords: [],
   missingConsent: [],
-  consentSearchQuery: '',
-  consentSearchType: 'Permission slip',
-  consentStatusFilter: 'all',
-  consentPageSize: 10,
+  consentListSearchQuery: '',
+  consentListSearchType: 'Permission slip',
+  consentListStatusFilter: 'all',
+  consentListPageSize: 10,
+  consentOutstandingSearchQuery: '',
+  consentOutstandingSearchType: 'Student name',
+  consentOutstandingDueFilter: 'all',
+  consentOutstandingPageSize: 10,
+  consentSignedSearchQuery: '',
+  consentSignedSearchType: 'Parent / guardian',
+  consentSignedResponseFilter: 'all',
+  consentSignedPageSize: 10,
   consentComposerOpen: false,
   selectedConsentRecordId: null,
   financialAdjustments: [],
   refunds: [],
   registrationFees: [],
   yearEndClosings: [],
+  financePeriodLocks: [],
   communicationHistory: [],
   reportPreview: [],
+  reportData: null,
+  reportStatusMessage: '',
   outstandingFeesData: [],
   outstandingFeesError: '',
-  registerLearnerBillingIds: []
+  registerLearnerBillingIds: [],
+  studentEditBillingIds: [],
+  permissionMatrixSearchQuery: '',
+  editingStaffRoleId: null,
+  permissionDraft: {},
+  bankReallocationTransaction: null,
+  bankReallocationTargets: [],
+  bankReallocationInvoices: [],
+  bankReallocationInvoiceId: null
 };
+
+function currentCalendarYear() {
+  return new Date().getFullYear();
+}
+
+function nextCalendarYear() {
+  return currentCalendarYear() + 1;
+}
 
 const elements = {
   workspace: document.getElementById('workspace'),
@@ -262,9 +817,23 @@ const elements = {
   accountSchoolStatus: document.getElementById('accountSchoolStatus'),
   schoolUsersPanel: document.getElementById('schoolUsersPanel'),
   schoolUserForm: document.getElementById('schoolUserForm'),
+  schoolUserRoleSelect: document.getElementById('schoolUserRoleSelect'),
   schoolUsersTable: document.getElementById('schoolUsersTable'),
   auditPanel: document.getElementById('auditPanel'),
   auditLogsTable: document.getElementById('auditLogsTable'),
+  dashboardWarningsPanel: document.getElementById('dashboardWarningsPanel'),
+  dashboardWarningsList: document.getElementById('dashboardWarningsList'),
+  staffRolePermissionForm: document.getElementById('staffRolePermissionForm'),
+  permissionRoleSelect: document.getElementById('permissionRoleSelect'),
+  permissionEditorList: document.getElementById('permissionEditorList'),
+  permissionMatrixHead: document.getElementById('permissionMatrixHead'),
+  permissionMatrixTable: document.getElementById('permissionMatrixTable'),
+  permissionMatrixSearchInput: document.getElementById('permissionMatrixSearchInput'),
+  clearPermissionMatrixSearchButton: document.getElementById('clearPermissionMatrixSearch'),
+  financeAuditTable: document.getElementById('financeAuditTable'),
+  financeAuditFromInput: document.getElementById('financeAuditFromInput'),
+  financeAuditToInput: document.getElementById('financeAuditToInput'),
+  financeAuditEntityFilter: document.getElementById('financeAuditEntityFilter'),
   settingsForm: document.getElementById('settingsForm'),
   settingsSchoolSelect: document.getElementById('settingsSchoolSelect'),
   settingsSchoolSelector: document.getElementById('settingsSchoolSelector'),
@@ -284,12 +853,16 @@ const elements = {
   registerLearnerFamilySelect: document.getElementById('registerLearnerFamilySelect'),
   registerLearnerClassSelect: document.getElementById('registerLearnerClassSelect'),
   registerLearnerParentTypeSelect: document.getElementById('registerLearnerParentTypeSelect'),
+  registerResponsiblePayerTypeSelect: document.getElementById('registerResponsiblePayerTypeSelect'),
   registerLearnerBillingSelect: document.getElementById('registerLearnerBillingSelect'),
   registerLearnerBillingAvailable: document.getElementById('registerLearnerBillingAvailable'),
   registerLearnerBillingAssigned: document.getElementById('registerLearnerBillingAssigned'),
   studentEditDialog: document.getElementById('studentEditDialog'),
   studentEditForm: document.getElementById('studentEditForm'),
+  studentEditResponsiblePayerTypeSelect: document.getElementById('studentEditResponsiblePayerTypeSelect'),
   studentEditBillingSelect: document.getElementById('studentEditBillingSelect'),
+  studentEditBillingAvailable: document.getElementById('studentEditBillingAvailable'),
+  studentEditBillingAssigned: document.getElementById('studentEditBillingAssigned'),
   closeStudentEditDialogButton: document.getElementById('closeStudentEditDialogButton'),
   cancelStudentEditButton: document.getElementById('cancelStudentEditButton'),
   familyEditDialog: document.getElementById('familyEditDialog'),
@@ -297,6 +870,9 @@ const elements = {
   closeFamilyEditDialogButton: document.getElementById('closeFamilyEditDialogButton'),
   cancelFamilyEditButton: document.getElementById('cancelFamilyEditButton'),
   billingCategoryForm: document.getElementById('billingCategoryForm'),
+  billingCategorySchoolField: document.getElementById('billingCategorySchoolField'),
+  billingCategorySchoolSelect: document.getElementById('billingCategorySchoolSelect'),
+  billingCategorySchoolHint: document.getElementById('billingCategorySchoolHint'),
   billingCategoriesTable: document.getElementById('billingCategoriesTable'),
   cancelBillingCategoryEditButton: document.getElementById('cancelBillingCategoryEditButton'),
   classDialog: document.getElementById('classDialog'),
@@ -356,6 +932,7 @@ const elements = {
   staffStatusFilterInput: document.getElementById('staffStatusFilterInput'),
   staffRoleFilterInput: document.getElementById('staffRoleFilterInput'),
   leaveForm: document.getElementById('leaveForm'),
+  leaveEmployeeSelect: document.getElementById('leaveEmployeeSelect'),
   leavesTable: document.getElementById('leavesTable'),
   payslipForm: document.getElementById('payslipForm'),
   payslipEmployeeSelect: document.getElementById('payslipEmployeeSelect'),
@@ -364,6 +941,7 @@ const elements = {
   payslipDialog: document.getElementById('payslipDialog'),
   payslipEditForm: document.getElementById('payslipEditForm'),
   payslipDetailPreview: document.getElementById('payslipDetailPreview'),
+  payslipEditFields: document.getElementById('payslipEditFields'),
   closePayslipDialogButton: document.getElementById('closePayslipDialogButton'),
   cancelPayslipButton: document.getElementById('cancelPayslipButton'),
   printPayslipButton: document.getElementById('printPayslipButton'),
@@ -385,19 +963,53 @@ const elements = {
   transactionsTable: document.getElementById('transactionsTable'),
   ofxUploadForm: document.getElementById('ofxUploadForm'),
   bankStatementsTable: document.getElementById('bankStatementsTable'),
+  reconciliationMonth: document.getElementById('reconciliationMonth'),
+  reconciliationYear: document.getElementById('reconciliationYear'),
+  reconciliationSearch: document.getElementById('reconciliationSearch'),
+  reconciliationStatus: document.getElementById('reconciliationStatus'),
+  reconciliationPeriodLabel: document.getElementById('reconciliationPeriodLabel'),
+  reconciliationCoverageNote: document.getElementById('reconciliationCoverageNote'),
+  reconciliationStatementsTable: document.getElementById('reconciliationStatementsTable'),
+  reconciliationTransactionsTable: document.getElementById('reconciliationTransactionsTable'),
   matchSuggestionsTable: document.getElementById('matchSuggestionsTable'),
+  bankStatementDetailDialog: document.getElementById('bankStatementDetailDialog'),
+  bankStatementDetailSubtitle: document.getElementById('bankStatementDetailSubtitle'),
+  bankStatementDetailTransactions: document.getElementById('bankStatementDetailTransactions'),
+  bankStatementDetailAllocated: document.getElementById('bankStatementDetailAllocated'),
+  bankStatementDetailUnallocated: document.getElementById('bankStatementDetailUnallocated'),
+  bankStatementDetailTable: document.getElementById('bankStatementDetailTable'),
+  closeBankStatementDetailButton: document.getElementById('closeBankStatementDetailButton'),
+  cancelBankStatementDetailButton: document.getElementById('cancelBankStatementDetailButton'),
+  bankReallocationDialog: document.getElementById('bankReallocationDialog'),
+  bankReallocationForm: document.getElementById('bankReallocationForm'),
+  bankReallocationAmount: document.getElementById('bankReallocationAmount'),
+  bankReallocationReference: document.getElementById('bankReallocationReference'),
+  bankReallocationCurrent: document.getElementById('bankReallocationCurrent'),
+  bankReallocationTypeSelect: document.getElementById('bankReallocationTypeSelect'),
+  bankReallocationDebtorPanel: document.getElementById('bankReallocationDebtorPanel'),
+  bankReallocationCreditorPanel: document.getElementById('bankReallocationCreditorPanel'),
+  bankReallocationSearchInput: document.getElementById('bankReallocationSearchInput'),
+  bankReallocationTargetsTable: document.getElementById('bankReallocationTargetsTable'),
+  bankReallocationInvoicesTable: document.getElementById('bankReallocationInvoicesTable'),
+  closeBankReallocationButton: document.getElementById('closeBankReallocationButton'),
+  cancelBankReallocationButton: document.getElementById('cancelBankReallocationButton'),
   totalCredits: document.getElementById('totalCredits'),
   totalDebits: document.getElementById('totalDebits'),
   accountBalance: document.getElementById('accountBalance'),
   outstandingAmount: document.getElementById('outstandingAmount'),
   generateMonthlyButton: document.getElementById('generateMonthlyButton'),
-  paymentDialog: document.getElementById('paymentDialog'),
-  paymentForm: document.getElementById('paymentForm'),
-  paymentInvoiceLabel: document.getElementById('paymentInvoiceLabel'),
-  paymentRemainingLabel: document.getElementById('paymentRemainingLabel'),
-  paymentAmountInput: document.getElementById('paymentAmountInput'),
-  closePaymentDialogButton: document.getElementById('closePaymentDialogButton'),
-  cancelPaymentButton: document.getElementById('cancelPaymentButton'),
+  studentFinanceDialog: document.getElementById('studentFinanceDialog'),
+  studentReceiptForm: document.getElementById('studentReceiptForm'),
+  studentReceiptPayeeTypeSelect: document.getElementById('studentReceiptPayeeTypeSelect'),
+  studentReceiptInvoicesTable: document.getElementById('studentReceiptInvoicesTable'),
+  studentWalletLedgerTable: document.getElementById('studentWalletLedgerTable'),
+  studentReceiptAmountInput: document.getElementById('studentReceiptAmountInput'),
+  studentFinanceOutstanding: document.getElementById('studentFinanceOutstanding'),
+  studentFinanceWallet: document.getElementById('studentFinanceWallet'),
+  studentFinanceInvoiceCount: document.getElementById('studentFinanceInvoiceCount'),
+  studentReceiptAdvanceHint: document.getElementById('studentReceiptAdvanceHint'),
+  closeStudentFinanceDialogButton: document.getElementById('closeStudentFinanceDialogButton'),
+  cancelStudentFinanceButton: document.getElementById('cancelStudentFinanceButton'),
   requiredInfoDialog: document.getElementById('requiredInfoDialog'),
   requiredInfoList: document.getElementById('requiredInfoList'),
   closeRequiredInfoDialogButton: document.getElementById('closeRequiredInfoDialogButton'),
@@ -410,6 +1022,7 @@ let inactivityTimer = null;
 let studentSearchWired = false;
 let parentSearchWired = false;
 const attendanceAutosaveTimers = new Map();
+let bankReallocationSearchTimer = null;
 
 function rememberActivity() {
   if (state.token) {
@@ -458,14 +1071,33 @@ function startInactivityTimer() {
 
 
 // === PERMISSION-BASED ICON HIDING ===
+function userPermissionSet() {
+  return new Set((state.user?.permissions || []).map((permission) => String(permission || '').trim().toLowerCase()));
+}
+
+function userCan(permissionExpression) {
+  if (!permissionExpression) return true;
+  if (state.user?.role === 'admin') return true;
+  if (state.user?.role === 'school' && !Array.isArray(state.user.permissions)) return true;
+  const permissions = userPermissionSet();
+  if (permissions.has('*')) return true;
+
+  return String(permissionExpression)
+    .split(/[|,]/)
+    .map((permission) => permission.trim().toLowerCase())
+    .filter(Boolean)
+    .some((permission) => permissions.has(permission));
+}
+
 function applyIconPermissions() {
   const user = state.user;
   if (!user) return;
   document.querySelectorAll('[data-permission]').forEach((tile) => {
     const perm = tile.dataset.permission;
     let visible = true;
-    if (perm === 'hr' && !user.HasHrPermission) visible = false;
-    if (perm === 'admin-only' && user.Role !== 'admin') visible = false;
+    if (perm === 'hr' && !user.hasHrPermission) visible = false;
+    if (perm === 'admin-only' && user.role !== 'admin') visible = false;
+    if (!['hr', 'admin-only'].includes(perm) && !userCan(perm)) visible = false;
     tile.style.display = visible ? '' : 'none';
   });
 }
@@ -474,17 +1106,18 @@ function applyIconPermissions() {
 function exportOutstandingFees() {
   const yearInput = document.getElementById('outstandingFeesYear');
   const year = yearInput ? Number(yearInput.value) : new Date().getFullYear();
-  const url = '/api/export/outstanding-fees?year=' + year;
+  const schoolId = currentSchoolId();
+  const url = '/api/export/outstanding-fees?year=' + year + (schoolId ? '&schoolId=' + encodeURIComponent(schoolId) : '');
   const token = state.token;
   fetch(url, { headers: { Authorization: 'Bearer ' + token } })
     .then((r) => {
       if (!r.ok) return r.json().then((j) => { throw new Error(j.error || 'Export failed'); });
-      return r.blob();
+      return r.blob().then((blob) => ({ blob, response: r }));
     })
-    .then((blob) => {
+    .then(({ blob, response }) => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'outstanding-fees-' + year + '.csv';
+      a.download = responseDownloadName(response, 'outstanding-fees-' + year + '.xls');
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -495,7 +1128,9 @@ function exportOutstandingFees() {
 }
 
 async function downloadExport(exportName) {
-  const url = `/api/export/${encodeURIComponent(exportName)}`;
+  const schoolId = currentSchoolId();
+  const query = exportName === 'outstanding-fees' && schoolId ? `?schoolId=${encodeURIComponent(schoolId)}` : '';
+  const url = `/api/export/${encodeURIComponent(exportName)}${query}`;
   try {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${state.token}` }
@@ -514,7 +1149,7 @@ async function downloadExport(exportName) {
     const blob = await response.blob();
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${exportName}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = responseDownloadName(response, `${exportName}-${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -523,6 +1158,63 @@ async function downloadExport(exportName) {
   } catch (error) {
     showToast(error.message);
   }
+}
+
+async function exportStudentStatement(format) {
+  const studentId = Number(state.selectedStudentFinanceId || elements.studentReceiptForm?.elements?.studentId?.value || 0);
+  if (!studentId) {
+    showToast('Open a student statement first');
+    return;
+  }
+
+  const url = `/api/export/student-statement/${encodeURIComponent(studentId)}/${format}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${state.token}` }
+    });
+
+    if (response.status === 401) {
+      redirectToLogin('Your login token expired. Please sign in again.');
+      return;
+    }
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || 'Statement export failed');
+    }
+
+    if (format === 'pdf') {
+      const html = await response.text();
+      const win = window.open('', '_blank', 'width=960,height=720');
+      if (!win) {
+        throw new Error('Allow popups to print the statement');
+      }
+      win.document.write(html);
+      win.document.close();
+      win.onload = () => win.print();
+      showToast('Statement opened for PDF printing');
+      return;
+    }
+
+    const blob = await response.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = responseDownloadName(response, `student-statement-${studentId}.xls`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    showToast('Statement exported');
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+function responseDownloadName(response, fallback) {
+  const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition') || '';
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  return match ? match[1] : fallback;
 }
 
 // === STUDENT SEARCH WIRING ===
@@ -836,17 +1528,19 @@ function renderShell() {
 
 async function refreshData() {
   try {
-    const [schools, invoices, families, students, billingCategories, employees, leaves] = await Promise.all([
+    const [schools, dashboard, invoices, families, students, billingCategories, employees, leaves] = await Promise.all([
       api('/api/schools'),
-      api('/api/invoices'),
-      api('/api/families'),
-      api(`/api/students?status=${encodeURIComponent(state.studentStatusFilter)}`),
-      api('/api/billing-categories'),
-      api('/api/employees'),
-      api('/api/leaves')
+      userCan('school.students.view|finance.invoices.view|finance.bank_reconciliation.view|reports.view') ? api('/api/dashboard') : Promise.resolve({ warnings: [] }),
+      userCan('finance.invoices.view|finance.invoices.create|finance.invoices.edit') ? api('/api/invoices') : Promise.resolve([]),
+      userCan('school.parents.view|school.parents.manage') ? api('/api/families') : Promise.resolve([]),
+      userCan('school.students.view|school.students.manage|classes.view_assigned|attendance.view_assigned|attendance.submit_assigned') ? api(`/api/students?status=${encodeURIComponent(state.studentStatusFilter)}`) : Promise.resolve([]),
+      userCan('finance.billing_categories.manage|finance.invoices.view|finance.invoices.create') ? api('/api/billing-categories') : Promise.resolve([]),
+      userCan('school.staff.view|school.staff.manage|school.staff.permissions.manage|hr.view_payslips|hr.manage_payslips|sensitive.payroll.view') ? api('/api/employees') : Promise.resolve([]),
+      userCan('leave.view_all|leave.approve|leave.decline') ? api('/api/leaves') : Promise.resolve([])
     ]);
 
     state.schools = schools;
+    state.dashboardWarnings = Array.isArray(dashboard?.warnings) ? dashboard.warnings : [];
     state.invoices = invoices;
     state.families = families;
     state.students = students;
@@ -856,12 +1550,14 @@ async function refreshData() {
     await Promise.all([
       refreshSchoolUsers(),
       refreshAuditLogs(),
+      refreshFinanceAuditLogs(),
       refreshMatchSuggestions(),
       refreshClasses(),
       refreshStaffRoles(),
       refreshAttendance(),
       refreshPayslips(),
-      refreshFeatureData()
+      refreshFeatureData(),
+      refreshReportData()
     ]);
     await refreshOutstandingFees();
     renderData();
@@ -873,8 +1569,9 @@ async function refreshData() {
 async function refreshSchoolUsers() {
   const school = getAccountSchool();
 
-  if (!school) {
+  if (!school || !userCan('school.staff.view|school.staff.manage|school.staff.permissions.manage')) {
     state.schoolUsers = [];
+    state.schoolUserRoles = {};
     return;
   }
 
@@ -884,13 +1581,30 @@ async function refreshSchoolUsers() {
 
   try {
     state.schoolUsers = await api(`/api/users/school-users${query}`);
+    state.schoolUserRoles = {};
+    if (userCan('school.staff.permissions.manage')) {
+      const roleResults = await Promise.allSettled(state.schoolUsers.map((user) => {
+        const userId = user.UserID || user.userId;
+        return api(`/api/hr/roles/user/${encodeURIComponent(userId)}`);
+      }));
+      roleResults.forEach((result, index) => {
+        const userId = state.schoolUsers[index]?.UserID || state.schoolUsers[index]?.userId;
+        state.schoolUserRoles[userId] = result.status === 'fulfilled' ? result.value : [];
+      });
+    }
   } catch (error) {
     state.schoolUsers = [];
+    state.schoolUserRoles = {};
     showToast(error.message);
   }
 }
 
 async function refreshAuditLogs() {
+  if (!userCan('reports.view|devforge.audit.view')) {
+    state.auditLogs = [];
+    return;
+  }
+
   try {
     state.auditLogs = await api('/api/audit?limit=20');
   } catch (error) {
@@ -898,7 +1612,30 @@ async function refreshAuditLogs() {
   }
 }
 
+async function refreshFinanceAuditLogs() {
+  if (!userCan('finance.audit.view|finance.year_end_close|reports.view')) {
+    state.financeAuditLogs = [];
+    return;
+  }
+
+  const params = new URLSearchParams({ limit: '100', sensitiveFinance: 'true' });
+  if (elements.financeAuditFromInput?.value) params.set('fromDate', elements.financeAuditFromInput.value);
+  if (elements.financeAuditToInput?.value) params.set('toDate', elements.financeAuditToInput.value);
+  if (elements.financeAuditEntityFilter?.value) params.set('entityName', elements.financeAuditEntityFilter.value);
+
+  try {
+    state.financeAuditLogs = await api(`/api/audit?${params.toString()}`);
+  } catch (error) {
+    state.financeAuditLogs = [];
+  }
+}
+
 async function refreshMatchSuggestions() {
+  if (!userCan('finance.bank_reconciliation.view|finance.bank_reconciliation.approve_match')) {
+    state.matchSuggestions = [];
+    return;
+  }
+
   try {
     state.matchSuggestions = await api('/api/bank-statements/match-suggestions');
   } catch (error) {
@@ -907,6 +1644,11 @@ async function refreshMatchSuggestions() {
 }
 
 async function refreshClasses() {
+  if (!userCan('school.classes.view|school.classes.manage|classes.view_assigned|attendance.view_assigned|attendance.submit_assigned')) {
+    state.classes = [];
+    return;
+  }
+
   try {
     state.classes = await api('/api/classes');
   } catch (error) {
@@ -915,6 +1657,11 @@ async function refreshClasses() {
 }
 
 async function refreshStaffRoles() {
+  if (!userCan('school.staff.view|school.staff.manage|school.staff.permissions.manage')) {
+    state.staffRoles = [];
+    return;
+  }
+
   try {
     state.staffRoles = await api('/api/hr/roles');
   } catch (error) {
@@ -923,6 +1670,11 @@ async function refreshStaffRoles() {
 }
 
 async function refreshAttendance() {
+  if (!userCan('attendance.view_all|attendance.edit_all|attendance.view_assigned|attendance.submit_assigned')) {
+    state.attendance = [];
+    return;
+  }
+
   const selectedDate = elements.attendanceDateInput?.value || new Date().toISOString().slice(0, 10);
 
   if (elements.attendanceDateInput && !elements.attendanceDateInput.value) {
@@ -973,6 +1725,12 @@ async function refreshCompletedAttendance() {
 }
 
 async function refreshPayslips() {
+  if (!userCan('hr.view_payslips|hr.manage_payslips|sensitive.payroll.view')) {
+    state.payslips = [];
+    state.payslipStatusMessage = '';
+    return;
+  }
+
   try {
     state.payslips = await api('/api/payslips');
     state.payslipStatusMessage = '';
@@ -982,22 +1740,101 @@ async function refreshPayslips() {
   }
 }
 
+const REPORT_FILTER_PREFIXES = ['studentReport', 'schoolReport', 'admissionsReport', 'reenrolmentReport', 'consentReport', 'yearEndReport'];
+
+function selectedYearEndFinancialYear() {
+  const input = document.getElementById('yearEndFinancialYearInput');
+  const year = Number(input?.value || new Date().getFullYear());
+  return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : new Date().getFullYear();
+}
+
+function selectedYearEndRolloverYear() {
+  return selectedYearEndFinancialYear() + 1;
+}
+
+function setReenrolmentYear(year) {
+  const input = document.getElementById('reenrolmentYearInput');
+  if (input && Number(input.value) !== Number(year)) {
+    input.value = String(year);
+  }
+}
+
+function featureRolloverYearForFetch() {
+  if (activeViewName() === 'yearEndClosing') {
+    const year = selectedYearEndRolloverYear();
+    setReenrolmentYear(year);
+    return year;
+  }
+
+  if (activeViewName() === 'yearEndReport') {
+    const reportYear = Number(document.getElementById('yearEndReportYearInput')?.value || nextCalendarYear());
+    return Number.isInteger(reportYear) && reportYear >= 2000 && reportYear <= 2100 ? reportYear : nextCalendarYear();
+  }
+
+  return reenrolmentTargetYear();
+}
+
+function activeReportPrefix() {
+  const view = activeViewName();
+  if (view === 'studentReports') return 'studentReport';
+  if (view === 'report') return 'schoolReport';
+  if (view === 'admissionsReport') return 'admissionsReport';
+  if (view === 'reenrolmentReport') return 'reenrolmentReport';
+  if (view === 'consentReport') return 'consentReport';
+  if (view === 'yearEndReport') return 'yearEndReport';
+  return 'schoolReport';
+}
+
+function reportFilterValues(prefix = activeReportPrefix()) {
+  const yearInput = document.getElementById(`${prefix}YearFilter`);
+  const classInput = document.getElementById(`${prefix}ClassFilter`);
+  const year = Number(yearInput?.value || new Date().getFullYear());
+  return {
+    year: Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : new Date().getFullYear(),
+    className: classInput?.value || ''
+  };
+}
+
+async function refreshReportData(prefix = activeReportPrefix()) {
+  if (!userCan('reports.view|reports.finance.view|reports.attendance.view|reports.demographics.view|reports.year_end.view|school.consent.view')) {
+    state.reportData = null;
+    state.reportStatusMessage = '';
+    return;
+  }
+
+  const filters = reportFilterValues(prefix);
+  const params = new URLSearchParams({ year: String(filters.year) });
+  if (filters.className) params.set('className', filters.className);
+
+  try {
+    state.reportData = await api(`/api/reports/school?${params.toString()}`);
+    state.reportStatusMessage = '';
+  } catch (error) {
+    state.reportData = null;
+    state.reportStatusMessage = error.message;
+  }
+}
+
 async function refreshFeatureData() {
-  const year = Number(document.getElementById('reenrolmentYearInput')?.value || document.getElementById('yearEndReportYearInput')?.value || new Date().getFullYear());
+  const year = featureRolloverYearForFetch();
+  state.featureRolloverYear = year;
   const calls = [
-    ['admissions', '/api/school-features/admissions'],
-    ['consentRecords', '/api/school-features/consent'],
-    ['missingConsent', '/api/school-features/consent/missing'],
-    ['financialAdjustments', '/api/school-features/adjustments'],
-    ['refunds', '/api/school-features/refunds'],
-    ['registrationFees', '/api/school-features/registration-fees'],
-    ['yearEndClosings', '/api/hr/year-end'],
-    ['communicationHistory', '/api/features/communication-history'],
-    ['reEnrolments', `/api/platform/re-enrolment/${encodeURIComponent(year)}`],
-    ['reEnrolmentPending', `/api/platform/re-enrolment/${encodeURIComponent(year)}/pending`]
+    ['admissions', '/api/school-features/admissions', 'admissions.view|admissions.review'],
+    ['consentRecords', '/api/school-features/consent', 'school.consent.view|school.consent.manage'],
+    ['missingConsent', '/api/school-features/consent/missing', 'school.consent.view|school.consent.manage'],
+    ['financialAdjustments', '/api/school-features/adjustments', 'finance.adjustments.create|finance.invoices.view'],
+    ['refunds', '/api/school-features/refunds', 'finance.refunds.create|finance.refunds.approve|finance.refunds.complete'],
+    ['registrationFees', '/api/school-features/registration-fees', 'finance.registration_fees.view|finance.registration_fees.manage'],
+    ['yearEndClosings', '/api/hr/year-end', 'finance.year_end_close|finance.year_end_reopen|reports.year_end.view'],
+    ['financePeriodLocks', '/api/school-features/finance-period-locks', 'finance.period_lock.manage|finance.year_end_close|finance.year_end_reopen|reports.year_end.view'],
+    ['communicationHistory', '/api/features/communication-history', 'communication.history.view|reports.view'],
+    ['reEnrolments', `/api/platform/re-enrolment/${encodeURIComponent(year)}`, 'school.year_rollover.preview|school.year_rollover.apply|reports.year_end.view'],
+    ['reEnrolmentPending', `/api/platform/re-enrolment/${encodeURIComponent(year)}/pending`, 'school.year_rollover.preview|school.year_rollover.apply']
   ];
 
-  const results = await Promise.allSettled(calls.map(([, path]) => api(path)));
+  const results = await Promise.allSettled(calls.map(([, path, permission]) => (
+    userCan(permission) ? api(path) : Promise.resolve([])
+  )));
   results.forEach((result, index) => {
     const [key] = calls[index];
     state[key] = result.status === 'fulfilled' ? result.value : [];
@@ -1008,6 +1845,7 @@ function renderData() {
   applyRoleShell();
   renderMetrics();
   renderSchoolOptions();
+  renderBillingCategorySchoolControls();
   renderBillingCategories();
   renderBillingCategoryOptions();
   renderClassOptions();
@@ -1024,16 +1862,21 @@ function renderData() {
   renderTransactions();
   renderReconciliation();
   renderEmployees();
+  renderLeaveEmployeeOptions();
   renderLeaves();
   renderPayslips();
   renderAccount();
   renderSchoolUsers();
   renderAuditLogs();
+  renderFinanceAuditLogs();
+  renderPermissionMatrix();
+  renderDashboardWarnings();
   renderMatchSuggestions();
   renderSettings();
   renderAdminControls();
   installFeaturePanels();
   renderFeaturePages();
+  applyIconPermissions();
 }
 
 function studentLabel(student) {
@@ -1183,90 +2026,169 @@ function setPanel(viewId, content) {
   }
 }
 
+function consentFilterStripMarkup({ heading, searchTypeId, searchInputId, pageSizeId, filterId, filterLabel, filterOptions, placeholder, defaultSearchType = 'Permission slip' }) {
+  const searchTypes = ['Permission slip', 'Student name', 'Class', 'Parent / guardian'];
+  const pageSizes = [
+    { value: '10', label: '10' },
+    { value: '20', label: '20' },
+    { value: '40', label: '40' },
+    { value: '80', label: '80' },
+    { value: '160', label: '160' },
+    { value: '9999', label: 'All' }
+  ];
+
+  return `
+    <section class="consent-filter-strip">
+      <div class="class-filter-heading">
+        <span class="filter-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M4 6h16l-6 7v5l-4 2v-7L4 6z"></path>
+          </svg>
+        </span>
+        <span>${heading}</span>
+      </div>
+      <div class="class-filter-grid student-filter-grid">
+        <label>
+          Search Type
+          <select id="${searchTypeId}" class="thin-input">
+            ${searchTypes.map((type) => `<option${type === defaultSearchType ? ' selected' : ''}>${type}</option>`).join('')}
+          </select>
+        </label>
+        <label>
+          Search Value
+          <input id="${searchInputId}" class="thin-input" type="search" placeholder="${placeholder}">
+        </label>
+        <label>
+          Show
+          <select id="${pageSizeId}" class="thin-input">
+            ${pageSizes.map((item) => `<option value="${item.value}"${item.value === '10' ? ' selected' : ''}>${item.label}</option>`).join('')}
+          </select>
+        </label>
+        <label>
+          ${filterLabel}
+          <select id="${filterId}" class="thin-input">
+            ${filterOptions.map((item) => `<option value="${item.value}">${item.label}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+    </section>
+  `;
+}
+
+function reportFilterMarkup(prefix, title, options = {}) {
+  const currentYear = new Date().getFullYear();
+  return `
+    <section class="table-panel report-filter-panel">
+      <div class="report-filter-heading">
+        <div>
+          <h3>${escapeHtml(title)}</h3>
+          <p>${escapeHtml(options.subtitle || 'Filter by reporting year and class. Results are scoped to the logged-in school.')}</p>
+        </div>
+        <button class="secondary-button compact-button" data-action="print-report" data-report-prefix="${prefix}" data-report-title="${escapeHtml(title)}" type="button">Print / PDF</button>
+      </div>
+      <div class="form-grid report-filter-grid">
+        <label>Year<input id="${prefix}YearFilter" type="number" min="2000" max="2100" value="${options.year || currentYear}"></label>
+        <label>Class<select id="${prefix}ClassFilter"><option value="">All classes</option></select></label>
+        ${options.typeFilter ? `<label>Report type<select id="${prefix}TypeFilter">${options.typeFilter}</select></label>` : ''}
+      </div>
+    </section>
+  `;
+}
+
+function reportPrintArea(prefix, inner = '') {
+  return `<section id="${prefix}PrintArea" class="report-print-area">${inner}</section>`;
+}
+
 function installFeaturePanels() {
   setPanel('reenrolmentView', `
-    <div class="panel-header"><div><h3>Re-Enrolment / Year Rollover</h3><p>Process promoted, retained, left, and pending learners.</p></div></div>
+    <div class="panel-header"><div><h3>Re-Enrolment / Year Rollover</h3><p>Move learners into classes already created for the next academic year.</p></div></div>
+    <div id="reenrolmentSummaryMetrics" class="metrics-grid section-spacer"></div>
+    <div id="reenrolmentClassNotice" class="form-message info section-spacer"></div>
     <form id="reenrolmentForm" class="module-form flush-form">
       <div class="form-grid">
-        <label>Academic year<input id="reenrolmentYearInput" name="academicYear" type="number" min="2000" max="2100" value="${new Date().getFullYear()}"></label>
+        <label>Next academic year<input id="reenrolmentYearInput" name="academicYear" type="number" min="2000" max="2100" value="${nextCalendarYear()}"></label>
         <label>Student<select name="studentId" id="reenrolmentStudentSelect" required></select></label>
-        <label>New class<input name="newClassName" type="text"></label>
+        <label>Next-year class<select name="newClassName" id="reenrolmentNewClassSelect"></select></label>
         <label>Action<select name="action"><option>Promoted</option><option>Retained</option><option>Left</option><option>Pending</option></select></label>
       </div>
-      <button class="primary-button compact-button" type="submit">Process Student</button>
+      <button class="primary-button compact-button" data-permission="school.year_rollover.apply" type="submit">Process Student</button>
     </form>
-    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Previous class</th><th>New class</th><th>Action</th><th>Balance BF</th><th>Advance BF</th></tr></thead><tbody id="reenrolmentTable"></tbody></table></div>
+    <div class="panel-header compact-panel-header section-spacer"><div><h3>Learners Still Pending</h3></div></div>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Learner</th><th>Current class</th><th>Next-year class</th><th>Actions</th></tr></thead><tbody id="reenrolmentPendingTable"></tbody></table></div>
+    <div class="panel-header compact-panel-header section-spacer"><div><h3>Processed Learners</h3></div></div>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Previous year</th><th>Previous class</th><th>New class</th><th>Action</th><th>Balance BF</th><th>Advance BF</th></tr></thead><tbody id="reenrolmentTable"></tbody></table></div>
   `);
 
   setPanel('consentPermissionsView', `
     <div class="consent-page-layout">
-      <section class="consent-filter-strip">
-        <div class="class-filter-heading">
-          <span class="filter-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-              <path d="M4 6h16l-6 7v5l-4 2v-7L4 6z"></path>
-            </svg>
-          </span>
-          <span>Filter permission slips</span>
-        </div>
-        <div class="class-filter-grid student-filter-grid">
-          <label>
-            Search Type
-            <select id="consentSearchTypeSelect" class="thin-input">
-              <option>Permission slip</option>
-              <option>Student name</option>
-              <option>Class</option>
-              <option>Parent / family</option>
-            </select>
-          </label>
-          <label>
-            Search Value
-            <input id="consentSearchInput" class="thin-input" type="search" placeholder="Search permission slips...">
-          </label>
-          <label>
-            Show
-            <select id="consentPageSize" class="thin-input">
-              <option value="10" selected>10</option>
-              <option value="20">20</option>
-              <option value="40">40</option>
-              <option value="80">80</option>
-              <option value="160">160</option>
-              <option value="9999">All</option>
-            </select>
-          </label>
-          <label>
-            Status
-            <select id="consentStatusFilterInput" class="thin-input">
-              <option value="all">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Accepted">Accepted</option>
-              <option value="Declined">Declined</option>
-            </select>
-          </label>
-        </div>
-      </section>
-
       <div class="panel-header compact-panel-header">
         <div>
           <h3>Permission Slip List</h3>
         </div>
       </div>
       <div id="consentRequestSummaryMetrics" class="metrics-grid section-spacer"></div>
+      ${consentFilterStripMarkup({
+        heading: 'Filter permission slips',
+        searchTypeId: 'consentListSearchTypeSelect',
+        searchInputId: 'consentListSearchInput',
+        pageSizeId: 'consentListPageSize',
+        filterId: 'consentListStatusFilterInput',
+        filterLabel: 'Status',
+        placeholder: 'Search permission slips...',
+        defaultSearchType: 'Permission slip',
+        filterOptions: [
+          { value: 'all', label: 'All' },
+          { value: 'Pending', label: 'Pending' },
+          { value: 'Accepted', label: 'Accepted' },
+          { value: 'Declined', label: 'Declined' }
+        ]
+      })}
       <div class="table-wrap section-spacer"><table><thead><tr><th>Permission slip</th><th>Student</th><th>Target</th><th>Response</th><th>Due</th><th>Signed by</th><th>Actions</th></tr></thead><tbody id="consentTable"></tbody></table></div>
       <div class="panel-header compact-panel-header section-spacer">
         <div>
           <h3>Outstanding Responses</h3>
         </div>
       </div>
+      ${consentFilterStripMarkup({
+        heading: 'Filter outstanding responses',
+        searchTypeId: 'consentOutstandingSearchTypeSelect',
+        searchInputId: 'consentOutstandingSearchInput',
+        pageSizeId: 'consentOutstandingPageSize',
+        filterId: 'consentOutstandingDueFilterInput',
+        filterLabel: 'Due',
+        placeholder: 'Search outstanding responses...',
+        defaultSearchType: 'Student name',
+        filterOptions: [
+          { value: 'all', label: 'All' },
+          { value: 'overdue', label: 'Overdue' },
+          { value: 'upcoming', label: 'Upcoming' },
+          { value: 'no-date', label: 'No due date' }
+        ]
+      })}
       <div class="table-wrap section-spacer"><table><thead><tr><th>Permission slip</th><th>Learner</th><th>Class</th><th>Parent / family</th><th>Contact</th><th>Due</th><th>Actions</th></tr></thead><tbody id="outstandingConsentTable"></tbody></table></div>
       <div class="panel-header compact-panel-header section-spacer">
         <div>
           <h3>Signed Permission Slips</h3>
         </div>
       </div>
+      ${consentFilterStripMarkup({
+        heading: 'Filter signed permission slips',
+        searchTypeId: 'consentSignedSearchTypeSelect',
+        searchInputId: 'consentSignedSearchInput',
+        pageSizeId: 'consentSignedPageSize',
+        filterId: 'consentSignedResponseFilterInput',
+        filterLabel: 'Response',
+        placeholder: 'Search signed permission slips...',
+        defaultSearchType: 'Parent / guardian',
+        filterOptions: [
+          { value: 'all', label: 'All' },
+          { value: 'Accepted', label: 'Accepted' },
+          { value: 'Declined', label: 'Declined' }
+        ]
+      })}
       <div class="table-wrap section-spacer"><table><thead><tr><th>Permission slip</th><th>Learner</th><th>Parent / guardian</th><th>Relationship</th><th>Response</th><th>Signed date</th><th>Notes</th><th>Actions</th></tr></thead><tbody id="signedConsentTable"></tbody></table></div>
       <div class="section-spacer actions">
-        <button id="openConsentComposerButton" class="primary-button compact-button" data-action="open-consent-composer" type="button">New Permission Slip</button>
+        <button id="openConsentComposerButton" class="primary-button compact-button" data-action="open-consent-composer" data-permission="school.consent.manage" type="button">New Permission Slip</button>
       </div>
     </div>
   `);
@@ -1318,32 +2240,81 @@ function installFeaturePanels() {
   `);
 
   setPanel('yearEndClosingView', `
-    <div class="panel-header"><div><h3>Year-End Financial Closing</h3><p>Closing status and balance carry-forward tracking.</p></div></div>
+    <div class="panel-header"><div><h3>Year-End Financial Closing</h3><p>Close the financial year only after next-year learner promotions and enrolments are verified.</p></div></div>
     <form id="yearEndClosingForm" class="module-form flush-form">
       <div class="form-grid">
-        <label>Financial year<input name="financialYear" type="number" min="2000" max="2100" value="${new Date().getFullYear()}" required></label>
+        <label>Financial year<input id="yearEndFinancialYearInput" name="financialYear" type="number" min="2000" max="2100" value="${new Date().getFullYear()}" required></label>
         <label>Status<select name="status"><option>Open</option><option>In Review</option><option>Ready to Close</option><option>Closed</option></select></label>
       </div>
       <button class="primary-button compact-button" type="submit">Create Year-End Record</button>
     </form>
+    <div id="yearEndRolloverNotice" class="form-message info section-spacer"></div>
+    <div id="yearEndRolloverMetrics" class="metrics-grid section-spacer"></div>
+    <div class="actions section-spacer">
+      <button class="secondary-button compact-button" data-action="open-year-end-rollover" data-permission="school.year_rollover.preview|school.year_rollover.apply" type="button">Open Next-Year Rollover</button>
+    </div>
     <div class="table-wrap section-spacer"><table><thead><tr><th>Year</th><th>Status</th><th>Closed</th><th>Reopened</th><th>Actions</th></tr></thead><tbody id="yearEndClosingTable"></tbody></table></div>
+    <div class="panel-header compact-panel-header section-spacer"><div><h3>Finance Period Locking</h3><p>Lock closed months or years. Corrections require a reopen reason.</p></div></div>
+    <form id="financePeriodLockForm" class="module-form flush-form">
+      <div class="form-grid">
+        <label>Period type<select name="lockType" id="financePeriodLockType"><option>Month</option><option>Year</option><option>Custom</option></select></label>
+        <label>Month<select name="month" id="financePeriodLockMonth">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${new Date(2026, i, 1).toLocaleString('en-ZA', { month: 'long' })}</option>`).join('')}</select></label>
+        <label>Year<input name="year" type="number" min="2000" max="2100" value="${new Date().getFullYear()}"></label>
+        <label>Custom start<input name="periodStart" type="date"></label>
+        <label>Custom end<input name="periodEnd" type="date"></label>
+        <label class="wide">Reason<textarea name="reason" rows="2" required></textarea></label>
+      </div>
+      <button class="primary-button compact-button" data-permission="finance.period_lock.manage|finance.year_end_close" type="submit">Lock Period</button>
+    </form>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Period</th><th>Type</th><th>Status</th><th>Reason</th><th>Actions</th></tr></thead><tbody id="financePeriodLocksTable"></tbody></table></div>
   `);
 
   setPanel('studentReportsView', `
-    <div class="panel-header"><div><h3>Student Reports</h3><p>Birthdays, demographics, and enrolment counts.</p></div></div>
-    <div class="form-grid"><label>Birthday month<select id="birthdayMonthFilter"><option value="">All months</option>${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${new Date(2026, i, 1).toLocaleString('en-ZA', { month: 'long' })}</option>`).join('')}</select></label><label>Status<select id="studentReportStatusFilter"><option value="">All</option><option>Active</option><option>Inactive</option></select></label></div>
-    <div id="studentReportSummary" class="metrics-grid section-spacer"></div>
-    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Class</th><th>Date of birth</th><th>Age</th><th>Status</th></tr></thead><tbody id="studentReportsTable"></tbody></table></div>
+    ${reportFilterMarkup('studentReport', 'Student Reports', { subtitle: 'Birthdays, demographics, enrolment movement, and class counts.' })}
+    ${reportPrintArea('studentReport', `
+      <div id="studentReportSummary" class="metrics-grid section-spacer"></div>
+      <div id="studentReportCharts" class="report-chart-grid section-spacer"></div>
+      <div class="report-table-grid section-spacer">
+        <section class="table-panel">
+          <div class="panel-header compact-panel-header"><div><h3>Birthday Register</h3></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Learner</th><th>Class</th><th>Date of birth</th><th>Age this year</th></tr></thead><tbody id="studentBirthdaysTable"></tbody></table></div>
+        </section>
+        <section class="table-panel">
+          <div class="panel-header compact-panel-header"><div><h3>Enrolment Detail</h3></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Learner</th><th>Class</th><th>Enrolled</th><th>Status</th></tr></thead><tbody id="studentReportsTable"></tbody></table></div>
+        </section>
+      </div>
+    `)}
+  `);
+
+  setPanel('reportView', `
+    ${reportFilterMarkup('schoolReport', 'School Report', {
+      subtitle: 'Whole-school view of learners, attendance, finance, admissions, consent, and year-end readiness.',
+      typeFilter: '<option value="overview">Overview</option><option value="learners">Learners</option><option value="finance">Financial Management</option><option value="attendance">Attendance</option>'
+    })}
+    ${reportPrintArea('schoolReport', `
+      <div id="schoolReportSummary" class="metrics-grid section-spacer"></div>
+      <div id="schoolReportCharts" class="report-chart-grid section-spacer"></div>
+      <div class="table-panel section-spacer">
+        <div class="panel-header compact-panel-header"><div><h3>Class Finance and Attendance</h3></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Class</th><th>Learners</th><th>Attendance</th><th>Invoiced</th><th>Paid</th><th>Outstanding</th><th>Collection</th></tr></thead><tbody id="schoolReportClassTable"></tbody></table></div>
+      </div>
+      <div class="table-panel section-spacer">
+        <div class="panel-header compact-panel-header"><div><h3>Outstanding Fees Detail</h3></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Learner</th><th>Class</th><th>Invoice</th><th>Status</th><th>Outstanding</th><th>Due</th></tr></thead><tbody id="schoolReportOutstandingTable"></tbody></table></div>
+      </div>
+    `)}
   `);
 
   setPanel('exportReportsView', `
-    <div class="panel-header"><div><h3>Export Reports</h3><p>CSV exports scoped to the signed-in School ID.</p></div></div>
+    <div class="panel-header"><div><h3>Export Reports</h3><p>Readable exports scoped to the signed-in school.</p></div></div>
     <div class="actions">
       <button class="primary-button compact-button" data-action="download-export" data-export="students" type="button">Students CSV</button>
       <button class="primary-button compact-button" data-action="download-export" data-export="invoices" type="button">Invoices CSV</button>
       <button class="primary-button compact-button" data-action="download-export" data-export="transactions" type="button">Payments CSV</button>
       <button class="primary-button compact-button" data-action="download-export" data-export="employees" type="button">Employees CSV</button>
-      <button class="primary-button compact-button" data-action="download-export" data-export="outstanding-fees" type="button">Outstanding Fees CSV</button>
+      <button class="primary-button compact-button" data-action="download-export" data-export="outstanding-fees" type="button">Outstanding Fees Excel</button>
+      <button class="secondary-button compact-button" data-action="print-report" data-report-prefix="schoolReport" data-report-title="School Report" type="button">Print Current Report</button>
     </div>
   `);
 
@@ -1354,28 +2325,48 @@ function installFeaturePanels() {
   `);
 
   setPanel('admissionsReportView', `
-    <div class="panel-header"><div><h3>Admissions Report</h3><p>Applicant status counts and conversion review.</p></div></div>
-    <div id="admissionsReportSummary" class="metrics-grid"></div>
-    <div class="table-wrap section-spacer"><table><thead><tr><th>Applicant</th><th>Status</th><th>Class</th><th>Applied</th></tr></thead><tbody id="admissionsReportTable"></tbody></table></div>
+    ${reportFilterMarkup('admissionsReport', 'Admissions Report', { subtitle: 'Application status, conversion, and monthly admissions movement.' })}
+    ${reportPrintArea('admissionsReport', `
+      <div id="admissionsReportSummary" class="metrics-grid section-spacer"></div>
+      <div id="admissionsReportCharts" class="report-chart-grid section-spacer"></div>
+      <div class="table-panel section-spacer"><div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Status</th><th>Class</th><th>Applied</th><th>Enrolled</th></tr></thead><tbody id="admissionsReportTable"></tbody></table></div></div>
+    `)}
   `);
 
   setPanel('reenrolmentReportView', `
-    <div class="panel-header"><div><h3>Re-Enrolment Report</h3><p>Promoted, retained, left, and pending learners.</p></div></div>
-    <div id="reenrolmentReportSummary" class="metrics-grid"></div>
-    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Previous</th><th>New</th><th>Action</th><th>Balance BF</th></tr></thead><tbody id="reenrolmentReportTable"></tbody></table></div>
+    ${reportFilterMarkup('reenrolmentReport', 'Re-Enrolment Report', { subtitle: 'Promoted, retained, left, and pending learners for the selected academic year.' })}
+    ${reportPrintArea('reenrolmentReport', `
+      <div id="reenrolmentReportSummary" class="metrics-grid section-spacer"></div>
+      <div id="reenrolmentReportCharts" class="report-chart-grid section-spacer"></div>
+      <div class="table-panel section-spacer"><div class="table-wrap"><table><thead><tr><th>Learner</th><th>Previous</th><th>New</th><th>Action</th><th>Balance BF</th><th>Advance BF</th></tr></thead><tbody id="reenrolmentReportTable"></tbody></table></div></div>
+    `)}
   `);
 
   setPanel('consentReportView', `
-    <div class="panel-header"><div><h3>Consent Report</h3><p>Consent responses and missing consent records.</p></div></div>
-    <div id="consentReportSummary" class="metrics-grid"></div>
-    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Permission slip</th><th>Response</th><th>Signed by</th><th>Date</th></tr></thead><tbody id="consentReportTable"></tbody></table></div>
+    ${reportFilterMarkup('consentReport', 'Consent Report', { subtitle: 'Permission slip responses, outstanding records, and signed response tracking.' })}
+    ${reportPrintArea('consentReport', `
+      <div id="consentReportSummary" class="metrics-grid section-spacer"></div>
+      <div id="consentReportCharts" class="report-chart-grid section-spacer"></div>
+      <div class="table-panel section-spacer"><div class="table-wrap"><table><thead><tr><th>Learner</th><th>Class</th><th>Permission slip</th><th>Response</th><th>Signed by</th><th>Date</th></tr></thead><tbody id="consentReportTable"></tbody></table></div></div>
+    `)}
   `);
 
   setPanel('yearEndReportView', `
-    <div class="panel-header"><div><h3>Year-End Report</h3><p>Year-end finance and rollover summary.</p></div></div>
-    <label>Year<input id="yearEndReportYearInput" type="number" value="${new Date().getFullYear()}"></label>
-    <div id="yearEndReportSummary" class="metrics-grid section-spacer"></div>
-    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Action</th><th>Balance BF</th><th>Advance BF</th></tr></thead><tbody id="yearEndReportTable"></tbody></table></div>
+    ${reportFilterMarkup('yearEndReport', 'Year-End Report', { subtitle: 'Financial closing, balances brought forward, and next-year rollover summary.' })}
+    ${reportPrintArea('yearEndReport', `
+      <div id="yearEndReportSummary" class="metrics-grid section-spacer"></div>
+      <div id="yearEndReportCharts" class="report-chart-grid section-spacer"></div>
+      <div class="report-table-grid section-spacer">
+        <section class="table-panel">
+          <div class="panel-header compact-panel-header"><div><h3>Rollover Records</h3></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Learner</th><th>Action</th><th>Balance BF</th><th>Advance BF</th></tr></thead><tbody id="yearEndReportTable"></tbody></table></div>
+        </section>
+        <section class="table-panel">
+          <div class="panel-header compact-panel-header"><div><h3>Balance Forward Detail</h3></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Learner</th><th>Class</th><th>From</th><th>To</th><th>Outstanding</th><th>Advance</th></tr></thead><tbody id="yearEndBalanceForwardTable"></tbody></table></div>
+        </section>
+      </div>
+    `)}
   `);
 
   wireFeatureForms();
@@ -1391,6 +2382,16 @@ function wireFeatureForms() {
 
   bind('reenrolmentForm', 'submit', async (event) => {
     event.preventDefault();
+    const action = event.currentTarget.elements.action?.value;
+    const newClassName = event.currentTarget.elements.newClassName?.value;
+    const year = event.currentTarget.elements.academicYear?.value || reenrolmentTargetYear();
+    if (['Promoted', 'Retained'].includes(action) && !newClassName) {
+      showToast(`Select a class created for ${year}`);
+      return;
+    }
+    if (action === 'Left' && !window.confirm('Mark this learner as left during year rollover?')) {
+      return;
+    }
     await submitFeatureForm(event.currentTarget, '/api/platform/re-enrolment', 'Re-enrolment processed');
   });
 
@@ -1421,20 +2422,52 @@ function wireFeatureForms() {
   bind('consentTargetScope', 'change', renderConsentTargetInputs);
   bind('consentTargetValueSelect', 'change', renderConsentTargetInputs);
   bind('consentStudentSelect', 'change', renderConsentTargetInputs);
-  bind('consentSearchInput', 'input', (event) => {
-    state.consentSearchQuery = event.target.value;
+  bind('consentListSearchInput', 'input', (event) => {
+    state.consentListSearchQuery = event.target.value;
     renderConsentFeature();
   });
-  bind('consentSearchTypeSelect', 'change', (event) => {
-    state.consentSearchType = event.target.value;
+  bind('consentListSearchTypeSelect', 'change', (event) => {
+    state.consentListSearchType = event.target.value;
     renderConsentFeature();
   });
-  bind('consentStatusFilterInput', 'change', (event) => {
-    state.consentStatusFilter = event.target.value;
+  bind('consentListStatusFilterInput', 'change', (event) => {
+    state.consentListStatusFilter = event.target.value;
     renderConsentFeature();
   });
-  bind('consentPageSize', 'change', (event) => {
-    state.consentPageSize = Number(event.target.value) || 10;
+  bind('consentListPageSize', 'change', (event) => {
+    state.consentListPageSize = Number(event.target.value) || 10;
+    renderConsentFeature();
+  });
+  bind('consentOutstandingSearchInput', 'input', (event) => {
+    state.consentOutstandingSearchQuery = event.target.value;
+    renderConsentFeature();
+  });
+  bind('consentOutstandingSearchTypeSelect', 'change', (event) => {
+    state.consentOutstandingSearchType = event.target.value;
+    renderConsentFeature();
+  });
+  bind('consentOutstandingDueFilterInput', 'change', (event) => {
+    state.consentOutstandingDueFilter = event.target.value;
+    renderConsentFeature();
+  });
+  bind('consentOutstandingPageSize', 'change', (event) => {
+    state.consentOutstandingPageSize = Number(event.target.value) || 10;
+    renderConsentFeature();
+  });
+  bind('consentSignedSearchInput', 'input', (event) => {
+    state.consentSignedSearchQuery = event.target.value;
+    renderConsentFeature();
+  });
+  bind('consentSignedSearchTypeSelect', 'change', (event) => {
+    state.consentSignedSearchType = event.target.value;
+    renderConsentFeature();
+  });
+  bind('consentSignedResponseFilterInput', 'change', (event) => {
+    state.consentSignedResponseFilter = event.target.value;
+    renderConsentFeature();
+  });
+  bind('consentSignedPageSize', 'change', (event) => {
+    state.consentSignedPageSize = Number(event.target.value) || 10;
     renderConsentFeature();
   });
   bind('consentTitleInput', 'input', updateConsentDocumentPreview);
@@ -1463,14 +2496,39 @@ function wireFeatureForms() {
 
   bind('yearEndClosingForm', 'submit', async (event) => {
     event.preventDefault();
+    setReenrolmentYear(selectedYearEndRolloverYear());
     await submitFeatureForm(event.currentTarget, '/api/hr/year-end', 'Year-end record created');
   });
 
-  bind('birthdayMonthFilter', 'change', renderFeaturePages);
-  bind('studentReportStatusFilter', 'change', renderFeaturePages);
+  bind('yearEndFinancialYearInput', 'change', async () => {
+    setReenrolmentYear(selectedYearEndRolloverYear());
+    await refreshFeatureData();
+    renderFeaturePages();
+  });
+
+  bind('financePeriodLockForm', 'submit', async (event) => {
+    event.preventDefault();
+    await submitFeatureForm(event.currentTarget, '/api/school-features/finance-period-locks', 'Finance period locked');
+  });
+
+  bind('financePeriodLockType', 'change', () => {
+    const type = document.getElementById('financePeriodLockType')?.value || 'Month';
+    document.getElementById('financePeriodLockMonth')?.closest('label')?.classList.toggle('hidden', type !== 'Month');
+  });
+
+  REPORT_FILTER_PREFIXES.forEach((prefix) => {
+    bind(`${prefix}YearFilter`, 'change', async () => {
+      await refreshReportData(prefix);
+      renderReportingFeatureTables();
+    });
+    bind(`${prefix}ClassFilter`, 'change', async () => {
+      await refreshReportData(prefix);
+      renderReportingFeatureTables();
+    });
+  });
+  bind('schoolReportTypeFilter', 'change', renderReportingFeatureTables);
   bind('communicationTypeFilter', 'input', renderFeaturePages);
   bind('communicationStatusFilter', 'input', renderFeaturePages);
-  bind('yearEndReportYearInput', 'change', renderFeaturePages);
   bind('statementYearInput', 'input', renderFeaturePages);
   bind('statementSendOption', 'change', renderFeaturePages);
 }
@@ -1517,7 +2575,6 @@ function renderFeatureSelects() {
   const studentOptions = optionsFor(state.students, 'StudentID', studentLabel, 'Select student');
   const familyOptions = optionsFor(state.families, 'FamilyID', familyLabel, 'Select family');
   const invoiceOptions = optionsFor(state.invoices, 'InvoiceID', (invoice) => `${invoice.InvoiceNumber || invoice.InvoiceID} - ${studentLabel(invoice)} - ${money(invoice.Amount || 0)}`, 'Select invoice');
-  const billingOptions = optionsFor(state.billingCategories, 'BillingCategoryID', (category) => category.CategoryName || `Category ${category.BillingCategoryID}`, 'Select billing category');
   const pendingOptions = optionsFor(state.reEnrolmentPending.length ? state.reEnrolmentPending : state.students, 'StudentID', studentLabel, 'Select student');
 
   [
@@ -1538,7 +2595,48 @@ function renderFeatureSelects() {
     }
   });
 
+  renderReenrolmentClassSelect();
   renderConsentTargetInputs();
+}
+
+function reenrolmentTargetYear() {
+  const input = document.getElementById('reenrolmentYearInput');
+  const year = Number(input?.value || nextCalendarYear());
+  return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : nextCalendarYear();
+}
+
+function classesForAcademicYear(year) {
+  return state.classes
+    .filter((item) => item.IsActive !== false && classYear(item) === year)
+    .sort((a, b) => String(a.ClassName || '').localeCompare(String(b.ClassName || '')));
+}
+
+function academicYearForClassName(className, fallback = currentCalendarYear()) {
+  const normalized = String(className || '').trim();
+  const currentYear = currentCalendarYear();
+  const matches = state.classes
+    .filter((item) => item.IsActive !== false && String(item.ClassName || '').trim() === normalized)
+    .sort((a, b) => Math.abs(classYear(a) - currentYear) - Math.abs(classYear(b) - currentYear));
+  return matches.length ? classYear(matches[0]) : fallback;
+}
+
+function reenrolmentClassOptions(selectedClass = '') {
+  const targetYear = reenrolmentTargetYear();
+  const selected = String(selectedClass || '').trim();
+  const classes = classesForAcademicYear(targetYear);
+
+  return classes.map((item) => {
+    const className = item.ClassName || '';
+    return `<option value="${escapeHtml(className)}" ${className === selected ? 'selected' : ''}>${escapeHtml(className)}</option>`;
+  }).join('');
+}
+
+function renderReenrolmentClassSelect(selectedClass = '') {
+  const select = document.getElementById('reenrolmentNewClassSelect');
+  if (!select) return;
+  const options = reenrolmentClassOptions(selectedClass);
+  select.innerHTML = options || '<option value="">Create next-year classes first</option>';
+  select.disabled = !options;
 }
 
 function metricCard(label, value) {
@@ -1551,12 +2649,68 @@ function renderFeaturePages() {
   renderConsentFeature();
   renderFinanceFeatureTables();
   renderReportingFeatureTables();
+  applyIconPermissions();
 }
 
 function renderReenrolmentFeature() {
+  const targetYear = reenrolmentTargetYear();
+  const nextYearClasses = classesForAcademicYear(targetYear);
+  const notice = document.getElementById('reenrolmentClassNotice');
+  if (notice) {
+    notice.textContent = nextYearClasses.length
+      ? `${nextYearClasses.length} active class${nextYearClasses.length === 1 ? '' : 'es'} available for ${targetYear}.`
+      : `Create classes for ${targetYear} in Classes before processing promoted or retained learners.`;
+    notice.classList.toggle('warn', !nextYearClasses.length);
+  }
+
+  const summary = document.getElementById('reenrolmentSummaryMetrics');
+  if (summary) {
+    summary.innerHTML = [
+      metricCard('Target year', targetYear),
+      metricCard('Next-year classes', nextYearClasses.length),
+      metricCard('Pending', state.reEnrolmentPending.length),
+      metricCard('Processed', state.reEnrolments.length),
+      metricCard('Promoted', state.reEnrolments.filter((item) => item.Action === 'Promoted').length),
+      metricCard('Left', state.reEnrolments.filter((item) => item.Action === 'Left').length)
+    ].join('');
+  }
+
+  const pendingRows = state.reEnrolmentPending.map((student) => {
+    const currentClass = student.ClassName || student.CurrentClassName || '-';
+    const suggestedClass = suggestedNextClassName(currentClass);
+    const selectedClass = classOptionExists(nextYearClasses, suggestedClass)
+      ? suggestedClass
+      : classOptionExists(nextYearClasses, currentClass)
+        ? currentClass
+        : '';
+    const options = reenrolmentClassOptions(selectedClass);
+    const currentYear = student.CurrentAcademicYear || currentCalendarYear();
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHtml(studentLabel(student))}</strong>
+          <span class="table-subtext">Current year: ${escapeHtml(String(currentYear))}</span>
+        </td>
+        <td>${escapeHtml(currentClass)}</td>
+        <td>
+          ${options
+            ? `<select class="thin-input" data-reenrolment-row-class>${options}</select>`
+            : `<span class="badge warn">No ${targetYear} classes</span>`}
+        </td>
+        <td>
+          <button class="secondary-button compact-button" data-action="fill-reenrolment" data-permission="school.year_rollover.apply" data-id="${student.StudentID}" data-use-row-class="true" data-rollover-action="Promoted" type="button" ${options ? '' : 'disabled'}>Promote</button>
+          <button class="secondary-button compact-button" data-action="fill-reenrolment" data-permission="school.year_rollover.apply" data-id="${student.StudentID}" data-use-row-class="true" data-rollover-action="Retained" type="button" ${options ? '' : 'disabled'}>Retain</button>
+          <button class="ghost-button compact-button" data-action="fill-reenrolment" data-permission="school.year_rollover.apply" data-id="${student.StudentID}" data-next-class="" data-rollover-action="Left" type="button">Mark Left</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  setTable('reenrolmentPendingTable', pendingRows, 4, 'No pending learners found for the selected year.');
+
   const rows = state.reEnrolments.map((item) => `
     <tr>
       <td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td>
+      <td>${escapeHtml(String(item.CurrentAcademicYear || Number(item.AcademicYear || 0) - 1 || '-'))}</td>
       <td>${escapeHtml(item.PreviousClassName || item.CurrentClassName || '-')}</td>
       <td>${escapeHtml(item.NewClassName || '-')}</td>
       <td><span class="badge">${escapeHtml(item.Action || 'Pending')}</span></td>
@@ -1564,7 +2718,27 @@ function renderReenrolmentFeature() {
       <td>${money(item.AdvanceCreditCarriedForward || 0)}</td>
     </tr>
   `).join('');
-  setTable('reenrolmentTable', rows, 6, 'No re-enrolment records found for the selected year.');
+  setTable('reenrolmentTable', rows, 7, 'No re-enrolment records found for the selected year.');
+}
+
+function classOptionExists(classes, className) {
+  const normalized = String(className || '').trim();
+  return normalized && classes.some((item) => String(item.ClassName || '').trim() === normalized);
+}
+
+function suggestedNextClassName(className) {
+  const value = String(className || '').trim();
+  const gradeNumber = value.match(/grade\s*(\d+)|gr\s*(\d+)/i);
+  if (gradeNumber) {
+    const current = Number(gradeNumber[1] || gradeNumber[2]);
+    if (Number.isInteger(current)) {
+      return value.replace(/(grade\s*|gr\s*)\d+/i, (match) => match.replace(/\d+/, String(current + 1)));
+    }
+  }
+  if (/grade\s*r|gr\s*r|\br\b/i.test(value)) {
+    return value.replace(/grade\s*r|gr\s*r|\br\b/i, 'Grade 1');
+  }
+  return '';
 }
 
 function renderConsentComposerState() {
@@ -1696,10 +2870,50 @@ function openConsentDetailDialog(consentId) {
   document.body.classList.add('modal-open');
 }
 
-function filteredConsentRecords() {
-  const query = (state.consentSearchQuery || '').toLowerCase();
-  const searchType = state.consentSearchType || 'Permission slip';
-  const status = state.consentStatusFilter || 'all';
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function consentDateKey(value) {
+  if (!value) {
+    return '';
+  }
+
+  const text = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    return text.slice(0, 10);
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : localDateKey(date);
+}
+
+function consentSearchText(item, searchType) {
+  const parentValues = [
+    item.SignatureName,
+    item.SignatureRelationship,
+    item.FamilyName,
+    item.PrimaryParentName,
+    item.PrimaryParentEmail,
+    item.PrimaryParentPhone
+  ];
+  const values = {
+    'Permission slip': [item.RequestTitle, item.ConsentType, item.DocumentBody, item.RiskNotes, item.MedicalInstructions].join(' '),
+    'Student name': [item.FirstName, item.LastName].join(' '),
+    Class: [item.ClassName, item.TargetValue, item.TargetScope].join(' '),
+    'Parent / guardian': parentValues.join(' '),
+    'Parent / family': parentValues.join(' ')
+  };
+
+  return String(values[searchType] || values['Permission slip'] || '');
+}
+
+function filterConsentRecords({ query = '', searchType = 'Permission slip', status = 'all', dueFilter = 'all' } = {}) {
+  const normalizedQuery = String(query || '').trim().toLowerCase();
+  const today = localDateKey();
 
   return state.consentRecords.filter((item) => {
     const response = item.Response || 'Pending';
@@ -1707,18 +2921,24 @@ function filteredConsentRecords() {
       return false;
     }
 
-    if (!query) {
+    if (dueFilter !== 'all') {
+      const dueDate = consentDateKey(item.DueDate);
+      if (dueFilter === 'no-date' && dueDate) {
+        return false;
+      }
+      if (dueFilter === 'overdue' && (!dueDate || dueDate >= today)) {
+        return false;
+      }
+      if (dueFilter === 'upcoming' && (!dueDate || dueDate < today)) {
+        return false;
+      }
+    }
+
+    if (!normalizedQuery) {
       return true;
     }
 
-    const values = {
-      'Permission slip': [item.RequestTitle, item.ConsentType, item.DocumentBody].join(' '),
-      'Student name': [item.FirstName, item.LastName].join(' '),
-      Class: [item.ClassName, item.TargetValue].join(' '),
-      'Parent / family': [item.FamilyName, item.PrimaryParentName, item.PrimaryParentEmail].join(' ')
-    };
-
-    return String(values[searchType] || '').toLowerCase().includes(query);
+    return consentSearchText(item, searchType).toLowerCase().includes(normalizedQuery);
   });
 }
 
@@ -1735,8 +2955,12 @@ function renderConsentFeature() {
     metrics.innerHTML = metricCard('Permission slips', requestIds.size) + metricCard('Pending', pending) + metricCard('Signed', signed) + metricCard('Accepted', accepted) + metricCard('Declined', declined);
   }
 
-  const filtered = filteredConsentRecords();
-  const pageSize = state.consentPageSize || 10;
+  const filtered = filterConsentRecords({
+    query: state.consentListSearchQuery,
+    searchType: state.consentListSearchType,
+    status: state.consentListStatusFilter
+  });
+  const pageSize = state.consentListPageSize || 10;
   const limited = filtered.slice(0, pageSize);
 
   const rows = limited.map((item) => `
@@ -1758,9 +2982,14 @@ function renderConsentFeature() {
   `).join('');
   setTable('consentTable', rows, 7, 'No consent records found.');
 
-  const outstandingRows = filtered
-    .filter((item) => (item.Response || 'Pending') === 'Pending')
-    .slice(0, pageSize)
+  const outstandingFiltered = filterConsentRecords({
+    query: state.consentOutstandingSearchQuery,
+    searchType: state.consentOutstandingSearchType,
+    status: 'Pending',
+    dueFilter: state.consentOutstandingDueFilter
+  });
+  const outstandingRows = outstandingFiltered
+    .slice(0, state.consentOutstandingPageSize || 10)
     .map((item) => `
       <tr>
         <td>
@@ -1786,9 +3015,13 @@ function renderConsentFeature() {
     `).join('');
   setTable('outstandingConsentTable', outstandingRows, 7, 'No outstanding responses match the current filters.');
 
-  const signedRows = filtered
-    .filter((item) => (item.Response || 'Pending') !== 'Pending')
-    .slice(0, pageSize)
+  const signedFiltered = filterConsentRecords({
+    query: state.consentSignedSearchQuery,
+    searchType: state.consentSignedSearchType,
+    status: state.consentSignedResponseFilter
+  }).filter((item) => (item.Response || 'Pending') !== 'Pending');
+  const signedRows = signedFiltered
+    .slice(0, state.consentSignedPageSize || 10)
     .map((item) => `
       <tr>
         <td>
@@ -1813,6 +3046,50 @@ function renderConsentFeature() {
   setTable('signedConsentTable', signedRows, 8, 'No signed permission slips match the current filters.');
 }
 
+function pendingRolloverStudentIds() {
+  const pendingIds = new Set();
+  state.reEnrolmentPending.forEach((student) => pendingIds.add(Number(student.StudentID)));
+  state.reEnrolments
+    .filter((item) => item.Action === 'Pending')
+    .forEach((item) => pendingIds.add(Number(item.StudentID)));
+  pendingIds.delete(0);
+  pendingIds.delete(NaN);
+  return pendingIds;
+}
+
+function renderYearEndRolloverReadiness() {
+  const notice = document.getElementById('yearEndRolloverNotice');
+  const metrics = document.getElementById('yearEndRolloverMetrics');
+  if (!notice || !metrics) {
+    return;
+  }
+
+  const financialYear = selectedYearEndFinancialYear();
+  const rolloverYear = financialYear + 1;
+  const loadedYear = Number(state.featureRolloverYear || rolloverYear);
+  const nextYearClasses = classesForAcademicYear(rolloverYear);
+  const pendingIds = pendingRolloverStudentIds();
+  const processedFinal = state.reEnrolments.filter((item) => item.Action && item.Action !== 'Pending').length;
+  const loadedForSelectedYear = loadedYear === rolloverYear;
+  const ready = loadedForSelectedYear && pendingIds.size === 0;
+
+  notice.textContent = loadedForSelectedYear
+    ? ready
+      ? `Next-year enrolment and promotions for ${rolloverYear} are verified. ${financialYear} can be closed when finance is ready.`
+      : `${pendingIds.size} learner${pendingIds.size === 1 ? '' : 's'} still need a promoted, retained, or left decision for ${rolloverYear} before ${financialYear} can be closed.`
+    : `Load the ${rolloverYear} rollover check before closing ${financialYear}.`;
+  notice.classList.toggle('warn', !ready);
+
+  metrics.innerHTML = [
+    metricCard('Financial year', financialYear),
+    metricCard('Rollover year', rolloverYear),
+    metricCard('Next-year classes', nextYearClasses.length),
+    metricCard('Still pending', pendingIds.size),
+    metricCard('Verified records', processedFinal),
+    metricCard('Ready to close', ready ? 'Yes' : 'No')
+  ].join('');
+}
+
 function renderFinanceFeatureTables() {
   setTable('adjustmentsTable', state.financialAdjustments.map((item) => `
     <tr><td>${dateOnly(item.CreatedDate)}</td><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim() || '-')}</td><td>${escapeHtml(item.InvoiceNumber || '-')}</td><td>${escapeHtml(item.AdjustmentType || '-')}</td><td>${money(item.Amount || 0)}</td><td>${escapeHtml(item.Reason || '-')}</td></tr>
@@ -1826,9 +3103,30 @@ function renderFinanceFeatureTables() {
     <tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim() || '-')}</td><td>${escapeHtml(item.FamilyName || '-')}</td><td>${escapeHtml(item.FeeType || '-')}</td><td>${money(item.Amount || 0)}</td><td>${item.IsRefundable ? 'Yes' : 'No'}</td><td>${item.IsPaid ? dateOnly(item.PaidDate) : 'Unpaid'}</td><td>${item.IsPaid ? '' : `<button class="ghost-button" data-action="registration-fee-paid" data-id="${item.RegistrationFeeID}" type="button">Mark Paid</button>`}</td></tr>
   `).join(''), 7, 'No registration or deposit fees found.');
 
+  renderYearEndRolloverReadiness();
+
   setTable('yearEndClosingTable', state.yearEndClosings.map((item) => `
-    <tr><td>${escapeHtml(String(item.FinancialYear || '-'))}</td><td><span class="badge">${escapeHtml(item.Status || 'Open')}</span></td><td>${dateOnly(item.ClosedDate)}</td><td>${dateOnly(item.ReopenedDate)}</td><td><div class="actions"><button class="ghost-button" data-action="year-end-status" data-id="${item.ClosingID}" data-status="In Review" type="button">Review</button><button class="ghost-button" data-action="year-end-status" data-id="${item.ClosingID}" data-status="Ready to Close" type="button">Ready</button><button class="danger-button" data-action="year-end-status" data-id="${item.ClosingID}" data-status="Closed" type="button">Close</button></div></td></tr>
+    <tr><td>${escapeHtml(String(item.FinancialYear || '-'))}</td><td><span class="badge">${escapeHtml(item.Status || 'Open')}</span><span class="table-subtext">Rollover year: ${escapeHtml(String(Number(item.FinancialYear || 0) + 1 || '-'))}</span></td><td>${dateOnly(item.ClosedDate)}</td><td>${dateOnly(item.ReopenedDate)}</td><td><div class="actions"><button class="ghost-button" data-action="year-end-status" data-id="${item.ClosingID}" data-financial-year="${item.FinancialYear}" data-status="In Review" type="button">Review</button><button class="ghost-button" data-action="year-end-status" data-id="${item.ClosingID}" data-financial-year="${item.FinancialYear}" data-status="Ready to Close" type="button">Ready</button><button class="danger-button" data-action="year-end-status" data-id="${item.ClosingID}" data-financial-year="${item.FinancialYear}" data-status="Closed" type="button">Close</button></div></td></tr>
   `).join(''), 5, 'No year-end closing records found.');
+
+  setTable('financePeriodLocksTable', state.financePeriodLocks.map((item) => `
+    <tr>
+      <td>
+        <strong>${dateOnly(item.PeriodStart)} to ${dateOnly(item.PeriodEnd)}</strong>
+        <span class="table-subtext">${escapeHtml(item.LockedByEmail || '')} ${dateOnly(item.LockedDate)}</span>
+      </td>
+      <td>${escapeHtml(item.LockType || '-')}</td>
+      <td><span class="badge ${item.Status === 'Locked' ? 'warn' : ''}">${escapeHtml(item.Status || '-')}</span></td>
+      <td>
+        ${escapeHtml(item.Status === 'Locked' ? item.Reason || '-' : item.ReopenReason || item.Reason || '-')}
+      </td>
+      <td>
+        ${item.Status === 'Locked'
+          ? `<button class="ghost-button" data-action="reopen-finance-period" data-id="${item.FinancePeriodLockID}" type="button">Reopen for correction</button>`
+          : '<span class="table-subtext">Reopened</span>'}
+      </td>
+    </tr>
+  `).join(''), 5, 'No locked finance periods found.');
 }
 
 function renderReportingFeatureTables() {
@@ -1880,24 +3178,144 @@ function statementPreviewRows() {
   });
 }
 
-function renderSchoolReportSummary() {
-  const summaryPanel = document.querySelector('#reportView .summary-panel');
-  if (!summaryPanel) return;
+function reportData() {
+  return state.reportData || {};
+}
 
-  const totalInvoiced = state.invoices.reduce((sum, invoice) => sum + Number(invoice.Amount || 0), 0);
-  const totalPaid = state.invoices.reduce((sum, invoice) => sum + Number(invoice.AmountPaid || 0), 0);
-  const outstanding = state.invoices.reduce((sum, invoice) => sum + Math.max(0, Number(invoice.Amount || 0) - Number(invoice.AmountPaid || 0)), 0);
-  const advance = state.invoices.reduce((sum, invoice) => sum + Math.max(0, Number(invoice.AmountPaid || 0) - Number(invoice.Amount || 0)), 0);
+function reportSchool() {
+  return reportData().school || getSettingsSchool() || {};
+}
 
-  summaryPanel.innerHTML = `
-    <div class="panel-header"><h3>Report Summary</h3></div>
-    <div class="metrics-grid">
-      ${metricCard('Total invoiced', money(totalInvoiced))}
-      ${metricCard('Total paid', money(totalPaid))}
-      ${metricCard('Outstanding', money(outstanding))}
-      ${metricCard('Advance credit', money(advance))}
-    </div>
+function reportPercent(value) {
+  return `${Number(value || 0).toFixed(1)}%`;
+}
+
+function reportRowsMessage() {
+  return state.reportStatusMessage || 'No report data found for the selected filters.';
+}
+
+function reportStudentName(row) {
+  return `${row.FirstName || ''} ${row.LastName || ''}`.trim() || `Learner ${row.StudentID || ''}`.trim();
+}
+
+function renderReportFilterOptions() {
+  const classes = reportData().classOptions || [];
+  REPORT_FILTER_PREFIXES.forEach((prefix) => {
+    const select = document.getElementById(`${prefix}ClassFilter`);
+    if (!select) return;
+    const selected = select.value;
+    const options = '<option value="">All classes</option>' + classes.map((className) => (
+      `<option value="${escapeHtml(className)}" ${className === selected ? 'selected' : ''}>${escapeHtml(className)}</option>`
+    )).join('');
+    if (select.dataset.lastOptions !== options) {
+      select.innerHTML = options;
+      select.dataset.lastOptions = options;
+      if (classes.includes(selected)) {
+        select.value = selected;
+      }
+    }
+  });
+}
+
+function chartBars(title, rows, options = {}) {
+  const list = Array.isArray(rows) ? rows : Object.entries(rows || {}).map(([label, value]) => ({ label, value }));
+  const max = Math.max(1, ...list.map((item) => Number(item[options.valueKey || 'value'] || 0)));
+  const format = options.format || ((value) => escapeHtml(String(value)));
+  return `
+    <section class="report-chart-card">
+      <h3>${escapeHtml(title)}</h3>
+      <div class="report-bars">
+        ${list.map((item) => {
+          const label = item[options.labelKey || 'label'];
+          const value = Number(item[options.valueKey || 'value'] || 0);
+          const width = Math.max(2, Math.min(100, (value / max) * 100));
+          return `
+            <div class="report-bar-row">
+              <span>${escapeHtml(label || '-')}</span>
+              <div class="report-bar-track"><div class="report-bar-fill" style="width:${width}%"></div></div>
+              <strong>${format(value)}</strong>
+            </div>
+          `;
+        }).join('') || '<p class="table-subtext">No chart data for this filter.</p>'}
+      </div>
+    </section>
   `;
+}
+
+function metricCardsFrom(items) {
+  return items.map(([label, value]) => metricCard(label, value)).join('');
+}
+
+function renderSchoolReportSummary() {
+  renderReportFilterOptions();
+  const report = reportData();
+  const finance = report.finance || { stats: {}, monthly: [], byClass: [], overdueRows: [] };
+  const students = report.students || { stats: {}, byClass: {} };
+  const attendance = report.attendance || { stats: {}, monthly: [], byClass: [] };
+  const admissions = report.admissions || { stats: {}, byStatus: {} };
+  const consent = report.consent || { stats: {}, byResponse: {} };
+  const type = document.getElementById('schoolReportTypeFilter')?.value || 'overview';
+  const summary = document.getElementById('schoolReportSummary');
+  const charts = document.getElementById('schoolReportCharts');
+
+  if (summary) {
+    summary.innerHTML = metricCardsFrom([
+      ['Learners', students.stats?.total || 0],
+      ['Attendance rate', reportPercent(attendance.stats?.attendanceRate)],
+      ['Collection rate', reportPercent(finance.stats?.collectionRate)],
+      ['Outstanding', money(finance.stats?.outstanding || 0, reportSchool())],
+      ['Admissions', admissions.stats?.total || 0],
+      ['Consent pending', consent.stats?.pending || 0]
+    ]);
+  }
+
+  if (charts) {
+    const chartSet = type === 'finance'
+      ? [
+        chartBars('Monthly Invoiced', finance.monthly || [], { valueKey: 'invoiced', format: (value) => money(value, reportSchool()) }),
+        chartBars('Class Outstanding', finance.byClass || [], { valueKey: 'outstanding', format: (value) => money(value, reportSchool()) })
+      ]
+      : type === 'attendance'
+        ? [
+          chartBars('Monthly Attendance Rate', attendance.monthly || [], { valueKey: 'attendanceRate', format: reportPercent }),
+          chartBars('Attendance by Status', attendance.byStatus || {})
+        ]
+        : type === 'learners'
+          ? [
+            chartBars('Learners by Class', students.byClass || {}),
+            chartBars('Learners by Age Band', students.byAgeBand || {})
+          ]
+          : [
+            chartBars('Learners by Class', students.byClass || {}),
+            chartBars('Monthly Collection Rate', finance.monthly || [], { valueKey: 'collectionRate', format: reportPercent }),
+            chartBars('Attendance by Status', attendance.byStatus || {}),
+            chartBars('Consent Responses', consent.byResponse || {})
+          ];
+    charts.innerHTML = chartSet.join('');
+  }
+
+  const classRows = (finance.byClass || []).map((financeClass) => {
+    const attendanceClass = (attendance.byClass || []).find((item) => item.label === financeClass.label) || {};
+    const learnerCount = Number((students.byClass || {})[financeClass.label] || 0);
+    return `
+      <tr>
+        <td>${escapeHtml(financeClass.label || '-')}</td>
+        <td>${learnerCount}</td>
+        <td>${reportPercent(attendanceClass.attendanceRate || 0)}</td>
+        <td>${money(financeClass.invoiced || 0, reportSchool())}</td>
+        <td>${money(financeClass.paid || 0, reportSchool())}</td>
+        <td>${money(financeClass.outstanding || 0, reportSchool())}</td>
+        <td>${reportPercent(financeClass.collectionRate || 0)}</td>
+      </tr>
+    `;
+  }).join('');
+  setTable('schoolReportClassTable', classRows, 7, reportRowsMessage());
+
+  const outstandingRows = (finance.overdueRows || []).slice(0, 80).map((invoice) => {
+    const outstanding = Math.max(0, Number(invoice.Amount || 0) - Number(invoice.AmountPaid || 0));
+    return `<tr><td>${escapeHtml(reportStudentName(invoice))}</td><td>${escapeHtml(invoice.ClassName || '-')}</td><td>${escapeHtml(invoice.InvoiceNumber || '-')}</td><td><span class="badge warn">${escapeHtml(invoice.Status || '-')}</span></td><td>${money(outstanding, reportSchool())}</td><td>${dateOnly(invoice.DueDate)}</td></tr>`;
+  }).join('');
+  setTable('schoolReportOutstandingTable', outstandingRows, 6, 'No outstanding fees found for the selected filters.');
 }
 
 function renderStatementPreview() {
@@ -1945,48 +3363,103 @@ function renderStatementPreview() {
 }
 
 function renderStudentReports() {
-  const month = Number(document.getElementById('birthdayMonthFilter')?.value || 0);
-  const status = document.getElementById('studentReportStatusFilter')?.value || '';
-  const now = new Date();
-  const students = state.students.filter((student) => {
-    const active = student.IsActive !== false;
-    const statusOk = !status || (status === 'Active' ? active : !active);
-    const dob = student.DateOfBirth ? new Date(student.DateOfBirth) : null;
-    const monthOk = !month || (dob && dob.getMonth() + 1 === month);
-    return statusOk && monthOk;
-  });
+  renderReportFilterOptions();
+  const studentReport = reportData().students || { rows: [], birthdays: [], stats: {}, byClass: {}, byGender: {}, byAgeBand: {}, enrolmentByMonth: [] };
   const summary = document.getElementById('studentReportSummary');
   if (summary) {
-    summary.innerHTML = metricCard('Students', students.length) + metricCard('Active', state.students.filter((s) => s.IsActive !== false).length) + metricCard('Classes', new Set(state.students.map((s) => s.ClassName).filter(Boolean)).size);
+    summary.innerHTML = metricCardsFrom([
+      ['Learners', studentReport.stats?.total || 0],
+      ['Active', studentReport.stats?.active || 0],
+      ['New enrolments', studentReport.stats?.newEnrolments || 0],
+      ['Left', studentReport.stats?.left || 0],
+      ['Classes', Object.keys(studentReport.byClass || {}).length]
+    ]);
   }
-  setTable('studentReportsTable', students.map((student) => {
-    const dob = student.DateOfBirth ? new Date(student.DateOfBirth) : null;
-    const age = dob ? now.getFullYear() - dob.getFullYear() - (now < new Date(now.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0) : '-';
-    return `<tr><td>${escapeHtml(studentLabel(student))}</td><td>${escapeHtml(student.ClassName || '-')}</td><td>${dateOnly(student.DateOfBirth)}</td><td>${age}</td><td>${student.IsActive !== false ? 'Active' : 'Inactive'}</td></tr>`;
-  }).join(''), 5, 'No students match the selected report filters.');
+
+  const charts = document.getElementById('studentReportCharts');
+  if (charts) {
+    charts.innerHTML = [
+      chartBars('Learners by Class', studentReport.byClass || {}),
+      chartBars('Gender', studentReport.byGender || {}),
+      chartBars('Age Bands', studentReport.byAgeBand || {}),
+      chartBars('New Enrolments by Month', studentReport.enrolmentByMonth || [], { valueKey: 'count' })
+    ].join('');
+  }
+
+  setTable('studentBirthdaysTable', (studentReport.birthdays || []).map((student) => (
+    `<tr><td>${escapeHtml(reportStudentName(student))}</td><td>${escapeHtml(student.ClassName || '-')}</td><td>${dateOnly(student.DateOfBirth)}</td><td>${escapeHtml(String(student.AgeThisYear ?? '-'))}</td></tr>`
+  )).join(''), 4, 'No birthdays found for the selected filters.');
+
+  setTable('studentReportsTable', (studentReport.rows || []).map((student) => {
+    const active = student.IsActive !== false && student.IsActive !== 0;
+    return `<tr><td>${escapeHtml(reportStudentName(student))}</td><td>${escapeHtml(student.ClassName || '-')}</td><td>${dateOnly(student.EnrolledDate)}</td><td><span class="badge ${active ? '' : 'warn'}">${active ? 'Active' : 'Inactive'}</span></td></tr>`;
+  }).join(''), 4, 'No students match the selected report filters.');
 }
 
 function renderAdmissionsReport() {
-  const counts = ['New', 'In Review', 'Accepted', 'Waitlisted', 'Refused', 'Enrolled'].map((status) => metricCard(status, state.admissions.filter((item) => item.Status === status).length)).join('');
+  renderReportFilterOptions();
+  const admissions = reportData().admissions || { rows: [], stats: {}, byStatus: {}, monthly: [] };
   const summary = document.getElementById('admissionsReportSummary');
-  if (summary) summary.innerHTML = counts || metricCard('Applications', 0);
-  setTable('admissionsReportTable', state.admissions.map((item) => `<tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td><td>${escapeHtml(item.Status || 'New')}</td><td>${escapeHtml(item.ClassName || '-')}</td><td>${dateOnly(item.AppliedDate)}</td></tr>`).join(''), 4, 'No admissions records found.');
+  if (summary) {
+    summary.innerHTML = metricCardsFrom([
+      ['Applications', admissions.stats?.total || 0],
+      ['Accepted', admissions.stats?.accepted || 0],
+      ['Enrolled', admissions.stats?.enrolled || 0],
+      ['Waitlisted', admissions.stats?.waitlisted || 0],
+      ['Refused', admissions.stats?.refused || 0]
+    ]);
+  }
+  const charts = document.getElementById('admissionsReportCharts');
+  if (charts) {
+    charts.innerHTML = [
+      chartBars('Admissions by Status', admissions.byStatus || {}),
+      chartBars('Applications by Month', admissions.monthly || [], { valueKey: 'count' })
+    ].join('');
+  }
+  setTable('admissionsReportTable', (admissions.rows || []).map((item) => `<tr><td>${escapeHtml(reportStudentName(item))}</td><td><span class="badge">${escapeHtml(item.Status || 'New')}</span></td><td>${escapeHtml(item.ClassName || '-')}</td><td>${dateOnly(item.AppliedDate)}</td><td>${dateOnly(item.EnrolledDate)}</td></tr>`).join(''), 5, 'No admissions records found.');
 }
 
 function renderReenrolmentReport() {
+  renderReportFilterOptions();
+  const reEnrolment = reportData().reEnrolment || { rows: [], stats: {}, byAction: {} };
   const summary = document.getElementById('reenrolmentReportSummary');
-  if (summary) summary.innerHTML = ['Promoted', 'Retained', 'Left', 'Pending'].map((action) => metricCard(action, state.reEnrolments.filter((item) => item.Action === action).length)).join('');
-  setTable('reenrolmentReportTable', state.reEnrolments.map((item) => `<tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td><td>${escapeHtml(item.PreviousClassName || '-')}</td><td>${escapeHtml(item.NewClassName || '-')}</td><td>${escapeHtml(item.Action || 'Pending')}</td><td>${money(item.BalanceCarriedForward || 0)}</td></tr>`).join(''), 5, 'No re-enrolment records found.');
+  if (summary) {
+    summary.innerHTML = metricCardsFrom([
+      ['Records', reEnrolment.stats?.total || 0],
+      ['Promoted', reEnrolment.stats?.promoted || 0],
+      ['Retained', reEnrolment.stats?.retained || 0],
+      ['Left', reEnrolment.stats?.left || 0],
+      ['Pending', reEnrolment.stats?.pending || 0]
+    ]);
+  }
+  const charts = document.getElementById('reenrolmentReportCharts');
+  if (charts) {
+    charts.innerHTML = chartBars('Rollover Actions', reEnrolment.byAction || {});
+  }
+  setTable('reenrolmentReportTable', (reEnrolment.rows || []).map((item) => `<tr><td>${escapeHtml(reportStudentName(item))}</td><td>${escapeHtml(item.PreviousClassName || '-')}</td><td>${escapeHtml(item.NewClassName || '-')}</td><td><span class="badge ${item.Action === 'Pending' ? 'warn' : ''}">${escapeHtml(item.Action || 'Pending')}</span></td><td>${money(item.BalanceCarriedForward || 0, reportSchool())}</td><td>${money(item.AdvanceCreditCarriedForward || 0, reportSchool())}</td></tr>`).join(''), 6, 'No re-enrolment records found.');
 }
 
 function renderConsentReport() {
+  renderReportFilterOptions();
+  const consent = reportData().consent || { rows: [], stats: {}, byResponse: {}, byClass: {} };
   const summary = document.getElementById('consentReportSummary');
   if (summary) {
-    const accepted = state.consentRecords.filter((item) => item.Response === 'Accepted').length;
-    const declined = state.consentRecords.filter((item) => item.Response === 'Declined').length;
-    summary.innerHTML = metricCard('Consent records', state.consentRecords.length) + metricCard('Pending', state.missingConsent.length) + metricCard('Signed', accepted + declined) + metricCard('Accepted', accepted) + metricCard('Declined', declined);
+    summary.innerHTML = metricCardsFrom([
+      ['Permission records', consent.stats?.total || 0],
+      ['Pending', consent.stats?.pending || 0],
+      ['Signed', Number(consent.stats?.accepted || 0) + Number(consent.stats?.declined || 0)],
+      ['Accepted', consent.stats?.accepted || 0],
+      ['Declined', consent.stats?.declined || 0]
+    ]);
   }
-  setTable('consentReportTable', state.consentRecords.map((item) => `<tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td><td>${escapeHtml(item.RequestTitle || item.ConsentType || '-')}</td><td><span class="badge ${item.Response === 'Declined' ? 'danger' : (item.Response === 'Pending' || !item.Response) ? 'warn' : ''}">${escapeHtml(item.Response || 'Pending')}</span></td><td>${escapeHtml(item.SignatureName || '-')}</td><td>${dateOnly(item.ResponseDate || item.DueDate || item.CreatedDate)}</td></tr>`).join(''), 5, 'No consent records found.');
+  const charts = document.getElementById('consentReportCharts');
+  if (charts) {
+    charts.innerHTML = [
+      chartBars('Response Status', consent.byResponse || {}),
+      chartBars('Records by Class', consent.byClass || {})
+    ].join('');
+  }
+  setTable('consentReportTable', (consent.rows || []).map((item) => `<tr><td>${escapeHtml(reportStudentName(item))}</td><td>${escapeHtml(item.ClassName || '-')}</td><td>${escapeHtml(item.RequestTitle || item.ConsentType || '-')}</td><td><span class="badge ${item.Response === 'Declined' ? 'danger' : (item.Response === 'Pending' || !item.Response) ? 'warn' : ''}">${escapeHtml(item.Response || 'Pending')}</span></td><td>${escapeHtml(item.SignatureName || '-')}</td><td>${dateOnly(item.ResponseDate || item.DueDate || item.CreatedDate)}</td></tr>`).join(''), 6, 'No consent records found.');
 }
 
 function renderCommunicationHistory() {
@@ -2001,15 +3474,30 @@ function renderCommunicationHistory() {
 }
 
 function renderYearEndReport() {
-  const year = Number(document.getElementById('yearEndReportYearInput')?.value || new Date().getFullYear());
-  const reportRows = state.reEnrolments.filter((item) => Number(item.AcademicYear || year) === year);
+  renderReportFilterOptions();
+  const report = reportData();
+  const yearEnd = report.yearEnd || { rows: [], balancesForward: [], stats: {} };
+  const reEnrolment = report.reEnrolment || { rows: [], stats: {}, byAction: {} };
+  const finance = report.finance || { stats: {}, monthly: [] };
   const summary = document.getElementById('yearEndReportSummary');
   if (summary) {
-    const invoiced = state.invoices.reduce((sum, invoice) => sum + Number(invoice.Amount || 0), 0);
-    const paid = state.invoices.reduce((sum, invoice) => sum + Number(invoice.AmountPaid || 0), 0);
-    summary.innerHTML = metricCard('Total invoiced', money(invoiced)) + metricCard('Total paid', money(paid)) + metricCard('Outstanding', money(Math.max(0, invoiced - paid))) + metricCard('Rollover records', reportRows.length);
+    summary.innerHTML = metricCardsFrom([
+      ['Total invoiced', money(finance.stats?.totalInvoiced || yearEnd.stats?.totalInvoiced || 0, reportSchool())],
+      ['Total paid', money(finance.stats?.totalPaid || yearEnd.stats?.totalPaid || 0, reportSchool())],
+      ['Outstanding', money(finance.stats?.outstanding || yearEnd.stats?.totalOutstanding || 0, reportSchool())],
+      ['Advance credit', money(finance.stats?.advance || yearEnd.stats?.totalAdvanceCredit || 0, reportSchool())],
+      ['Rollover records', reEnrolment.stats?.total || 0]
+    ]);
   }
-  setTable('yearEndReportTable', reportRows.map((item) => `<tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td><td>${escapeHtml(item.Action || '-')}</td><td>${money(item.BalanceCarriedForward || 0)}</td><td>${money(item.AdvanceCreditCarriedForward || 0)}</td></tr>`).join(''), 4, 'No year-end report records found.');
+  const charts = document.getElementById('yearEndReportCharts');
+  if (charts) {
+    charts.innerHTML = [
+      chartBars('Rollover Actions', reEnrolment.byAction || {}),
+      chartBars('Monthly Outstanding', finance.monthly || [], { valueKey: 'outstanding', format: (value) => money(value, reportSchool()) })
+    ].join('');
+  }
+  setTable('yearEndReportTable', (reEnrolment.rows || []).map((item) => `<tr><td>${escapeHtml(reportStudentName(item))}</td><td><span class="badge">${escapeHtml(item.Action || '-')}</span></td><td>${money(item.BalanceCarriedForward || 0, reportSchool())}</td><td>${money(item.AdvanceCreditCarriedForward || 0, reportSchool())}</td></tr>`).join(''), 4, 'No year-end rollover records found.');
+  setTable('yearEndBalanceForwardTable', (yearEnd.balancesForward || []).map((item) => `<tr><td>${escapeHtml(reportStudentName(item))}</td><td>${escapeHtml(item.ClassName || '-')}</td><td>${escapeHtml(String(item.FromYear || '-'))}</td><td>${escapeHtml(String(item.ToYear || '-'))}</td><td>${money(item.OutstandingAmount || 0, reportSchool())}</td><td>${money(item.AdvanceCreditAmount || 0, reportSchool())}</td></tr>`).join(''), 6, 'No balance-forward records found.');
 }
 
 function setTable(id, rows, colspan, emptyText) {
@@ -2056,16 +3544,53 @@ function renderSchoolOptions() {
   elements.invoiceSchool.disabled = !state.schools.length;
 }
 
+function currentSchoolBillingCategories() {
+  const schoolId = Number(currentSchoolId());
+
+  if (!schoolId) {
+    return [];
+  }
+
+  return state.billingCategories.filter((category) => Number(category.SchoolID) === schoolId);
+}
+
+function renderBillingCategorySchoolControls() {
+  const school = getSettingsSchool();
+  const isAdmin = state.user?.role === 'admin';
+
+  elements.billingCategorySchoolField?.classList.toggle('hidden', !isAdmin);
+
+  if (elements.billingCategorySchoolSelect) {
+    elements.billingCategorySchoolSelect.innerHTML = state.schools.length
+      ? state.schools.map((item) => `
+          <option value="${item.SchoolID}">${escapeHtml(item.SchoolName)}</option>
+        `).join('')
+      : '<option value="">No schools available</option>';
+    elements.billingCategorySchoolSelect.disabled = !state.schools.length || Boolean(state.editingBillingCategoryId);
+
+    if (school) {
+      elements.billingCategorySchoolSelect.value = String(school.SchoolID);
+    }
+  }
+
+  if (elements.billingCategorySchoolHint) {
+    elements.billingCategorySchoolHint.textContent = school
+      ? `Billing categories created here belong to ${school.SchoolName} only.`
+      : 'Select or create a school before adding billing categories.';
+  }
+}
+
 function renderBillingCategoryOptions() {
-  const options = state.billingCategories.length
-    ? state.billingCategories.map((category) => `
+  const categories = activeBillingCategories();
+  const options = categories.length
+    ? categories.map((category) => `
         <option value="${category.BillingCategoryID}">${escapeHtml(category.CategoryName)} - ${money(category.BaseAmount, getSettingsSchool())}</option>
       `).join('')
     : '<option value="">Add a billing category first</option>';
 
   if (elements.studentBillingCategorySelect) {
     elements.studentBillingCategorySelect.innerHTML = options;
-    elements.studentBillingCategorySelect.disabled = !state.billingCategories.length;
+    elements.studentBillingCategorySelect.disabled = !categories.length;
   }
 
   if (elements.invoiceStudentSelect) {
@@ -2141,14 +3666,14 @@ function renderInvoicesTable() {
     const statusClass = invoice.Status === 'Paid' ? 'badge' : invoice.Status === 'Overdue' ? 'badge danger' : 'badge warn';
     const amountPaid = Number(invoice.AmountPaid || 0);
     const remaining = Math.max(0, Number(invoice.Amount || 0) - amountPaid);
-    const isPaid = invoice.Status === 'Paid';
     const studentName = [invoice.FirstName, invoice.LastName].filter(Boolean).join(' ') || '-';
-    const actions = isPaid
-      ? '<span class="table-subtext">No actions</span>'
+    const actions = invoice.StudentID
+      ? `
+            <button class="ghost-button" data-action="view-student-finance" data-id="${invoice.StudentID}" type="button">View invoices</button>
+            <button class="ghost-button" data-action="issue-student-receipt" data-id="${invoice.StudentID}" type="button">Issue receipt</button>
+        `
       : `
-            <button class="ghost-button" data-action="record-payment" data-id="${invoice.InvoiceID}" data-remaining="${remaining}" type="button">Record payment</button>
-            <button class="ghost-button" data-action="pay-invoice" data-requires-school-finance="true" data-id="${invoice.InvoiceID}" type="button">Mark paid</button>
-            <button class="danger-button" data-action="delete-invoice" data-requires-school-finance="true" data-id="${invoice.InvoiceID}" type="button">Delete</button>
+            <span class="table-subtext">No learner linked</span>
         `;
 
     return `
@@ -2159,6 +3684,7 @@ function renderInvoicesTable() {
         <td>${escapeHtml(invoice.CategoryName || '-')}</td>
         <td>${money(invoice.Amount, school)}</td>
         <td>${money(amountPaid, school)}</td>
+        <td>${dateOnly(invoice.PaidDate) || '-'}</td>
         <td><span class="${statusClass}">${escapeHtml(invoice.Status)}</span></td>
         <td>${dateOnly(invoice.DueDate)}</td>
         <td>
@@ -2168,7 +3694,7 @@ function renderInvoicesTable() {
         </td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="9">No invoices found.</td></tr>';
+  }).join('') || '<tr><td colspan="10">No invoices found.</td></tr>';
 }
 
 function renderRecentLists() {
@@ -2194,7 +3720,9 @@ function renderBillingCategories() {
     return;
   }
 
-  elements.billingCategoriesTable.innerHTML = state.billingCategories.map((category) => {
+  const categories = currentSchoolBillingCategories();
+
+  elements.billingCategoriesTable.innerHTML = categories.map((category) => {
     const isActive = category.IsActive !== false && category.IsActive !== 0;
 
     return `
@@ -2218,7 +3746,7 @@ function renderBillingCategories() {
 }
 
 function editBillingCategory(categoryId) {
-  const category = state.billingCategories.find((item) => item.BillingCategoryID === Number(categoryId));
+  const category = currentSchoolBillingCategories().find((item) => item.BillingCategoryID === Number(categoryId));
 
   if (!category) {
     showToast('Billing category not found');
@@ -2232,6 +3760,7 @@ function editBillingCategory(categoryId) {
   elements.billingCategoryForm.elements.frequency.value = category.Frequency || '';
   elements.billingCategoryForm.elements.description.value = category.Description || '';
   elements.cancelBillingCategoryEditButton.classList.remove('hidden');
+  renderBillingCategorySchoolControls();
   elements.billingCategoryForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -2240,6 +3769,7 @@ function resetBillingCategoryForm() {
   elements.billingCategoryForm.reset();
   elements.billingCategoryForm.elements.billingCategoryId.value = '';
   elements.cancelBillingCategoryEditButton.classList.add('hidden');
+  renderBillingCategorySchoolControls();
 }
 
 function currentSchoolId() {
@@ -2315,7 +3845,7 @@ function populateBillingSelect(select, selectedIds = []) {
   }
 
   const selected = new Set(selectedIds.map((id) => String(id)));
-  const categories = state.billingCategories.filter((category) => category.IsActive !== false && category.IsActive !== 0);
+  const categories = activeBillingCategories();
   select.innerHTML = categories.map((category) => `
     <option value="${category.BillingCategoryID}" ${selected.has(String(category.BillingCategoryID)) ? 'selected' : ''}>
       ${escapeHtml(category.CategoryName)} (${money(category.BaseAmount)})
@@ -2325,7 +3855,7 @@ function populateBillingSelect(select, selectedIds = []) {
 }
 
 function activeBillingCategories() {
-  return state.billingCategories.filter((category) => category.IsActive !== false && category.IsActive !== 0);
+  return currentSchoolBillingCategories().filter((category) => category.IsActive !== false && category.IsActive !== 0);
 }
 
 function billingCard(category, zone) {
@@ -2378,6 +3908,49 @@ function unassignRegisterLearnerBilling(categoryId) {
   const parsedId = Number(categoryId);
   state.registerLearnerBillingIds = state.registerLearnerBillingIds.filter((id) => id !== parsedId);
   renderRegisterLearnerBillingPicker();
+}
+
+function syncStudentEditBillingSelect() {
+  if (!elements.studentEditBillingSelect) return;
+  const selected = new Set(state.studentEditBillingIds.map((id) => String(id)));
+  elements.studentEditBillingSelect.innerHTML = activeBillingCategories().map((category) => `
+    <option value="${category.BillingCategoryID}" ${selected.has(String(category.BillingCategoryID)) ? 'selected' : ''}>
+      ${escapeHtml(category.CategoryName)}
+    </option>
+  `).join('');
+}
+
+function renderStudentEditBillingPicker() {
+  if (!elements.studentEditBillingAvailable || !elements.studentEditBillingAssigned) return;
+  const validIds = new Set(activeBillingCategories().map((category) => Number(category.BillingCategoryID)));
+  state.studentEditBillingIds = state.studentEditBillingIds.filter((id) => validIds.has(Number(id)));
+  const selected = new Set(state.studentEditBillingIds.map((id) => String(id)));
+  const categories = activeBillingCategories();
+  const available = categories.filter((category) => !selected.has(String(category.BillingCategoryID)));
+  const assigned = categories.filter((category) => selected.has(String(category.BillingCategoryID)));
+
+  elements.studentEditBillingAvailable.innerHTML = available.length
+    ? available.map((category) => billingCard(category, 'edit-available')).join('')
+    : '<p class="drop-zone-empty">All active billing categories are assigned.</p>';
+  elements.studentEditBillingAssigned.innerHTML = assigned.length
+    ? assigned.map((category) => billingCard(category, 'edit-assigned')).join('')
+    : '<p class="drop-zone-empty">Drag billing categories here.</p>';
+  syncStudentEditBillingSelect();
+}
+
+function assignStudentEditBilling(categoryId) {
+  const parsedId = Number(categoryId);
+  if (!Number.isInteger(parsedId) || parsedId <= 0) return;
+  if (!state.studentEditBillingIds.includes(parsedId)) {
+    state.studentEditBillingIds.push(parsedId);
+  }
+  renderStudentEditBillingPicker();
+}
+
+function unassignStudentEditBilling(categoryId) {
+  const parsedId = Number(categoryId);
+  state.studentEditBillingIds = state.studentEditBillingIds.filter((id) => id !== parsedId);
+  renderStudentEditBillingPicker();
 }
 
 function selectedValues(select) {
@@ -2433,7 +4006,117 @@ function fillFamilyForm(form, family = {}) {
   setFormValue(form, 'medicalAidNumber', family.MedicalAidNumber);
   if (form === elements.registerLearnerForm) {
     updateRegisterLearnerParentFields();
+    syncResponsiblePayerFields(form, { preserveOther: true });
   }
+}
+
+function normalizeResponsiblePayerType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['secondary', 'secondary parent', 'father'].includes(normalized)) return 'Secondary parent';
+  if (['other', 'custom', 'guardian'].includes(normalized)) return 'Other';
+  return 'Primary parent';
+}
+
+function normalizeReceiptPayeeType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['primary', 'primary parent', 'mother'].includes(normalized)) return 'Primary parent';
+  if (['secondary', 'secondary parent', 'father'].includes(normalized)) return 'Secondary parent';
+  if (['other', 'custom', 'guardian'].includes(normalized)) return 'Other';
+  return 'Responsible payer';
+}
+
+function parentContactFromForm(form, type) {
+  if (type === 'Secondary parent') {
+    return {
+      name: formValue(form, 'secondaryParentName'),
+      phone: formValue(form, 'secondaryParentPhone'),
+      email: formValue(form, 'secondaryParentEmail')
+    };
+  }
+
+  return {
+    name: formValue(form, 'primaryParentName'),
+    phone: formValue(form, 'primaryParentPhone'),
+    email: formValue(form, 'primaryParentEmail')
+  };
+}
+
+function setPayerFields(form, prefix, contact = {}) {
+  setFormValue(form, `${prefix}Name`, contact.name || '');
+  setFormValue(form, `${prefix}Phone`, contact.phone || '');
+  setFormValue(form, `${prefix}Email`, contact.email || '');
+}
+
+function syncResponsiblePayerFields(form, options = {}) {
+  if (!form?.elements?.responsiblePayerType) return;
+  const type = normalizeResponsiblePayerType(form.elements.responsiblePayerType.value);
+  form.elements.responsiblePayerType.value = type;
+
+  if (type === 'Other') {
+    if (!options.preserveOther) {
+      setPayerFields(form, 'responsiblePayer', {});
+    }
+    return;
+  }
+
+  setPayerFields(form, 'responsiblePayer', parentContactFromForm(form, type));
+}
+
+function setResponsiblePayerFromStudent(form, student = {}) {
+  const type = normalizeResponsiblePayerType(student.ResponsiblePayerType || 'Primary parent');
+  setFormValue(form, 'responsiblePayerType', type);
+  setPayerFields(form, 'responsiblePayer', {
+    name: student.ResponsiblePayerName || (type === 'Secondary parent' ? student.SecondaryParentName : student.PrimaryParentName),
+    phone: student.ResponsiblePayerPhone || (type === 'Secondary parent' ? student.SecondaryParentPhone : student.PrimaryParentPhone),
+    email: student.ResponsiblePayerEmail || (type === 'Secondary parent' ? student.SecondaryParentEmail : student.PrimaryParentEmail)
+  });
+}
+
+function studentPayeeContact(student = {}, type = 'Responsible payer') {
+  if (type === 'Primary parent') {
+    return {
+      name: student.PrimaryParentName,
+      phone: student.PrimaryParentPhone,
+      email: student.PrimaryParentEmail
+    };
+  }
+
+  if (type === 'Secondary parent') {
+    return {
+      name: student.SecondaryParentName,
+      phone: student.SecondaryParentPhone,
+      email: student.SecondaryParentEmail
+    };
+  }
+
+  if (type === 'Responsible payer') {
+    return {
+      name: student.ResponsiblePayerName || student.PrimaryParentName,
+      phone: student.ResponsiblePayerPhone || student.PrimaryParentPhone,
+      email: student.ResponsiblePayerEmail || student.PrimaryParentEmail
+    };
+  }
+
+  return {};
+}
+
+function syncReceiptPayeeFields(options = {}) {
+  const form = elements.studentReceiptForm;
+  if (!form?.elements?.payeeType) return;
+  const student = state.selectedStudentFinanceStatement?.student
+    || state.students.find((item) => Number(item.StudentID) === Number(state.selectedStudentFinanceId))
+    || {};
+  const type = normalizeReceiptPayeeType(form.elements.payeeType.value);
+  form.elements.payeeType.value = type;
+
+  if (type === 'Other') {
+    if (!options.preserveOther) {
+      setPayerFields(form, 'payee', {});
+    }
+    return;
+  }
+
+  setPayerFields(form, 'payee', studentPayeeContact(student, type));
 }
 
 function renderFamiliesTable() {
@@ -2522,19 +4205,15 @@ function renderStudentsTable() {
     const isActive = Boolean(student.IsActive);
     const statusClass = isActive ? 'badge' : 'badge danger';
     const fullName = `${student.FirstName} ${student.LastName}`;
-    const categoryNames = billingCategoryNamesForStudent(student);
 
     return `
       <tr>
         <td>
           <strong>${escapeHtml(fullName)}</strong>
           <span class="table-subtext">${escapeHtml(student.ClassName || 'No class assigned')}</span>
+          <span class="table-subtext">Academic year: ${escapeHtml(String(student.CurrentAcademicYear || currentCalendarYear()))}</span>
         </td>
         <td>${escapeHtml(student.FamilyName || '-')}</td>
-        <td>
-          <strong>${escapeHtml(categoryNames)}</strong>
-          <span class="table-subtext">Billing date: ${dateOnly(student.BillingDate)}</span>
-        </td>
         <td>${dateOnly(student.EnrolledDate)}</td>
         <td>
           <span class="${statusClass}">${isActive ? 'Active' : 'Inactive'}</span>
@@ -2548,7 +4227,7 @@ function renderStudentsTable() {
         </td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="6">No students found.</td></tr>';
+  }).join('') || '<tr><td colspan="5">No students found.</td></tr>';
 }
 
 
@@ -3021,6 +4700,7 @@ function renderEmployees() {
     return;
   }
 
+  const canManageStaff = userCan('school.staff.manage');
   elements.employeesTable.innerHTML = filteredEmployees().map((employee, index) => {
     const isActive = employee.IsActive !== false;
     const employeeNumber = employee.EmployeeNumber || (employee.EmployeeID ? `S${String(employee.EmployeeID).padStart(3, '0')}` : '-');
@@ -3033,7 +4713,7 @@ function renderEmployees() {
         <td>${escapeHtml(employee.JobTitle || employee.Department || '-')}</td>
         <td>${escapeHtml(employee.Phone || '-')}</td>
         <td>${escapeHtml(employee.Email || '-')}</td>
-        <td><button class="ghost-button" data-action="edit-employee" data-id="${employee.EmployeeID}" type="button">Edit</button></td>
+        <td>${canManageStaff ? `<button class="ghost-button" data-action="edit-employee" data-id="${employee.EmployeeID}" type="button">Edit</button>` : '-'}</td>
         <td><span class="${isActive ? 'badge' : 'badge danger'}">${isActive ? 'Active' : 'Inactive'}</span></td>
       </tr>
     `;
@@ -3089,6 +4769,20 @@ function renderPayslipEmployeeOptions() {
     `).join('')
     : '<option value="">Add staff first</option>';
   elements.payslipEmployeeSelect.disabled = !activeEmployees.length;
+}
+
+function renderLeaveEmployeeOptions() {
+  if (!elements.leaveEmployeeSelect) {
+    return;
+  }
+
+  const activeEmployees = state.employees.filter((employee) => employee.IsActive !== false);
+  elements.leaveEmployeeSelect.innerHTML = activeEmployees.length
+    ? activeEmployees.map((employee) => `
+      <option value="${employee.EmployeeID}">${escapeHtml(`${employee.FirstName || ''} ${employee.LastName || ''}`.trim())}</option>
+    `).join('')
+    : '<option value="">Add staff first</option>';
+  elements.leaveEmployeeSelect.disabled = !activeEmployees.length;
 }
 
 function applySelectedEmployeePayrollDefaults() {
@@ -3167,7 +4861,7 @@ function renderPayslips() {
     const employeeName = `${payslip.FirstName || ''} ${payslip.LastName || ''}`.trim() || `Employee ${payslip.EmployeeID}`;
     const employee = state.employees.find((item) => item.EmployeeID === payslip.EmployeeID);
     const isFinalized = payslip.IsFinalized === true || payslip.IsFinalized === 1 || payslip.Status === 'Finalized';
-    const canManagePayroll = state.user?.role === 'admin' || state.user?.hasHrPermission;
+    const canManagePayroll = userCan('hr.manage_payslips|payroll.review|payroll.finalize');
     const status = payslipStatus(payslip);
     const statusClass = isFinalized ? 'badge' : 'badge warn';
 
@@ -3198,7 +4892,7 @@ function renderRegisterLearnerOptions() {
   elements.registerLearnerFamilySelect.innerHTML = '<option value="">New family / not listed</option>' +
     families.map((f) => '<option value="' + f.FamilyID + '">' + escapeHtml(f.FamilyName) + '</option>').join('');
   if (elements.registerLearnerClassSelect) {
-    const currentYear = new Date().getFullYear();
+    const currentYear = currentCalendarYear();
     const activeClasses = state.classes.filter((item) => item.IsActive !== false);
     const currentClasses = activeClasses.filter((item) => classYear(item) === currentYear);
     const classOptions = (currentClasses.length ? currentClasses : activeClasses)
@@ -3249,6 +4943,13 @@ function renderOutstandingFees() {
 }
 
 async function refreshOutstandingFees() {
+  if (!userCan('finance.outstanding_fees.view')) {
+    state.outstandingFeesData = [];
+    state.outstandingFeesError = '';
+    renderOutstandingFees();
+    return;
+  }
+
   const yearInput = document.getElementById('outstandingFeesYear');
   const year = yearInput ? Number(yearInput.value) : new Date().getFullYear();
   try {
@@ -3302,18 +5003,70 @@ function renderReconciliation() {
   }
 
   const school = getSettingsSchool();
+  const period = selectedReconciliationPeriod();
+  const periodQuery = `month=${encodeURIComponent(period.month)}&year=${encodeURIComponent(period.year)}`;
+  const transactionQuery = new URLSearchParams({
+    month: String(period.month),
+    year: String(period.year),
+    limit: '200'
+  });
+  const status = elements.reconciliationStatus?.value || '';
+  const search = elements.reconciliationSearch?.value || '';
 
-  api('/api/transactions/summary').then((summary) => {
+  if (status) transactionQuery.set('status', status);
+  if (search) transactionQuery.set('search', search);
+
+  if (elements.reconciliationPeriodLabel) {
+    elements.reconciliationPeriodLabel.textContent = `${period.monthName} ${period.year}`;
+  }
+
+  api(`/api/bank-statements/reconciliation?${periodQuery}`).then((summary) => {
     elements.totalCredits.textContent = money(summary.totalCredit, school);
     elements.totalDebits.textContent = money(summary.totalDebit, school);
     elements.accountBalance.textContent = money(summary.netPosition, school);
     elements.outstandingAmount.textContent = money(summary.outstandingInvoices, school);
+    renderReconciliationCoverage(summary.coverage);
   }).catch(() => {
     elements.totalCredits.textContent = money(0, school);
     elements.totalDebits.textContent = money(0, school);
     elements.accountBalance.textContent = money(0, school);
     elements.outstandingAmount.textContent = money(0, school);
+    renderReconciliationCoverage(null);
   });
+
+  if (elements.reconciliationStatementsTable) {
+    api(`/api/bank-statements?${periodQuery}`).then((statements) => {
+      elements.reconciliationStatementsTable.innerHTML = statements.length
+        ? statements.map((stmt) => `
+          <tr>
+            <td>
+              <strong>${escapeHtml(stmt.FileName)}</strong>
+              <span class="table-subtext">${escapeHtml(stmt.UploadedByEmail || '')}</span>
+            </td>
+            <td>${dateOnly(stmt.StatementDate)} to ${dateOnly(stmt.StatementEndDate)}</td>
+            <td>${escapeHtml(stmt.RowsImported ?? stmt.TransactionCount ?? 0)} / ${escapeHtml(stmt.TotalRows ?? '-')}</td>
+            <td>${escapeHtml(stmt.AllocatedCount ?? 0)}</td>
+            <td>${escapeHtml(stmt.UnallocatedCount ?? 0)}</td>
+            <td>
+              <button class="ghost-button" data-action="view-bank-statement" data-id="${stmt.BankStatementID}" type="button">View</button>
+            </td>
+          </tr>
+        `).join('')
+        : '<tr><td colspan="6">No bank statement has been uploaded for this month.</td></tr>';
+    }).catch(() => {
+      elements.reconciliationStatementsTable.innerHTML = '<tr><td colspan="6">No bank statements found.</td></tr>';
+    });
+  }
+
+  if (elements.reconciliationTransactionsTable) {
+    api(`/api/bank-statements/reconciliation/transactions?${transactionQuery.toString()}`).then((transactions) => {
+      elements.reconciliationTransactionsTable.innerHTML = transactions.length
+        ? transactions.map((tx) => reconciliationTransactionRow(tx, school)).join('')
+        : '<tr><td colspan="8">No bank transactions found for this month.</td></tr>';
+    }).catch(() => {
+      elements.reconciliationTransactionsTable.innerHTML = '<tr><td colspan="8">No bank transactions found.</td></tr>';
+    });
+  }
 
   if (!elements.bankStatementsTable) {
     return;
@@ -3324,15 +5077,333 @@ function renderReconciliation() {
       ? statements.map((stmt) => `
         <tr>
           <td>${escapeHtml(stmt.FileName)}</td>
-          <td>${dateOnly(stmt.StatementDate)}</td>
-          <td>-</td>
+          <td>${dateOnly(stmt.StatementDate)} to ${dateOnly(stmt.StatementEndDate)}</td>
+          <td>${escapeHtml(stmt.TransactionCount ?? stmt.RowsImported ?? '-')}</td>
           <td>${dateOnly(stmt.CreatedDate)}</td>
+          <td>
+            <button class="ghost-button" data-action="view-bank-statement" data-id="${stmt.BankStatementID}" type="button">View</button>
+          </td>
         </tr>
       `).join('')
-      : '<tr><td colspan="4">No bank statements uploaded.</td></tr>';
+      : '<tr><td colspan="5">No bank statements uploaded.</td></tr>';
   }).catch(() => {
-    elements.bankStatementsTable.innerHTML = '<tr><td colspan="4">No bank statements uploaded.</td></tr>';
+    elements.bankStatementsTable.innerHTML = '<tr><td colspan="5">No bank statements uploaded.</td></tr>';
   });
+}
+
+function selectedReconciliationPeriod() {
+  const now = new Date();
+
+  if (elements.reconciliationMonth && !elements.reconciliationMonth.options.length) {
+    elements.reconciliationMonth.innerHTML = Array.from({ length: 12 }, (_, index) => {
+      const month = index + 1;
+      const label = new Date(2000, index, 1).toLocaleString('en-ZA', { month: 'long' });
+      return `<option value="${month}">${label}</option>`;
+    }).join('');
+    elements.reconciliationMonth.value = String(now.getMonth() + 1);
+  }
+
+  if (elements.reconciliationMonth && !elements.reconciliationMonth.value) {
+    elements.reconciliationMonth.value = String(now.getMonth() + 1);
+  }
+
+  if (elements.reconciliationYear && !elements.reconciliationYear.value) {
+    elements.reconciliationYear.value = String(now.getFullYear());
+  }
+
+  const month = Number(elements.reconciliationMonth?.value || now.getMonth() + 1);
+  const year = Number(elements.reconciliationYear?.value || now.getFullYear());
+  const monthName = new Date(year, month - 1, 1).toLocaleString('en-ZA', { month: 'long' });
+
+  return { month, year, monthName };
+}
+
+function renderReconciliationCoverage(coverage) {
+  if (!elements.reconciliationCoverageNote) return;
+
+  if (!coverage) {
+    elements.reconciliationCoverageNote.textContent = '';
+    return;
+  }
+
+  const issues = [];
+  if (coverage.duplicateMonths?.length) {
+    issues.push(`Duplicate statement months: ${coverage.duplicateMonths.join(', ')}`);
+  }
+  if (coverage.duplicateDateRanges?.length) {
+    issues.push(`Duplicate statement dates: ${compactList(coverage.duplicateDateRanges)}`);
+  }
+  if (coverage.missingMonths?.length) {
+    issues.push(`Missing statement months: ${coverage.missingMonths.join(', ')}`);
+  }
+  if (coverage.missingDateRanges?.length) {
+    issues.push(`Missing statement dates: ${compactList(coverage.missingDateRanges)}`);
+  }
+
+  elements.reconciliationCoverageNote.textContent = issues.length
+    ? issues.join(' | ')
+    : `Statement coverage for ${coverage.year} has no duplicate or missing dates up to the selected period.`;
+}
+
+function compactList(items, limit = 4) {
+  const list = Array.isArray(items) ? items.filter(Boolean) : [];
+  if (list.length <= limit) return list.join(', ');
+  return `${list.slice(0, limit).join(', ')} and ${list.length - limit} more`;
+}
+
+function reconciliationTransactionRow(tx, school) {
+  const suggestion = Array.isArray(tx.suggestions) ? tx.suggestions[0] : null;
+  const allocatedTo = tx.InvoiceNumber
+    ? `${tx.InvoiceNumber} ${[tx.AllocatedStudentFirstName, tx.AllocatedStudentLastName].filter(Boolean).join(' ')}`
+    : tx.AllocatedFamilyName || '-';
+  const canApprove = suggestion && tx.AllocationStatus !== 'Allocated';
+
+  return `
+    <tr>
+      <td>${dateOnly(tx.TransactionDate)}</td>
+      <td>
+        <strong>${escapeHtml(tx.Reference || '-')}</strong>
+        <span class="table-subtext">${escapeHtml(tx.BankStatementFile || '')}</span>
+      </td>
+      <td>${escapeHtml(tx.Description || '-')}</td>
+      <td>${money(tx.Amount, school)}</td>
+      <td><span class="badge ${tx.AllocationStatus === 'Allocated' ? '' : 'warn'}">${escapeHtml(tx.AllocationStatus || 'Unallocated')}</span></td>
+      <td>
+        ${suggestion ? `
+          <strong>${escapeHtml(suggestion.invoiceNumber || '-')}</strong>
+          <span class="table-subtext">${escapeHtml(suggestion.invoiceStudent || '')}</span>
+          <span class="table-subtext">${escapeHtml(suggestion.reason || '')}</span>
+        ` : '<span class="table-subtext">No automatic suggestion</span>'}
+      </td>
+      <td>${escapeHtml(allocatedTo.trim ? allocatedTo.trim() : allocatedTo)}</td>
+      <td>
+        ${canApprove ? `
+          <button class="ghost-button" data-action="approve-bank-match" data-transaction-id="${suggestion.transactionId}" data-invoice-id="${suggestion.invoiceId}" type="button">
+            Approve
+          </button>
+        ` : tx.AllocationStatus === 'Allocated' ? `
+          <button class="secondary-button compact-button"
+            data-action="open-bank-reallocation"
+            data-id="${tx.TransactionID}"
+            data-reference="${escapeHtml(tx.Reference || '-')}"
+            data-amount="${escapeHtml(tx.Amount || 0)}"
+            data-current="${escapeHtml(allocatedTo.trim ? allocatedTo.trim() : allocatedTo)}"
+            type="button">
+            Reallocate
+          </button>
+        ` : '<span class="table-subtext">Review manually</span>'}
+      </td>
+    </tr>
+  `;
+}
+
+function bankStatementAssignmentLabel(tx) {
+  const student = `${tx.AllocatedStudentFirstName || ''} ${tx.AllocatedStudentLastName || ''}`.trim();
+  const invoice = tx.InvoiceNumber ? `${tx.InvoiceNumber}${student ? ` - ${student}` : ''}` : '';
+  return invoice || student || tx.AllocatedFamilyName || tx.PaymentMethod || '-';
+}
+
+async function openBankStatementDetail(statementId) {
+  if (!elements.bankStatementDetailDialog) return;
+  document.getElementById('bankStatementDetailTitle').textContent = 'Bank Statement';
+  elements.bankStatementDetailSubtitle.textContent = 'Loading statement history...';
+  elements.bankStatementDetailTransactions.textContent = '0';
+  elements.bankStatementDetailAllocated.textContent = '0';
+  elements.bankStatementDetailUnallocated.textContent = '0';
+  elements.bankStatementDetailTable.innerHTML = '<tr><td colspan="6">Loading statement transactions...</td></tr>';
+  elements.bankStatementDetailDialog.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+
+  try {
+    const detail = await api(`/api/bank-statements/${statementId}`);
+    const statement = detail.statement || {};
+    const transactions = Array.isArray(detail.transactions) ? detail.transactions : [];
+    const school = getSettingsSchool();
+
+    document.getElementById('bankStatementDetailTitle').textContent = statement.FileName || 'Bank Statement';
+    elements.bankStatementDetailSubtitle.textContent = `${dateOnly(statement.StatementDate)} to ${dateOnly(statement.StatementEndDate)} - uploaded by ${statement.UploadedByEmail || 'system'}`;
+    elements.bankStatementDetailTransactions.textContent = statement.TransactionCount ?? transactions.length;
+    elements.bankStatementDetailAllocated.textContent = statement.AllocatedCount ?? transactions.filter((tx) => tx.AllocationStatus === 'Allocated').length;
+    elements.bankStatementDetailUnallocated.textContent = statement.UnallocatedCount ?? transactions.filter((tx) => tx.AllocationStatus === 'Unallocated').length;
+    elements.bankStatementDetailTable.innerHTML = transactions.length
+      ? transactions.map((tx) => `
+        <tr>
+          <td>${dateOnly(tx.TransactionDate)}</td>
+          <td>
+            <strong>${escapeHtml(tx.Reference || '-')}</strong>
+            <span class="table-subtext">${escapeHtml(tx.Description || '')}</span>
+          </td>
+          <td>${money(tx.Amount || 0, school)}</td>
+          <td><span class="badge ${tx.AllocationStatus === 'Allocated' ? '' : 'warn'}">${escapeHtml(tx.AllocationStatus || 'Unallocated')}</span></td>
+          <td>
+            <strong>${escapeHtml(bankStatementAssignmentLabel(tx))}</strong>
+            <span class="table-subtext">${escapeHtml(tx.AllocationType || '')}</span>
+          </td>
+          <td>
+            ${escapeHtml(tx.AllocatedByEmail || '-')}
+            <span class="table-subtext">${tx.AllocatedDate ? dateOnly(tx.AllocatedDate) : ''}</span>
+          </td>
+        </tr>
+      `).join('')
+      : '<tr><td colspan="6">No transactions were imported for this statement.</td></tr>';
+  } catch (error) {
+    elements.bankStatementDetailTable.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
+    showToast(error.message);
+  }
+}
+
+function closeBankStatementDetail() {
+  elements.bankStatementDetailDialog?.classList.add('hidden');
+  if (!Array.from(document.querySelectorAll('.modal-backdrop')).some((item) => item.id !== 'bankStatementDetailDialog' && !item.classList.contains('hidden'))) {
+    document.body.classList.remove('modal-open');
+  }
+}
+
+function openBankReallocationDialog(button) {
+  if (!elements.bankReallocationDialog || !elements.bankReallocationForm) return;
+  const school = getSettingsSchool();
+  state.bankReallocationTransaction = {
+    transactionId: Number(button.dataset.id),
+    reference: button.dataset.reference || '-',
+    amount: Number(button.dataset.amount || 0),
+    current: button.dataset.current || '-'
+  };
+  state.bankReallocationTargets = [];
+  state.bankReallocationInvoices = [];
+  state.bankReallocationInvoiceId = null;
+
+  elements.bankReallocationForm.reset();
+  setFormValue(elements.bankReallocationForm, 'transactionId', state.bankReallocationTransaction.transactionId);
+  setFormValue(elements.bankReallocationForm, 'invoiceId', '');
+  setFormValue(elements.bankReallocationForm, 'studentId', '');
+  setFormValue(elements.bankReallocationForm, 'familyId', '');
+  elements.bankReallocationAmount.textContent = money(state.bankReallocationTransaction.amount, school);
+  elements.bankReallocationReference.textContent = state.bankReallocationTransaction.reference;
+  elements.bankReallocationCurrent.textContent = state.bankReallocationTransaction.current;
+  elements.bankReallocationTargetsTable.innerHTML = '<tr><td colspan="4">Search for the correct learner or family.</td></tr>';
+  elements.bankReallocationInvoicesTable.innerHTML = '<tr><td colspan="4">Select a learner first.</td></tr>';
+  syncBankReallocationMode();
+  elements.bankReallocationDialog.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  window.setTimeout(() => elements.bankReallocationSearchInput?.focus(), 0);
+}
+
+function closeBankReallocationDialog() {
+  state.bankReallocationTransaction = null;
+  state.bankReallocationTargets = [];
+  state.bankReallocationInvoices = [];
+  state.bankReallocationInvoiceId = null;
+  elements.bankReallocationDialog?.classList.add('hidden');
+  elements.bankReallocationForm?.reset();
+  if (!Array.from(document.querySelectorAll('.modal-backdrop')).some((item) => item.id !== 'bankReallocationDialog' && !item.classList.contains('hidden'))) {
+    document.body.classList.remove('modal-open');
+  }
+}
+
+function syncBankReallocationMode() {
+  const type = elements.bankReallocationTypeSelect?.value || 'Debtor';
+  elements.bankReallocationDebtorPanel?.classList.toggle('hidden', type !== 'Debtor');
+  elements.bankReallocationCreditorPanel?.classList.toggle('hidden', type !== 'Creditor');
+  if (type === 'Creditor') {
+    setFormValue(elements.bankReallocationForm, 'invoiceId', '');
+    setFormValue(elements.bankReallocationForm, 'studentId', '');
+    setFormValue(elements.bankReallocationForm, 'familyId', '');
+    state.bankReallocationInvoiceId = null;
+  }
+}
+
+async function searchBankReallocationTargets() {
+  const query = String(elements.bankReallocationSearchInput?.value || '').trim();
+  if (!elements.bankReallocationTargetsTable) return;
+
+  if (query.length < 2) {
+    state.bankReallocationTargets = [];
+    elements.bankReallocationTargetsTable.innerHTML = '<tr><td colspan="4">Search for the correct learner or family.</td></tr>';
+    elements.bankReallocationInvoicesTable.innerHTML = '<tr><td colspan="4">Select a learner first.</td></tr>';
+    return;
+  }
+
+  elements.bankReallocationTargetsTable.innerHTML = '<tr><td colspan="4">Searching...</td></tr>';
+  try {
+    state.bankReallocationTargets = await api(`/api/bank-statements/allocation-search?q=${encodeURIComponent(query)}`);
+    renderBankReallocationTargets();
+  } catch (error) {
+    elements.bankReallocationTargetsTable.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
+  }
+}
+
+function renderBankReallocationTargets() {
+  const school = getSettingsSchool();
+  const rows = state.bankReallocationTargets || [];
+  elements.bankReallocationTargetsTable.innerHTML = rows.length
+    ? rows.map((target) => `
+      <tr>
+        <td>
+          <strong>${escapeHtml(`${target.FirstName || ''} ${target.LastName || ''}`.trim() || '-')}</strong>
+          <span class="table-subtext">${escapeHtml(target.ClassName || '')}</span>
+        </td>
+        <td>
+          ${escapeHtml(target.FamilyName || '-')}
+          <span class="table-subtext">${escapeHtml(target.PrimaryParentName || target.SecondaryParentName || '')}</span>
+        </td>
+        <td>${money(target.OutstandingBalance || 0, school)}</td>
+        <td>
+          <button class="ghost-button" data-action="select-bank-reallocation-target" data-student-id="${target.StudentID}" data-family-id="${target.FamilyID || ''}" type="button">Select</button>
+        </td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="4">No matching learners found.</td></tr>';
+}
+
+async function selectBankReallocationTarget(button) {
+  const studentId = Number(button.dataset.studentId);
+  const familyId = Number(button.dataset.familyId || 0) || null;
+  setFormValue(elements.bankReallocationForm, 'studentId', studentId);
+  setFormValue(elements.bankReallocationForm, 'familyId', familyId || '');
+  setFormValue(elements.bankReallocationForm, 'invoiceId', '');
+  state.bankReallocationInvoiceId = null;
+  elements.bankReallocationInvoicesTable.innerHTML = '<tr><td colspan="4">Loading open invoices...</td></tr>';
+
+  try {
+    state.bankReallocationInvoices = await api(`/api/bank-statements/outstanding-invoices/${studentId}`);
+    renderBankReallocationInvoices();
+  } catch (error) {
+    elements.bankReallocationInvoicesTable.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
+  }
+}
+
+function renderBankReallocationInvoices() {
+  const school = getSettingsSchool();
+  const invoices = state.bankReallocationInvoices || [];
+  elements.bankReallocationInvoicesTable.innerHTML = invoices.length
+    ? invoices.map((invoice) => {
+      const selected = Number(invoice.InvoiceID) === Number(state.bankReallocationInvoiceId);
+      return `
+        <tr>
+          <td>
+            <strong>${escapeHtml(invoice.InvoiceNumber || '-')}</strong>
+            <span class="table-subtext">${escapeHtml(`${invoice.FirstName || ''} ${invoice.LastName || ''}`.trim())}</span>
+          </td>
+          <td>
+            ${dateOnly(invoice.DueDate)}
+            <span class="table-subtext">${escapeHtml(invoice.Status || '-')}</span>
+          </td>
+          <td>${money(invoice.Remaining || 0, school)}</td>
+          <td>
+            <button class="${selected ? 'secondary-button' : 'ghost-button'}" data-action="select-bank-reallocation-invoice" data-invoice-id="${invoice.InvoiceID}" type="button">
+              ${selected ? 'Selected' : 'Select'}
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('')
+    : '<tr><td colspan="4">No open invoices found for this learner.</td></tr>';
+}
+
+function selectBankReallocationInvoice(button) {
+  state.bankReallocationInvoiceId = Number(button.dataset.invoiceId);
+  setFormValue(elements.bankReallocationForm, 'invoiceId', state.bankReallocationInvoiceId);
+  renderBankReallocationInvoices();
 }
 
 function selectedDepartureStudent() {
@@ -3362,35 +5433,145 @@ function hideDepartureForm() {
   elements.departureForm.reset();
 }
 
-function selectedInvoice(invoiceId) {
-  return state.invoices.find((invoice) => invoice.InvoiceID === Number(invoiceId));
+async function openStudentFinanceDialog(studentId, focusReceipt = false) {
+  const parsedStudentId = Number(studentId);
+  const student = state.students.find((item) => Number(item.StudentID) === parsedStudentId);
+
+  state.selectedStudentFinanceId = parsedStudentId;
+  state.selectedStudentFinanceStatement = null;
+  elements.studentReceiptForm?.reset();
+  setFormValue(elements.studentReceiptForm, 'studentId', parsedStudentId || '');
+  setFormValue(elements.studentReceiptForm, 'paymentDate', new Date().toISOString().slice(0, 10));
+  setFormValue(elements.studentReceiptForm, 'paymentMethod', 'EFT');
+  setFormValue(elements.studentReceiptForm, 'payeeType', 'Responsible payer');
+  syncReceiptPayeeFields({ preserveOther: false });
+  document.getElementById('studentFinanceDialogTitle').textContent = student
+    ? `${student.FirstName} ${student.LastName} Invoices`
+    : 'Student Invoices';
+  document.getElementById('studentFinanceDialogSubtitle').textContent = student?.FamilyName || 'Issue receipts and allocate payments for this learner.';
+  elements.studentReceiptInvoicesTable.innerHTML = '<tr><td colspan="4">Loading invoices...</td></tr>';
+  elements.studentFinanceDialog.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+
+  try {
+    state.selectedStudentFinanceStatement = await api(`/api/invoices/student/${parsedStudentId}/statement`);
+    renderStudentFinanceDialog();
+    syncReceiptPayeeFields({ preserveOther: false });
+    if (focusReceipt) {
+      window.setTimeout(() => elements.studentReceiptAmountInput?.focus(), 0);
+    }
+  } catch (error) {
+    elements.studentReceiptInvoicesTable.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
+    showToast(error.message);
+  }
 }
 
-function openPaymentDialog(invoiceId) {
-  const invoice = selectedInvoice(invoiceId);
+function closeStudentFinanceDialog() {
+  state.selectedStudentFinanceId = null;
+  state.selectedStudentFinanceStatement = null;
+  elements.studentFinanceDialog?.classList.add('hidden');
+  elements.studentReceiptForm?.reset();
+  document.body.classList.remove('modal-open');
+}
 
-  if (!invoice) {
-    showToast('Invoice not found');
+function renderStudentFinanceDialog() {
+  const statement = state.selectedStudentFinanceStatement || {};
+  const invoices = Array.isArray(statement.invoices) ? statement.invoices : [];
+  const school = getSettingsSchool();
+  const outstanding = invoices.reduce((sum, invoice) => sum + studentInvoiceRemaining(invoice), 0);
+  const walletBalance = Number(statement.wallet?.Balance || 0);
+
+  elements.studentFinanceOutstanding.textContent = money(outstanding, school);
+  elements.studentFinanceWallet.textContent = money(walletBalance, school);
+  elements.studentFinanceInvoiceCount.textContent = invoices.length;
+
+  const sortedInvoices = [...invoices].sort((a, b) => {
+    const aOpen = studentInvoiceRemaining(a) > 0 ? 0 : 1;
+    const bOpen = studentInvoiceRemaining(b) > 0 ? 0 : 1;
+    if (aOpen !== bOpen) return aOpen - bOpen;
+    return new Date(a.DueDate || a.IssueDate || 0) - new Date(b.DueDate || b.IssueDate || 0);
+  });
+
+  elements.studentReceiptInvoicesTable.innerHTML = sortedInvoices.length
+    ? sortedInvoices.map((invoice) => {
+      const remaining = studentInvoiceRemaining(invoice);
+      const isOpen = remaining > 0 && invoice.Status !== 'Cancelled';
+
+      return `
+        <tr>
+          <td>
+            <strong>${escapeHtml(invoice.InvoiceNumber || '-')}</strong>
+            <span class="table-subtext">${escapeHtml(invoice.Description || '')}</span>
+          </td>
+          <td>
+            ${dateOnly(invoice.DueDate)}
+            <span class="table-subtext">${escapeHtml(invoice.Status || '-')}</span>
+          </td>
+          <td>${money(remaining, school)}</td>
+          <td>
+            ${isOpen ? `
+              <input class="thin-input student-receipt-allocation" data-invoice-id="${invoice.InvoiceID}" data-remaining="${remaining.toFixed(2)}" type="number" min="0" max="${remaining.toFixed(2)}" step="0.01" value="0.00">
+            ` : '<span class="table-subtext">No allocation needed</span>'}
+          </td>
+        </tr>
+      `;
+    }).join('')
+    : '<tr><td colspan="4">No invoices found for this learner.</td></tr>';
+
+  const walletLedger = Array.isArray(statement.walletLedger) ? statement.walletLedger : [];
+  elements.studentWalletLedgerTable.innerHTML = walletLedger.length
+    ? walletLedger.slice(0, 12).map((entry) => `
+      <tr>
+        <td>${dateOnly(entry.EntryDate)}</td>
+        <td>${escapeHtml(entry.EntryType || '-')}</td>
+        <td>
+          <strong>${escapeHtml(entry.Reference || entry.ReceiptNumber || entry.InvoiceNumber || '-')}</strong>
+          <span class="table-subtext">${escapeHtml(entry.Description || '')}</span>
+        </td>
+        <td>${money(entry.Amount || 0, school)}</td>
+        <td>${money(entry.BalanceAfter || 0, school)}</td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="5">No advance wallet activity yet.</td></tr>';
+
+  updateStudentReceiptAdvanceHint();
+}
+
+function studentInvoiceRemaining(invoice) {
+  return Math.max(0, Number(invoice.Amount || 0) - Number(invoice.AmountPaid || 0));
+}
+
+function syncStudentReceiptAllocations() {
+  let remainingReceipt = Math.max(0, Number(elements.studentReceiptAmountInput?.value || 0));
+  studentReceiptAllocationInputs().forEach((input) => {
+    const remainingInvoice = Number(input.dataset.remaining || 0);
+    const nextValue = Math.min(remainingInvoice, remainingReceipt);
+    input.value = nextValue > 0 ? nextValue.toFixed(2) : '0.00';
+    remainingReceipt = Math.max(0, remainingReceipt - nextValue);
+  });
+  updateStudentReceiptAdvanceHint();
+}
+
+function updateStudentReceiptAdvanceHint() {
+  if (!elements.studentReceiptAdvanceHint) return;
+  const amount = Math.max(0, Number(elements.studentReceiptAmountInput?.value || 0));
+  const allocated = studentReceiptAllocationInputs()
+    .reduce((sum, input) => sum + Math.max(0, Number(input.value || 0)), 0);
+  const advance = amount - allocated;
+  const school = getSettingsSchool();
+
+  if (allocated > amount) {
+    elements.studentReceiptAdvanceHint.textContent = `Allocated amount is ${money(allocated, school)}, which is more than the receipt amount.`;
     return;
   }
 
-  const school = state.schools.find((item) => item.SchoolID === invoice.SchoolID);
-  const remaining = Math.max(0, Number(invoice.Amount || 0) - Number(invoice.AmountPaid || 0));
-
-  elements.paymentForm.elements.invoiceId.value = invoice.InvoiceID;
-  elements.paymentInvoiceLabel.textContent = invoice.InvoiceNumber || `Invoice ${invoice.InvoiceID}`;
-  elements.paymentRemainingLabel.textContent = money(remaining, school);
-  elements.paymentAmountInput.max = remaining.toFixed(2);
-  elements.paymentAmountInput.value = remaining > 0 ? remaining.toFixed(2) : '';
-  elements.paymentDialog.classList.remove('hidden');
-  document.body.classList.add('modal-open');
-  window.setTimeout(() => elements.paymentAmountInput.focus(), 0);
+  elements.studentReceiptAdvanceHint.textContent = advance > 0
+    ? `${money(advance, school)} will be kept in the learner's advance wallet for future invoices.`
+    : 'Receipt amount is fully allocated to selected invoices.';
 }
 
-function closePaymentDialog() {
-  elements.paymentDialog.classList.add('hidden');
-  document.body.classList.remove('modal-open');
-  elements.paymentForm.reset();
+function studentReceiptAllocationInputs() {
+  return Array.from(elements.studentReceiptInvoicesTable?.querySelectorAll('.student-receipt-allocation') || []);
 }
 
 async function openEmployeeDialog(employeeId = null) {
@@ -3411,10 +5592,12 @@ async function openEmployeeDialog(employeeId = null) {
   }
   setFormValue(form, 'employeeId', employee?.EmployeeID || '');
   setFormValue(form, 'employeeNumber', employee?.EmployeeNumber || '');
+  setFormValue(form, 'payrollNumber', employee?.PayrollNumber || '');
   setFormValue(form, 'firstName', employee?.FirstName || '');
   setFormValue(form, 'lastName', employee?.LastName || '');
   setFormValue(form, 'email', employee?.Email || '');
   setFormValue(form, 'phone', employee?.Phone || '');
+  setFormValue(form, 'physicalAddress', employee?.PhysicalAddress || '');
   renderEmployeeRoleOptions(employee?.JobTitle || '');
   renderEmployeeDepartmentOptions(employee?.Department || '');
   setFormValue(form, 'startDate', employee?.StartDate ? employee.StartDate.slice(0, 10) : new Date().toISOString().slice(0, 10));
@@ -3426,7 +5609,9 @@ async function openEmployeeDialog(employeeId = null) {
   setFormValue(form, 'idNumber', employee?.IdNumber || '');
   setFormValue(form, 'passportNumber', employee?.PassportNumber || '');
   setFormValue(form, 'taxNumber', employee?.TaxNumber || '');
+  setFormValue(form, 'payeReference', employee?.PayeReference || '');
   setFormValue(form, 'uifNumber', employee?.UifNumber || '');
+  setFormValue(form, 'uifReferenceNumber', employee?.UifReferenceNumber || '');
   setFormValue(form, 'paymentMethod', employee?.PaymentMethod || '');
   setFormValue(form, 'bankName', employee?.BankName || '');
   setFormValue(form, 'bankAccountNumber', employee?.BankAccountNumber || '');
@@ -3465,72 +5650,169 @@ function payslipStatus(payslip) {
   return payslip.IsFinalized === true || payslip.IsFinalized === 1 ? 'Finalized' : (payslip.Status || 'Draft');
 }
 
-function payslipDetailRows(payslip) {
-  return [
-    ['School name', requiredText(payslip.SchoolName)],
-    ['School address', requiredText(payslip.SchoolAddress)],
-    ['School contact number', requiredText(payslip.SchoolPhone)],
-    ['School email address', requiredText(payslip.SchoolEmail)],
-    ['School registration number', requiredText(payslip.SchoolRegistrationNumber)],
-    ['Employee number', payslipEmployeeNumber(payslip)],
-    ['Employee name and surname', requiredText(`${payslip.FirstName || ''} ${payslip.LastName || ''}`.trim())],
-    ['ID or passport number', requiredText(payslip.IdNumber || payslip.PassportNumber)],
-    ['Tax number', requiredText(payslip.TaxNumber)],
-    ['UIF number', requiredText(payslip.UifNumber)],
-    ['Job title', requiredText(payslip.JobTitle)],
-    ['Department', requiredText(payslip.Department)],
-    ['Pay period', requiredText(payslip.PayPeriod)],
-    ['Payment date', dateOnly(payslip.PaymentDate)],
-    ['Payment method', requiredText(payslip.PaymentMethod)],
-    ['Bank details', requiredText([payslip.BankName, payslip.AccountType, payslip.BankAccountNumber, payslip.BranchCode].filter(Boolean).join(' / '))]
-  ];
+function payslipEmployeeName(payslip) {
+  return requiredText(`${payslip.FirstName || ''} ${payslip.LastName || ''}`.trim());
 }
 
-function payslipFinancialRows(payslip) {
-  return [
-    ['Basic salary', payslipMoney(payslip, payslip.BasicSalary)],
-    ['Allowances', payslipMoney(payslip, payslip.Allowances)],
-    ['Overtime', payslipMoney(payslip, payslip.Overtime)],
-    ['Bonus', payslipMoney(payslip, payslip.Bonus)],
-    ['Gross pay', payslipMoney(payslip, payslip.GrossAmount)],
-    ['Deductions', payslipMoney(payslip, payslip.Deductions)],
-    ['Leave deduction', payslipMoney(payslip, payslip.LeaveDeduction)],
-    ['Tax / PAYE', payslipMoney(payslip, payslip.TaxPaye)],
-    ['UIF / statutory deductions', payslipMoney(payslip, payslip.UifDeduction)],
-    ['Other deductions', payslipMoney(payslip, payslip.OtherDeductions)],
-    ['Total deductions', payslipMoney(payslip, payslip.Deductions)],
-    ['Net pay', payslipMoney(payslip, payslip.NetAmount)],
-    ['Notes', requiredText(payslip.Notes || 'No notes')]
+function payslipPeriodLabel(payPeriod) {
+  const match = String(payPeriod || '').match(/^(\d{4})-(\d{2})$/);
+  if (!match) return requiredText(payPeriod);
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, 1);
+  const month = date.toLocaleString('en-ZA', { month: 'short' });
+  return `${month}-${String(match[1]).slice(2)}`;
+}
+
+function payslipAddressLines(value) {
+  return String(value || '')
+    .split(/\r?\n|,\s*/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function payslipDetailLine(label, value) {
+  return `<div class="payslip-detail-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(requiredText(value))}</strong></div>`;
+}
+
+function payslipAmountRow(label, value, options = {}) {
+  const className = options.total ? ' class="total-row"' : '';
+  return `<tr${className}><th>${escapeHtml(label)}</th><td>${payslipMoney(options.payslip, value)}</td></tr>`;
+}
+
+function payslipEarningsRows(payslip) {
+  const rows = [
+    ['Cost to Company/Month', payslip.BasicSalary]
   ];
+
+  [
+    ['Allowances', payslip.Allowances],
+    ['Overtime', payslip.Overtime],
+    ['Bonus', payslip.Bonus]
+  ].forEach(([label, value]) => {
+    if (Number(value || 0) !== 0) rows.push([label, value]);
+  });
+
+  return rows.map(([label, value]) => payslipAmountRow(label, value, { payslip })).join('');
+}
+
+function payslipDeductionRows(payslip) {
+  const rows = [
+    ['Tax (PAYE)', payslip.TaxPaye],
+    ['UIF', payslip.UifDeduction]
+  ];
+
+  [
+    ['Leave deduction', payslip.LeaveDeduction],
+    ['Other deductions', payslip.OtherDeductions]
+  ].forEach(([label, value]) => {
+    if (Number(value || 0) !== 0) rows.push([label, value]);
+  });
+
+  return rows.map(([label, value]) => payslipAmountRow(label, value, { payslip })).join('');
+}
+
+function payslipDocumentHtml(payslip) {
+  const schoolAddress = payslipAddressLines(payslip.SchoolAddress);
+  const employeeAddress = payslipAddressLines(payslip.PhysicalAddress);
+  const employeeContact = [payslip.Email, payslip.Phone].filter(Boolean).join(' / ');
+  const bankDetails = [
+    ['Bank', payslip.BankName],
+    ['Account No', payslip.BankAccountNumber],
+    ['Branch Code', payslip.BranchCode],
+    ['Account Type', payslip.AccountType]
+  ];
+  const ytdRows = [
+    ['Taxable Earnings', payslip.YearToDateTaxableEarnings || payslip.GrossAmount],
+    ['Tax Paid', payslip.YearToDateTaxPaid || payslip.TaxPaye],
+    ['UIF', payslip.YearToDateUif || payslip.UifDeduction],
+    ['Net Pay', payslip.YearToDateNetPay || payslip.NetAmount]
+  ];
+
+  return `
+    <article class="payslip-document">
+      <header class="payslip-document-header">
+        ${payslip.SchoolLogo ? `<img src="${escapeHtml(payslip.SchoolLogo)}" alt="">` : ''}
+        <div>
+          <h2>${escapeHtml(requiredText(payslip.SchoolName))}</h2>
+          <p>${escapeHtml(requiredText(payslip.SchoolRegistrationNumber))}</p>
+          <p>${escapeHtml([payslip.SchoolPhone, payslip.SchoolEmail].filter(Boolean).join(' / ') || 'Not captured')}</p>
+        </div>
+      </header>
+
+      <section class="payslip-document-grid">
+        <div>
+          ${payslipDetailLine('Employee Name', payslipEmployeeName(payslip))}
+          ${payslipDetailLine('Date Engaged', dateOnly(payslip.StartDate))}
+          ${payslipDetailLine('ID No', payslip.IdNumber || payslip.PassportNumber)}
+          ${payslipDetailLine('Job Title', payslip.JobTitle)}
+          ${payslipDetailLine('Employee No', payslipEmployeeNumber(payslip))}
+          ${payslipDetailLine('Payroll No', payslip.PayrollNumber)}
+          ${payslipDetailLine('Employee Contact', employeeContact)}
+        </div>
+        <div>
+          <span class="payslip-block-label">Co. Address</span>
+          <address>${(schoolAddress.length ? schoolAddress : ['Not captured']).map((line) => escapeHtml(line)).join('<br>')}</address>
+        </div>
+        <div>
+          <span class="payslip-block-label">Employee Address</span>
+          <address>${(employeeAddress.length ? employeeAddress : ['Not captured']).map((line) => escapeHtml(line)).join('<br>')}</address>
+        </div>
+        <div>
+          ${bankDetails.map(([label, value]) => payslipDetailLine(label, value)).join('')}
+          ${payslipDetailLine('Income Tax No', payslip.TaxNumber || payslip.PayeReference)}
+          ${payslipDetailLine('PAYE Ref', payslip.PayeReference)}
+          ${payslipDetailLine('UIF No', payslip.UifNumber || payslip.UifReferenceNumber)}
+          ${payslipDetailLine('UIF Ref', payslip.UifReferenceNumber)}
+          ${payslipDetailLine('Pay Period', payslipPeriodLabel(payslip.PayPeriod))}
+          ${payslipDetailLine('Payment Date', dateOnly(payslip.PaymentDate))}
+        </div>
+      </section>
+
+      <section class="payslip-money-grid">
+        <table>
+          <thead><tr><th colspan="2">Earnings</th></tr></thead>
+          <tbody>
+            ${payslipEarningsRows(payslip)}
+            ${payslipAmountRow('Total Earnings', payslip.GrossAmount, { payslip, total: true })}
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th colspan="2">Deductions</th></tr></thead>
+          <tbody>
+            ${payslipDeductionRows(payslip)}
+            ${payslipAmountRow('Total Deductions', payslip.Deductions, { payslip, total: true })}
+            ${payslipAmountRow('Net Pay', payslip.NetAmount, { payslip, total: true })}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="payslip-ytd">
+        <h3>Year To Date</h3>
+        <table>
+          <tbody>${ytdRows.map(([label, value]) => payslipAmountRow(label, value, { payslip })).join('')}</tbody>
+        </table>
+      </section>
+
+      <footer class="payslip-document-footer">
+        <span>${escapeHtml(payslipStatus(payslip))}</span>
+        <span>Generated ${escapeHtml(dateOnly(new Date()))}</span>
+        <span>${escapeHtml(requiredText(payslip.Notes || 'No notes'))}</span>
+      </footer>
+    </article>
+  `;
 }
 
 function renderPayslipDetailPreview(payslip) {
   if (!elements.payslipDetailPreview) return;
-  const detailRows = payslipDetailRows(payslip).map(([label, value]) => `
-    <div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
-  `).join('');
-  const financialRows = payslipFinancialRows(payslip).map(([label, value]) => `
-    <div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
-  `).join('');
-
-  elements.payslipDetailPreview.innerHTML = `
-    <div class="payslip-preview-heading">
-      ${payslip.SchoolLogo ? `<img src="${escapeHtml(payslip.SchoolLogo)}" alt="">` : '<span class="brand-mark">DFS</span>'}
-      <div>
-        <strong>${escapeHtml(requiredText(payslip.SchoolName))}</strong>
-        <span>${escapeHtml(payslipStatus(payslip))}</span>
-      </div>
-    </div>
-    <div class="payslip-preview-grid">${detailRows}</div>
-    <div class="payslip-preview-grid payslip-financial-grid">${financialRows}</div>
-  `;
+  elements.payslipDetailPreview.innerHTML = payslipDocumentHtml(payslip);
 }
 
 async function openPayslipDialog(payslipId, mode = 'view') {
   const payslip = await api(`/api/payslips/${payslipId}`);
   state.selectedPayslip = payslip;
   const form = elements.payslipEditForm;
-  const canEdit = mode === 'edit' && !(payslip.IsFinalized === true || payslip.IsFinalized === 1 || payslip.Status === 'Finalized');
+  const canEdit = mode === 'edit'
+    && userCan('hr.manage_payslips|payroll.review')
+    && !(payslip.IsFinalized === true || payslip.IsFinalized === 1 || payslip.Status === 'Finalized');
 
   form.reset();
   setFormValue(form, 'payslipId', payslip.PayslipID);
@@ -3548,6 +5830,8 @@ async function openPayslipDialog(payslipId, mode = 'view') {
   form.querySelectorAll('input, textarea').forEach((field) => {
     if (field.name !== 'payslipId') field.disabled = !canEdit;
   });
+  form.classList.toggle('payslip-view-mode', !canEdit);
+  elements.payslipEditFields?.classList.toggle('hidden', !canEdit);
   elements.savePayslipButton.classList.toggle('hidden', !canEdit);
   document.getElementById('payslipDialogTitle').textContent = canEdit ? 'Edit payslip' : 'View payslip';
   document.getElementById('payslipDialogSubtitle').textContent = `${requiredText(`${payslip.FirstName || ''} ${payslip.LastName || ''}`.trim())} - ${requiredText(payslip.PayPeriod)}`;
@@ -3569,15 +5853,6 @@ function printPayslip(payslip) {
     return;
   }
 
-  const detailRows = payslipDetailRows(payslip).map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join('');
-  const financialRows = payslipFinancialRows(payslip).map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join('');
-  const footerRows = [
-    ['Generated date', dateOnly(new Date())],
-    ['Generated by', requiredText(payslip.CreatedByUsername || state.user?.username)],
-    ['Approved by', requiredText(payslip.FinalizedByUsername || (payslip.IsFinalized ? 'Approved' : 'Not finalized'))],
-    ['Finalized date', payslip.FinalizedDate ? dateOnly(payslip.FinalizedDate) : 'Not finalized']
-  ].map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join('');
-
   const win = window.open('', '_blank', 'width=960,height=720');
   if (!win) {
     showToast('Allow popups to print the payslip');
@@ -3589,47 +5864,109 @@ function printPayslip(payslip) {
       <head>
         <title>Payslip ${escapeHtml(payslip.PayPeriod)} - ${escapeHtml(payslipEmployeeNumber(payslip))}</title>
         <style>
-          body { margin: 0; padding: 28px; color: #0f172a; font-family: Arial, sans-serif; background: #fff; }
-          .payslip { max-width: 860px; margin: 0 auto; border: 1px solid #cbd5e1; padding: 24px; }
-          .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #0f172a; padding-bottom: 18px; margin-bottom: 18px; }
-          .brand { display: flex; gap: 16px; align-items: center; }
-          .brand img { width: 82px; max-height: 82px; object-fit: contain; }
-          h1, h2, h3, p { margin: 0; }
-          h1 { font-size: 22px; }
-          h2 { font-size: 18px; text-align: right; }
-          h3 { margin: 22px 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 12px; text-align: left; vertical-align: top; }
-          th { width: 34%; background: #f8fafc; }
-          .net-row th, .net-row td { font-size: 15px; font-weight: 800; background: #eef6ff; }
-          .footer { margin-top: 22px; }
-          @media print { body { padding: 0; } .payslip { border: 0; } }
+          body { margin: 0; padding: 20px; color: #111827; font-family: Arial, sans-serif; background: #fff; }
+          ${payslipPrintCss()}
+          @media print { body { padding: 0; } .payslip-document { border: 0; box-shadow: none; } }
         </style>
       </head>
       <body>
-        <main class="payslip">
-          <section class="header">
-            <div class="brand">
-              ${payslip.SchoolLogo ? `<img src="${escapeHtml(payslip.SchoolLogo)}" alt="">` : ''}
-              <div>
-                <h1>${escapeHtml(requiredText(payslip.SchoolName))}</h1>
-                <p>${escapeHtml(requiredText(payslip.SchoolAddress))}</p>
-                <p>${escapeHtml(requiredText(payslip.SchoolPhone))} | ${escapeHtml(requiredText(payslip.SchoolEmail))}</p>
-              </div>
-            </div>
-            <div>
-              <h2>Payslip</h2>
-              <p>${escapeHtml(requiredText(payslip.PayPeriod))}</p>
-              <p>${escapeHtml(payslipStatus(payslip))}</p>
-            </div>
-          </section>
-          <h3>School And Employee Details</h3>
-          <table>${detailRows}</table>
-          <h3>Payslip Financial Details</h3>
-          <table>${financialRows.replace('<tr><th>Net pay</th>', '<tr class="net-row"><th>Net pay</th>')}</table>
-          <h3>Payslip Footer</h3>
-          <table class="footer">${footerRows}</table>
-        </main>
+        ${payslipDocumentHtml(payslip)}
+        <script>window.onload = function(){ window.print(); };</script>
+      </body>
+    </html>`);
+  win.document.close();
+}
+
+function payslipPrintCss() {
+  return `
+    .payslip-document { max-width: 860px; margin: 0 auto; border: 1px solid #d1d5db; padding: 26px; background: #fff; }
+    .payslip-document-header { display: grid; grid-template-columns: 90px 1fr; gap: 16px; align-items: center; text-align: center; border-bottom: 2px solid #111827; padding-bottom: 14px; margin-bottom: 18px; }
+    .payslip-document-header img { width: 78px; max-height: 78px; object-fit: contain; }
+    .payslip-document-header h2 { margin: 0; font-size: 20px; }
+    .payslip-document-header p { margin: 3px 0 0; font-size: 11px; }
+    .payslip-document-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 30px; margin-bottom: 18px; }
+    .payslip-detail-line { display: grid; grid-template-columns: 130px 1fr; gap: 8px; margin-bottom: 7px; font-size: 12px; }
+    .payslip-detail-line span, .payslip-block-label { font-weight: 700; color: #111827; }
+    .payslip-detail-line strong { font-weight: 500; }
+    address { margin-top: 7px; font-style: normal; line-height: 1.45; font-size: 12px; }
+    .payslip-money-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 7px 8px; font-size: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    thead th { border-bottom: 2px solid #111827; font-size: 13px; }
+    td { text-align: right; }
+    .total-row th, .total-row td { font-weight: 800; border-top: 2px solid #111827; }
+    .payslip-ytd { width: 50%; margin-left: auto; margin-top: 18px; }
+    .payslip-ytd h3 { margin: 0 0 8px; font-size: 13px; text-align: left; }
+    .payslip-document-footer { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid #d1d5db; margin-top: 20px; padding-top: 10px; font-size: 11px; color: #4b5563; }
+  `;
+}
+
+function reportPrintHeaderHtml(title, prefix) {
+  const school = reportSchool();
+  const filters = reportData().filters || reportFilterValues(prefix);
+  const classLabel = filters.className || 'All classes';
+  const logo = school.LogoUrl ? `<img src="${escapeHtml(school.LogoUrl)}" alt="">` : '';
+  return `
+    <header class="print-report-header">
+      ${logo}
+      <div>
+        <h1>${escapeHtml(school.SchoolName || 'School Report')}</h1>
+        <p>${escapeHtml(title || 'Report')}</p>
+        <p>${escapeHtml([school.RegistrationNumber, school.ContactPhone, school.ContactEmail].filter(Boolean).join(' | ') || 'School report')}</p>
+        <p>Year: ${escapeHtml(String(filters.year || new Date().getFullYear()))} | Class: ${escapeHtml(classLabel)} | Generated: ${escapeHtml(dateOnly(new Date()))}</p>
+      </div>
+    </header>
+  `;
+}
+
+function reportPrintCss() {
+  return `
+    body { margin: 0; padding: 18px; color: #111827; font-family: Arial, sans-serif; background: #fff; }
+    .print-report-header { display: grid; grid-template-columns: 86px 1fr; gap: 16px; align-items: center; border-bottom: 2px solid #111827; padding-bottom: 14px; margin-bottom: 18px; }
+    .print-report-header img { width: 76px; max-height: 76px; object-fit: contain; }
+    .print-report-header h1 { margin: 0; font-size: 22px; }
+    .print-report-header p { margin: 3px 0; font-size: 12px; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+    .metric { border: 1px solid #d1d5db; padding: 10px; }
+    .metric span { display: block; color: #4b5563; font-size: 11px; }
+    .metric strong { display: block; margin-top: 4px; font-size: 16px; }
+    .report-chart-grid, .report-table-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .report-chart-card, .table-panel { border: 1px solid #d1d5db; padding: 12px; break-inside: avoid; }
+    .report-chart-card h3, .panel-header h3 { margin: 0 0 10px; font-size: 14px; }
+    .report-bar-row { display: grid; grid-template-columns: 120px 1fr 80px; gap: 8px; align-items: center; margin: 7px 0; font-size: 11px; }
+    .report-bar-track { height: 9px; background: #e5e7eb; }
+    .report-bar-fill { height: 100%; background: #2563eb; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 6px; font-size: 11px; text-align: left; vertical-align: top; }
+    th { color: #374151; background: #f9fafb; }
+    .badge { border: 1px solid #cbd5e1; padding: 2px 6px; font-size: 10px; }
+    .table-subtext { display: block; color: #64748b; font-size: 10px; }
+    @media print { body { padding: 10mm; } .report-chart-card, .table-panel { break-inside: avoid; } }
+  `;
+}
+
+function printReport(prefix, title) {
+  const area = document.getElementById(`${prefix}PrintArea`);
+  if (!area) {
+    showToast('Open a report before printing');
+    return;
+  }
+
+  const win = window.open('', '_blank', 'width=1100,height=780');
+  if (!win) {
+    showToast('Allow popups to print this report');
+    return;
+  }
+
+  win.document.write(`<!doctype html>
+    <html>
+      <head>
+        <title>${escapeHtml(title || 'School Report')}</title>
+        <style>${reportPrintCss()}</style>
+      </head>
+      <body>
+        ${reportPrintHeaderHtml(title, prefix)}
+        ${area.innerHTML}
         <script>window.onload = function(){ window.print(); };</script>
       </body>
     </html>`);
@@ -3671,7 +6008,9 @@ function openStudentEditDialog(studentId) {
   setFormValue(form, 'homeAddress', student.HomeAddress);
   setFormValue(form, 'medicalNotes', student.MedicalNotes);
   fillFamilyForm(form, family);
-  populateBillingSelect(elements.studentEditBillingSelect, billingCategoryIdsForStudent(student));
+  setResponsiblePayerFromStudent(form, student);
+  state.studentEditBillingIds = billingCategoryIdsForStudent(student);
+  renderStudentEditBillingPicker();
   form.querySelector('[data-form-tab="editLearner"]')?.click();
   elements.studentEditDialog.classList.remove('hidden');
   document.body.classList.add('modal-open');
@@ -3681,6 +6020,7 @@ function openStudentEditDialog(studentId) {
 function closeStudentEditDialog() {
   elements.studentEditDialog.classList.add('hidden');
   elements.studentEditForm.reset();
+  state.studentEditBillingIds = [];
   document.body.classList.remove('modal-open');
 }
 
@@ -3766,6 +6106,8 @@ function updateRegisterLearnerParentFields() {
       }
     });
   }
+
+  syncResponsiblePayerFields(elements.registerLearnerForm, { preserveOther: true });
 }
 
 function registerLearnerMissingFields(form) {
@@ -3814,6 +6156,10 @@ function registerLearnerMissingFields(form) {
 
   if (!selectedValues(elements.registerLearnerBillingSelect).length) {
     missing.push('Billing information');
+  }
+
+  if (!formValue(form, 'responsiblePayerName')) {
+    missing.push('Responsible payer');
   }
 
   return missing;
@@ -3888,11 +6234,17 @@ function renderAccount() {
 
 function renderSchoolUsers() {
   const school = getAccountSchool();
+  const canManageUsers = userCan('school.staff.view|school.staff.manage|school.staff.permissions.manage');
 
-  elements.schoolUsersPanel.classList.toggle('hidden', !school);
+  elements.schoolUsersPanel.classList.toggle('hidden', !school || !canManageUsers);
 
   if (!school) {
-    elements.schoolUsersTable.innerHTML = '<tr><td colspan="4">Select or create a school before adding users.</td></tr>';
+    elements.schoolUsersTable.innerHTML = '<tr><td colspan="5">Select or create a school before adding users.</td></tr>';
+    return;
+  }
+
+  if (!canManageUsers) {
+    elements.schoolUsersTable.innerHTML = '';
     return;
   }
 
@@ -3905,6 +6257,9 @@ function renderSchoolUsers() {
         <span class="table-subtext">${(user.IsActive ?? user.isActive) === false ? 'Inactive' : 'Active'}</span>
       </td>
       <td>
+        ${assignedRoleBadges(user.UserID || user.userId)}
+      </td>
+      <td>
         ${dateOnly(user.CreatedDate || user.createdDate)}
         <div class="actions stacked-actions">
           ${(user.IsActive ?? user.isActive) === false
@@ -3913,7 +6268,15 @@ function renderSchoolUsers() {
         </div>
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="4">No additional users yet.</td></tr>';
+  `).join('') || '<tr><td colspan="5">No additional users yet.</td></tr>';
+}
+
+function assignedRoleBadges(userId) {
+  const roles = state.schoolUserRoles[userId] || [];
+  if (!roles.length) {
+    return '<span class="badge muted">No access role</span>';
+  }
+  return roles.map((role) => `<span class="badge muted role-badge">${escapeHtml(role.RoleName || '-')}</span>`).join('');
 }
 
 function renderAuditLogs() {
@@ -3930,7 +6293,258 @@ function renderAuditLogs() {
   `).join('') || '<tr><td colspan="4">No audit activity yet.</td></tr>';
 }
 
+function auditUserLabel(log) {
+  return log.Username || log.Email || log.UserID || '-';
+}
+
+function renderFinanceAuditLogs() {
+  if (!elements.financeAuditTable) {
+    return;
+  }
+
+  elements.financeAuditTable.innerHTML = state.financeAuditLogs.map((log) => `
+    <tr>
+      <td>${dateOnly(log.CreatedDate)}</td>
+      <td>
+        <strong>${escapeHtml(log.EntityName || '-')}</strong>
+        <span class="table-subtext">${escapeHtml(log.EntityID || '-')}</span>
+      </td>
+      <td>${escapeHtml(log.Action || '-')}</td>
+      <td>${escapeHtml(log.EntityID || '-')}</td>
+      <td>${escapeHtml(auditUserLabel(log))}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5">No sensitive finance activity found for the selected filters.</td></tr>';
+}
+
+function normalizePermissionKey(permission) {
+  return String(permission || '').trim().toLowerCase();
+}
+
+function roleId(role) {
+  return Number(role?.StaffRoleID || role?.staffRoleId || 0);
+}
+
+function rolePermissions(role) {
+  try {
+    const parsed = JSON.parse(role.Permissions || '[]');
+    return Array.isArray(parsed) ? parsed.map(normalizePermissionKey).filter(Boolean) : [];
+  } catch (error) {
+    return String(role.Permissions || '')
+      .split(',')
+      .map(normalizePermissionKey)
+      .filter(Boolean);
+  }
+}
+
+function expandedPermissionSet(permissions) {
+  const set = new Set(permissions);
+  [...set].forEach((permission) => {
+    (PERMISSION_ALIAS_MAP[permission] || []).forEach((alias) => set.add(normalizePermissionKey(alias)));
+  });
+  return set;
+}
+
+function permissionStatus(permissions, keys) {
+  const set = permissions instanceof Set ? permissions : expandedPermissionSet(permissions);
+  const can = keys.some((key) => set.has(normalizePermissionKey(key)));
+  return `<span class="${can ? 'badge' : 'badge muted'}">${can ? 'Allowed' : 'Blocked'}</span>`;
+}
+
+function permissionGroupAllowed(role, group) {
+  return group.permissions.some((permission) => expandedPermissionSet(rolePermissions(role)).has(normalizePermissionKey(permission)));
+}
+
+function editablePermissionKeys() {
+  const keys = new Set();
+  PERMISSION_GROUPS.forEach((group) => group.permissions.forEach((permission) => keys.add(normalizePermissionKey(permission))));
+  Object.entries(PERMISSION_ALIAS_MAP).forEach(([alias, permissions]) => {
+    keys.add(normalizePermissionKey(alias));
+    permissions.forEach((permission) => keys.add(normalizePermissionKey(permission)));
+  });
+  return keys;
+}
+
+function selectedPermissionRole() {
+  const selectedId = Number(elements.permissionRoleSelect?.value || state.editingStaffRoleId || 0);
+  return state.staffRoles.find((role) => roleId(role) === selectedId) || null;
+}
+
+function setPermissionDraftFromRole(role) {
+  state.editingStaffRoleId = role ? roleId(role) : null;
+  state.permissionDraft = Object.fromEntries(PERMISSION_GROUPS.map((group) => [
+    group.key,
+    role ? permissionGroupAllowed(role, group) : false
+  ]));
+}
+
+function applyPermissionTemplate(templateKey) {
+  const template = ROLE_PERMISSION_TEMPLATES[templateKey];
+  if (!template || !elements.staffRolePermissionForm) return;
+
+  if (!state.editingStaffRoleId) {
+    setFormValue(elements.staffRolePermissionForm, 'roleName', template.roleName);
+    setFormValue(elements.staffRolePermissionForm, 'description', template.description);
+  }
+
+  const allowed = new Set(template.allowed || []);
+  state.permissionDraft = Object.fromEntries(PERMISSION_GROUPS.map((group) => [group.key, allowed.has(group.key)]));
+  renderPermissionEditor();
+  renderPermissionMatrix();
+}
+
+function startNewPermissionRole(templateKey = 'teacher') {
+  state.editingStaffRoleId = null;
+  const template = ROLE_PERMISSION_TEMPLATES[templateKey] || ROLE_PERMISSION_TEMPLATES.teacher;
+  elements.staffRolePermissionForm?.reset();
+  if (elements.permissionRoleSelect) elements.permissionRoleSelect.value = '';
+  setFormValue(elements.staffRolePermissionForm, 'roleName', template.roleName);
+  setFormValue(elements.staffRolePermissionForm, 'description', template.description);
+  const allowed = new Set(template.allowed || []);
+  state.permissionDraft = Object.fromEntries(PERMISSION_GROUPS.map((group) => [group.key, allowed.has(group.key)]));
+  renderPermissionEditor();
+}
+
+function permissionDraftPayload(role) {
+  const editable = editablePermissionKeys();
+  const base = role ? rolePermissions(role).filter((permission) => !editable.has(permission)) : [];
+  const next = new Set(base);
+  PERMISSION_GROUPS.forEach((group) => {
+    if (state.permissionDraft[group.key]) {
+      group.permissions.forEach((permission) => next.add(normalizePermissionKey(permission)));
+    }
+  });
+  return Array.from(next).sort();
+}
+
+function renderSchoolUserRoleOptions() {
+  if (!elements.schoolUserRoleSelect) return;
+  elements.schoolUserRoleSelect.innerHTML = '<option value="">No access role yet</option>'
+    + state.staffRoles.map((role) => `<option value="${roleId(role)}">${escapeHtml(role.RoleName || '-')}</option>`).join('');
+}
+
+function renderPermissionRoleOptions() {
+  if (!elements.permissionRoleSelect) return;
+  elements.permissionRoleSelect.innerHTML = '<option value="">New role</option>'
+    + state.staffRoles.map((role) => `<option value="${roleId(role)}">${escapeHtml(role.RoleName || '-')}</option>`).join('');
+
+  if (!state.editingStaffRoleId && !Object.keys(state.permissionDraft || {}).length && state.staffRoles[0]) {
+    setPermissionDraftFromRole(state.staffRoles[0]);
+  }
+
+  elements.permissionRoleSelect.value = state.editingStaffRoleId ? String(state.editingStaffRoleId) : '';
+}
+
+function renderPermissionEditor() {
+  if (!elements.permissionEditorList || !elements.staffRolePermissionForm) return;
+
+  const role = selectedPermissionRole();
+  if (role) {
+    setFormValue(elements.staffRolePermissionForm, 'roleName', role.RoleName || '');
+    setFormValue(elements.staffRolePermissionForm, 'description', role.Description || '');
+  }
+
+  elements.permissionEditorList.innerHTML = PERMISSION_GROUPS.map((group) => {
+    const allowed = Boolean(state.permissionDraft[group.key]);
+    return `
+      <div class="permission-toggle-row">
+        <div>
+          <strong>${escapeHtml(group.label)}</strong>
+          <span class="table-subtext">${escapeHtml(group.area)}${group.sensitive ? ' - Sensitive' : ''}</span>
+          <span class="table-subtext">${escapeHtml(group.description)}</span>
+        </div>
+        <div class="permission-toggle" role="group" aria-label="${escapeHtml(group.label)} access">
+          <button class="${allowed ? 'primary-button' : 'ghost-button'}" data-action="set-permission-toggle" data-group-key="${group.key}" data-allowed="true" type="button">Allowed</button>
+          <button class="${allowed ? 'ghost-button' : 'secondary-button'}" data-action="set-permission-toggle" data-group-key="${group.key}" data-allowed="false" type="button">Blocked</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function permissionMatrixSearchMatch(group, query) {
+  if (!query) {
+    return true;
+  }
+
+  const normalizedQuery = String(query || '').trim().toLowerCase();
+  const haystack = [
+    group.label,
+    group.area,
+    group.description,
+    ...(group.permissions || [])
+  ].join(' ').toLowerCase();
+
+  return haystack.includes(normalizedQuery);
+}
+
+function renderPermissionMatrix() {
+  if (!elements.permissionMatrixTable) {
+    return;
+  }
+
+  renderSchoolUserRoleOptions();
+  renderPermissionRoleOptions();
+  renderPermissionEditor();
+  const query = String(state.permissionMatrixSearchQuery || '').trim().toLowerCase();
+  const filteredGroups = PERMISSION_GROUPS.filter((group) => permissionMatrixSearchMatch(group, query));
+  if (elements.clearPermissionMatrixSearchButton) {
+    elements.clearPermissionMatrixSearchButton.disabled = !query;
+  }
+
+  if (!state.staffRoles.length) {
+    if (elements.permissionMatrixHead) {
+      elements.permissionMatrixHead.innerHTML = '<tr><th>Access area</th><th>Status</th></tr>';
+    }
+    elements.permissionMatrixTable.innerHTML = '<tr><td colspan="2">No staff roles have been configured yet.</td></tr>';
+    return;
+  }
+
+  if (elements.permissionMatrixHead) {
+    elements.permissionMatrixHead.innerHTML = `
+      <tr>
+        <th>Access area</th>
+        ${state.staffRoles.map((role) => `<th>${escapeHtml(role.RoleName || '-')}</th>`).join('')}
+      </tr>
+    `;
+  }
+
+  if (!filteredGroups.length) {
+    elements.permissionMatrixTable.innerHTML = '<tr><td colspan="99">No permission area matches that search.</td></tr>';
+    return;
+  }
+
+  elements.permissionMatrixTable.innerHTML = filteredGroups.map((group) => `
+    <tr>
+      <td>
+        <strong>${escapeHtml(group.label)}</strong>
+        <span class="table-subtext">${escapeHtml(group.area)}${group.sensitive ? ' - Sensitive' : ''}</span>
+      </td>
+      ${state.staffRoles.map((role) => `<td>${permissionStatus(rolePermissions(role), group.permissions)}</td>`).join('')}
+    </tr>
+  `).join('');
+}
+
+function renderDashboardWarnings() {
+  if (!elements.dashboardWarningsPanel || !elements.dashboardWarningsList) {
+    return;
+  }
+
+  const warnings = state.dashboardWarnings || [];
+  elements.dashboardWarningsPanel.classList.toggle('hidden', warnings.length === 0);
+  elements.dashboardWarningsList.innerHTML = warnings.map((warning) => `
+    <div class="warning-item">
+      <strong>${escapeHtml(warning.title || '-')}</strong>
+      <span class="badge warn">${escapeHtml(warning.count || 0)}</span>
+      <p>${escapeHtml(warning.detail || '')}</p>
+    </div>
+  `).join('');
+}
+
 function renderMatchSuggestions() {
+  if (!elements.matchSuggestionsTable) {
+    return;
+  }
+
   elements.matchSuggestionsTable.innerHTML = state.matchSuggestions.map((suggestion) => `
     <tr>
       <td>
@@ -4078,7 +6692,7 @@ function switchFinanceTab(tabName) {
     panel.classList.toggle('active', panel.id === `finance${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Panel`);
   });
 
-  elements.viewTitle.textContent = `Finance / ${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
+  elements.viewTitle.textContent = tabName.charAt(0).toUpperCase() + tabName.slice(1);
 }
 
 function switchSettingsTab(tabName) {
@@ -4199,6 +6813,11 @@ elements.settingsSchoolSelect.addEventListener('change', () => {
   renderData();
 });
 
+elements.billingCategorySchoolSelect?.addEventListener('change', () => {
+  state.selectedSettingsSchoolId = Number(elements.billingCategorySchoolSelect.value);
+  renderData();
+});
+
 elements.currencySelect.addEventListener('change', () => {
   const school = getSettingsSchool();
 
@@ -4238,6 +6857,76 @@ elements.accountSchoolForm.addEventListener('submit', async (event) => {
   }
 });
 
+elements.permissionRoleSelect?.addEventListener('change', () => {
+  const role = selectedPermissionRole();
+  if (role) {
+    setPermissionDraftFromRole(role);
+  } else {
+    startNewPermissionRole();
+  }
+  renderPermissionEditor();
+});
+
+elements.permissionMatrixSearchInput?.addEventListener('input', () => {
+  state.permissionMatrixSearchQuery = elements.permissionMatrixSearchInput.value;
+  renderPermissionMatrix();
+});
+
+elements.clearPermissionMatrixSearchButton?.addEventListener('click', () => {
+  state.permissionMatrixSearchQuery = '';
+  if (elements.permissionMatrixSearchInput) {
+    elements.permissionMatrixSearchInput.value = '';
+  }
+  renderPermissionMatrix();
+});
+
+elements.staffRolePermissionForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  try {
+    const form = elements.staffRolePermissionForm;
+    const role = selectedPermissionRole();
+    const roleName = form.elements.roleName.value.trim();
+    const description = form.elements.description.value.trim();
+
+    if (!roleName) {
+      throw new Error('Role name is required');
+    }
+
+    const payload = {
+      roleName,
+      description,
+      permissions: permissionDraftPayload(role)
+    };
+
+    setFormBusy(form, true, 'Saving...');
+
+    if (role && state.editingStaffRoleId) {
+      await api(`/api/hr/roles/${state.editingStaffRoleId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...payload, isActive: true })
+      });
+    } else {
+      const created = await api('/api/hr/roles', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      state.editingStaffRoleId = roleId(created);
+    }
+
+    await refreshStaffRoles();
+    await refreshSchoolUsers();
+    renderSchoolUsers();
+    renderEmployeeRoleOptions();
+    renderPermissionMatrix();
+    showToast('Permissions saved');
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setFormBusy(elements.staffRolePermissionForm, false);
+  }
+});
+
 elements.schoolUserForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
@@ -4253,13 +6942,23 @@ elements.schoolUserForm.addEventListener('submit', async (event) => {
       ...formData(elements.schoolUserForm),
       schoolId: school.SchoolID
     };
+    const staffRoleId = Number(payload.staffRoleId || 0);
+    delete payload.staffRoleId;
 
-    await api('/api/users/school-users', {
+    const user = await api('/api/users/school-users', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
 
+    if (staffRoleId && user.userId) {
+      await api('/api/hr/roles/assign', {
+        method: 'POST',
+        body: JSON.stringify({ userId: user.userId, staffRoleId })
+      });
+    }
+
     elements.schoolUserForm.reset();
+    renderSchoolUserRoleOptions();
     await refreshSchoolUsers();
     renderSchoolUsers();
     showToast('User added');
@@ -4391,7 +7090,14 @@ elements.billingCategoryForm.addEventListener('submit', async (event) => {
 
   try {
     setFormBusy(elements.billingCategoryForm, true, 'Saving...');
+    const schoolId = Number(elements.billingCategorySchoolSelect?.value || currentSchoolId());
+
+    if (!schoolId) {
+      throw new Error('Select a school before saving billing categories');
+    }
+
     const payload = formData(elements.billingCategoryForm);
+    payload.schoolId = schoolId;
     payload.baseAmount = Number(payload.baseAmount || 0);
     payload.frequency = String(payload.frequency || '').trim();
     delete payload.billingCategoryId;
@@ -4632,6 +7338,10 @@ elements.leaveForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   try {
+    if (elements.leaveEmployeeSelect && !elements.leaveEmployeeSelect.disabled && !elements.leaveEmployeeSelect.value) {
+      showToast('Select an employee for this leave record');
+      return;
+    }
     setFormBusy(elements.leaveForm, true, 'Saving...');
     await api('/api/leaves', {
       method: 'POST',
@@ -4789,6 +7499,7 @@ elements.studentEditForm?.addEventListener('submit', async (event) => {
       'primaryParentName',
       'primaryParentPhone',
       'familyHomeAddress',
+      'responsiblePayerName',
       'emergencyContactName',
       'emergencyContactPhone'
     ]);
@@ -4816,13 +7527,18 @@ elements.studentEditForm?.addEventListener('submit', async (event) => {
         lastName: data.lastName,
         dateOfBirth: data.dateOfBirth || null,
         homePhone: data.homePhone,
-        homeAddress: data.homeAddress,
-        className: data.className,
-        billingDate: data.billingDate,
+          homeAddress: data.homeAddress,
+          className: data.className,
+          currentAcademicYear: academicYearForClassName(data.className, student.CurrentAcademicYear || currentCalendarYear()),
+          billingDate: data.billingDate,
         enrolledDate: data.enrolledDate,
         medicalNotes: data.medicalNotes,
         billingCategoryId: billingCategoryIds[0],
-        billingCategoryIds
+        billingCategoryIds,
+        responsiblePayerType: data.responsiblePayerType,
+        responsiblePayerName: data.responsiblePayerName,
+        responsiblePayerPhone: data.responsiblePayerPhone,
+        responsiblePayerEmail: data.responsiblePayerEmail
       })
     });
 
@@ -4835,6 +7551,16 @@ elements.studentEditForm?.addEventListener('submit', async (event) => {
   } finally {
     setFormBusy(form, false);
   }
+});
+
+elements.studentEditResponsiblePayerTypeSelect?.addEventListener('change', () => {
+  syncResponsiblePayerFields(elements.studentEditForm, { preserveOther: false });
+});
+
+['primaryParentName', 'primaryParentPhone', 'primaryParentEmail', 'secondaryParentName', 'secondaryParentPhone', 'secondaryParentEmail'].forEach((name) => {
+  elements.studentEditForm?.elements?.[name]?.addEventListener('input', () => {
+    syncResponsiblePayerFields(elements.studentEditForm, { preserveOther: true });
+  });
 });
 
 elements.familyEditForm?.addEventListener('submit', async (event) => {
@@ -4869,8 +7595,8 @@ elements.familyEditForm?.addEventListener('submit', async (event) => {
   }
 });
 
-elements.closePaymentDialogButton.addEventListener('click', closePaymentDialog);
-elements.cancelPaymentButton.addEventListener('click', closePaymentDialog);
+elements.closeStudentFinanceDialogButton?.addEventListener('click', closeStudentFinanceDialog);
+elements.cancelStudentFinanceButton?.addEventListener('click', closeStudentFinanceDialog);
 elements.closeRequiredInfoDialogButton?.addEventListener('click', closeRequiredInfoDialog);
 elements.cancelRequiredInfoDialogButton?.addEventListener('click', closeRequiredInfoDialog);
 document.getElementById('closeConsentDialogButton')?.addEventListener('click', closeConsentDialog);
@@ -4881,15 +7607,20 @@ elements.closeEmployeeDialogButton?.addEventListener('click', closeEmployeeDialo
 elements.cancelEmployeeButton?.addEventListener('click', closeEmployeeDialog);
 elements.closePayslipDialogButton?.addEventListener('click', closePayslipDialog);
 elements.cancelPayslipButton?.addEventListener('click', closePayslipDialog);
-elements.printPayslipButton?.addEventListener('click', () => printPayslip(state.selectedPayslip));
+elements.printPayslipButton?.addEventListener('click', async () => {
+  if (state.selectedPayslip?.PayslipID) {
+    await api(`/api/payslips/${state.selectedPayslip.PayslipID}/export-audit`, { method: 'POST' }).catch(() => null);
+  }
+  printPayslip(state.selectedPayslip);
+});
 elements.closeStudentEditDialogButton?.addEventListener('click', closeStudentEditDialog);
 elements.cancelStudentEditButton?.addEventListener('click', closeStudentEditDialog);
 elements.closeFamilyEditDialogButton?.addEventListener('click', closeFamilyEditDialog);
 elements.cancelFamilyEditButton?.addEventListener('click', closeFamilyEditDialog);
 
-elements.paymentDialog.addEventListener('click', (event) => {
-  if (event.target === elements.paymentDialog) {
-    closePaymentDialog();
+elements.studentFinanceDialog?.addEventListener('click', (event) => {
+  if (event.target === elements.studentFinanceDialog) {
+    closeStudentFinanceDialog();
   }
 });
 
@@ -4954,8 +7685,8 @@ elements.familyEditDialog?.addEventListener('click', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && !elements.paymentDialog.classList.contains('hidden')) {
-    closePaymentDialog();
+  if (event.key === 'Escape' && elements.studentFinanceDialog && !elements.studentFinanceDialog.classList.contains('hidden')) {
+    closeStudentFinanceDialog();
   }
   if (event.key === 'Escape' && elements.requiredInfoDialog && !elements.requiredInfoDialog.classList.contains('hidden')) {
     closeRequiredInfoDialog();
@@ -4983,6 +7714,12 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && elements.payslipDialog && !elements.payslipDialog.classList.contains('hidden')) {
     closePayslipDialog();
   }
+  if (event.key === 'Escape' && elements.bankStatementDetailDialog && !elements.bankStatementDetailDialog.classList.contains('hidden')) {
+    closeBankStatementDetail();
+  }
+  if (event.key === 'Escape' && elements.bankReallocationDialog && !elements.bankReallocationDialog.classList.contains('hidden')) {
+    closeBankReallocationDialog();
+  }
   if (event.key === 'Escape' && elements.studentEditDialog && !elements.studentEditDialog.classList.contains('hidden')) {
     closeStudentEditDialog();
   }
@@ -4991,30 +7728,127 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-elements.paymentForm.addEventListener('submit', async (event) => {
+elements.closeBankStatementDetailButton?.addEventListener('click', closeBankStatementDetail);
+elements.cancelBankStatementDetailButton?.addEventListener('click', closeBankStatementDetail);
+elements.closeBankReallocationButton?.addEventListener('click', closeBankReallocationDialog);
+elements.cancelBankReallocationButton?.addEventListener('click', closeBankReallocationDialog);
+elements.bankReallocationTypeSelect?.addEventListener('change', syncBankReallocationMode);
+elements.bankReallocationSearchInput?.addEventListener('input', () => {
+  window.clearTimeout(bankReallocationSearchTimer);
+  bankReallocationSearchTimer = window.setTimeout(searchBankReallocationTargets, 250);
+});
+
+elements.bankReallocationForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
-  try {
-    const invoiceId = Number(elements.paymentForm.elements.invoiceId.value);
-    const amount = Number(elements.paymentAmountInput.value);
+  const form = elements.bankReallocationForm;
+  const allocationType = form.elements.allocationType.value;
+  const reason = form.elements.reason.value.trim();
+  const invoiceId = Number(form.elements.invoiceId.value || 0);
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new Error('Payment amount must be a positive number');
+  try {
+    if (!reason) {
+      throw new Error('Reallocation reason is required');
     }
 
-    setFormBusy(elements.paymentForm, true, 'Saving...');
-    await api(`/api/invoices/${invoiceId}/payment`, {
-      method: 'POST',
-      body: JSON.stringify({ amount })
-    });
+    if (allocationType === 'Debtor' && !invoiceId) {
+      throw new Error('Select the new invoice before saving the reallocation');
+    }
 
-    closePaymentDialog();
+    setFormBusy(form, true, 'Saving...');
+    await api('/api/bank-statements/reallocate', {
+      method: 'POST',
+      body: JSON.stringify({
+        transactionId: Number(form.elements.transactionId.value),
+        allocationType,
+        reason,
+        invoiceId: allocationType === 'Debtor' ? invoiceId : null,
+        studentId: allocationType === 'Debtor' ? Number(form.elements.studentId.value || 0) || null : null,
+        familyId: allocationType === 'Debtor' ? Number(form.elements.familyId.value || 0) || null : null,
+        paymentMethod: allocationType === 'Creditor'
+          ? (form.elements.creditorName.value.trim() || 'Creditor reallocation')
+          : 'Bank reallocation'
+      })
+    });
+    closeBankReallocationDialog();
     await refreshData();
-    showToast('Payment recorded');
+    showToast('Bank payment reallocated');
   } catch (error) {
     showToast(error.message);
   } finally {
-    setFormBusy(elements.paymentForm, false);
+    setFormBusy(form, false);
+  }
+});
+
+elements.studentReceiptAmountInput?.addEventListener('input', syncStudentReceiptAllocations);
+elements.studentReceiptPayeeTypeSelect?.addEventListener('change', () => syncReceiptPayeeFields({ preserveOther: false }));
+elements.studentReceiptInvoicesTable?.addEventListener('input', (event) => {
+  if (event.target.classList.contains('student-receipt-allocation')) {
+    updateStudentReceiptAdvanceHint();
+  }
+});
+
+elements.studentReceiptForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  try {
+    const form = elements.studentReceiptForm;
+    const amount = Number(form.elements.amount.value);
+    const allocations = studentReceiptAllocationInputs()
+      .map((input) => ({
+        invoiceId: Number(input.dataset.invoiceId),
+        amount: Number(input.value || 0)
+      }))
+      .filter((item) => item.invoiceId && item.amount > 0);
+    const allocated = allocations.reduce((sum, item) => sum + item.amount, 0);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('Receipt amount must be a positive number');
+    }
+
+    if (allocated > amount) {
+      throw new Error('Allocated amount cannot be more than the receipt amount');
+    }
+
+    if (!form.elements.payeeName.value.trim()) {
+      throw new Error('Receipt payee is required');
+    }
+
+    setFormBusy(form, true, 'Issuing...');
+    const receipt = await api('/api/invoices/receipts', {
+      method: 'POST',
+      body: JSON.stringify({
+        studentId: Number(form.elements.studentId.value),
+        amount,
+        paymentDate: form.elements.paymentDate.value,
+        paymentMethod: form.elements.paymentMethod.value,
+        payeeType: form.elements.payeeType.value,
+        payeeName: form.elements.payeeName.value,
+        payeePhone: form.elements.payeePhone.value,
+        payeeEmail: form.elements.payeeEmail.value,
+        reference: form.elements.reference.value,
+        description: form.elements.description.value,
+        allocations,
+        autoAllocate: false
+      })
+    });
+
+    await refreshData();
+    if (state.selectedStudentFinanceId) {
+      state.selectedStudentFinanceStatement = await api(`/api/invoices/student/${state.selectedStudentFinanceId}/statement`);
+      renderStudentFinanceDialog();
+    }
+    form.reset();
+    setFormValue(form, 'studentId', state.selectedStudentFinanceId || '');
+    setFormValue(form, 'paymentDate', new Date().toISOString().slice(0, 10));
+    setFormValue(form, 'paymentMethod', 'EFT');
+    setFormValue(form, 'payeeType', 'Responsible payer');
+    syncReceiptPayeeFields({ preserveOther: false });
+    showToast(`Receipt ${receipt.receiptNumber} issued`);
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setFormBusy(elements.studentReceiptForm, false);
   }
 });
 
@@ -5100,6 +7934,42 @@ document.addEventListener('click', async (event) => {
     return;
   }
 
+  if (action === 'new-permission-role') {
+    startNewPermissionRole();
+    return;
+  }
+
+  if (action === 'apply-permission-template') {
+    applyPermissionTemplate(button.dataset.template);
+    return;
+  }
+
+  if (action === 'set-permission-toggle') {
+    state.permissionDraft[button.dataset.groupKey] = button.dataset.allowed === 'true';
+    renderPermissionEditor();
+    return;
+  }
+
+  if (action === 'view-bank-statement') {
+    await openBankStatementDetail(id);
+    return;
+  }
+
+  if (action === 'open-bank-reallocation') {
+    openBankReallocationDialog(button);
+    return;
+  }
+
+  if (action === 'select-bank-reallocation-target') {
+    await selectBankReallocationTarget(button);
+    return;
+  }
+
+  if (action === 'select-bank-reallocation-invoice') {
+    selectBankReallocationInvoice(button);
+    return;
+  }
+
   if (action === 'open-settings-page') {
     switchView('settings');
     return;
@@ -5107,6 +7977,11 @@ document.addEventListener('click', async (event) => {
 
   if (action === 'download-export') {
     await downloadExport(button.dataset.export);
+    return;
+  }
+
+  if (action === 'export-student-statement-excel' || action === 'export-student-statement-pdf') {
+    await exportStudentStatement(action === 'export-student-statement-excel' ? 'excel' : 'pdf');
     return;
   }
 
@@ -5195,6 +8070,11 @@ document.addEventListener('click', async (event) => {
     return;
   }
 
+  if (action === 'view-student-finance' || action === 'issue-student-receipt') {
+    await openStudentFinanceDialog(button.dataset.id, action === 'issue-student-receipt');
+    return;
+  }
+
   if (action === 'edit-family') {
     openFamilyEditDialog(button.dataset.id);
     return;
@@ -5202,6 +8082,40 @@ document.addEventListener('click', async (event) => {
 
   if (action === 'open-employee-dialog') {
     await openEmployeeDialog();
+    return;
+  }
+
+  if (action === 'open-year-end-rollover') {
+    const rolloverYear = selectedYearEndRolloverYear();
+    setReenrolmentYear(rolloverYear);
+    await refreshFeatureData();
+    renderFeaturePages();
+    switchView('reenrolment');
+    document.getElementById('reenrolmentView')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  if (action === 'print-report') {
+    printReport(button.dataset.reportPrefix || activeReportPrefix(), button.dataset.reportTitle || elements.viewTitle.textContent);
+    return;
+  }
+
+  if (action === 'fill-reenrolment') {
+    const form = document.getElementById('reenrolmentForm');
+    if (!form) return;
+    const rowClassSelect = button.closest('tr')?.querySelector('[data-reenrolment-row-class]');
+    const newClassName = button.dataset.useRowClass === 'true'
+      ? rowClassSelect?.value || ''
+      : button.dataset.nextClass || '';
+    if (['Promoted', 'Retained'].includes(button.dataset.rolloverAction || '') && !newClassName) {
+      showToast(`Create and select a class for ${reenrolmentTargetYear()} first`);
+      return;
+    }
+    setFormValue(form, 'studentId', button.dataset.id || '');
+    setFormValue(form, 'newClassName', newClassName);
+    setFormValue(form, 'action', button.dataset.rolloverAction || 'Promoted');
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => form.elements.newClassName?.focus(), 250);
     return;
   }
 
@@ -5240,17 +8154,6 @@ document.addEventListener('click', async (event) => {
   }
 
   try {
-    if (action === 'consent-response') {
-      await api(`/api/school-features/consent/${id}/respond`, {
-        method: 'PUT',
-        body: JSON.stringify({ response: button.dataset.response })
-      });
-      await refreshFeatureData();
-      renderFeaturePages();
-      showToast('Consent response updated');
-      return;
-    }
-
     if (action === 'refund-approve' || action === 'refund-complete') {
       const nextAction = action === 'refund-approve' ? 'approve' : 'complete';
       await api(`/api/school-features/refunds/${id}/${nextAction}`, { method: 'PUT' });
@@ -5269,6 +8172,20 @@ document.addEventListener('click', async (event) => {
     }
 
     if (action === 'year-end-status') {
+      if (button.dataset.status === 'Closed') {
+        const financialYear = Number(button.dataset.financialYear || selectedYearEndFinancialYear());
+        const rolloverYear = financialYear + 1;
+        setReenrolmentYear(rolloverYear);
+        if (Number(state.featureRolloverYear) !== rolloverYear) {
+          await refreshFeatureData();
+          renderFeaturePages();
+        }
+        if (pendingRolloverStudentIds().size > 0) {
+          showToast(`Complete ${rolloverYear} enrolment and promotions before closing ${financialYear}`);
+          switchView('reenrolment');
+          return;
+        }
+      }
       await api(`/api/hr/year-end/${id}/status`, {
         method: 'PUT',
         body: JSON.stringify({ status: button.dataset.status })
@@ -5276,6 +8193,22 @@ document.addEventListener('click', async (event) => {
       await refreshFeatureData();
       renderFeaturePages();
       showToast('Year-end status updated');
+      return;
+    }
+
+    if (action === 'reopen-finance-period') {
+      const reason = window.prompt('Reason for reopening this locked finance period for correction:');
+      if (!reason || !reason.trim()) {
+        showToast('A reopen reason is required');
+        return;
+      }
+      await api(`/api/school-features/finance-period-locks/${id}/reopen`, {
+        method: 'PUT',
+        body: JSON.stringify({ reason })
+      });
+      await refreshFeatureData();
+      renderFeaturePages();
+      showToast('Finance period reopened for correction');
       return;
     }
 
@@ -5336,16 +8269,6 @@ document.addEventListener('click', async (event) => {
       return;
     }
 
-    if (action === 'pay-invoice') {
-      await api(`/api/invoices/${id}/pay`, { method: 'PUT' });
-      showToast('Invoice marked as paid');
-    }
-
-    if (action === 'record-payment') {
-      openPaymentDialog(id);
-      return;
-    }
-
     if (action === 'delete-invoice') {
       await api(`/api/invoices/${id}`, { method: 'DELETE' });
       showToast('Invoice deleted');
@@ -5400,16 +8323,45 @@ document.querySelectorAll('[data-action="export-outstanding-fees"]').forEach((bt
 document.getElementById('outstandingFeesSearch')?.addEventListener('input', renderOutstandingFees);
 document.getElementById('outstandingFeesYear')?.addEventListener('change', refreshOutstandingFees);
 
+[
+  elements.reconciliationMonth,
+  elements.reconciliationYear,
+  elements.reconciliationStatus
+].forEach((control) => control?.addEventListener('change', renderReconciliation));
+
+[
+  elements.financeAuditFromInput,
+  elements.financeAuditToInput,
+  elements.financeAuditEntityFilter
+].forEach((control) => control?.addEventListener('change', async () => {
+  await refreshFinanceAuditLogs();
+  renderFinanceAuditLogs();
+}));
+
+elements.reconciliationSearch?.addEventListener('input', () => {
+  window.clearTimeout(elements.reconciliationSearch._timer);
+  elements.reconciliationSearch._timer = window.setTimeout(renderReconciliation, 250);
+});
+
 // Register Learner form
 if (elements.registerLearnerForm) {
   updateRegisterLearnerParentFields();
 
   elements.registerLearnerParentTypeSelect?.addEventListener('change', updateRegisterLearnerParentFields);
+  elements.registerResponsiblePayerTypeSelect?.addEventListener('change', () => {
+    syncResponsiblePayerFields(elements.registerLearnerForm, { preserveOther: false });
+  });
+  ['primaryParentName', 'primaryParentPhone', 'primaryParentEmail', 'secondaryParentName', 'secondaryParentPhone', 'secondaryParentEmail'].forEach((name) => {
+    elements.registerLearnerForm.elements[name]?.addEventListener('input', () => {
+      syncResponsiblePayerFields(elements.registerLearnerForm, { preserveOther: true });
+    });
+  });
 
   elements.registerLearnerFamilySelect?.addEventListener('change', () => {
     const selectedFamily = state.families.find((family) => family.FamilyID === Number(elements.registerLearnerFamilySelect.value));
     if (selectedFamily) {
       fillFamilyForm(elements.registerLearnerForm, selectedFamily);
+      syncResponsiblePayerFields(elements.registerLearnerForm, { preserveOther: true });
     }
   });
 
@@ -5420,7 +8372,12 @@ if (elements.registerLearnerForm) {
     event.dataTransfer.effectAllowed = 'move';
   });
 
-  [elements.registerLearnerBillingAvailable, elements.registerLearnerBillingAssigned].forEach((zone) => {
+  [
+    elements.registerLearnerBillingAvailable,
+    elements.registerLearnerBillingAssigned,
+    elements.studentEditBillingAvailable,
+    elements.studentEditBillingAssigned
+  ].forEach((zone) => {
     zone?.addEventListener('dragover', (event) => {
       event.preventDefault();
       zone.classList.add('drag-over');
@@ -5432,8 +8389,12 @@ if (elements.registerLearnerForm) {
       const billingId = event.dataTransfer.getData('text/plain');
       if (zone.dataset.billingZone === 'assigned') {
         assignRegisterLearnerBilling(billingId);
-      } else {
+      } else if (zone.dataset.billingZone === 'available') {
         unassignRegisterLearnerBilling(billingId);
+      } else if (zone.dataset.billingZone === 'edit-assigned') {
+        assignStudentEditBilling(billingId);
+      } else if (zone.dataset.billingZone === 'edit-available') {
+        unassignStudentEditBilling(billingId);
       }
     });
     zone?.addEventListener('click', (event) => {
@@ -5441,8 +8402,12 @@ if (elements.registerLearnerForm) {
       if (!card) return;
       if (card.dataset.billingCard === 'available') {
         assignRegisterLearnerBilling(card.dataset.billingId);
-      } else {
+      } else if (card.dataset.billingCard === 'assigned') {
         unassignRegisterLearnerBilling(card.dataset.billingId);
+      } else if (card.dataset.billingCard === 'edit-available') {
+        assignStudentEditBilling(card.dataset.billingId);
+      } else if (card.dataset.billingCard === 'edit-assigned') {
+        unassignStudentEditBilling(card.dataset.billingId);
       }
     });
   });
@@ -5490,11 +8455,16 @@ if (elements.registerLearnerForm) {
           homePhone: data.homePhone,
           homeAddress: data.homeAddress || data.familyHomeAddress,
           className: data.className,
+          currentAcademicYear: academicYearForClassName(data.className, currentCalendarYear()),
           billingDate: data.billingDate,
           enrolledDate: data.enrolledDate,
           medicalNotes: data.medicalNotes,
           billingCategoryId: billingCategoryIds[0],
-          billingCategoryIds
+          billingCategoryIds,
+          responsiblePayerType: data.responsiblePayerType,
+          responsiblePayerName: data.responsiblePayerName,
+          responsiblePayerPhone: data.responsiblePayerPhone,
+          responsiblePayerEmail: data.responsiblePayerEmail
         })
       });
 

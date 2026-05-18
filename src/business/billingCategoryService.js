@@ -1,16 +1,19 @@
 // Business Layer - Billing categories service
 
 const BillingCategoryRepository = require('../data/billingCategoryRepository');
+const SchoolRepository = require('../data/schoolRepository');
 
 class BillingCategoryService {
   constructor() {
     this.billingCategoryRepository = new BillingCategoryRepository();
+    this.schoolRepository = new SchoolRepository();
   }
 
   async createCategory(payload, currentUser) {
     this.validateCategoryData(payload);
 
     const schoolId = this.resolveSchoolId(payload.schoolId, currentUser);
+    await this.ensureSchoolExists(schoolId);
 
     return await this.billingCategoryRepository.createCategory({
       schoolId,
@@ -22,8 +25,14 @@ class BillingCategoryService {
     });
   }
 
-  async getCategories(currentUser) {
+  async getCategories(currentUser, options = {}) {
     if (currentUser.Role === 'admin') {
+      if (options.schoolId) {
+        const schoolId = this.resolveSchoolId(options.schoolId, currentUser);
+        await this.ensureSchoolExists(schoolId);
+        return await this.billingCategoryRepository.getCategoriesBySchool(schoolId);
+      }
+
       return await this.billingCategoryRepository.getAllCategories();
     }
 
@@ -139,7 +148,9 @@ class BillingCategoryService {
 
   resolveSchoolId(schoolId, currentUser) {
     if (currentUser.Role === 'admin') {
-      return schoolId || currentUser.SchoolID || null;
+      const resolvedSchoolId = Number(schoolId || currentUser.SchoolID || 0);
+      this.validateId(resolvedSchoolId, 'School ID');
+      return resolvedSchoolId;
     }
 
     if (!currentUser.SchoolID) {
@@ -147,6 +158,15 @@ class BillingCategoryService {
     }
 
     return currentUser.SchoolID;
+  }
+
+  async ensureSchoolExists(schoolId) {
+    const school = await this.schoolRepository.getSchoolById(schoolId);
+    if (!school) {
+      throw new Error('School not found');
+    }
+
+    return school;
   }
 
   ensureCategoryAccess(category, currentUser) {

@@ -2,13 +2,13 @@
 
 const express = require('express');
 const SchoolService = require('../business/schoolService');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, requireAdmin, requireSchoolOrAdmin } = require('../middleware/auth');
 const { audit, auditLog } = require('../middleware/audit');
 
 const router = express.Router();
 const schoolService = new SchoolService();
 
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   try {
     const schools = await schoolService.getAllSchools(req.user);
     res.json(schools);
@@ -26,7 +26,7 @@ router.get('/availability/school-name', async (req, res) => {
   }
 });
 
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   try {
     const school = await schoolService.getSchoolById(parseInt(req.params.id, 10), req.user);
     res.json(school);
@@ -52,7 +52,7 @@ router.post('/', authenticateToken, requireAdmin, audit('School', 'SchoolAdded')
   }
 });
 
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   try {
     const updatedSchool = await schoolService.updateSchool(parseInt(req.params.id, 10), req.body, req.user);
     res.json(updatedSchool);

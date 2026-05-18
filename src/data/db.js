@@ -37,7 +37,16 @@ async function getPool() {
     return pool;
   }
 
-  return await sql.connect(getConnectionConfig());
+  try {
+    pool = await sql.connect(getConnectionConfig());
+    dbState.connected = true;
+    dbState.lastError = null;
+    return pool;
+  } catch (err) {
+    dbState.connected = false;
+    dbState.lastError = err.message;
+    throw err;
+  }
 }
 
 function getDbState() {

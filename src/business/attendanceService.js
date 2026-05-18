@@ -2,6 +2,7 @@
 
 const AttendanceRepository = require('../data/attendanceRepository');
 const ParentRepository = require('../data/parentRepository');
+const { hasSchoolPermission } = require('../security/schoolPermissions');
 
 class AttendanceService {
   constructor() {
@@ -23,7 +24,8 @@ class AttendanceService {
       attendanceDate: data.attendanceDate, status: data.status,
       arrivalTime: this.optionalTime(data.arrivalTime),
       departureTime: this.optionalTime(data.departureTime),
-      notes: data.notes || null, recordedBy: currentUser.UserID
+      notes: data.notes || null, recordedBy: currentUser.UserID,
+      teacherUserId: this.teacherScopeUserId(currentUser)
     });
   }
 
@@ -37,7 +39,8 @@ class AttendanceService {
         attendanceDate: record.attendanceDate, status: record.status,
         arrivalTime: this.optionalTime(record.arrivalTime),
         departureTime: this.optionalTime(record.departureTime),
-        notes: record.notes || null, recordedBy: currentUser.UserID
+        notes: record.notes || null, recordedBy: currentUser.UserID,
+        teacherUserId: this.teacherScopeUserId(currentUser)
       });
       results.push(result);
     }
@@ -54,7 +57,7 @@ class AttendanceService {
       throw new Error('Undo field must be arrival or departure');
     }
 
-    const updated = await this.repo.undoTime(parsedId, this.resolveSchoolId(currentUser), field, currentUser.UserID);
+    const updated = await this.repo.undoTime(parsedId, this.resolveSchoolId(currentUser), field, currentUser.UserID, this.teacherScopeUserId(currentUser));
     if (!updated) {
       throw new Error('Attendance record not found');
     }
@@ -63,7 +66,7 @@ class AttendanceService {
   }
 
   async getByDate(date, currentUser) {
-    return await this.repo.getBySchoolAndDate(this.resolveSchoolId(currentUser), date);
+    return await this.repo.getBySchoolAndDate(this.resolveSchoolId(currentUser), date, this.teacherScopeUserId(currentUser));
   }
 
   async getByRange(fromDate, toDate, currentUser) {
@@ -86,7 +89,7 @@ class AttendanceService {
       throw new Error('Completed attendance excludes today');
     }
 
-    return await this.repo.getBySchoolAndRange(this.resolveSchoolId(currentUser), fromDate, toDate);
+    return await this.repo.getBySchoolAndRange(this.resolveSchoolId(currentUser), fromDate, toDate, this.teacherScopeUserId(currentUser));
   }
 
   async getByStudent(studentId, fromDate, toDate, currentUser) {
@@ -112,13 +115,22 @@ class AttendanceService {
   }
 
   async getSummary(fromDate, toDate, currentUser) {
-    return await this.repo.getSummaryBySchool(this.resolveSchoolId(currentUser), fromDate, toDate);
+    return await this.repo.getSummaryBySchool(this.resolveSchoolId(currentUser), fromDate, toDate, this.teacherScopeUserId(currentUser));
   }
 
   resolveSchoolId(currentUser) {
     if (currentUser.Role === 'admin') return currentUser.SchoolID;
     if (!currentUser.SchoolID) throw new Error('School users must be linked to a school');
     return currentUser.SchoolID;
+  }
+
+  teacherScopeUserId(currentUser) {
+    if (currentUser.Role === 'admin') return null;
+    if (hasSchoolPermission(currentUser, ['attendance.view_all', 'attendance.edit_all', 'attendance.correct'])) return null;
+    if (hasSchoolPermission(currentUser, ['attendance.view_assigned', 'attendance.submit_assigned', 'attendance.edit_assigned'])) {
+      return currentUser.UserID;
+    }
+    return null;
   }
 
   optionalTime(value) {

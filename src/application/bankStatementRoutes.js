@@ -2,13 +2,13 @@
 
 const express = require('express');
 const BankStatementService = require('../business/bankStatementService');
-const { authenticateToken, requireSchoolOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireSchoolPermission } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
 
 const router = express.Router();
 const bankStatementService = new BankStatementService();
 
-router.post('/upload', authenticateToken, requireSchoolOrAdmin, audit('BankStatement', 'Upload'), async (req, res) => {
+router.post('/upload', authenticateToken, requireSchoolPermission('finance.bank_reconciliation.correct', 'finance.payments.allocate'), audit('BankStatement', 'Upload'), async (req, res) => {
   try {
     const result = await bankStatementService.uploadStatement(req.body, req.user);
     res.json(result);
@@ -17,25 +17,36 @@ router.post('/upload', authenticateToken, requireSchoolOrAdmin, audit('BankState
   }
 });
 
-router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/', authenticateToken, requireSchoolPermission('finance.bank_reconciliation.view'), async (req, res) => {
   try {
-    const statements = await bankStatementService.getStatements(req.user);
+    const statements = await bankStatementService.getStatements(req.user, {
+      schoolId: req.query.schoolId || null,
+      month: req.query.month || null,
+      year: req.query.year || null,
+      fromDate: req.query.fromDate || null,
+      toDate: req.query.toDate || null
+    });
     res.json(statements);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.get('/reconciliation', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/reconciliation', authenticateToken, requireSchoolPermission('finance.bank_reconciliation.view'), async (req, res) => {
   try {
-    const reconciliation = await bankStatementService.getReconciliation(req.user);
+    const reconciliation = await bankStatementService.getReconciliation(req.user, {
+      month: req.query.month || null,
+      year: req.query.year || null,
+      fromDate: req.query.fromDate || null,
+      toDate: req.query.toDate || null
+    });
     res.json(reconciliation);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.get('/reconciliation/transactions', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/reconciliation/transactions', authenticateToken, requireSchoolPermission('finance.bank_reconciliation.view', 'finance.payments.view'), async (req, res) => {
   try {
     const options = {
       page: parseInt(req.query.page, 10) || 1,
@@ -43,8 +54,13 @@ router.get('/reconciliation/transactions', authenticateToken, requireSchoolOrAdm
       status: req.query.status || null,
       fromDate: req.query.fromDate || null,
       toDate: req.query.toDate || null,
+      month: req.query.month || null,
+      year: req.query.year || null,
       search: req.query.search || null
     };
+    const period = bankStatementService.resolvePeriodOptions(options);
+    options.fromDate = period.fromDate || options.fromDate;
+    options.toDate = period.toDate || options.toDate;
     const transactions = await bankStatementService.getReconciliationTransactions(req.user, options);
     res.json(transactions);
   } catch (error) {
@@ -52,7 +68,7 @@ router.get('/reconciliation/transactions', authenticateToken, requireSchoolOrAdm
   }
 });
 
-router.get('/allocation-search', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/allocation-search', authenticateToken, requireSchoolPermission('finance.payments.allocate'), async (req, res) => {
   try {
     const results = await bankStatementService.searchForAllocation(req.query.q, req.user);
     res.json(results);
@@ -61,7 +77,7 @@ router.get('/allocation-search', authenticateToken, requireSchoolOrAdmin, async 
   }
 });
 
-router.get('/outstanding-invoices/:studentId', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/outstanding-invoices/:studentId', authenticateToken, requireSchoolPermission('finance.payments.allocate', 'finance.outstanding_fees.view'), async (req, res) => {
   try {
     const invoices = await bankStatementService.getOutstandingInvoicesForStudent(
       parseInt(req.params.studentId, 10), req.user
@@ -72,7 +88,7 @@ router.get('/outstanding-invoices/:studentId', authenticateToken, requireSchoolO
   }
 });
 
-router.get('/match-suggestions', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/match-suggestions', authenticateToken, requireSchoolPermission('finance.bank_reconciliation.view', 'finance.bank_reconciliation.approve_match'), async (req, res) => {
   try {
     const suggestions = await bankStatementService.getMatchSuggestions(req.user);
     res.json(suggestions);
@@ -81,7 +97,16 @@ router.get('/match-suggestions', authenticateToken, requireSchoolOrAdmin, async 
   }
 });
 
-router.post('/matches/approve', authenticateToken, requireSchoolOrAdmin, audit('ReconciliationMatch', 'Approve'), async (req, res) => {
+router.get('/:id', authenticateToken, requireSchoolPermission('finance.bank_reconciliation.view'), async (req, res) => {
+  try {
+    const detail = await bankStatementService.getStatementDetail(req.params.id, req.user);
+    res.json(detail);
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+});
+
+router.post('/matches/approve', authenticateToken, requireSchoolPermission('finance.bank_reconciliation.approve_match', 'finance.payments.allocate'), audit('ReconciliationMatch', 'Approve'), async (req, res) => {
   try {
     const result = await bankStatementService.approveMatch(req.body.transactionId, req.body.invoiceId, req.user);
     res.json(result);
@@ -90,7 +115,7 @@ router.post('/matches/approve', authenticateToken, requireSchoolOrAdmin, audit('
   }
 });
 
-router.post('/allocate/debtor', authenticateToken, requireSchoolOrAdmin, audit('Transaction', 'AllocateDebtor'), async (req, res) => {
+router.post('/allocate/debtor', authenticateToken, requireSchoolPermission('finance.payments.allocate'), audit('Transaction', 'AllocateDebtor'), async (req, res) => {
   try {
     const result = await bankStatementService.allocateToDebtor(req.body.transactionId, req.body, req.user);
     res.json(result);
@@ -99,7 +124,7 @@ router.post('/allocate/debtor', authenticateToken, requireSchoolOrAdmin, audit('
   }
 });
 
-router.post('/allocate/creditor', authenticateToken, requireSchoolOrAdmin, audit('Transaction', 'AllocateCreditor'), async (req, res) => {
+router.post('/allocate/creditor', authenticateToken, requireSchoolPermission('finance.payments.allocate'), audit('Transaction', 'AllocateCreditor'), async (req, res) => {
   try {
     const result = await bankStatementService.allocateToCreditor(req.body.transactionId, req.body, req.user);
     res.json(result);
@@ -108,9 +133,9 @@ router.post('/allocate/creditor', authenticateToken, requireSchoolOrAdmin, audit
   }
 });
 
-router.post('/unallocate', authenticateToken, requireSchoolOrAdmin, audit('Transaction', 'Unallocate'), async (req, res) => {
+router.post('/reallocate', authenticateToken, requireSchoolPermission('finance.bank_reconciliation.correct', 'finance.payments.allocate'), audit('Transaction', 'Reallocate'), async (req, res) => {
   try {
-    const result = await bankStatementService.unallocateTransaction(req.body.transactionId, req.user);
+    const result = await bankStatementService.reallocateTransaction(req.body.transactionId, req.body, req.user);
     res.json(result);
   } catch (error) {
     res.status(400).json({ error: error.message });

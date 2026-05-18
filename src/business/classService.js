@@ -1,6 +1,7 @@
 // Business Layer - Class service
 
 const ClassRepository = require('../data/classRepository');
+const { hasSchoolPermission } = require('../security/schoolPermissions');
 
 class ClassService {
   constructor() {
@@ -8,7 +9,7 @@ class ClassService {
   }
 
   async getClasses(currentUser) {
-    return await this.repo.getBySchool(this.resolveSchoolId(currentUser));
+    return await this.repo.getBySchool(this.resolveSchoolId(currentUser), this.teacherScopeUserId(currentUser));
   }
 
   async getClassById(id, currentUser) {
@@ -16,6 +17,11 @@ class ClassService {
     if (!cls) throw new Error('Class not found');
     if (currentUser.Role !== 'admin' && currentUser.SchoolID !== cls.SchoolID) {
       throw new Error('You can only access classes for your own school');
+    }
+    if (this.teacherScopeUserId(currentUser)) {
+      const classes = await this.repo.getBySchool(cls.SchoolID, currentUser.UserID);
+      const canAccess = classes.some((item) => Number(item.ClassID) === Number(id));
+      if (!canAccess) throw new Error('You can only access your assigned classes');
     }
     return cls;
   }
@@ -38,6 +44,7 @@ class ClassService {
     if (!className) throw new Error('Class name is required');
 
     return await this.repo.update(id, {
+      schoolId: existing.SchoolID,
       className,
       teacherId: data.teacherId !== undefined ? data.teacherId : existing.TeacherID,
       capacity: data.capacity !== undefined ? data.capacity : existing.Capacity,
@@ -56,7 +63,7 @@ class ClassService {
   }
 
   async getTimetable(currentUser, classId) {
-    return await this.repo.getTimetable(this.resolveSchoolId(currentUser), classId || null);
+    return await this.repo.getTimetable(this.resolveSchoolId(currentUser), classId || null, this.teacherScopeUserId(currentUser));
   }
 
   async addTimetableEntry(data, currentUser) {
@@ -69,6 +76,13 @@ class ClassService {
     if (currentUser.Role === 'admin') return currentUser.SchoolID;
     if (!currentUser.SchoolID) throw new Error('School users must be linked to a school');
     return currentUser.SchoolID;
+  }
+
+  teacherScopeUserId(currentUser) {
+    if (currentUser.Role === 'admin') return null;
+    if (hasSchoolPermission(currentUser, ['school.classes.view', 'school.classes.manage'])) return null;
+    if (hasSchoolPermission(currentUser, 'classes.view_assigned')) return currentUser.UserID;
+    return null;
   }
 
   resolveActiveYear(value) {

@@ -3,13 +3,13 @@
 
 const express = require('express');
 const PayslipService = require('../business/payslipService');
-const { authenticateToken, requireSchoolOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireSchoolPermission, requireSchoolOrAdmin } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
 
 const router = express.Router();
 const payslipService = new PayslipService();
 
-router.get('/', authenticateToken, requireSchoolOrAdmin, audit('Payslip', 'ListAll'), async (req, res) => {
+router.get('/', authenticateToken, requireSchoolPermission('hr.view_payslips', 'hr.manage_payslips', 'sensitive.payroll.view'), audit('Payslip', 'ListAll'), async (req, res) => {
   try {
     const options = {
       employeeId: req.query.employeeId ? parseInt(req.query.employeeId, 10) : null,
@@ -23,7 +23,7 @@ router.get('/', authenticateToken, requireSchoolOrAdmin, audit('Payslip', 'ListA
   }
 });
 
-router.get('/previous', authenticateToken, requireSchoolOrAdmin, audit('Payslip', 'ListPrevious'), async (req, res) => {
+router.get('/previous', authenticateToken, requireSchoolPermission('payroll.view_previous', 'hr.view_payslips', 'hr.manage_payslips'), audit('Payslip', 'ListPrevious'), async (req, res) => {
   try {
     const payslips = await payslipService.getPreviousPayslips(req.user);
     res.json(payslips);
@@ -32,7 +32,7 @@ router.get('/previous', authenticateToken, requireSchoolOrAdmin, audit('Payslip'
   }
 });
 
-router.get('/mine', authenticateToken, audit('Payslip', 'ViewOwn'), async (req, res) => {
+router.get('/mine', authenticateToken, requireSchoolOrAdmin, audit('Payslip', 'ViewOwn'), async (req, res) => {
   try {
     const payslips = await payslipService.getMyPayslips(req.user);
     res.json(payslips);
@@ -41,7 +41,7 @@ router.get('/mine', authenticateToken, audit('Payslip', 'ViewOwn'), async (req, 
   }
 });
 
-router.get('/:id', authenticateToken, audit('Payslip', 'ViewSingle'), async (req, res) => {
+router.get('/:id', authenticateToken, requireSchoolOrAdmin, audit('Payslip', 'ViewSingle'), async (req, res) => {
   try {
     const payslip = await payslipService.getPayslipById(parseInt(req.params.id, 10), req.user);
     res.json(payslip);
@@ -51,7 +51,7 @@ router.get('/:id', authenticateToken, audit('Payslip', 'ViewSingle'), async (req
   }
 });
 
-router.post('/', authenticateToken, requireSchoolOrAdmin, audit('Payslip', 'Create'), async (req, res) => {
+router.post('/', authenticateToken, requireSchoolPermission('hr.manage_payslips', 'payroll.generate'), audit('Payslip', 'Create'), async (req, res) => {
   try {
     const payslip = await payslipService.createPayslip(req.body, req.user);
     res.status(201).json(payslip);
@@ -60,7 +60,7 @@ router.post('/', authenticateToken, requireSchoolOrAdmin, audit('Payslip', 'Crea
   }
 });
 
-router.put('/:id', authenticateToken, requireSchoolOrAdmin, audit('Payslip', 'Edit'), async (req, res) => {
+router.put('/:id', authenticateToken, requireSchoolPermission('hr.manage_payslips', 'payroll.review'), audit('Payslip', 'Edit'), async (req, res) => {
   try {
     const payslip = await payslipService.updatePayslip(parseInt(req.params.id, 10), req.body, req.user);
     if (!payslip) return res.status(400).json({ error: 'Payslip could not be updated. It may already be finalized.' });
@@ -70,12 +70,21 @@ router.put('/:id', authenticateToken, requireSchoolOrAdmin, audit('Payslip', 'Ed
   }
 });
 
-router.put('/:id/finalize', authenticateToken, requireSchoolOrAdmin, audit('Payslip', 'Finalize'), async (req, res) => {
+router.put('/:id/finalize', authenticateToken, requireSchoolPermission('payroll.finalize', 'hr.manage_payslips'), audit('Payslip', 'Finalize'), async (req, res) => {
   try {
     const payslip = await payslipService.finalizePayslip(parseInt(req.params.id, 10), req.user);
     res.json(payslip);
   } catch (error) {
     res.status(error.message.includes('HR permission') ? 403 : 400).json({ error: error.message });
+  }
+});
+
+router.post('/:id/export-audit', authenticateToken, requireSchoolPermission('hr.view_payslips', 'hr.manage_payslips', 'sensitive.payroll.view'), audit('Payslip', 'Export'), async (req, res) => {
+  try {
+    const payslip = await payslipService.getPayslipById(parseInt(req.params.id, 10), req.user);
+    res.json({ PayslipID: payslip.PayslipID, SchoolID: payslip.SchoolID, exported: true });
+  } catch (error) {
+    res.status(error.message.includes('HR permission') ? 403 : 404).json({ error: error.message });
   }
 });
 

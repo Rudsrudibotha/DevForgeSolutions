@@ -8,6 +8,9 @@ const state = {
   balance: null
 };
 
+document.body.classList.remove('platform-user');
+document.body.classList.add('school-user');
+
 const elements = {
   workspace: document.getElementById('workspace'),
   statusPill: document.getElementById('statusPill'),
@@ -301,11 +304,12 @@ function renderInvoices() {
         <td>${escapeHtml(invoice.Description || '-')}</td>
         <td>${money(invoice.Amount || 0)}</td>
         <td>${money(invoice.AmountPaid || 0)}</td>
+        <td>${dateOnly(invoice.PaidDate) || '-'}</td>
         <td><span class="${statusClass}">${escapeHtml(invoice.Status || '-')}</span></td>
         <td>${dateOnly(invoice.DueDate)}</td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="6">No invoices found.</td></tr>';
+  }).join('') || '<tr><td colspan="7">No invoices found.</td></tr>';
 }
 
 function renderAttendance() {

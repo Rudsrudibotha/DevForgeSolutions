@@ -3,6 +3,7 @@
 const jwt = require('jsonwebtoken');
 const UserService = require('../business/userService');
 const SchoolService = require('../business/schoolService');
+const { getSchoolPermissions, hasSchoolPermission } = require('../security/schoolPermissions');
 
 const userService = new UserService();
 const schoolService = new SchoolService();
@@ -91,6 +92,30 @@ const requireSchoolOrAdmin = (req, res, next) => {
   next();
 };
 
+const requireSchoolPermission = (...requiredPermissions) => async (req, res, next) => {
+  if (req.user.Role !== 'school' && req.user.Role !== 'admin') {
+    return res.status(403).json({ error: 'School or admin access required' });
+  }
+
+  try {
+    const permissions = await getSchoolPermissions(req.user);
+    req.user.SchoolPermissions = permissions;
+    req.user.SchoolPermissionSet = new Set(permissions);
+
+    if (!requiredPermissions.length || hasSchoolPermission(req.user, requiredPermissions)) {
+      return next();
+    }
+
+    return res.status(403).json({ error: 'You do not have permission to perform this action' });
+  } catch (error) {
+    if (isDatabaseConnectionError(error)) {
+      return res.status(503).json({ error: 'Database unavailable. Check the database connection and try again.' });
+    }
+
+    return res.status(500).json({ error: 'Could not verify school permissions' });
+  }
+};
+
 const requireParent = (req, res, next) => {
   if (req.user.Role !== 'parent') {
     return res.status(403).json({ error: 'Parent access required' });
@@ -103,5 +128,6 @@ module.exports = {
   authenticateToken,
   requireAdmin,
   requireSchoolOrAdmin,
+  requireSchoolPermission,
   requireParent
 };

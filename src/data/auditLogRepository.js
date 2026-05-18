@@ -32,29 +32,78 @@ class AuditLogRepository {
     return result.recordset;
   }
 
-  async getBySchool(schoolId, page = 1, limit = 50) {
+  async getBySchool(schoolId, page = 1, limit = 50, filters = {}) {
     const pool = await getPool();
     const offset = (page - 1) * limit;
-    const result = await pool.request()
+    const req = pool.request()
       .input('schoolId', sql.Int, schoolId)
       .input('limit', sql.Int, limit)
-      .input('offset', sql.Int, offset)
-      .query(`SELECT * FROM AuditLogs WHERE SchoolID = @schoolId
-              ORDER BY CreatedDate DESC
+      .input('offset', sql.Int, offset);
+    const where = ['SchoolID = @schoolId'];
+    this.applyFilters(req, where, filters);
+    const result = await req
+      .query(`SELECT al.*, u.Email, u.Username
+              FROM AuditLogs al
+              LEFT JOIN Users u ON al.UserID = u.UserID
+              WHERE ${where.map((item) => item === 'SchoolID = @schoolId' ? 'al.SchoolID = @schoolId' : item).join(' AND ')}
+              ORDER BY al.CreatedDate DESC
               OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`);
     return result.recordset;
   }
 
-  async getAll(page = 1, limit = 50) {
+  async getAll(page = 1, limit = 50, filters = {}) {
     const pool = await getPool();
     const offset = (page - 1) * limit;
-    const result = await pool.request()
+    const req = pool.request()
       .input('limit', sql.Int, limit)
-      .input('offset', sql.Int, offset)
-      .query(`SELECT * FROM AuditLogs
-              ORDER BY CreatedDate DESC
+      .input('offset', sql.Int, offset);
+    const where = ['1 = 1'];
+    this.applyFilters(req, where, filters);
+    const result = await req
+      .query(`SELECT al.*, u.Email, u.Username
+              FROM AuditLogs al
+              LEFT JOIN Users u ON al.UserID = u.UserID
+              WHERE ${where.join(' AND ')}
+              ORDER BY al.CreatedDate DESC
               OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`);
     return result.recordset;
+  }
+
+  applyFilters(req, where, filters = {}) {
+    if (filters.entityName) {
+      req.input('entityName', sql.NVarChar, filters.entityName);
+      where.push('al.EntityName = @entityName');
+    }
+
+    if (filters.action) {
+      req.input('action', sql.NVarChar, filters.action);
+      where.push('al.Action = @action');
+    }
+
+    if (filters.fromDate) {
+      req.input('fromDate', sql.DateTime, filters.fromDate);
+      where.push('al.CreatedDate >= @fromDate');
+    }
+
+    if (filters.toDate) {
+      req.input('toDate', sql.DateTime, filters.toDate);
+      where.push('al.CreatedDate < @toDate');
+    }
+
+    if (filters.sensitiveFinance) {
+      where.push(`(
+        (al.EntityName = 'Receipt' AND al.Action IN ('Issue','Create'))
+        OR (al.EntityName = 'Student' AND al.Action IN ('Update','PayerChanged'))
+        OR (al.EntityName = 'BankStatement' AND al.Action = 'Upload')
+        OR (al.EntityName = 'Transaction' AND al.Action IN ('AllocateDebtor','AllocateCreditor','Reallocate'))
+        OR (al.EntityName = 'ReconciliationMatch' AND al.Action = 'Approve')
+        OR (al.EntityName = 'Invoice' AND al.Action IN ('Update','Create','Delete'))
+        OR (al.EntityName = 'Payslip' AND al.Action IN ('ViewSingle','Export','Finalize','Edit','Create'))
+        OR (al.EntityName = 'FinancePeriodLock')
+        OR (al.EntityName = 'StudentStatement')
+        OR (al.EntityName = 'OutstandingFees')
+      )`);
+    }
   }
 }
 

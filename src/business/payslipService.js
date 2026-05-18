@@ -4,6 +4,7 @@
 const PayslipRepository = require('../data/payslipRepository');
 const EmployeeRepository = require('../data/employeeRepository');
 const SchoolRepository = require('../data/schoolRepository');
+const { hasSchoolPermission } = require('../security/schoolPermissions');
 
 class PayslipService {
   constructor() {
@@ -167,7 +168,9 @@ class PayslipService {
   }
 
   requireHrPermission(currentUser) {
-    if (!currentUser.HasHrPermission) throw new Error('HR permission is required to access payslip records');
+    if (!currentUser.HasHrPermission && !hasSchoolPermission(currentUser, ['hr.view_payslips', 'hr.manage_payslips', 'sensitive.payroll.view'])) {
+      throw new Error('HR permission is required to access payslip records');
+    }
   }
 
   validateId(id, label) {

@@ -7,6 +7,9 @@ const state = {
   dashboard: null
 };
 
+document.body.classList.remove('platform-user');
+document.body.classList.add('school-user');
+
 const elements = {
   workspace: document.getElementById('workspace'),
   statusPill: document.getElementById('statusPill'),

@@ -12,11 +12,11 @@ function audit(entityName, action) {
         const entityId = body?.InvoiceID || body?.SchoolID || body?.UserID || body?.userId ||
           body?.StudentID || body?.FamilyID || body?.EmployeeID ||
           body?.LeaveRequestID || body?.PayslipID || body?.BillingCategoryID ||
-          body?.TransactionID || body?.ReconciliationMatchID ||
+          body?.TransactionID || body?.ReconciliationMatchID || body?.FinancePeriodLockID ||
           req.params?.id || '-';
         auditLog.log({
           userId: req.user?.UserID || null,
-          schoolId: req.user?.SchoolID || null,
+          schoolId: req.user?.SchoolID || body?.SchoolID || body?.schoolId || null,
           entityName,
           entityId,
           action,

@@ -3,13 +3,13 @@
 const express = require('express');
 const InvoiceService = require('../business/invoiceService');
 const InvoiceRepository = require('../data/invoiceRepository');
-const { authenticateToken, requireAdmin, requireSchoolOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireAdmin, requireSchoolPermission } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
 
 const router = express.Router();
 const invoiceService = new InvoiceService();
 
-router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/', authenticateToken, requireSchoolPermission('finance.invoices.view', 'finance.invoices.create', 'finance.invoices.edit'), async (req, res) => {
   try {
     const options = {
       page: parseInt(req.query.page, 10) || 1,
@@ -30,7 +30,7 @@ router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   }
 });
 
-router.get('/school/:schoolId', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/school/:schoolId', authenticateToken, requireSchoolPermission('finance.invoices.view', 'finance.invoices.create', 'finance.invoices.edit'), async (req, res) => {
   try {
     const invoices = await invoiceService.getInvoicesBySchool(parseInt(req.params.schoolId, 10), req.user);
     res.json(invoices);
@@ -40,7 +40,7 @@ router.get('/school/:schoolId', authenticateToken, requireSchoolOrAdmin, async (
 });
 
 // Outstanding fees view data. Keep this before the numeric invoice ID route.
-router.get('/outstanding-fees', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/outstanding-fees', authenticateToken, requireSchoolPermission('finance.outstanding_fees.view'), async (req, res) => {
   try {
     const schoolId = req.user.SchoolID;
     if (!schoolId && req.user.Role !== 'admin') {
@@ -66,7 +66,25 @@ router.get('/outstanding-fees', authenticateToken, requireSchoolOrAdmin, async (
   }
 });
 
-router.get('/:id(\\d+)', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/student/:studentId/statement', authenticateToken, requireSchoolPermission('finance.invoices.view', 'finance.payments.view', 'finance.outstanding_fees.view'), async (req, res) => {
+  try {
+    const statement = await invoiceService.getStudentFinanceStatement(parseInt(req.params.studentId, 10), req.user);
+    res.json(statement);
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+});
+
+router.post('/receipts', authenticateToken, requireSchoolPermission('finance.payments.allocate'), audit('Receipt', 'Issue'), async (req, res) => {
+  try {
+    const receipt = await invoiceService.issueReceipt(req.body, req.user);
+    res.status(201).json(receipt);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/:id(\\d+)', authenticateToken, requireSchoolPermission('finance.invoices.view', 'finance.invoices.create', 'finance.invoices.edit'), async (req, res) => {
   try {
     const invoice = await invoiceService.getInvoiceById(parseInt(req.params.id, 10), req.user);
     res.json(invoice);
@@ -75,7 +93,7 @@ router.get('/:id(\\d+)', authenticateToken, requireSchoolOrAdmin, async (req, re
   }
 });
 
-router.post('/', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'Create'), async (req, res) => {
+router.post('/', authenticateToken, requireSchoolPermission('finance.invoices.create'), audit('Invoice', 'Create'), async (req, res) => {
   try {
     const newInvoice = await invoiceService.createInvoice(req.body, req.user);
     res.status(201).json(newInvoice);
@@ -84,7 +102,7 @@ router.post('/', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'Crea
   }
 });
 
-router.put('/:id(\\d+)', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'Update'), async (req, res) => {
+router.put('/:id(\\d+)', authenticateToken, requireSchoolPermission('finance.invoices.edit'), audit('Invoice', 'Update'), async (req, res) => {
   try {
     const updatedInvoice = await invoiceService.updateInvoice(parseInt(req.params.id, 10), req.body, req.user);
     res.json(updatedInvoice);
@@ -93,35 +111,12 @@ router.put('/:id(\\d+)', authenticateToken, requireSchoolOrAdmin, audit('Invoice
   }
 });
 
-router.delete('/:id(\\d+)', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'Delete'), async (req, res) => {
+router.delete('/:id(\\d+)', authenticateToken, requireSchoolPermission('finance.invoices.soft_delete'), audit('Invoice', 'Delete'), async (req, res) => {
   try {
     const result = await invoiceService.deleteInvoice(parseInt(req.params.id, 10), req.user);
     res.json(result);
   } catch (error) {
     res.status(404).json({ error: error.message });
-  }
-});
-
-router.put('/:id/pay', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'MarkPaid'), async (req, res) => {
-  try {
-    const result = await invoiceService.markAsPaid(parseInt(req.params.id, 10), req.user);
-    res.json(result);
-  } catch (error) {
-    res.status(404).json({ error: error.message });
-  }
-});
-
-// Partial payment
-router.post('/:id/payment', authenticateToken, requireSchoolOrAdmin, audit('Invoice', 'PartialPayment'), async (req, res) => {
-  try {
-    const result = await invoiceService.recordPartialPayment(
-      parseInt(req.params.id, 10),
-      Number(req.body.amount),
-      req.user
-    );
-    res.json(result);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
   }
 });
 
@@ -135,7 +130,7 @@ router.post('/flag-overdue', authenticateToken, requireAdmin, async (req, res) =
   }
 });
 
-router.post('/generate-monthly', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.post('/generate-monthly', authenticateToken, requireSchoolPermission('finance.invoices.create'), async (req, res) => {
   try {
     const result = await invoiceService.generateMonthlyInvoices(req.user);
     res.json(result);

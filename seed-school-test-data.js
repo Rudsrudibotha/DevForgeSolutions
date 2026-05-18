@@ -9,6 +9,7 @@ const SCHOOL_ID = Number(process.env.TEST_DATA_SCHOOL_ID || 7);
 const YEAR_START = { year: 2025, month: 5 };
 const MONTH_COUNT = 12;
 const PARENT_PASSWORD = process.env.TEST_DATA_PARENT_PASSWORD || 'parent123';
+const DEMO_LOGO = 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20120%20120%22%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20rx%3D%2218%22%20fill%3D%22%232563eb%22/%3E%3Ccircle%20cx%3D%2260%22%20cy%3D%2243%22%20r%3D%2220%22%20fill%3D%22%23facc15%22/%3E%3Cpath%20d%3D%22M26%2085c19-24%2049-24%2068%200%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%2210%22%20stroke-linecap%3D%22round%22/%3E%3Ctext%20x%3D%2260%22%20y%3D%22109%22%20font-family%3D%22Arial%22%20font-size%3D%2218%22%20font-weight%3D%22700%22%20text-anchor%3D%22middle%22%20fill%3D%22white%22%3ESA%3C/text%3E%3C/svg%3E';
 
 const staffSeed = [
   ['Thandi', 'Nkosi', 'thandi.nkosi@devforge.local', 'Teacher', 'Academics', 28500],
@@ -93,6 +94,19 @@ async function ensureSchoolUserHrAccess(schoolId) {
      SET HasHrPermission = 1, UpdatedDate = GETDATE()
      WHERE SchoolID = @schoolId AND Role = 'school' AND Email = 'schooltest@devforge.local'`,
     { schoolId: { type: sql.Int, value: schoolId } }
+  );
+}
+
+async function ensureSchoolReportBranding(schoolId) {
+  await execute(
+    `UPDATE Schools
+     SET LogoUrl = CASE WHEN LogoUrl IS NULL OR LTRIM(RTRIM(LogoUrl)) = '' THEN @logoUrl ELSE LogoUrl END,
+         UpdatedDate = GETDATE()
+     WHERE SchoolID = @schoolId`,
+    {
+      schoolId: { type: sql.Int, value: schoolId },
+      logoUrl: { type: sql.NVarChar, value: DEMO_LOGO }
+    }
   );
 }
 
@@ -311,13 +325,22 @@ async function ensureStudent(schoolId, family, student, classRecord, billingCate
     billingDate: { type: sql.Date, value: dateString(YEAR_START.year, YEAR_START.month, 1) },
     enrolledDate: { type: sql.Date, value: '2024-01-15' },
     medicalNotes: { type: sql.NVarChar, value: index % 6 === 0 ? 'Mild seasonal allergies' : null },
-    billingCategoryId: { type: sql.Int, value: billingCategory.BillingCategoryID }
+    billingCategoryId: { type: sql.Int, value: billingCategory.BillingCategoryID },
+    currentAcademicYear: { type: sql.Int, value: classRecord.ActiveYear || new Date().getFullYear() },
+    gender: { type: sql.NVarChar, value: index % 2 === 0 ? 'Male' : 'Female' },
+    ethnicity: { type: sql.NVarChar, value: ['African', 'Indian', 'Coloured', 'White'][index % 4] },
+    payerName: { type: sql.NVarChar, value: family.PrimaryParentName },
+    payerPhone: { type: sql.NVarChar, value: family.PrimaryParentPhone },
+    payerEmail: { type: sql.NVarChar, value: family.PrimaryParentEmail }
   };
 
   if (existing) {
     return await execute(
       `UPDATE Students
        SET ClassName = @className, BillingCategoryID = @billingCategoryId, IsActive = 1,
+           CurrentAcademicYear = @currentAcademicYear, Gender = @gender, Ethnicity = @ethnicity,
+           ResponsiblePayerType = 'Primary parent', ResponsiblePayerName = @payerName,
+           ResponsiblePayerPhone = @payerPhone, ResponsiblePayerEmail = @payerEmail,
            MedicalNotes = @medicalNotes, UpdatedDate = GETDATE()
        OUTPUT INSERTED.*
        WHERE StudentID = ${existing.StudentID}`,
@@ -328,15 +351,121 @@ async function ensureStudent(schoolId, family, student, classRecord, billingCate
   return await execute(
     `INSERT INTO Students (
        SchoolID, FamilyID, FirstName, LastName, DateOfBirth, HomePhone, HomeAddress, ClassName,
-       BillingDate, EnrolledDate, MedicalNotes, BillingCategoryID, IsActive
+       CurrentAcademicYear, BillingDate, EnrolledDate, MedicalNotes, BillingCategoryID, Gender, Ethnicity,
+       ResponsiblePayerType, ResponsiblePayerName, ResponsiblePayerPhone, ResponsiblePayerEmail, IsActive
      )
      OUTPUT INSERTED.*
      VALUES (
        @schoolId, @familyId, @firstName, @lastName, @dateOfBirth, @homePhone, @homeAddress, @className,
-       @billingDate, @enrolledDate, @medicalNotes, @billingCategoryId, 1
+       @currentAcademicYear, @billingDate, @enrolledDate, @medicalNotes, @billingCategoryId, @gender, @ethnicity,
+       'Primary parent', @payerName, @payerPhone, @payerEmail, 1
      )`,
     values
   );
+}
+
+async function ensureAdmissions(schoolId, families, billingCategories) {
+  const statuses = ['New', 'In Review', 'Accepted', 'Waitlisted', 'Refused', 'Enrolled'];
+  for (let index = 0; index < 12; index += 1) {
+    const status = statuses[index % statuses.length];
+    const firstName = `Applicant${index + 1}`;
+    const lastName = ['Mabena', 'Khan', 'Adams', 'Molefe'][index % 4];
+    const appliedDate = dateString(2026, (index % 5) + 1, (index % 20) + 1);
+    const existing = await firstRow(
+      `SELECT * FROM Admissions
+       WHERE SchoolID = @schoolId AND FirstName = @firstName AND LastName = @lastName AND AppliedDate = @appliedDate`,
+      {
+        schoolId: { type: sql.Int, value: schoolId },
+        firstName: { type: sql.NVarChar, value: firstName },
+        lastName: { type: sql.NVarChar, value: lastName },
+        appliedDate: { type: sql.Date, value: appliedDate }
+      }
+    );
+    if (existing) continue;
+    await execute(
+      `INSERT INTO Admissions (SchoolID, FamilyID, FirstName, LastName, DateOfBirth, ClassName, BillingCategoryID, Status, Notes, AppliedDate, EnrolledDate)
+       VALUES (@schoolId, @familyId, @firstName, @lastName, @dateOfBirth, @className, @billingCategoryId, @status, @notes, @appliedDate, @enrolledDate)`,
+      {
+        schoolId: { type: sql.Int, value: schoolId },
+        familyId: { type: sql.Int, value: families[index % families.length].FamilyID },
+        firstName: { type: sql.NVarChar, value: firstName },
+        lastName: { type: sql.NVarChar, value: lastName },
+        dateOfBirth: { type: sql.Date, value: dateString(2018 - (index % 4), ((index % 12) + 1), 12) },
+        className: { type: sql.NVarChar, value: classSeed[index % classSeed.length][0] },
+        billingCategoryId: { type: sql.Int, value: billingCategories[index % billingCategories.length].BillingCategoryID },
+        status: { type: sql.NVarChar, value: status },
+        notes: { type: sql.NVarChar, value: 'Demo admissions report record' },
+        appliedDate: { type: sql.Date, value: appliedDate },
+        enrolledDate: { type: sql.Date, value: status === 'Enrolled' ? dateString(2026, ((index % 5) + 1), 20) : null }
+      }
+    );
+  }
+}
+
+async function ensureConsentRecords(schoolId, students) {
+  const title = 'Demo 2026 Sports Day Permission Slip';
+  let request = await firstRow(
+    'SELECT * FROM ConsentRequests WHERE SchoolID = @schoolId AND Title = @title',
+    {
+      schoolId: { type: sql.Int, value: schoolId },
+      title: { type: sql.NVarChar, value: title }
+    }
+  );
+
+  if (!request) {
+    request = await execute(
+      `INSERT INTO ConsentRequests (
+         SchoolID, ConsentType, Title, ActivityDate, DueDate, Location, TargetScope, TargetValue,
+         DocumentBody, RiskNotes, MedicalInstructions, CreatedDate
+       )
+       OUTPUT INSERTED.*
+       VALUES (
+         @schoolId, 'Sports / Event', @title, '2026-03-18', '2026-03-10', 'Main sports field',
+         'School', 'Entire student body', @body, @riskNotes, @medicalInstructions, '2026-02-20'
+       )`,
+      {
+        schoolId: { type: sql.Int, value: schoolId },
+        title: { type: sql.NVarChar, value: title },
+        body: { type: sql.NVarChar, value: 'Parent or guardian permission for the learner to attend and participate in the 2026 Sports Day event.' },
+        riskNotes: { type: sql.NVarChar, value: 'Outdoor activity, normal sports supervision applies.' },
+        medicalInstructions: { type: sql.NVarChar, value: 'Parents must confirm medical details are up to date.' }
+      }
+    );
+  }
+
+  for (let index = 0; index < Math.min(students.length, 16); index += 1) {
+    const student = students[index].student;
+    const existing = await firstRow(
+      'SELECT * FROM ConsentRecords WHERE SchoolID = @schoolId AND ConsentRequestID = @requestId AND StudentID = @studentId',
+      {
+        schoolId: { type: sql.Int, value: schoolId },
+        requestId: { type: sql.Int, value: request.ConsentRequestID },
+        studentId: { type: sql.Int, value: student.StudentID }
+      }
+    );
+    if (existing) continue;
+
+    const response = index % 5 === 0 ? 'Declined' : index % 4 === 0 ? 'Pending' : 'Accepted';
+    await execute(
+      `INSERT INTO ConsentRecords (
+         SchoolID, StudentID, ConsentRequestID, ConsentType, Response, ResponseDate,
+         SignatureName, SignatureRelationship, Notes, CreatedDate
+       )
+       VALUES (
+         @schoolId, @studentId, @requestId, 'Sports / Event', @response, @responseDate,
+         @signatureName, @relationship, 'Demo consent report record', '2026-02-20'
+       )`,
+      {
+        schoolId: { type: sql.Int, value: schoolId },
+        studentId: { type: sql.Int, value: student.StudentID },
+        requestId: { type: sql.Int, value: request.ConsentRequestID },
+        response: { type: sql.NVarChar, value: response },
+        responseDate: { type: sql.DateTime, value: response === 'Pending' ? null : dateString(2026, 2, 22 + (index % 6)) },
+        signatureName: { type: sql.NVarChar, value: response === 'Pending' ? null : `Demo Parent ${index + 1}` },
+        relationship: { type: sql.NVarChar, value: response === 'Pending' ? null : 'Parent / guardian' }
+      }
+    );
+  }
 }
 
 function invoicePaymentPattern(studentIndex, monthIndex, amount) {
@@ -567,6 +696,7 @@ async function main() {
   }
 
   await ensureSchoolUserHrAccess(SCHOOL_ID);
+  await ensureSchoolReportBranding(SCHOOL_ID);
 
   const employees = [];
   for (const seed of staffSeed) {
@@ -585,14 +715,19 @@ async function main() {
 
   const months = monthSequence(YEAR_START, MONTH_COUNT);
   const students = [];
+  const families = [];
 
   for (let index = 0; index < studentSeed.length; index += 1) {
     const seed = studentSeed[index];
     const classIndex = seed[3];
     const family = await ensureFamilyAndParent(SCHOOL_ID, index, seed[2]);
+    families.push(family);
     const student = await ensureStudent(SCHOOL_ID, family, seed, classes[classIndex], billingCategories[classIndex], index);
     students.push({ student, classRecord: classes[classIndex], billingCategory: billingCategories[classIndex], index });
   }
+
+  await ensureAdmissions(SCHOOL_ID, families, billingCategories);
+  await ensureConsentRecords(SCHOOL_ID, students);
 
   for (const item of students) {
     for (let monthIndex = 0; monthIndex < months.length; monthIndex += 1) {

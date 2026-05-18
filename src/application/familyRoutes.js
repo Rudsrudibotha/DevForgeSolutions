@@ -2,12 +2,12 @@
 
 const express = require('express');
 const FamilyService = require('../business/familyService');
-const { authenticateToken, requireSchoolOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireSchoolPermission } = require('../middleware/auth');
 
 const router = express.Router();
 const familyService = new FamilyService();
 
-router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/', authenticateToken, requireSchoolPermission('school.parents.view', 'school.parents.manage'), async (req, res) => {
   try {
     const families = await familyService.getFamilies(req.user);
     res.json(families);
@@ -16,7 +16,7 @@ router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   }
 });
 
-router.get('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/:id', authenticateToken, requireSchoolPermission('school.parents.view', 'school.parents.manage'), async (req, res) => {
   try {
     const family = await familyService.getFamilyById(parseInt(req.params.id, 10), req.user);
     res.json(family);
@@ -25,7 +25,7 @@ router.get('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => 
   }
 });
 
-router.post('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.post('/', authenticateToken, requireSchoolPermission('school.parents.manage'), async (req, res) => {
   try {
     const family = await familyService.createFamily(req.body, req.user);
     res.status(201).json(family);
@@ -34,7 +34,7 @@ router.post('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.put('/:id', authenticateToken, requireSchoolPermission('school.parents.manage'), async (req, res) => {
   try {
     const family = await familyService.updateFamily(parseInt(req.params.id, 10), req.body, req.user);
     res.json(family);

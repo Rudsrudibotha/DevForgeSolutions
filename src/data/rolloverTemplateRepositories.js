@@ -8,7 +8,7 @@ class ReEnrolmentRepository {
     const result = await pool.request()
       .input('schoolId', sql.Int, schoolId)
       .input('academicYear', sql.Int, academicYear)
-      .query(`SELECT r.*, s.FirstName, s.LastName, s.ClassName AS CurrentClassName
+      .query(`SELECT r.*, s.FirstName, s.LastName, s.ClassName AS CurrentClassName, s.CurrentAcademicYear
               FROM ReEnrolment r
               INNER JOIN Students s ON r.StudentID = s.StudentID
               WHERE r.SchoolID = @schoolId AND r.AcademicYear = @academicYear
@@ -21,14 +21,21 @@ class ReEnrolmentRepository {
     const result = await pool.request()
       .input('schoolId', sql.Int, schoolId)
       .input('academicYear', sql.Int, academicYear)
-      .query(`SELECT s.StudentID, s.FirstName, s.LastName, s.ClassName, s.BillingCategoryID,
+      .query(`SELECT s.StudentID, s.FirstName, s.LastName, s.ClassName, s.CurrentAcademicYear, s.BillingCategoryID,
                 ISNULL(SUM(CASE WHEN i.Status IN ('Pending','Overdue','Partial') THEN i.Amount - ISNULL(i.AmountPaid, 0) ELSE 0 END), 0) AS OutstandingBalance,
                 ISNULL(SUM(CASE WHEN i.Status = 'Paid' AND i.AmountPaid > i.Amount THEN i.AmountPaid - i.Amount ELSE 0 END), 0) AS AdvanceCredit
               FROM Students s
               LEFT JOIN Invoices i ON i.StudentID = s.StudentID AND i.IsDeleted = 0
               WHERE s.SchoolID = @schoolId AND s.IsActive = 1
-                AND s.StudentID NOT IN (SELECT StudentID FROM ReEnrolment WHERE SchoolID = @schoolId AND AcademicYear = @academicYear)
-              GROUP BY s.StudentID, s.FirstName, s.LastName, s.ClassName, s.BillingCategoryID
+                AND ISNULL(s.CurrentAcademicYear, YEAR(GETDATE())) < @academicYear
+                AND s.StudentID NOT IN (
+                  SELECT StudentID
+                  FROM ReEnrolment
+                  WHERE SchoolID = @schoolId
+                    AND AcademicYear = @academicYear
+                    AND Action <> 'Pending'
+                )
+              GROUP BY s.StudentID, s.FirstName, s.LastName, s.ClassName, s.CurrentAcademicYear, s.BillingCategoryID
               ORDER BY s.LastName, s.FirstName`);
     return result.recordset;
   }
@@ -45,11 +52,35 @@ class ReEnrolmentRepository {
       .input('balanceCarriedForward', sql.Decimal(10,2), data.balanceCarriedForward || 0)
       .input('advanceCreditCarriedForward', sql.Decimal(10,2), data.advanceCreditCarriedForward || 0)
       .input('processedBy', sql.Int, data.processedBy || null)
-      .query(`INSERT INTO ReEnrolment (SchoolID, AcademicYear, StudentID, PreviousClassName, NewClassName,
-                Action, BalanceCarriedForward, AdvanceCreditCarriedForward, ProcessedBy)
-              OUTPUT INSERTED.*
-              VALUES (@schoolId, @academicYear, @studentId, @previousClassName, @newClassName,
-                @action, @balanceCarriedForward, @advanceCreditCarriedForward, @processedBy)`);
+      .query(`IF EXISTS (
+                SELECT 1
+                FROM ReEnrolment
+                WHERE SchoolID = @schoolId
+                  AND AcademicYear = @academicYear
+                  AND StudentID = @studentId
+              )
+              BEGIN
+                UPDATE ReEnrolment
+                SET PreviousClassName = @previousClassName,
+                    NewClassName = @newClassName,
+                    Action = @action,
+                    BalanceCarriedForward = @balanceCarriedForward,
+                    AdvanceCreditCarriedForward = @advanceCreditCarriedForward,
+                    ProcessedBy = @processedBy,
+                    ProcessedDate = GETDATE()
+                OUTPUT INSERTED.*
+                WHERE SchoolID = @schoolId
+                  AND AcademicYear = @academicYear
+                  AND StudentID = @studentId;
+              END
+              ELSE
+              BEGIN
+                INSERT INTO ReEnrolment (SchoolID, AcademicYear, StudentID, PreviousClassName, NewClassName,
+                  Action, BalanceCarriedForward, AdvanceCreditCarriedForward, ProcessedBy)
+                OUTPUT INSERTED.*
+                VALUES (@schoolId, @academicYear, @studentId, @previousClassName, @newClassName,
+                  @action, @balanceCarriedForward, @advanceCreditCarriedForward, @processedBy);
+              END`);
     return result.recordset[0];
   }
 }

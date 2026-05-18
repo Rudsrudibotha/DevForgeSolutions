@@ -131,6 +131,78 @@ class InvoiceRepository {
     return result.recordset;
   }
 
+  async getInvoicesByStudentForSchool(studentId, schoolId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('studentId', sql.Int, studentId)
+      .input('schoolId', sql.Int, schoolId)
+      .query(`SELECT i.*, s.FirstName, s.LastName, s.ClassName, s.FamilyID, f.FamilyName, bc.CategoryName
+              FROM Invoices i
+              INNER JOIN Students s ON i.StudentID = s.StudentID AND s.SchoolID = i.SchoolID
+              LEFT JOIN Families f ON s.FamilyID = f.FamilyID AND f.SchoolID = i.SchoolID
+              LEFT JOIN BillingCategories bc ON i.BillingCategoryID = bc.BillingCategoryID AND bc.SchoolID = i.SchoolID
+              WHERE i.StudentID = @studentId
+                AND i.SchoolID = @schoolId
+                AND i.IsDeleted = 0
+              ORDER BY i.IssueDate DESC, i.InvoiceID DESC`);
+    return result.recordset;
+  }
+
+  async getStudentWallet(studentId, schoolId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('studentId', sql.Int, studentId)
+      .input('schoolId', sql.Int, schoolId)
+      .query(`SELECT TOP 1 *
+              FROM StudentWallets
+              WHERE StudentID = @studentId AND SchoolID = @schoolId`);
+    return result.recordset[0] || null;
+  }
+
+  async getStudentWalletLedger(studentId, schoolId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('studentId', sql.Int, studentId)
+      .input('schoolId', sql.Int, schoolId)
+      .query(`SELECT wl.*, i.InvoiceNumber, t.ReceiptNumber
+              FROM StudentWalletLedger wl
+              LEFT JOIN Invoices i ON wl.InvoiceID = i.InvoiceID AND i.SchoolID = wl.SchoolID
+              LEFT JOIN Transactions t ON wl.TransactionID = t.TransactionID AND t.SchoolID = wl.SchoolID
+              WHERE wl.StudentID = @studentId AND wl.SchoolID = @schoolId
+              ORDER BY wl.EntryDate DESC, wl.WalletLedgerID DESC`);
+    return result.recordset;
+  }
+
+  async getStudentTransactionsForSchool(studentId, schoolId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('studentId', sql.Int, studentId)
+      .input('schoolId', sql.Int, schoolId)
+      .query(`SELECT t.*, i.InvoiceNumber
+              FROM Transactions t
+              LEFT JOIN Invoices i ON t.InvoiceID = i.InvoiceID AND i.SchoolID = t.SchoolID
+              WHERE t.SchoolID = @schoolId
+                AND (
+                  t.StudentID = @studentId
+                  OR i.StudentID = @studentId
+                )
+                AND t.TransactionType IN ('Payment','Credit')
+              ORDER BY t.TransactionDate ASC, t.TransactionID ASC`);
+    return result.recordset;
+  }
+
+  async getBalanceBroughtForwardForStudent(studentId, schoolId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('studentId', sql.Int, studentId)
+      .input('schoolId', sql.Int, schoolId)
+      .query(`SELECT *
+              FROM BalanceBroughtForward
+              WHERE StudentID = @studentId AND SchoolID = @schoolId
+              ORDER BY FromYear DESC, ToYear DESC`);
+    return result.recordset;
+  }
+
   async invoiceExistsForStudentMonth(studentId, yearMonth) {
     const pool = await getPool();
     const [year, month] = yearMonth.split('-').map(Number);
@@ -209,25 +281,17 @@ class InvoiceRepository {
     return { message: 'Invoice deleted' };
   }
 
-  async markAsPaid(id) {
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .query(`UPDATE Invoices SET Status = 'Paid', AmountPaid = Amount, PaidDate = GETDATE(), UpdatedDate = GETDATE()
-              WHERE InvoiceID = @id AND IsDeleted = 0`);
-    return result.rowsAffected[0] > 0;
-  }
-
   // Partial payment
-  async recordPartialPayment(id, paymentAmount) {
+  async recordPartialPayment(id, paymentAmount, paymentDate = null) {
     const pool = await getPool();
     const result = await pool.request()
       .input('id', sql.Int, id)
       .input('paymentAmount', sql.Decimal(10,2), paymentAmount)
+      .input('paymentDate', sql.DateTime, paymentDate || new Date())
       .query(`UPDATE Invoices SET
                 AmountPaid = ISNULL(AmountPaid, 0) + @paymentAmount,
                 Status = CASE WHEN ISNULL(AmountPaid, 0) + @paymentAmount >= Amount THEN 'Paid' ELSE 'Partial' END,
-                PaidDate = CASE WHEN ISNULL(AmountPaid, 0) + @paymentAmount >= Amount THEN GETDATE() ELSE PaidDate END,
+                PaidDate = CASE WHEN ISNULL(AmountPaid, 0) + @paymentAmount >= Amount THEN @paymentDate ELSE PaidDate END,
                 UpdatedDate = GETDATE()
               OUTPUT INSERTED.*
               WHERE InvoiceID = @id AND IsDeleted = 0`);
@@ -242,7 +306,10 @@ class InvoiceRepository {
       .query(`
         SELECT s.StudentID, s.FirstName, s.LastName, s.ClassName,
           f.FamilyName AS FamilyCode,
-          f.PrimaryParentPhone, f.SecondaryParentPhone, f.PrimaryParentName AS ResponsiblePayer,
+          f.PrimaryParentPhone, f.SecondaryParentPhone,
+          COALESCE(s.ResponsiblePayerName, f.PrimaryParentName) AS ResponsiblePayer,
+          COALESCE(s.ResponsiblePayerPhone, f.PrimaryParentPhone) AS ResponsiblePayerPhone,
+          COALESCE(s.ResponsiblePayerEmail, f.PrimaryParentEmail) AS ResponsiblePayerEmail,
           ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 1 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month1,
           ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 2 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month2,
           ISNULL(SUM(CASE WHEN MONTH(i.IssueDate) = 3 THEN i.Amount - ISNULL(i.AmountPaid,0) ELSE 0 END), 0) AS Month3,
@@ -271,7 +338,8 @@ class InvoiceRepository {
         WHERE i.SchoolID = @schoolId AND i.IsDeleted = 0 AND i.Status <> 'Paid'
           AND YEAR(i.IssueDate) = @year
         GROUP BY s.StudentID, s.FirstName, s.LastName, s.ClassName,
-          f.FamilyName, f.PrimaryParentPhone, f.SecondaryParentPhone, f.PrimaryParentName,
+          f.FamilyName, f.PrimaryParentPhone, f.SecondaryParentPhone, f.PrimaryParentName, f.PrimaryParentEmail,
+          s.ResponsiblePayerName, s.ResponsiblePayerPhone, s.ResponsiblePayerEmail,
           sc.SchoolName, ptp.Status, ptp.PromisedDate
         HAVING SUM(i.Amount - ISNULL(i.AmountPaid,0)) > 0
         ORDER BY s.LastName, s.FirstName

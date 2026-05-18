@@ -11,9 +11,12 @@ class AdmissionsRepository {
     const result = await req.query(`SELECT a.*, f.FamilyName FROM Admissions a LEFT JOIN Families f ON a.FamilyID = f.FamilyID ${where} ORDER BY a.AppliedDate DESC`);
     return result.recordset;
   }
-  async getById(id) {
+  async getById(id, schoolId) {
     const pool = await getPool();
-    const result = await pool.request().input('id', sql.Int, id).query('SELECT * FROM Admissions WHERE AdmissionID = @id');
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .input('schoolId', sql.Int, schoolId)
+      .query('SELECT * FROM Admissions WHERE AdmissionID = @id AND SchoolID = @schoolId');
     return result.recordset[0];
   }
   async create(data) {
@@ -24,16 +27,23 @@ class AdmissionsRepository {
       .input('dateOfBirth', sql.Date, data.dateOfBirth || null).input('className', sql.NVarChar, data.className || null)
       .input('billingCategoryId', sql.Int, data.billingCategoryId || null).input('notes', sql.NVarChar, data.notes || null)
       .input('appliedDate', sql.Date, data.appliedDate || new Date())
-      .query(`INSERT INTO Admissions (SchoolID,FamilyID,FirstName,LastName,DateOfBirth,ClassName,BillingCategoryID,Notes,AppliedDate)
+      .query(`IF @familyId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Families WHERE FamilyID = @familyId AND SchoolID = @schoolId)
+                THROW 50000, 'Family must belong to the selected school', 1;
+              IF @billingCategoryId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM BillingCategories WHERE BillingCategoryID = @billingCategoryId AND SchoolID = @schoolId)
+                THROW 50000, 'Billing category must belong to the selected school', 1;
+              INSERT INTO Admissions (SchoolID,FamilyID,FirstName,LastName,DateOfBirth,ClassName,BillingCategoryID,Notes,AppliedDate)
               OUTPUT INSERTED.* VALUES (@schoolId,@familyId,@firstName,@lastName,@dateOfBirth,@className,@billingCategoryId,@notes,@appliedDate)`);
     return result.recordset[0];
   }
-  async updateStatus(id, status, enrolledDate, convertedStudentId) {
+  async updateStatus(id, schoolId, status, enrolledDate, convertedStudentId) {
     const pool = await getPool();
-    const result = await pool.request().input('id', sql.Int, id).input('status', sql.NVarChar, status)
+    const result = await pool.request().input('id', sql.Int, id).input('schoolId', sql.Int, schoolId).input('status', sql.NVarChar, status)
       .input('enrolledDate', sql.Date, enrolledDate || null).input('convertedStudentId', sql.Int, convertedStudentId || null)
       .query(`UPDATE Admissions SET Status=@status, EnrolledDate=@enrolledDate, ConvertedStudentID=@convertedStudentId, UpdatedDate=GETDATE()
-              OUTPUT INSERTED.* WHERE AdmissionID=@id`);
+              OUTPUT INSERTED.* WHERE AdmissionID=@id AND SchoolID=@schoolId
+                AND (@convertedStudentId IS NULL OR EXISTS (
+                  SELECT 1 FROM Students WHERE StudentID = @convertedStudentId AND SchoolID = @schoolId
+                ))`);
     return result.recordset[0];
   }
 }
@@ -264,7 +274,13 @@ class FinancialAdjustmentRepository {
       .input('familyId', sql.Int, data.familyId || null).input('invoiceId', sql.Int, data.invoiceId || null)
       .input('adjustmentType', sql.NVarChar, data.adjustmentType).input('amount', sql.Decimal(10,2), data.amount)
       .input('reason', sql.NVarChar, data.reason).input('createdBy', sql.Int, data.createdBy)
-      .query(`INSERT INTO FinancialAdjustments (SchoolID,StudentID,FamilyID,InvoiceID,AdjustmentType,Amount,Reason,CreatedBy)
+      .query(`IF @studentId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Students WHERE StudentID = @studentId AND SchoolID = @schoolId)
+                THROW 50000, 'Student must belong to the selected school', 1;
+              IF @familyId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Families WHERE FamilyID = @familyId AND SchoolID = @schoolId)
+                THROW 50000, 'Family must belong to the selected school', 1;
+              IF @invoiceId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Invoices WHERE InvoiceID = @invoiceId AND SchoolID = @schoolId)
+                THROW 50000, 'Invoice must belong to the selected school', 1;
+              INSERT INTO FinancialAdjustments (SchoolID,StudentID,FamilyID,InvoiceID,AdjustmentType,Amount,Reason,CreatedBy)
               OUTPUT INSERTED.* VALUES (@schoolId,@studentId,@familyId,@invoiceId,@adjustmentType,@amount,@reason,@createdBy)`);
     return result.recordset[0];
   }
@@ -285,21 +301,25 @@ class RefundRepository {
       .input('schoolId', sql.Int, data.schoolId).input('familyId', sql.Int, data.familyId)
       .input('studentId', sql.Int, data.studentId || null).input('amount', sql.Decimal(10,2), data.amount)
       .input('reason', sql.NVarChar, data.reason).input('createdBy', sql.Int, data.createdBy)
-      .query(`INSERT INTO Refunds (SchoolID,FamilyID,StudentID,Amount,Reason,CreatedBy)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Families WHERE FamilyID = @familyId AND SchoolID = @schoolId)
+                THROW 50000, 'Family must belong to the selected school', 1;
+              IF @studentId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Students WHERE StudentID = @studentId AND SchoolID = @schoolId)
+                THROW 50000, 'Student must belong to the selected school', 1;
+              INSERT INTO Refunds (SchoolID,FamilyID,StudentID,Amount,Reason,CreatedBy)
               OUTPUT INSERTED.* VALUES (@schoolId,@familyId,@studentId,@amount,@reason,@createdBy)`);
     return result.recordset[0];
   }
-  async approve(id, approvedBy) {
+  async approve(id, schoolId, approvedBy) {
     const pool = await getPool();
-    const result = await pool.request().input('id', sql.Int, id).input('approvedBy', sql.Int, approvedBy)
+    const result = await pool.request().input('id', sql.Int, id).input('schoolId', sql.Int, schoolId).input('approvedBy', sql.Int, approvedBy)
       .query(`UPDATE Refunds SET Status='Approved', ApprovedBy=@approvedBy, ApprovedDate=GETDATE()
-              OUTPUT INSERTED.* WHERE RefundID=@id AND Status='Pending'`);
+              OUTPUT INSERTED.* WHERE RefundID=@id AND SchoolID=@schoolId AND Status='Pending'`);
     return result.recordset[0];
   }
-  async complete(id) {
+  async complete(id, schoolId) {
     const pool = await getPool();
-    const result = await pool.request().input('id', sql.Int, id)
-      .query(`UPDATE Refunds SET Status='Completed' OUTPUT INSERTED.* WHERE RefundID=@id AND Status='Approved'`);
+    const result = await pool.request().input('id', sql.Int, id).input('schoolId', sql.Int, schoolId)
+      .query(`UPDATE Refunds SET Status='Completed' OUTPUT INSERTED.* WHERE RefundID=@id AND SchoolID=@schoolId AND Status='Approved'`);
     return result.recordset[0];
   }
 }
@@ -320,14 +340,18 @@ class RegistrationFeeRepository {
       .input('familyId', sql.Int, data.familyId || null).input('feeType', sql.NVarChar, data.feeType)
       .input('amount', sql.Decimal(10,2), data.amount).input('isRefundable', sql.Bit, data.isRefundable || false)
       .input('notes', sql.NVarChar, data.notes || null)
-      .query(`INSERT INTO RegistrationFees (SchoolID,StudentID,FamilyID,FeeType,Amount,IsRefundable,Notes)
+      .query(`IF @studentId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Students WHERE StudentID = @studentId AND SchoolID = @schoolId)
+                THROW 50000, 'Student must belong to the selected school', 1;
+              IF @familyId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Families WHERE FamilyID = @familyId AND SchoolID = @schoolId)
+                THROW 50000, 'Family must belong to the selected school', 1;
+              INSERT INTO RegistrationFees (SchoolID,StudentID,FamilyID,FeeType,Amount,IsRefundable,Notes)
               OUTPUT INSERTED.* VALUES (@schoolId,@studentId,@familyId,@feeType,@amount,@isRefundable,@notes)`);
     return result.recordset[0];
   }
-  async markPaid(id) {
+  async markPaid(id, schoolId) {
     const pool = await getPool();
-    const result = await pool.request().input('id', sql.Int, id)
-      .query(`UPDATE RegistrationFees SET IsPaid=1, PaidDate=GETDATE() OUTPUT INSERTED.* WHERE RegistrationFeeID=@id`);
+    const result = await pool.request().input('id', sql.Int, id).input('schoolId', sql.Int, schoolId)
+      .query(`UPDATE RegistrationFees SET IsPaid=1, PaidDate=GETDATE() OUTPUT INSERTED.* WHERE RegistrationFeeID=@id AND SchoolID=@schoolId`);
     return result.recordset[0];
   }
 }

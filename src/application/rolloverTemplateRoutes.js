@@ -1,16 +1,18 @@
 // Application Layer - Re-enrolment, School Templates, Platform Usage routes
 
 const express = require('express');
-const { authenticateToken, requireSchoolOrAdmin, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, requireSchoolPermission, requireAdmin } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
 const { ReEnrolmentRepository, SchoolTemplateRepository, PlatformUsageRepository } = require('../data/rolloverTemplateRepositories');
 const StudentRepository = require('../data/studentRepository');
+const ClassRepository = require('../data/classRepository');
 
 const router = express.Router();
 const reEnrolmentRepo = new ReEnrolmentRepository();
 const templateRepo = new SchoolTemplateRepository();
 const usageRepo = new PlatformUsageRepository();
 const studentRepo = new StudentRepository();
+const classRepo = new ClassRepository();
 
 function schoolId(user) {
   if (user.Role === 'admin') return user.SchoolID;
@@ -18,26 +20,63 @@ function schoolId(user) {
   return user.SchoolID;
 }
 
+function validateAcademicYear(value) {
+  const year = Number(value);
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    throw new Error('Academic year must be between 2000 and 2100');
+  }
+  return year;
+}
+
+async function validateNextYearClass(sid, academicYear, action, newClassName) {
+  if (!['Promoted', 'Retained'].includes(action)) {
+    return null;
+  }
+
+  const className = String(newClassName || '').trim();
+  if (!className) {
+    throw new Error(`Select a class created for ${academicYear}`);
+  }
+
+  const targetClass = await classRepo.getBySchoolYearAndName(sid, academicYear, className);
+  if (!targetClass) {
+    throw new Error(`Class "${className}" must be an active class created for ${academicYear}`);
+  }
+
+  return targetClass;
+}
+
+function ensureNextAcademicYear(student, academicYear, action) {
+  if (!['Promoted', 'Retained'].includes(action)) {
+    return;
+  }
+
+  const currentYear = Number(student.CurrentAcademicYear || new Date().getFullYear());
+  if (academicYear <= currentYear) {
+    throw new Error(`Target academic year must be after the learner's current academic year (${currentYear})`);
+  }
+}
+
 // =============================================
 // RE-ENROLMENT / YEAR ROLLOVER
 // =============================================
 
 // Get re-enrolment records for a year
-router.get('/re-enrolment/:year', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/re-enrolment/:year', authenticateToken, requireSchoolPermission('school.year_rollover.preview', 'school.year_rollover.apply', 'reports.year_end.view'), async (req, res) => {
   try {
     res.json(await reEnrolmentRepo.getBySchoolAndYear(schoolId(req.user), parseInt(req.params.year, 10)));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Get students not yet processed for re-enrolment
-router.get('/re-enrolment/:year/pending', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/re-enrolment/:year/pending', authenticateToken, requireSchoolPermission('school.year_rollover.preview', 'school.year_rollover.apply'), async (req, res) => {
   try {
     res.json(await reEnrolmentRepo.getPendingStudents(schoolId(req.user), parseInt(req.params.year, 10)));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Process a single student for re-enrolment
-router.post('/re-enrolment', authenticateToken, requireSchoolOrAdmin, audit('ReEnrolment', 'Process'), async (req, res) => {
+router.post('/re-enrolment', authenticateToken, requireSchoolPermission('school.year_rollover.apply'), audit('ReEnrolment', 'Process'), async (req, res) => {
   try {
     const { academicYear, studentId, newClassName, action } = req.body;
     const validActions = ['Promoted', 'Left', 'Retained', 'Pending'];
@@ -49,14 +88,18 @@ router.post('/re-enrolment', authenticateToken, requireSchoolOrAdmin, audit('ReE
     }
 
     const sid = schoolId(req.user);
+    const targetYear = validateAcademicYear(academicYear);
 
     // Get student current state for balance carry-forward
     const student = await studentRepo.getStudentById(studentId);
     if (!student) return res.status(404).json({ error: 'Student not found' });
+    if (Number(student.SchoolID) !== Number(sid)) return res.status(404).json({ error: 'Student not found for this school' });
+    ensureNextAcademicYear(student, targetYear, action);
+    await validateNextYearClass(sid, targetYear, action, newClassName);
 
     const record = await reEnrolmentRepo.processStudent({
       schoolId: sid,
-      academicYear: Number(academicYear),
+      academicYear: targetYear,
       studentId: Number(studentId),
       previousClassName: student.ClassName,
       newClassName: newClassName || null,
@@ -66,20 +109,11 @@ router.post('/re-enrolment', authenticateToken, requireSchoolOrAdmin, audit('ReE
       processedBy: req.user.UserID
     });
 
-    // If promoted, update student class
-    if (action === 'Promoted' && newClassName) {
-      await studentRepo.updateStudent(studentId, {
-        familyId: student.FamilyID,
-        firstName: student.FirstName,
-        lastName: student.LastName,
-        dateOfBirth: student.DateOfBirth,
-        homePhone: student.HomePhone,
-        homeAddress: student.HomeAddress,
+    if (['Promoted', 'Retained'].includes(action) && newClassName) {
+      await studentRepo.updateAcademicPlacement(studentId, {
+        schoolId: sid,
         className: newClassName,
-        billingDate: student.BillingDate,
-        enrolledDate: student.EnrolledDate,
-        medicalNotes: student.MedicalNotes,
-        billingCategoryId: student.BillingCategoryID
+        currentAcademicYear: targetYear
       });
     }
 
@@ -97,7 +131,7 @@ router.post('/re-enrolment', authenticateToken, requireSchoolOrAdmin, audit('ReE
 });
 
 // Bulk process re-enrolment
-router.post('/re-enrolment/bulk', authenticateToken, requireSchoolOrAdmin, audit('ReEnrolment', 'BulkProcess'), async (req, res) => {
+router.post('/re-enrolment/bulk', authenticateToken, requireSchoolPermission('school.year_rollover.apply'), audit('ReEnrolment', 'BulkProcess'), async (req, res) => {
   try {
     const { academicYear, records } = req.body;
     if (!academicYear || !Array.isArray(records) || !records.length) {
@@ -111,29 +145,33 @@ router.post('/re-enrolment/bulk', authenticateToken, requireSchoolOrAdmin, audit
       try {
         const student = await studentRepo.getStudentById(record.studentId);
         if (!student) continue;
+        if (Number(student.SchoolID) !== Number(sid)) continue;
+        const targetYear = validateAcademicYear(academicYear);
+        const action = record.action || 'Pending';
+        ensureNextAcademicYear(student, targetYear, action);
+        await validateNextYearClass(sid, targetYear, action, record.newClassName);
 
         const processed = await reEnrolmentRepo.processStudent({
           schoolId: sid,
-          academicYear: Number(academicYear),
+          academicYear: targetYear,
           studentId: Number(record.studentId),
           previousClassName: student.ClassName,
           newClassName: record.newClassName || null,
-          action: record.action || 'Pending',
+          action,
           balanceCarriedForward: Number(record.balanceCarriedForward || 0),
           advanceCreditCarriedForward: Number(record.advanceCreditCarriedForward || 0),
           processedBy: req.user.UserID
         });
 
-        if (record.action === 'Promoted' && record.newClassName) {
-          await studentRepo.updateStudent(record.studentId, {
-            familyId: student.FamilyID, firstName: student.FirstName, lastName: student.LastName,
-            dateOfBirth: student.DateOfBirth, homePhone: student.HomePhone, homeAddress: student.HomeAddress,
-            className: record.newClassName, billingDate: student.BillingDate, enrolledDate: student.EnrolledDate,
-            medicalNotes: student.MedicalNotes, billingCategoryId: student.BillingCategoryID
+        if (['Promoted', 'Retained'].includes(action) && record.newClassName) {
+          await studentRepo.updateAcademicPlacement(record.studentId, {
+            schoolId: sid,
+            className: record.newClassName,
+            currentAcademicYear: targetYear
           });
         }
 
-        if (record.action === 'Left') {
+        if (action === 'Left') {
           await studentRepo.makeInactive(record.studentId, {
             departureDate: new Date().toISOString().slice(0, 10),
             departureReason: 'Left',

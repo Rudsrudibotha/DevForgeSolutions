@@ -42,13 +42,13 @@ class TransactionService {
     });
   }
 
-  async getSummary(currentUser) {
+  async getSummary(currentUser, options = {}) {
     const isAdmin = currentUser.Role === 'admin';
     const schoolId = isAdmin ? null : this.resolveSchoolId(currentUser);
 
     const totals = isAdmin
-      ? await this.transactionRepository.getSummaryAll()
-      : await this.transactionRepository.getSummaryBySchool(schoolId);
+      ? await this.transactionRepository.getSummaryAll(options)
+      : await this.transactionRepository.getSummaryBySchool(schoolId, options);
 
     const outstanding = isAdmin
       ? await this.transactionRepository.getOutstandingAll()

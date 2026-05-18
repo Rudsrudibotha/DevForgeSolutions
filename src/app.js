@@ -25,6 +25,7 @@ const paymentRoutes = require('./application/paymentRoutes');
 const exportRoutes = require('./application/exportRoutes');
 const dashboardRoutes = require('./application/dashboardRoutes');
 const auditRoutes = require('./application/auditRoutes');
+const reportRoutes = require('./application/reportRoutes');
 const attendanceRoutes = require('./application/attendanceRoutes');
 const classRoutes = require('./application/classRoutes');
 const featureRoutes = require('./application/featureRoutes');
@@ -35,16 +36,29 @@ const InvoiceService = require('./business/invoiceService');
 
 const app = express();
 
+app.disable('x-powered-by');
+app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
+
 app.use(helmet({
   contentSecurityPolicy: {
+    useDefaults: true,
     directives: {
-      'img-src': ["'self'", 'data:', 'https:']
+      'default-src': ["'self'"],
+      'base-uri': ["'self'"],
+      'connect-src': ["'self'"],
+      'form-action': ["'self'"],
+      'frame-ancestors': ["'none'"],
+      'img-src': ["'self'", 'data:', 'https:'],
+      'object-src': ["'none'"],
+      'script-src': ["'self'"],
+      'style-src': ["'self'", "'unsafe-inline'"]
     }
-  }
+  },
+  referrerPolicy: { policy: 'no-referrer' }
 }));
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',')
+  ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
   : ['http://localhost:3000', 'http://localhost:3001'];
 
 app.use(cors({
@@ -94,6 +108,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/reports', reportRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/features', featureRoutes);
@@ -103,11 +118,15 @@ app.use('/api/hr', permissionLeaveYearEndRoutes);
 
 app.get('/health', (req, res) => {
   const database = getDbState();
+  const isProduction = process.env.NODE_ENV === 'production';
 
   res.json({
     status: 'OK',
     message: 'School Finance and Management System is running',
-    database
+    database: {
+      connected: database.connected,
+      lastError: isProduction ? null : database.lastError
+    }
   });
 });
 
@@ -147,25 +166,61 @@ app.get('/parent', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'parent.html'));
 });
 
-// Overdue invoice flagging — runs every hour
+// Monthly invoices run only for the first-day billing cycle.
+const MAX_SCHEDULER_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+
+function nextMonthlyInvoiceRun(from = new Date(), skipCurrentMonth = false) {
+  const candidate = new Date(from.getFullYear(), from.getMonth(), 1, 0, 5, 0, 0);
+  if (skipCurrentMonth || from >= candidate) {
+    return new Date(from.getFullYear(), from.getMonth() + 1, 1, 0, 5, 0, 0);
+  }
+
+  return candidate;
+}
+
 function startMonthlyInvoiceScheduler() {
   const invoiceService = new InvoiceService();
-  // Run once on startup, then daily at midnight
   const runGeneration = async () => {
     try {
       const result = await invoiceService.generateMonthlyInvoices({ Role: 'admin' });
       const total = (result.generated || []).reduce((sum, s) => sum + (s.createdCount || 0), 0);
-      if (total > 0) console.log('[Scheduler] Generated', total, 'monthly invoices');
+      console.log(`[Scheduler] Monthly invoice generation completed. Created ${total} invoices.`);
     } catch (err) {
       console.error('[Scheduler] Monthly invoice generation failed:', err.message);
     }
   };
-  // Run on startup after 10 seconds
-  setTimeout(runGeneration, 10000);
-  // Then run every 24 hours
-  setInterval(runGeneration, 24 * 60 * 60 * 1000);
+
+  const scheduleRun = (runAt) => {
+    const delay = Math.max(0, runAt.getTime() - Date.now());
+    setTimeout(async () => {
+      if (Date.now() >= runAt.getTime()) {
+        await runGeneration();
+        scheduleNextRun();
+        return;
+      }
+
+      scheduleRun(runAt);
+    }, Math.min(delay, MAX_SCHEDULER_TIMEOUT_MS));
+  };
+
+  const scheduleNextRun = (skipCurrentMonth = false) => {
+    const runAt = nextMonthlyInvoiceRun(new Date(), skipCurrentMonth);
+    console.log(`[Scheduler] Monthly invoice generation scheduled for ${runAt.toISOString()}`);
+    scheduleRun(runAt);
+  };
+
+  const now = new Date();
+  if (now.getDate() === 1) {
+    console.log('[Scheduler] First day detected; running monthly invoice catch-up shortly.');
+    setTimeout(runGeneration, 10000);
+    scheduleNextRun(true);
+    return;
+  }
+
+  scheduleNextRun();
 }
 
+// Overdue invoice flagging runs every hour by default.
 function startOverdueScheduler() {
   const invoiceService = new InvoiceService();
   const interval = Number(process.env.OVERDUE_CHECK_INTERVAL_MS) || 3600000;
@@ -215,4 +270,4 @@ if (require.main === module) {
   start();
 }
 
-module.exports = { app, start };
+module.exports = { app, start, nextMonthlyInvoiceRun };

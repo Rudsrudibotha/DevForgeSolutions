@@ -4,7 +4,7 @@
 const express = require('express');
 const PaymentGatewayService = require('../business/paymentGatewayService');
 const InvoiceService = require('../business/invoiceService');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireSchoolOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 const paymentGateway = new PaymentGatewayService();
@@ -16,7 +16,7 @@ router.get('/status', (req, res) => {
 });
 
 // Initiate payment for an invoice
-router.post('/initiate', authenticateToken, async (req, res) => {
+router.post('/initiate', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   try {
     const invoice = await invoiceService.getInvoiceById(parseInt(req.body.invoiceId, 10), req.user);
     const result = await paymentGateway.initiatePayment(

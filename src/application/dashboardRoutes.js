@@ -2,12 +2,18 @@
 
 const express = require('express');
 const DashboardService = require('../business/dashboardService');
-const { authenticateToken, requireSchoolOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireSchoolPermission } = require('../middleware/auth');
 
 const router = express.Router();
 const dashboardService = new DashboardService();
 
-router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/', authenticateToken, requireSchoolPermission(
+  'school.students.view',
+  'school.classes.view',
+  'attendance.view_all',
+  'finance.invoices.view',
+  'reports.view'
+), async (req, res) => {
   try {
     if (req.user.Role === 'admin') {
       const data = await dashboardService.getAdminDashboard();

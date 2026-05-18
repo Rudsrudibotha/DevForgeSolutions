@@ -2,6 +2,7 @@
 
 const LeaveRepository = require('../data/leaveRepository');
 const EmployeeRepository = require('../data/employeeRepository');
+const { getSchoolPermissions, hasSchoolPermission } = require('../security/schoolPermissions');
 
 class LeaveService {
   constructor() {
@@ -38,10 +39,7 @@ class LeaveService {
   }
 
   async submitLeave(data, currentUser) {
-    const employee = await this.employeeRepository.getEmployeeByUserId(currentUser.UserID);
-    if (!employee) {
-      throw new Error('No employee record linked to your account');
-    }
+    const employee = await this.resolveLeaveEmployee(data, currentUser);
 
     const payload = this.buildPayload(data, employee.EmployeeID);
 
@@ -50,6 +48,30 @@ class LeaveService {
     }
 
     return await this.leaveRepository.createLeave(payload);
+  }
+
+  async resolveLeaveEmployee(data, currentUser) {
+    const requestedEmployeeId = Number(data.employeeId || 0);
+
+    if (requestedEmployeeId) {
+      if (!(await this.canCaptureForStaff(currentUser))) {
+        throw new Error('Leave management permission is required to capture leave for staff');
+      }
+
+      const employee = await this.employeeRepository.getEmployeeById(requestedEmployeeId);
+      if (!employee) {
+        throw new Error('Employee not found');
+      }
+
+      this.ensureEmployeeAccess(employee, currentUser);
+      return employee;
+    }
+
+    const employee = await this.employeeRepository.getEmployeeByUserId(currentUser.UserID);
+    if (!employee) {
+      throw new Error('No employee record linked to your account');
+    }
+    return employee;
   }
 
   async reviewLeave(id, status, currentUser) {
@@ -71,21 +93,39 @@ class LeaveService {
     if (status === 'Approved' && leave.LeaveType !== 'Unpaid') {
       const employee = await this.employeeRepository.getEmployeeById(leave.EmployeeID);
       const newBalance = Math.max(0, (employee.LeaveBalance || 0) - leave.Days);
-      await this.employeeRepository.updateEmployee(leave.EmployeeID, {
-        ...employee,
-        firstName: employee.FirstName,
-        lastName: employee.LastName,
-        email: employee.Email,
-        phone: employee.Phone,
-        jobTitle: employee.JobTitle,
-        department: employee.Department,
-        salary: employee.Salary,
-        leaveBalance: newBalance,
-        isActive: employee.IsActive
-      });
+      await this.employeeRepository.updateEmployee(leave.EmployeeID, this.employeeUpdatePayload(employee, newBalance));
     }
 
     return result;
+  }
+
+  employeeUpdatePayload(employee, leaveBalance) {
+    return {
+      employeeNumber: employee.EmployeeNumber,
+      firstName: employee.FirstName,
+      lastName: employee.LastName,
+      email: employee.Email,
+      phone: employee.Phone,
+      jobTitle: employee.JobTitle,
+      department: employee.Department,
+      startDate: employee.StartDate,
+      salary: employee.Salary,
+      leaveBalance,
+      isActive: employee.IsActive !== false,
+      idNumber: employee.IdNumber,
+      passportNumber: employee.PassportNumber,
+      taxNumber: employee.TaxNumber,
+      uifNumber: employee.UifNumber,
+      paymentMethod: employee.PaymentMethod,
+      bankName: employee.BankName,
+      bankAccountNumber: employee.BankAccountNumber,
+      branchCode: employee.BranchCode,
+      accountType: employee.AccountType,
+      standardAllowances: employee.StandardAllowances,
+      standardDeductions: employee.StandardDeductions,
+      taxPaye: employee.TaxPaye,
+      uifDeduction: employee.UifDeduction
+    };
   }
 
   buildPayload(data, employeeId) {
@@ -123,6 +163,32 @@ class LeaveService {
     if (currentUser.Role !== 'admin' && currentUser.SchoolID !== leave.SchoolID) {
       throw new Error('You can only access leave requests for your own school');
     }
+  }
+
+  ensureEmployeeAccess(employee, currentUser) {
+    if (currentUser.Role !== 'admin' && currentUser.SchoolID !== employee.SchoolID) {
+      throw new Error('You can only capture leave for employees in your own school');
+    }
+  }
+
+  async canCaptureForStaff(currentUser) {
+    if (currentUser.Role === 'admin') {
+      return true;
+    }
+
+    const permissions = currentUser.SchoolPermissions || await getSchoolPermissions(currentUser);
+    const permissionUser = {
+      ...currentUser,
+      SchoolPermissions: permissions,
+      SchoolPermissionSet: new Set(permissions)
+    };
+
+    return hasSchoolPermission(permissionUser, [
+      'leave.view_all',
+      'leave.approve',
+      'leave.decline',
+      'school.staff.manage'
+    ]);
   }
 
   validateId(id, label) {

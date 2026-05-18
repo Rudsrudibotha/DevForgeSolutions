@@ -2,12 +2,13 @@
 
 const express = require('express');
 const StudentService = require('../business/studentService');
-const { authenticateToken, requireSchoolOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireSchoolPermission } = require('../middleware/auth');
+const { audit } = require('../middleware/audit');
 
 const router = express.Router();
 const studentService = new StudentService();
 
-router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/', authenticateToken, requireSchoolPermission('school.students.view', 'school.students.manage', 'classes.view_assigned', 'attendance.view_assigned', 'attendance.submit_assigned'), async (req, res) => {
   try {
     const students = await studentService.getStudents(req.query.status, req.user);
     res.json(students);
@@ -16,7 +17,7 @@ router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   }
 });
 
-router.get('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/:id', authenticateToken, requireSchoolPermission('school.students.view', 'school.students.manage', 'classes.view_assigned', 'attendance.view_assigned', 'attendance.submit_assigned'), async (req, res) => {
   try {
     const student = await studentService.getStudentById(parseInt(req.params.id, 10), req.user);
     res.json(student);
@@ -25,7 +26,7 @@ router.get('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => 
   }
 });
 
-router.post('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.post('/', authenticateToken, requireSchoolPermission('school.students.manage'), audit('Student', 'Create'), async (req, res) => {
   try {
     const student = await studentService.createStudent(req.body, req.user);
     res.status(201).json(student);
@@ -34,7 +35,7 @@ router.post('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.put('/:id', authenticateToken, requireSchoolPermission('school.students.manage'), audit('Student', 'Update'), async (req, res) => {
   try {
     const student = await studentService.updateStudent(parseInt(req.params.id, 10), req.body, req.user);
     res.json(student);
@@ -43,7 +44,7 @@ router.put('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => 
   }
 });
 
-router.put('/:id/inactivate', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.put('/:id/inactivate', authenticateToken, requireSchoolPermission('school.students.manage'), audit('Student', 'Inactivate'), async (req, res) => {
   try {
     const student = await studentService.makeInactive(parseInt(req.params.id, 10), req.body, req.user);
     res.json(student);

@@ -298,6 +298,7 @@ BEGIN
         HomePhone NVARCHAR(50) NULL,
         HomeAddress NVARCHAR(500) NULL,
         ClassName NVARCHAR(100) NULL,
+        CurrentAcademicYear INT NOT NULL DEFAULT (YEAR(GETDATE())),
         BillingDate DATE NOT NULL,
         EnrolledDate DATE NOT NULL,
         IsActive BIT NOT NULL DEFAULT 1,
@@ -306,6 +307,10 @@ BEGIN
         DepartureNote NVARCHAR(500) NULL,
         MedicalNotes NVARCHAR(1000) NULL,
         BillingCategoryID INT NULL,
+        ResponsiblePayerType NVARCHAR(50) NULL,
+        ResponsiblePayerName NVARCHAR(255) NULL,
+        ResponsiblePayerPhone NVARCHAR(50) NULL,
+        ResponsiblePayerEmail NVARCHAR(255) NULL,
         CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
         UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
         CONSTRAINT FK_Students_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
@@ -322,6 +327,32 @@ BEGIN
     ALTER TABLE dbo.Students ADD CONSTRAINT FK_Students_BillingCategories FOREIGN KEY (BillingCategoryID) REFERENCES dbo.BillingCategories(BillingCategoryID);
 END;
 
+IF COL_LENGTH('dbo.Students', 'CurrentAcademicYear') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students
+        ADD CurrentAcademicYear INT NOT NULL CONSTRAINT DF_Students_CurrentAcademicYear DEFAULT (YEAR(GETDATE())) WITH VALUES;
+END;
+
+IF COL_LENGTH('dbo.Students', 'ResponsiblePayerType') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD ResponsiblePayerType NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Students', 'ResponsiblePayerName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD ResponsiblePayerName NVARCHAR(255) NULL;
+END;
+
+IF COL_LENGTH('dbo.Students', 'ResponsiblePayerPhone') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD ResponsiblePayerPhone NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Students', 'ResponsiblePayerEmail') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD ResponsiblePayerEmail NVARCHAR(255) NULL;
+END;
+
 IF OBJECT_ID('dbo.StudentBillingCategories', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.StudentBillingCategories (
@@ -334,6 +365,12 @@ BEGIN
         CONSTRAINT FK_StudentBillingCategories_BillingCategories FOREIGN KEY (BillingCategoryID) REFERENCES dbo.BillingCategories(BillingCategoryID),
         CONSTRAINT UQ_StudentBillingCategories_Student_Category UNIQUE (StudentID, BillingCategoryID)
     );
+END;
+
+IF COL_LENGTH('dbo.StudentBillingCategories', 'CreatedDate') IS NULL
+BEGIN
+    ALTER TABLE dbo.StudentBillingCategories
+        ADD CreatedDate DATETIME NOT NULL CONSTRAINT DF_StudentBillingCategories_CreatedDate DEFAULT GETDATE() WITH VALUES;
 END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StudentBillingCategories_StudentID' AND object_id = OBJECT_ID('dbo.StudentBillingCategories'))
@@ -373,7 +410,12 @@ BEGIN
         SchoolID INT NOT NULL,
         InvoiceID INT NULL,
         BankStatementID INT NULL,
+        ReceiptNumber NVARCHAR(100) NULL,
         PaymentMethod NVARCHAR(100) NULL,
+        PayeeType NVARCHAR(50) NULL,
+        PayeeName NVARCHAR(255) NULL,
+        PayeePhone NVARCHAR(50) NULL,
+        PayeeEmail NVARCHAR(255) NULL,
         Reference NVARCHAR(250) NULL,
         Description NVARCHAR(500) NULL,
         TransactionType NVARCHAR(50) NOT NULL DEFAULT 'Credit',
@@ -386,6 +428,85 @@ BEGIN
         CONSTRAINT FK_Transactions_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
         CONSTRAINT FK_Transactions_Invoices FOREIGN KEY (InvoiceID) REFERENCES dbo.Invoices(InvoiceID),
         CONSTRAINT FK_Transactions_BankStatements FOREIGN KEY (BankStatementID) REFERENCES dbo.BankStatements(BankStatementID)
+    );
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'ReceiptNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD ReceiptNumber NVARCHAR(100) NULL;
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'PayeeType') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD PayeeType NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'PayeeName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD PayeeName NVARCHAR(255) NULL;
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'PayeePhone') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD PayeePhone NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'PayeeEmail') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD PayeeEmail NVARCHAR(255) NULL;
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Transactions_School_ReceiptNumber' AND object_id = OBJECT_ID('dbo.Transactions'))
+BEGIN
+    EXEC('CREATE UNIQUE INDEX UX_Transactions_School_ReceiptNumber
+        ON dbo.Transactions(SchoolID, ReceiptNumber)
+        WHERE ReceiptNumber IS NOT NULL');
+END;
+
+IF OBJECT_ID('dbo.StudentWallets', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.StudentWallets (
+        WalletID INT IDENTITY(1,1) PRIMARY KEY,
+        SchoolID INT NOT NULL,
+        StudentID INT NOT NULL,
+        FamilyID INT NULL,
+        Balance DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT CK_StudentWallets_Balance CHECK (Balance >= 0),
+        CONSTRAINT FK_StudentWallets_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_StudentWallets_Students FOREIGN KEY (StudentID) REFERENCES dbo.Students(StudentID),
+        CONSTRAINT FK_StudentWallets_Families FOREIGN KEY (FamilyID) REFERENCES dbo.Families(FamilyID),
+        CONSTRAINT UQ_StudentWallets_School_Student UNIQUE (SchoolID, StudentID)
+    );
+END;
+
+IF OBJECT_ID('dbo.StudentWalletLedger', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.StudentWalletLedger (
+        WalletLedgerID INT IDENTITY(1,1) PRIMARY KEY,
+        WalletID INT NOT NULL,
+        SchoolID INT NOT NULL,
+        StudentID INT NOT NULL,
+        FamilyID INT NULL,
+        TransactionID INT NULL,
+        InvoiceID INT NULL,
+        EntryType NVARCHAR(50) NOT NULL,
+        Amount DECIMAL(10,2) NOT NULL,
+        BalanceAfter DECIMAL(10,2) NOT NULL,
+        Reference NVARCHAR(250) NULL,
+        Description NVARCHAR(500) NULL,
+        EntryDate DATETIME NOT NULL,
+        CreatedBy INT NULL,
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT CK_StudentWalletLedger_Type CHECK (EntryType IN ('Receipt','Invoice Allocation','Adjustment','Refund','Carry Forward')),
+        CONSTRAINT FK_StudentWalletLedger_Wallet FOREIGN KEY (WalletID) REFERENCES dbo.StudentWallets(WalletID),
+        CONSTRAINT FK_StudentWalletLedger_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_StudentWalletLedger_Students FOREIGN KEY (StudentID) REFERENCES dbo.Students(StudentID),
+        CONSTRAINT FK_StudentWalletLedger_Families FOREIGN KEY (FamilyID) REFERENCES dbo.Families(FamilyID),
+        CONSTRAINT FK_StudentWalletLedger_Transactions FOREIGN KEY (TransactionID) REFERENCES dbo.Transactions(TransactionID),
+        CONSTRAINT FK_StudentWalletLedger_Invoices FOREIGN KEY (InvoiceID) REFERENCES dbo.Invoices(InvoiceID),
+        CONSTRAINT FK_StudentWalletLedger_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES dbo.Users(UserID)
     );
 END;
 
@@ -552,9 +673,38 @@ BEGIN
     CREATE INDEX IX_Transactions_SchoolID ON dbo.Transactions(SchoolID);
 END;
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StudentWallets_School_Student' AND object_id = OBJECT_ID('dbo.StudentWallets'))
+BEGIN
+    CREATE INDEX IX_StudentWallets_School_Student ON dbo.StudentWallets(SchoolID, StudentID);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StudentWalletLedger_School_Student' AND object_id = OBJECT_ID('dbo.StudentWalletLedger'))
+BEGIN
+    CREATE INDEX IX_StudentWalletLedger_School_Student ON dbo.StudentWalletLedger(SchoolID, StudentID, EntryDate);
+END;
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BankStatements_SchoolID' AND object_id = OBJECT_ID('dbo.BankStatements'))
 BEGIN
     CREATE INDEX IX_BankStatements_SchoolID ON dbo.BankStatements(SchoolID);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BankStatements_School_Period' AND object_id = OBJECT_ID('dbo.BankStatements'))
+BEGIN
+    CREATE INDEX IX_BankStatements_School_Period ON dbo.BankStatements(SchoolID, StatementDate, StatementEndDate);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_BankStatements_School_Period' AND object_id = OBJECT_ID('dbo.BankStatements'))
+    AND NOT EXISTS (
+        SELECT SchoolID, StatementDate, StatementEndDate
+        FROM dbo.BankStatements
+        WHERE StatementDate IS NOT NULL AND StatementEndDate IS NOT NULL
+        GROUP BY SchoolID, StatementDate, StatementEndDate
+        HAVING COUNT(1) > 1
+    )
+BEGIN
+    CREATE UNIQUE INDEX UX_BankStatements_School_Period
+        ON dbo.BankStatements(SchoolID, StatementDate, StatementEndDate)
+        WHERE StatementDate IS NOT NULL AND StatementEndDate IS NOT NULL;
 END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Employees_SchoolID' AND object_id = OBJECT_ID('dbo.Employees'))
@@ -710,6 +860,29 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Classes_SchoolID_Activ
 BEGIN
     CREATE INDEX IX_Classes_SchoolID_ActiveYear ON dbo.Classes(SchoolID, ActiveYear);
 END;
+
+EXEC sp_executesql N'
+IF COL_LENGTH(''dbo.Students'', ''CurrentAcademicYear'') IS NOT NULL
+BEGIN
+    UPDATE s
+    SET CurrentAcademicYear = COALESCE(c.ActiveYear, NULLIF(YEAR(s.EnrolledDate), 1900), YEAR(GETDATE()))
+    FROM dbo.Students s
+    OUTER APPLY (
+        SELECT TOP 1 c.ActiveYear
+        FROM dbo.Classes c
+        WHERE c.SchoolID = s.SchoolID
+          AND c.ClassName = s.ClassName
+          AND c.IsActive = 1
+        ORDER BY ABS(c.ActiveYear - YEAR(GETDATE()))
+    ) c
+    WHERE s.CurrentAcademicYear IS NULL OR s.CurrentAcademicYear < 2000;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = ''IX_Students_SchoolID_CurrentAcademicYear'' AND object_id = OBJECT_ID(''dbo.Students''))
+    BEGIN
+        CREATE INDEX IX_Students_SchoolID_CurrentAcademicYear ON dbo.Students(SchoolID, CurrentAcademicYear);
+    END;
+END;
+';
 
 -- Timetable
 IF OBJECT_ID('dbo.Timetable', 'U') IS NULL
@@ -1416,6 +1589,39 @@ BEGIN
     );
 END;
 
+-- Finance Period Locking
+IF OBJECT_ID('dbo.FinancePeriodLocks', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.FinancePeriodLocks (
+        FinancePeriodLockID INT IDENTITY(1,1) PRIMARY KEY,
+        SchoolID INT NOT NULL,
+        PeriodStart DATE NOT NULL,
+        PeriodEnd DATE NOT NULL,
+        LockType NVARCHAR(50) NOT NULL DEFAULT 'Month',
+        Status NVARCHAR(50) NOT NULL DEFAULT 'Locked',
+        Reason NVARCHAR(500) NOT NULL,
+        LockedBy INT NULL,
+        LockedDate DATETIME NULL,
+        ReopenedBy INT NULL,
+        ReopenedDate DATETIME NULL,
+        ReopenReason NVARCHAR(500) NULL,
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT CK_FinancePeriodLocks_Dates CHECK (PeriodStart <= PeriodEnd),
+        CONSTRAINT CK_FinancePeriodLocks_Type CHECK (LockType IN ('Month','Year','Custom')),
+        CONSTRAINT CK_FinancePeriodLocks_Status CHECK (Status IN ('Locked','Reopened for Correction')),
+        CONSTRAINT FK_FinancePeriodLocks_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_FinancePeriodLocks_LockedBy FOREIGN KEY (LockedBy) REFERENCES dbo.Users(UserID),
+        CONSTRAINT FK_FinancePeriodLocks_ReopenedBy FOREIGN KEY (ReopenedBy) REFERENCES dbo.Users(UserID)
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_FinancePeriodLocks_School_Period' AND object_id = OBJECT_ID('dbo.FinancePeriodLocks'))
+BEGIN
+    CREATE INDEX IX_FinancePeriodLocks_School_Period
+        ON dbo.FinancePeriodLocks(SchoolID, Status, PeriodStart, PeriodEnd);
+END;
+
 -- Update Admissions status constraint to use Refused instead of Rejected
 IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Admissions_Status')
 BEGIN
@@ -1526,6 +1732,26 @@ END;
 IF COL_LENGTH('dbo.Employees', 'EmployeeNumber') IS NULL
 BEGIN
     ALTER TABLE dbo.Employees ADD EmployeeNumber NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'PhysicalAddress') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD PhysicalAddress NVARCHAR(500) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'PayrollNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD PayrollNumber NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'PayeReference') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD PayeReference NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Employees', 'UifReferenceNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Employees ADD UifReferenceNumber NVARCHAR(50) NULL;
 END;
 
 IF COL_LENGTH('dbo.Employees', 'IdNumber') IS NULL

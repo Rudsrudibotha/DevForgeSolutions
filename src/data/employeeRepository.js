@@ -42,10 +42,12 @@ class EmployeeRepository {
       .input('schoolId', sql.Int, data.schoolId)
       .input('userId', sql.Int, data.userId || null)
       .input('employeeNumber', sql.NVarChar, data.employeeNumber || null)
+      .input('payrollNumber', sql.NVarChar, data.payrollNumber || null)
       .input('firstName', sql.NVarChar, data.firstName)
       .input('lastName', sql.NVarChar, data.lastName)
       .input('email', sql.NVarChar, data.email || null)
       .input('phone', sql.NVarChar, data.phone || null)
+      .input('physicalAddress', sql.NVarChar, data.physicalAddress || null)
       .input('jobTitle', sql.NVarChar, data.jobTitle || null)
       .input('department', sql.NVarChar, data.department || null)
       .input('startDate', sql.Date, data.startDate)
@@ -54,7 +56,9 @@ class EmployeeRepository {
       .input('idNumber', sql.NVarChar, data.idNumber || null)
       .input('passportNumber', sql.NVarChar, data.passportNumber || null)
       .input('taxNumber', sql.NVarChar, data.taxNumber || null)
+      .input('payeReference', sql.NVarChar, data.payeReference || null)
       .input('uifNumber', sql.NVarChar, data.uifNumber || null)
+      .input('uifReferenceNumber', sql.NVarChar, data.uifReferenceNumber || null)
       .input('paymentMethod', sql.NVarChar, data.paymentMethod || null)
       .input('bankName', sql.NVarChar, data.bankName || null)
       .input('bankAccountNumber', sql.NVarChar, data.bankAccountNumber || null)
@@ -64,14 +68,16 @@ class EmployeeRepository {
       .input('standardDeductions', sql.Decimal(10,2), data.standardDeductions || 0)
       .input('taxPaye', sql.Decimal(10,2), data.taxPaye || 0)
       .input('uifDeduction', sql.Decimal(10,2), data.uifDeduction || 0)
-      .query(`INSERT INTO Employees (SchoolID, UserID, EmployeeNumber, FirstName, LastName, Email, Phone,
-                JobTitle, Department, StartDate, Salary, LeaveBalance, IdNumber, PassportNumber,
-                TaxNumber, UifNumber, PaymentMethod, BankName, BankAccountNumber, BranchCode,
+      .query(`IF @userId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Users WHERE UserID = @userId AND SchoolID = @schoolId AND Role = 'school')
+                THROW 50000, 'Linked user must belong to the selected school', 1;
+              INSERT INTO Employees (SchoolID, UserID, EmployeeNumber, PayrollNumber, FirstName, LastName, Email, Phone,
+                PhysicalAddress, JobTitle, Department, StartDate, Salary, LeaveBalance, IdNumber, PassportNumber,
+                TaxNumber, PayeReference, UifNumber, UifReferenceNumber, PaymentMethod, BankName, BankAccountNumber, BranchCode,
                 AccountType, StandardAllowances, StandardDeductions, TaxPaye, UifDeduction)
               OUTPUT INSERTED.*
-              VALUES (@schoolId, @userId, @employeeNumber, @firstName, @lastName, @email, @phone,
-                @jobTitle, @department, @startDate, @salary, @leaveBalance, @idNumber, @passportNumber,
-                @taxNumber, @uifNumber, @paymentMethod, @bankName, @bankAccountNumber, @branchCode,
+              VALUES (@schoolId, @userId, @employeeNumber, @payrollNumber, @firstName, @lastName, @email, @phone,
+                @physicalAddress, @jobTitle, @department, @startDate, @salary, @leaveBalance, @idNumber, @passportNumber,
+                @taxNumber, @payeReference, @uifNumber, @uifReferenceNumber, @paymentMethod, @bankName, @bankAccountNumber, @branchCode,
                 @accountType, @standardAllowances, @standardDeductions, @taxPaye, @uifDeduction)`);
     return result.recordset[0];
   }
@@ -81,10 +87,12 @@ class EmployeeRepository {
     const result = await pool.request()
       .input('id', sql.Int, id)
       .input('employeeNumber', sql.NVarChar, data.employeeNumber || null)
+      .input('payrollNumber', sql.NVarChar, data.payrollNumber || null)
       .input('firstName', sql.NVarChar, data.firstName)
       .input('lastName', sql.NVarChar, data.lastName)
       .input('email', sql.NVarChar, data.email || null)
       .input('phone', sql.NVarChar, data.phone || null)
+      .input('physicalAddress', sql.NVarChar, data.physicalAddress || null)
       .input('jobTitle', sql.NVarChar, data.jobTitle || null)
       .input('department', sql.NVarChar, data.department || null)
       .input('startDate', sql.Date, data.startDate)
@@ -94,7 +102,9 @@ class EmployeeRepository {
       .input('idNumber', sql.NVarChar, data.idNumber || null)
       .input('passportNumber', sql.NVarChar, data.passportNumber || null)
       .input('taxNumber', sql.NVarChar, data.taxNumber || null)
+      .input('payeReference', sql.NVarChar, data.payeReference || null)
       .input('uifNumber', sql.NVarChar, data.uifNumber || null)
+      .input('uifReferenceNumber', sql.NVarChar, data.uifReferenceNumber || null)
       .input('paymentMethod', sql.NVarChar, data.paymentMethod || null)
       .input('bankName', sql.NVarChar, data.bankName || null)
       .input('bankAccountNumber', sql.NVarChar, data.bankAccountNumber || null)
@@ -105,10 +115,12 @@ class EmployeeRepository {
       .input('taxPaye', sql.Decimal(10,2), data.taxPaye || 0)
       .input('uifDeduction', sql.Decimal(10,2), data.uifDeduction || 0)
       .query(`UPDATE Employees SET
-                EmployeeNumber = @employeeNumber, FirstName = @firstName, LastName = @lastName, Email = @email, Phone = @phone,
+                EmployeeNumber = @employeeNumber, PayrollNumber = @payrollNumber, FirstName = @firstName, LastName = @lastName, Email = @email, Phone = @phone,
+                PhysicalAddress = @physicalAddress,
                 JobTitle = @jobTitle, Department = @department, StartDate = @startDate, Salary = @salary,
                 LeaveBalance = @leaveBalance, IsActive = @isActive, IdNumber = @idNumber,
-                PassportNumber = @passportNumber, TaxNumber = @taxNumber, UifNumber = @uifNumber,
+                PassportNumber = @passportNumber, TaxNumber = @taxNumber, PayeReference = @payeReference,
+                UifNumber = @uifNumber, UifReferenceNumber = @uifReferenceNumber,
                 PaymentMethod = @paymentMethod, BankName = @bankName, BankAccountNumber = @bankAccountNumber,
                 BranchCode = @branchCode, AccountType = @accountType, StandardAllowances = @standardAllowances,
                 StandardDeductions = @standardDeductions, TaxPaye = @taxPaye, UifDeduction = @uifDeduction,

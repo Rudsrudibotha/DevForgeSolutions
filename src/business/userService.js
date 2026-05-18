@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const UserRepository = require('../data/userRepository');
 const SchoolService = require('./schoolService');
+const { getSchoolPermissions } = require('../security/schoolPermissions');
 
 class UserService {
   constructor() {
@@ -55,7 +56,7 @@ class UserService {
       schoolId
     });
 
-    return this.buildAuthResponse(newUser);
+    return await this.buildAuthResponse(newUser);
   }
 
   // Login an existing user and issue a short-lived access token.
@@ -84,7 +85,7 @@ class UserService {
       throw new Error('Invalid credentials');
     }
 
-    return this.buildAuthResponse(user);
+    return await this.buildAuthResponse(user);
   }
 
   async findLoginUser(loginType, schoolId, identifier) {
@@ -317,7 +318,7 @@ class UserService {
     }
   }
 
-  buildAuthResponse(user) {
+  async buildAuthResponse(user) {
     if (!process.env.JWT_SECRET) {
       throw new Error('JWT_SECRET is required');
     }
@@ -328,6 +329,8 @@ class UserService {
       { expiresIn: '24h' }
     );
 
+    const permissions = await getSchoolPermissions(user);
+
     return {
       user: {
         id: user.UserID,
@@ -335,7 +338,8 @@ class UserService {
         email: user.Email,
         role: user.Role,
         schoolId: user.SchoolID,
-        hasHrPermission: Boolean(user.HasHrPermission)
+        hasHrPermission: Boolean(user.HasHrPermission),
+        permissions
       },
       token
     };

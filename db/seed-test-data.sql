@@ -24,10 +24,10 @@ VALUES ('parenttest@devforge.local', 'parenttest', '$2a$10$uYEOUMFLEs7ZxXOrEqaGZ
 -- STAFF ROLES
 -- =============================================
 INSERT INTO dbo.StaffRoles (SchoolID, RoleName, Description, Permissions) VALUES
-(7, 'Teacher', 'Classroom teacher permissions', '["classes.view","attendance.capture","students.view"]'),
-(7, 'Finance', 'School finance permissions', '["finance.view","invoices.manage","payments.allocate","reports.finance"]'),
-(7, 'Admin', 'School administration permissions', '["students.manage","parents.manage","classes.manage","users.manage"]'),
-(7, 'HR', 'HR and payroll permissions', '["hr.view","hr.manage_payslips","hr.manage_leave","staff.manage"]');
+(7, 'Teacher', 'Classroom teacher permissions: assigned classes and attendance only', '["classes.view_assigned","attendance.view_assigned","attendance.submit_assigned"]'),
+(7, 'Finance', 'School finance permissions without payroll access', '["finance.invoices.view","finance.invoices.create","finance.invoices.edit","finance.payments.view","finance.payments.allocate","finance.outstanding_fees.view","finance.bank_reconciliation.view","finance.bank_reconciliation.approve_match","finance.bank_reconciliation.correct","finance.billing_categories.manage","finance.registration_fees.view","finance.registration_fees.manage","finance.registration_fees.mark_paid","finance.audit.view","finance.period_lock.manage","reports.view","reports.finance.view","reports.finance.export"]'),
+(7, 'Admin', 'School administration permissions without learner finance or payroll access', '["attendance.view_all","attendance.edit_all","attendance.correct","school.students.view","school.students.manage","school.parents.view","school.parents.manage","school.classes.view","school.classes.manage","school.staff.view","school.staff.manage","school.staff.permissions.manage","school.consent.view","school.consent.manage","admissions.view","admissions.review","admissions.accept","admissions.waitlist","admissions.refuse","school.year_rollover.preview","school.year_rollover.apply","reports.view","reports.attendance.view","reports.demographics.view","reports.year_end.view","communication.history.view"]'),
+(7, 'HR', 'HR and payroll permissions without learner finance access', '["school.staff.view","school.staff.manage","hr.view_payslips","hr.manage_payslips","payroll.generate","payroll.review","payroll.finalize","payroll.view_previous","leave.view_all","leave.approve","leave.decline","leave.manage_types","leave.manage_balances","leave.adjust_balances","sensitive.payroll.view","sensitive.payroll.export","reports.view"]');
 
 -- =============================================
 -- BILLING CATEGORIES

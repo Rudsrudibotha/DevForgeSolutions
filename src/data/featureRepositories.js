@@ -3,10 +3,10 @@
 const { getPool, sql } = require('./db');
 
 class BehaviourLogRepository {
-  async getByStudent(studentId) {
+  async getByStudent(studentId, schoolId) {
     const pool = await getPool();
-    const result = await pool.request().input('studentId', sql.Int, studentId)
-      .query('SELECT * FROM BehaviourLogs WHERE StudentID = @studentId ORDER BY LogDate DESC');
+    const result = await pool.request().input('studentId', sql.Int, studentId).input('schoolId', sql.Int, schoolId)
+      .query('SELECT * FROM BehaviourLogs WHERE StudentID = @studentId AND SchoolID = @schoolId ORDER BY LogDate DESC');
     return result.recordset;
   }
   async getBySchool(schoolId) {
@@ -23,17 +23,19 @@ class BehaviourLogRepository {
       .input('logDate', sql.Date, data.logDate).input('category', sql.NVarChar, data.category)
       .input('description', sql.NVarChar, data.description).input('actionTaken', sql.NVarChar, data.actionTaken || null)
       .input('recordedBy', sql.Int, data.recordedBy || null)
-      .query(`INSERT INTO BehaviourLogs (SchoolID,StudentID,LogDate,Category,Description,ActionTaken,RecordedBy)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Students WHERE StudentID = @studentId AND SchoolID = @schoolId)
+                THROW 50000, 'Student must belong to the selected school', 1;
+              INSERT INTO BehaviourLogs (SchoolID,StudentID,LogDate,Category,Description,ActionTaken,RecordedBy)
               OUTPUT INSERTED.* VALUES (@schoolId,@studentId,@logDate,@category,@description,@actionTaken,@recordedBy)`);
     return result.recordset[0];
   }
 }
 
 class AcademicNoteRepository {
-  async getByStudent(studentId) {
+  async getByStudent(studentId, schoolId) {
     const pool = await getPool();
-    const result = await pool.request().input('studentId', sql.Int, studentId)
-      .query('SELECT * FROM AcademicNotes WHERE StudentID = @studentId ORDER BY Year DESC, Term');
+    const result = await pool.request().input('studentId', sql.Int, studentId).input('schoolId', sql.Int, schoolId)
+      .query('SELECT * FROM AcademicNotes WHERE StudentID = @studentId AND SchoolID = @schoolId ORDER BY Year DESC, Term');
     return result.recordset;
   }
   async create(data) {
@@ -42,17 +44,19 @@ class AcademicNoteRepository {
       .input('schoolId', sql.Int, data.schoolId).input('studentId', sql.Int, data.studentId)
       .input('term', sql.NVarChar, data.term).input('year', sql.Int, data.year)
       .input('notes', sql.NVarChar, data.notes).input('recordedBy', sql.Int, data.recordedBy || null)
-      .query(`INSERT INTO AcademicNotes (SchoolID,StudentID,Term,Year,Notes,RecordedBy)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Students WHERE StudentID = @studentId AND SchoolID = @schoolId)
+                THROW 50000, 'Student must belong to the selected school', 1;
+              INSERT INTO AcademicNotes (SchoolID,StudentID,Term,Year,Notes,RecordedBy)
               OUTPUT INSERTED.* VALUES (@schoolId,@studentId,@term,@year,@notes,@recordedBy)`);
     return result.recordset[0];
   }
 }
 
 class DocumentRepository {
-  async getStudentDocuments(studentId) {
+  async getStudentDocuments(studentId, schoolId) {
     const pool = await getPool();
-    const result = await pool.request().input('studentId', sql.Int, studentId)
-      .query('SELECT DocumentID, SchoolID, StudentID, DocumentType, FileName, UploadedBy, CreatedDate FROM StudentDocuments WHERE StudentID = @studentId ORDER BY CreatedDate DESC');
+    const result = await pool.request().input('studentId', sql.Int, studentId).input('schoolId', sql.Int, schoolId)
+      .query('SELECT DocumentID, SchoolID, StudentID, DocumentType, FileName, UploadedBy, CreatedDate FROM StudentDocuments WHERE StudentID = @studentId AND SchoolID = @schoolId ORDER BY CreatedDate DESC');
     return result.recordset;
   }
   async createStudentDocument(data) {
@@ -61,15 +65,17 @@ class DocumentRepository {
       .input('schoolId', sql.Int, data.schoolId).input('studentId', sql.Int, data.studentId)
       .input('documentType', sql.NVarChar, data.documentType).input('fileName', sql.NVarChar, data.fileName)
       .input('fileData', sql.NVarChar(sql.MAX), data.fileData || null).input('uploadedBy', sql.Int, data.uploadedBy || null)
-      .query(`INSERT INTO StudentDocuments (SchoolID,StudentID,DocumentType,FileName,FileData,UploadedBy)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Students WHERE StudentID = @studentId AND SchoolID = @schoolId)
+                THROW 50000, 'Student must belong to the selected school', 1;
+              INSERT INTO StudentDocuments (SchoolID,StudentID,DocumentType,FileName,FileData,UploadedBy)
               OUTPUT INSERTED.DocumentID, INSERTED.SchoolID, INSERTED.StudentID, INSERTED.DocumentType, INSERTED.FileName, INSERTED.CreatedDate
               VALUES (@schoolId,@studentId,@documentType,@fileName,@fileData,@uploadedBy)`);
     return result.recordset[0];
   }
-  async getStaffDocuments(employeeId) {
+  async getStaffDocuments(employeeId, schoolId) {
     const pool = await getPool();
-    const result = await pool.request().input('employeeId', sql.Int, employeeId)
-      .query('SELECT DocumentID, SchoolID, EmployeeID, DocumentType, FileName, UploadedBy, CreatedDate FROM StaffDocuments WHERE EmployeeID = @employeeId ORDER BY CreatedDate DESC');
+    const result = await pool.request().input('employeeId', sql.Int, employeeId).input('schoolId', sql.Int, schoolId)
+      .query('SELECT DocumentID, SchoolID, EmployeeID, DocumentType, FileName, UploadedBy, CreatedDate FROM StaffDocuments WHERE EmployeeID = @employeeId AND SchoolID = @schoolId ORDER BY CreatedDate DESC');
     return result.recordset;
   }
   async createStaffDocument(data) {
@@ -78,7 +84,9 @@ class DocumentRepository {
       .input('schoolId', sql.Int, data.schoolId).input('employeeId', sql.Int, data.employeeId)
       .input('documentType', sql.NVarChar, data.documentType).input('fileName', sql.NVarChar, data.fileName)
       .input('fileData', sql.NVarChar(sql.MAX), data.fileData || null).input('uploadedBy', sql.Int, data.uploadedBy || null)
-      .query(`INSERT INTO StaffDocuments (SchoolID,EmployeeID,DocumentType,FileName,FileData,UploadedBy)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Employees WHERE EmployeeID = @employeeId AND SchoolID = @schoolId)
+                THROW 50000, 'Employee must belong to the selected school', 1;
+              INSERT INTO StaffDocuments (SchoolID,EmployeeID,DocumentType,FileName,FileData,UploadedBy)
               OUTPUT INSERTED.DocumentID, INSERTED.SchoolID, INSERTED.EmployeeID, INSERTED.DocumentType, INSERTED.FileName, INSERTED.CreatedDate
               VALUES (@schoolId,@employeeId,@documentType,@fileName,@fileData,@uploadedBy)`);
     return result.recordset[0];
@@ -99,7 +107,9 @@ class CreditNoteRepository {
       .input('schoolId', sql.Int, data.schoolId).input('invoiceId', sql.Int, data.invoiceId)
       .input('amount', sql.Decimal(10,2), data.amount).input('reason', sql.NVarChar, data.reason)
       .input('createdBy', sql.Int, data.createdBy || null)
-      .query(`INSERT INTO CreditNotes (SchoolID,InvoiceID,Amount,Reason,CreatedBy)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Invoices WHERE InvoiceID = @invoiceId AND SchoolID = @schoolId)
+                THROW 50000, 'Invoice must belong to the selected school', 1;
+              INSERT INTO CreditNotes (SchoolID,InvoiceID,Amount,Reason,CreatedBy)
               OUTPUT INSERTED.* VALUES (@schoolId,@invoiceId,@amount,@reason,@createdBy)`);
     return result.recordset[0];
   }
@@ -115,10 +125,10 @@ class DiscountRepository {
               WHERE d.SchoolID = @schoolId ORDER BY s.LastName`);
     return result.recordset;
   }
-  async getActiveByStudent(studentId) {
+  async getActiveByStudent(studentId, schoolId) {
     const pool = await getPool();
-    const result = await pool.request().input('studentId', sql.Int, studentId)
-      .query('SELECT * FROM Discounts WHERE StudentID = @studentId AND IsActive = 1');
+    const result = await pool.request().input('studentId', sql.Int, studentId).input('schoolId', sql.Int, schoolId)
+      .query('SELECT * FROM Discounts WHERE StudentID = @studentId AND SchoolID = @schoolId AND IsActive = 1');
     return result.recordset;
   }
   async create(data) {
@@ -130,7 +140,11 @@ class DiscountRepository {
       .input('fixedAmount', sql.Decimal(10,2), data.fixedAmount || null)
       .input('percentage', sql.Decimal(5,2), data.percentage || null)
       .input('description', sql.NVarChar, data.description || null)
-      .query(`INSERT INTO Discounts (SchoolID,StudentID,BillingCategoryID,DiscountType,FixedAmount,Percentage,Description)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Students WHERE StudentID = @studentId AND SchoolID = @schoolId)
+                THROW 50000, 'Student must belong to the selected school', 1;
+              IF @billingCategoryId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM BillingCategories WHERE BillingCategoryID = @billingCategoryId AND SchoolID = @schoolId)
+                THROW 50000, 'Billing category must belong to the selected school', 1;
+              INSERT INTO Discounts (SchoolID,StudentID,BillingCategoryID,DiscountType,FixedAmount,Percentage,Description)
               OUTPUT INSERTED.* VALUES (@schoolId,@studentId,@billingCategoryId,@discountType,@fixedAmount,@percentage,@description)`);
     return result.recordset[0];
   }
@@ -150,14 +164,16 @@ class PromiseToPayRepository {
       .input('schoolId', sql.Int, data.schoolId).input('familyId', sql.Int, data.familyId)
       .input('promisedDate', sql.Date, data.promisedDate).input('promisedAmount', sql.Decimal(10,2), data.promisedAmount)
       .input('notes', sql.NVarChar, data.notes || null).input('recordedBy', sql.Int, data.recordedBy || null)
-      .query(`INSERT INTO PromiseToPay (SchoolID,FamilyID,PromisedDate,PromisedAmount,Notes,RecordedBy)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Families WHERE FamilyID = @familyId AND SchoolID = @schoolId)
+                THROW 50000, 'Family must belong to the selected school', 1;
+              INSERT INTO PromiseToPay (SchoolID,FamilyID,PromisedDate,PromisedAmount,Notes,RecordedBy)
               OUTPUT INSERTED.* VALUES (@schoolId,@familyId,@promisedDate,@promisedAmount,@notes,@recordedBy)`);
     return result.recordset[0];
   }
-  async updateStatus(id, status) {
+  async updateStatus(id, schoolId, status) {
     const pool = await getPool();
-    const result = await pool.request().input('id', sql.Int, id).input('status', sql.NVarChar, status)
-      .query('UPDATE PromiseToPay SET Status=@status OUTPUT INSERTED.* WHERE PromiseID=@id');
+    const result = await pool.request().input('id', sql.Int, id).input('schoolId', sql.Int, schoolId).input('status', sql.NVarChar, status)
+      .query('UPDATE PromiseToPay SET Status=@status OUTPUT INSERTED.* WHERE PromiseID=@id AND SchoolID=@schoolId');
     return result.recordset[0];
   }
 }
@@ -182,9 +198,9 @@ class InvoiceTemplateRepository {
               OUTPUT INSERTED.* VALUES (@schoolId,@templateName,@logoUrl,@headerText,@footerText,@contactDetails,@bankingDetails,@notes,@isDefault)`);
     return result.recordset[0];
   }
-  async update(id, data) {
+  async update(id, schoolId, data) {
     const pool = await getPool();
-    const result = await pool.request().input('id', sql.Int, id)
+    const result = await pool.request().input('id', sql.Int, id).input('schoolId', sql.Int, schoolId)
       .input('templateName', sql.NVarChar, data.templateName)
       .input('logoUrl', sql.NVarChar(sql.MAX), data.logoUrl || null)
       .input('headerText', sql.NVarChar, data.headerText || null).input('footerText', sql.NVarChar, data.footerText || null)
@@ -193,7 +209,7 @@ class InvoiceTemplateRepository {
       .input('notes', sql.NVarChar, data.notes || null).input('isDefault', sql.Bit, data.isDefault || false)
       .query(`UPDATE InvoiceTemplates SET TemplateName=@templateName,LogoUrl=@logoUrl,HeaderText=@headerText,
               FooterText=@footerText,ContactDetails=@contactDetails,BankingDetails=@bankingDetails,
-              Notes=@notes,IsDefault=@isDefault,UpdatedDate=GETDATE() OUTPUT INSERTED.* WHERE TemplateID=@id`);
+              Notes=@notes,IsDefault=@isDefault,UpdatedDate=GETDATE() OUTPUT INSERTED.* WHERE TemplateID=@id AND SchoolID=@schoolId`);
     return result.recordset[0];
   }
 }
@@ -214,7 +230,11 @@ class CommunicationHistoryRepository {
       .input('subject', sql.NVarChar, data.subject || null)
       .input('status', sql.NVarChar, data.status || 'Sent')
       .input('deliveryStatus', sql.NVarChar, data.deliveryStatus || null)
-      .query(`INSERT INTO CommunicationHistory (SchoolID,FamilyID,ParentUserID,CommunicationType,Subject,Status,DeliveryStatus)
+      .query(`IF @familyId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Families WHERE FamilyID = @familyId AND SchoolID = @schoolId)
+                THROW 50000, 'Family must belong to the selected school', 1;
+              IF @parentUserId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ParentLinks WHERE UserID = @parentUserId AND SchoolID = @schoolId)
+                THROW 50000, 'Parent user must belong to the selected school', 1;
+              INSERT INTO CommunicationHistory (SchoolID,FamilyID,ParentUserID,CommunicationType,Subject,Status,DeliveryStatus)
               OUTPUT INSERTED.* VALUES (@schoolId,@familyId,@parentUserId,@communicationType,@subject,@status,@deliveryStatus)`);
     return result.recordset[0];
   }
@@ -235,7 +255,9 @@ class ParentCommunicationLogRepository {
       .input('communicationType', sql.NVarChar, data.communicationType)
       .input('subject', sql.NVarChar, data.subject || null).input('notes', sql.NVarChar, data.notes || null)
       .input('recordedBy', sql.Int, data.recordedBy || null)
-      .query(`INSERT INTO ParentCommunicationLogs (SchoolID,FamilyID,CommunicationType,Subject,Notes,RecordedBy)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Families WHERE FamilyID = @familyId AND SchoolID = @schoolId)
+                THROW 50000, 'Family must belong to the selected school', 1;
+              INSERT INTO ParentCommunicationLogs (SchoolID,FamilyID,CommunicationType,Subject,Notes,RecordedBy)
               OUTPUT INSERTED.* VALUES (@schoolId,@familyId,@communicationType,@subject,@notes,@recordedBy)`);
     return result.recordset[0];
   }
@@ -256,16 +278,20 @@ class ParentDetailChangeRepository {
       .input('schoolId', sql.Int, data.schoolId).input('familyId', sql.Int, data.familyId)
       .input('requestedBy', sql.Int, data.requestedBy).input('fieldName', sql.NVarChar, data.fieldName)
       .input('oldValue', sql.NVarChar, data.oldValue || null).input('newValue', sql.NVarChar, data.newValue || null)
-      .query(`INSERT INTO ParentDetailChanges (SchoolID,FamilyID,RequestedBy,FieldName,OldValue,NewValue)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Families WHERE FamilyID = @familyId AND SchoolID = @schoolId)
+                THROW 50000, 'Family must belong to the selected school', 1;
+              IF NOT EXISTS (SELECT 1 FROM ParentLinks WHERE UserID = @requestedBy AND FamilyID = @familyId AND SchoolID = @schoolId)
+                THROW 50000, 'Parent user must belong to this family and school', 1;
+              INSERT INTO ParentDetailChanges (SchoolID,FamilyID,RequestedBy,FieldName,OldValue,NewValue)
               OUTPUT INSERTED.* VALUES (@schoolId,@familyId,@requestedBy,@fieldName,@oldValue,@newValue)`);
     return result.recordset[0];
   }
-  async review(id, status, reviewedBy) {
+  async review(id, schoolId, status, reviewedBy) {
     const pool = await getPool();
-    const result = await pool.request().input('id', sql.Int, id)
+    const result = await pool.request().input('id', sql.Int, id).input('schoolId', sql.Int, schoolId)
       .input('status', sql.NVarChar, status).input('reviewedBy', sql.Int, reviewedBy)
       .query(`UPDATE ParentDetailChanges SET Status=@status, ReviewedBy=@reviewedBy, ReviewedDate=GETDATE()
-              OUTPUT INSERTED.* WHERE ChangeID=@id`);
+              OUTPUT INSERTED.* WHERE ChangeID=@id AND SchoolID=@schoolId`);
     return result.recordset[0];
   }
 }

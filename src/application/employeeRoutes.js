@@ -2,12 +2,12 @@
 
 const express = require('express');
 const EmployeeService = require('../business/employeeService');
-const { authenticateToken, requireSchoolOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireSchoolPermission } = require('../middleware/auth');
 
 const router = express.Router();
 const employeeService = new EmployeeService();
 
-router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/', authenticateToken, requireSchoolPermission('school.staff.view', 'school.staff.manage'), async (req, res) => {
   try {
     const employees = await employeeService.getEmployees(req.user);
     res.json(employees);
@@ -16,7 +16,7 @@ router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   }
 });
 
-router.get('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/:id', authenticateToken, requireSchoolPermission('school.staff.view', 'school.staff.manage'), async (req, res) => {
   try {
     const employee = await employeeService.getEmployeeById(parseInt(req.params.id, 10), req.user);
     res.json(employee);
@@ -25,7 +25,7 @@ router.get('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => 
   }
 });
 
-router.post('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.post('/', authenticateToken, requireSchoolPermission('school.staff.manage'), async (req, res) => {
   try {
     const employee = await employeeService.createEmployee(req.body, req.user);
     res.status(201).json(employee);
@@ -34,7 +34,7 @@ router.post('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.put('/:id', authenticateToken, requireSchoolPermission('school.staff.manage'), async (req, res) => {
   try {
     const employee = await employeeService.updateEmployee(parseInt(req.params.id, 10), req.body, req.user);
     res.json(employee);

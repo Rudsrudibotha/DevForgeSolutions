@@ -20,7 +20,7 @@
         <nav class="nav-list" aria-label="Primary">
           <button class="nav-item active" data-view="overview" type="button" aria-current="page">Home</button>
           <button class="nav-item" data-view="school" type="button">School Management</button>
-          <button class="nav-item" data-view="finance" type="button">Finance</button>
+          <button class="nav-item" data-view="finance" type="button">Financial Management</button>
           <button class="nav-item" data-view="reporting" type="button">Reporting</button>
           <button class="nav-item" data-view="settings" type="button">Settings</button>
         </nav>
@@ -44,7 +44,7 @@
             <div class="dashboard-home">
               <section class="school-module-section">
                 <div class="school-section-heading">
-                  <h3>SCHOOL MANAGEMENT</h3>
+                  <h3>School Management</h3>
                 </div>
                 <div class="module-grid">
                   <button class="module-tile" data-action="open-school" type="button">
@@ -53,13 +53,22 @@
                   </button>
                   <button class="module-tile" data-action="open-finance" type="button">
                     <span class="module-icon finance-icon" aria-hidden="true">FI</span>
-                    <span>Finance</span>
+                    <span>Financial Management</span>
                   </button>
                   <button class="module-tile" data-action="open-reporting" type="button">
                     <span class="module-icon report-icon" aria-hidden="true">RP</span>
                     <span>Reporting</span>
                   </button>
                 </div>
+              </section>
+              <section id="dashboardWarningsPanel" class="table-panel dashboard-warning-panel hidden">
+                <div class="panel-header">
+                  <div>
+                    <h3>Action Needed</h3>
+                    <p>Items that can affect billing, reconciliation, payroll, or parent statements.</p>
+                  </div>
+                </div>
+                <div id="dashboardWarningsList" class="warning-list"></div>
               </section>
             </div>
           </section>
@@ -70,14 +79,14 @@
                 <h3>School</h3>
               </div>
               <div class="module-grid feature-grid">
-                <button class="module-tile" data-action="open-classes" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-classes.png" alt="" aria-hidden="true"><span>Classes</span></button>
-                <button class="module-tile" data-action="open-staff" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-staff.svg" alt="" aria-hidden="true"><span>Staff</span></button>
-                <button class="module-tile" data-action="open-students" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-students.svg" alt="" aria-hidden="true"><span>Students</span></button>
-                <button class="module-tile" data-action="open-parents" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-parents.svg" alt="" aria-hidden="true"><span>Parents</span></button>
-                <button class="module-tile" data-action="open-attendance" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-attendance.svg" alt="" aria-hidden="true"><span>Attendance</span></button>
-                <button class="module-tile" data-action="open-reenrolment" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-re-enrolment-year-rollover.svg" alt="" aria-hidden="true"><span>Re-Enrolment / Year Rollover</span></button>
-                <button class="module-tile" data-action="open-consent-permissions" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-consent-permissions.svg" alt="" aria-hidden="true"><span>Consent and Permissions</span></button>
-                <button class="module-tile" data-action="open-register-learner" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-students.svg" alt="" aria-hidden="true"><span>Register Learner</span></button>
+                <button class="module-tile" data-action="open-classes" data-permission="school.classes.view|school.classes.manage|classes.view_assigned" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-classes.png" alt="" aria-hidden="true"><span>Classes</span></button>
+                <button class="module-tile" data-action="open-staff" data-permission="school.staff.view|school.staff.manage|school.staff.permissions.manage" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-staff.svg" alt="" aria-hidden="true"><span>Staff</span></button>
+                <button class="module-tile" data-action="open-students" data-permission="school.students.view|school.students.manage" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-students.svg" alt="" aria-hidden="true"><span>Students</span></button>
+                <button class="module-tile" data-action="open-parents" data-permission="school.parents.view|school.parents.manage" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-parents.svg" alt="" aria-hidden="true"><span>Parents</span></button>
+                <button class="module-tile" data-action="open-attendance" data-permission="attendance.view_all|attendance.edit_all|attendance.view_assigned|attendance.submit_assigned" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-attendance.svg" alt="" aria-hidden="true"><span>Attendance</span></button>
+                <button class="module-tile" data-action="open-reenrolment" data-permission="school.year_rollover.preview|school.year_rollover.apply" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-re-enrolment-year-rollover.svg" alt="" aria-hidden="true"><span>Re-Enrolment / Year Rollover</span></button>
+                <button class="module-tile" data-action="open-consent-permissions" data-permission="school.consent.view|school.consent.manage" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-consent-permissions.svg" alt="" aria-hidden="true"><span>Consent and Permissions</span></button>
+                <button class="module-tile" data-action="open-register-learner" data-permission="school.students.manage|admissions.convert_to_student" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-students.svg" alt="" aria-hidden="true"><span>Register Learner</span></button>
               </div>
             </section>
           </section>
@@ -85,21 +94,21 @@
           <section id="financeView" class="view">
             <section class="school-module-section">
               <div class="school-section-heading">
-                <h3>Finance</h3>
+                <h3>Financial Management</h3>
               </div>
               <div class="module-grid feature-grid">
-                <button class="module-tile" data-action="open-bank" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-bank-reconciliation.svg" alt="" aria-hidden="true"><span>Bank Reconciliation</span></button>
-                <button class="module-tile" data-action="open-outstanding" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-outstanding-fees.svg" alt="" aria-hidden="true"><span>Outstanding Fees</span></button>
-                <button class="module-tile" data-action="open-bank-transactions" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-bank-transactions.svg" alt="" aria-hidden="true"><span>Bank Transactions</span></button>
-                <button class="module-tile" data-action="open-bank-statements" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-bank-statements.svg" alt="" aria-hidden="true"><span>Bank Statements</span></button>
-                <button class="module-tile" data-action="open-suggested-matches" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-suggested-matches.svg" alt="" aria-hidden="true"><span>Suggested Matches</span></button>
-                <button class="module-tile" data-action="open-invoices" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-invoices.svg" alt="" aria-hidden="true"><span>Invoices</span></button>
-                <button class="module-tile" data-action="open-billing-categories" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-billing-categories.svg" alt="" aria-hidden="true"><span>Billing Categories</span></button>
-                <button class="module-tile" data-action="open-hr-payroll" data-permission="hr" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-hr-payroll.svg" alt="" aria-hidden="true"><span>HR / Payroll</span></button>
-                <button class="module-tile" data-action="open-financial-adjustments" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-financial-adjustments.svg" alt="" aria-hidden="true"><span>Financial Adjustments</span></button>
-                <button class="module-tile" data-action="open-refunds" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-refunds.svg" alt="" aria-hidden="true"><span>Refunds</span></button>
-                <button class="module-tile" data-action="open-registration-fees" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-registration-deposit-fees.svg" alt="" aria-hidden="true"><span>Registration / Deposit Fees</span></button>
-                <button class="module-tile" data-action="open-year-end-closing" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-year-end-financial-closing.svg" alt="" aria-hidden="true"><span>Year-End Financial Closing</span></button>
+                <button class="module-tile" data-action="open-bank" data-permission="finance.bank_reconciliation.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-bank-reconciliation.svg" alt="" aria-hidden="true"><span>Bank Reconciliation</span></button>
+                <button class="module-tile" data-action="open-outstanding" data-permission="finance.outstanding_fees.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-outstanding-fees.svg" alt="" aria-hidden="true"><span>Outstanding Fees</span></button>
+                <button class="module-tile" data-action="open-bank-transactions" data-permission="finance.payments.view|finance.bank_reconciliation.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-bank-transactions.svg" alt="" aria-hidden="true"><span>Bank Transactions</span></button>
+                <button class="module-tile" data-action="open-bank-statements" data-permission="finance.bank_reconciliation.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-bank-statements.svg" alt="" aria-hidden="true"><span>Bank Statements</span></button>
+                <button class="module-tile" data-action="open-invoices" data-permission="finance.invoices.view|finance.invoices.create|finance.invoices.edit" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-invoices.svg" alt="" aria-hidden="true"><span>Invoices</span></button>
+                <button class="module-tile" data-action="open-billing-categories" data-permission="finance.billing_categories.manage" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-billing-categories.svg" alt="" aria-hidden="true"><span>Billing Categories</span></button>
+                <button class="module-tile" data-action="open-hr-payroll" data-permission="hr.view_payslips|hr.manage_payslips|sensitive.payroll.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-hr-payroll.svg" alt="" aria-hidden="true"><span>HR / Payroll</span></button>
+                <button class="module-tile" data-action="open-financial-adjustments" data-permission="finance.adjustments.create" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-financial-adjustments.svg" alt="" aria-hidden="true"><span>Financial Adjustments</span></button>
+                <button class="module-tile" data-action="open-refunds" data-permission="finance.refunds.create|finance.refunds.approve|finance.refunds.complete" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-refunds.svg" alt="" aria-hidden="true"><span>Refunds</span></button>
+                <button class="module-tile" data-action="open-registration-fees" data-permission="finance.registration_fees.view|finance.registration_fees.manage" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-registration-deposit-fees.svg" alt="" aria-hidden="true"><span>Registration / Deposit Fees</span></button>
+                <button class="module-tile" data-action="open-year-end-closing" data-permission="finance.year_end_close|finance.year_end_reopen|reports.year_end.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-year-end-financial-closing.svg" alt="" aria-hidden="true"><span>Year-End Financial Closing</span></button>
+                <button class="module-tile" data-action="open-finance-audit" data-permission="finance.audit.view|finance.year_end_close|reports.view" type="button"><span class="module-icon finance-icon" aria-hidden="true">AU</span><span>Finance Audit</span></button>
               </div>
             </section>
           </section>
@@ -110,15 +119,15 @@
                 <h3>Reporting</h3>
               </div>
               <div class="module-grid feature-grid">
-                <button class="module-tile" data-action="open-student-reports" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-student-reports.svg" alt="" aria-hidden="true"><span>Student Reports</span></button>
-                <button class="module-tile" data-action="open-report" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-school-report.svg" alt="" aria-hidden="true"><span>School Report</span></button>
-                <button class="module-tile" data-action="open-send-invoices" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-send-invoices-to-parents.svg" alt="" aria-hidden="true"><span>Send Invoices to Parents</span></button>
-                <button class="module-tile" data-action="open-export-reports" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-export-reports.svg" alt="" aria-hidden="true"><span>Export Reports</span></button>
-                <button class="module-tile" data-action="open-communication-history" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-communication-history.svg" alt="" aria-hidden="true"><span>Communication History</span></button>
-                <button class="module-tile" data-action="open-admissions-report" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-admissions-report.svg" alt="" aria-hidden="true"><span>Admissions Report</span></button>
-                <button class="module-tile" data-action="open-reenrolment-report" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-re-enrolment-report.svg" alt="" aria-hidden="true"><span>Re-Enrolment Report</span></button>
-                <button class="module-tile" data-action="open-consent-report" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-consent-report.svg" alt="" aria-hidden="true"><span>Consent Report</span></button>
-                <button class="module-tile" data-action="open-year-end-report" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-year-end-report.svg" alt="" aria-hidden="true"><span>Year-End Report</span></button>
+                <button class="module-tile" data-action="open-student-reports" data-permission="reports.view|reports.demographics.view|reports.attendance.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-student-reports.svg" alt="" aria-hidden="true"><span>Student Reports</span></button>
+                <button class="module-tile" data-action="open-report" data-permission="reports.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-school-report.svg" alt="" aria-hidden="true"><span>School Report</span></button>
+                <button class="module-tile" data-action="open-send-invoices" data-permission="statements.send|finance.invoices.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-send-invoices-to-parents.svg" alt="" aria-hidden="true"><span>Send Invoices to Parents</span></button>
+                <button class="module-tile" data-action="open-export-reports" data-permission="reports.export|reports.finance.export|reports.attendance.export|reports.demographics.export" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-export-reports.svg" alt="" aria-hidden="true"><span>Export Reports</span></button>
+                <button class="module-tile" data-action="open-communication-history" data-permission="communication.history.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-communication-history.svg" alt="" aria-hidden="true"><span>Communication History</span></button>
+                <button class="module-tile" data-action="open-admissions-report" data-permission="admissions.view|reports.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-admissions-report.svg" alt="" aria-hidden="true"><span>Admissions Report</span></button>
+                <button class="module-tile" data-action="open-reenrolment-report" data-permission="school.year_rollover.preview|reports.year_end.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-re-enrolment-report.svg" alt="" aria-hidden="true"><span>Re-Enrolment Report</span></button>
+                <button class="module-tile" data-action="open-consent-report" data-permission="school.consent.view|reports.consent.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-consent-report.svg" alt="" aria-hidden="true"><span>Consent Report</span></button>
+                <button class="module-tile" data-action="open-year-end-report" data-permission="reports.year_end.view|finance.year_end_close" type="button"><img class="module-icon-img" src="/assets/icons/icon-reporting-year-end-report.svg" alt="" aria-hidden="true"><span>Year-End Report</span></button>
               </div>
             </section>
           </section>
@@ -201,7 +210,7 @@
                 </table>
               </div>
               <div class="actions stacked-actions">
-                <button class="primary-button compact-button" data-action="open-employee-dialog" type="button">Add Staff</button>
+                <button class="primary-button compact-button" data-action="open-employee-dialog" data-permission="school.staff.manage" type="button">Add Staff</button>
               </div>
             </section>
           </section>
@@ -282,7 +291,6 @@
                     <tr>
                       <th>Name</th>
                       <th>Family</th>
-                      <th>Billing</th>
                       <th>Enrolled</th>
                       <th>Status</th>
                       <th>Actions</th>
@@ -589,19 +597,14 @@
           </section>
 
           <section id="reenrolmentView" class="view grouped-view" data-group="school">
-          <!-- TODO: School / Re-Enrolment / Year Rollover (README: Re-Enrolment / Year Rollover Section)
-    API: GET /api/platform/re-enrolment?schoolId=X&year=Y (list)
-    API: POST /api/platform/re-enrolment (process single)
-    API: POST /api/platform/re-enrolment/bulk (process bulk)
-    NEEDS: Academic year selector
-    TODO: When wired, year rollover must create or activate classes for the new academic year and archive classes that are no longer active for that year.
-    NEEDS: Student list with current class, suggested new class, action (Promoted/Left/Retained/Pending)
-    NEEDS: Preview before applying rollover
-    NEEDS: Manual override of suggested class
-    NEEDS: Bulk promote/retain/leave buttons
-    NEEDS: Age-based class movement using DOB and configured month ranges
-    NEEDS: Carry forward outstanding balances and advance credits
-    NEEDS: Audit log all rollover actions
+          <!-- School / Re-Enrolment / Year Rollover
+    DONE: Academic year selector
+    DONE: Student process form with promoted, retained, left, and pending actions
+    DONE: Pending learner table with safe fill-form actions
+    DONE: Processed learner table and summary metrics
+    TODO: Add full preview/apply workflow for bulk year rollover
+    TODO: Add configured age-based class movement rules
+    TODO: Add class archive/create rules for the next academic year
   -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
@@ -728,11 +731,38 @@
                   </div>
 
                   <div class="form-tab-panel" data-form-panel="billing">
+                    <section class="billing-payer-panel">
+                      <div class="billing-assignment-header">
+                        <h4>Student Billing</h4>
+                      </div>
+                      <div class="form-grid">
+                        <label>
+                          Responsible payer <span class="required-marker">*</span>
+                          <select id="registerResponsiblePayerTypeSelect" name="responsiblePayerType" required>
+                            <option value="Primary parent">Primary parent</option>
+                            <option value="Secondary parent">Secondary parent</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </label>
+                        <label>
+                          Payer name <span class="required-marker">*</span>
+                          <input name="responsiblePayerName" type="text" required>
+                        </label>
+                        <label>
+                          Payer phone
+                          <input name="responsiblePayerPhone" type="tel">
+                        </label>
+                        <label>
+                          Payer email
+                          <input name="responsiblePayerEmail" type="email">
+                        </label>
+                      </div>
+                    </section>
                     <div class="billing-assignment-grid">
                       <section class="billing-assignment-panel">
                         <div class="billing-assignment-header">
-                          <h4>Billing Categories</h4>
-                          <span>Active school categories</span>
+                          <h4>Financial Management Billing Categories</h4>
+                          <span>Active categories from Financial Management</span>
                         </div>
                         <div id="registerLearnerBillingAvailable" class="billing-drop-zone" data-billing-zone="available" aria-label="Available billing categories"></div>
                       </section>
@@ -782,17 +812,11 @@
           </section>
 
           <section id="consentPermissionsView" class="view grouped-view" data-group="school">
-          <!-- TODO: School / Consent and Permissions (README: Consent and Permissions Section)
-    API: GET /api/school-features/consent (list)
-    API: POST /api/school-features/consent (create)
-    API: PUT /api/school-features/consent/:id/respond (respond)
-    API: GET /api/school-features/consent/missing (missing report)
-    NEEDS: Form to create consent request (student, consent type, notes)
-    NEEDS: Consent type options: photo, trip, medical, communication, data-processing
-    NEEDS: Table showing all consent records with student, parent, type, response, date
-    NEEDS: Filter by consent type, response status, student, class
-    NEEDS: Missing consent report view
-    NEEDS: Audit log all consent actions
+          <!-- Consent and Permissions
+    DONE: Popup form creates legal permission slips per student, class, grade, or school
+    DONE: Permission slip list, outstanding responses, signed permission slips, and filters
+    DONE: Parent signing remains in the parent dashboard
+    DONE: School-side consent routes are permission protected
   -->
             <section class="table-panel page-table-panel">
               <div class="panel-header">
@@ -806,25 +830,18 @@
           </section>
 
           <section id="bankView" class="view grouped-view" data-group="finance">
-          <!-- TODO: Finance / Bank Reconciliation (README: Bank Reconciliation Section)
-    DONE: Upload bank statement (OFX/QFX)
-    DONE: Payment summary (credits, debits, balance, outstanding)
-    DONE: Search by reference, family code, amount
-    DONE: Filter by allocation status
-    TODO: Statement-style transaction table with columns: Payment Date, Bank Reference, Description, Debit, Credit, Amount, Allocation Status, Allocated To, Action
-    TODO: One search field per unallocated row to find student/family (API exists: GET /api/bank-statements/allocation-search?q=)
-    TODO: Allocate to debtor button per row (API exists: POST /api/bank-statements/allocate/debtor)
-    TODO: Allocate to creditor button per row (API exists: POST /api/bank-statements/allocate/creditor)
-    TODO: Unallocate button (API exists: POST /api/bank-statements/unallocate)
-    TODO: Show suggested matches inline after upload (API exists: GET /api/bank-statements/match-suggestions)
-    TODO: Import summary showing total rows, imported, skipped duplicates, skipped pending
+          <!-- Bank Reconciliation
+    DONE: Upload OFX/QFX statement with duplicate period checks
+    DONE: Month-based reconciliation view
+    DONE: Inline automatic suggestions with user approval
+    DONE: Statement, transaction, invoice, and payment allocation routes are school-scoped
   -->
             <div class="icon-page-layout">
               <section class="form-panel">
                 <div class="panel-header">
                   <div>
                     <h3>Bank Reconciliation</h3>
-                    <p>Import bank statements and confirm payment allocation.</p>
+                    <p>Import monthly bank statements and confirm payment allocation.</p>
                   </div>
                 </div>
                 <form id="ofxUploadForm" class="module-form flush-form">
@@ -836,25 +853,35 @@
                 </form>
                 <div class="form-grid section-spacer">
                   <label>
-                    Search payment
-                    <input type="search" placeholder="Reference / family code / amount">
+                    Month
+                    <select id="reconciliationMonth"></select>
+                  </label>
+                  <label>
+                    Year
+                    <input id="reconciliationYear" type="number" min="2000" max="2100">
+                  </label>
+                  <label>
+                    Search payments
+                    <input id="reconciliationSearch" type="search" placeholder="Reference / family / amount">
                   </label>
                   <label>
                     Status
-                    <select>
-                      <option>Unallocated</option>
-                      <option>Allocated</option>
-                      <option>Advance Credit</option>
+                    <select id="reconciliationStatus">
+                      <option value="">All</option>
+                      <option value="Unallocated">Unallocated</option>
+                      <option value="Allocated">Allocated</option>
+                      <option value="Suggested Match">Suggested Match</option>
                     </select>
                   </label>
                 </div>
+                <p id="reconciliationCoverageNote" class="field-help"></p>
               </section>
 
               <section class="table-panel summary-panel">
                 <div class="panel-header">
                   <div>
-                    <h3>Payment Summary</h3>
-                    <p>Current financial position.</p>
+                    <h3>Monthly Reconciliation Summary</h3>
+                    <p id="reconciliationPeriodLabel">Selected month.</p>
                   </div>
                 </div>
                 <div id="reconciliationSummary" class="metrics-grid">
@@ -881,9 +908,50 @@
             <section class="table-panel page-table-panel">
               <div class="panel-header">
                 <div>
-                  <h3>Bank Reconciliation Workspace</h3>
-                  <p>Upload an OFX/QFX statement here, then review transactions, statements, and suggested matches from their own Finance feature pages.</p>
+                  <h3>Monthly Bank Statements</h3>
+                  <p>Each statement period is checked for duplicate or overlapping dates before import.</p>
                 </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Statement</th>
+                      <th>Period</th>
+                      <th>Imported</th>
+                      <th>Allocated</th>
+                      <th>Unallocated</th>
+                      <th>View</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reconciliationStatementsTable"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Payment Allocation</h3>
+                  <p>Suggested matches are based on invoice details and previous allocations for the same bank reference. Users approve the final allocation.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Bank reference</th>
+                      <th>Description</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Suggested allocation</th>
+                      <th>Allocated to</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reconciliationTransactionsTable"></tbody>
+                </table>
               </div>
             </section>
           </section>
@@ -927,6 +995,7 @@
                       <th>Statement Date</th>
                       <th>Transactions</th>
                       <th>Uploaded</th>
+                      <th>View</th>
                     </tr>
                   </thead>
                   <tbody id="bankStatementsTable"></tbody>
@@ -935,40 +1004,15 @@
             </section>
           </section>
 
-          <section id="suggestedMatchesView" class="view grouped-view" data-group="finance">
-            <section class="table-panel page-table-panel">
-              <div class="module-detail-header">
-                <div>
-                  <h3>Suggested Matches</h3>
-                  <p>Review suggested bank-to-invoice matches before approving.</p>
-                </div>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Bank reference</th>
-                      <th>Invoice</th>
-                      <th>Amount</th>
-                      <th>Confidence</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="matchSuggestionsTable"></tbody>
-                </table>
-              </div>
-            </section>
-          </section>
-
           <section id="outstandingView" class="view grouped-view" data-group="finance">
-          <!-- TODO: Finance / Outstanding Fees (README: Outstanding Fees Section)
+          <!-- TODO: Outstanding Fees (README: Outstanding Fees Section)
     DONE: Year calendar table with Jan-Dec columns
     DONE: Student name, surname, class, parent 1 cell, parent 2 cell
     DONE: Total outstanding column
     DONE: Red highlighting for overdue amounts
     DONE: Search filter
     DONE: Year selector with smart default
-    DONE: Export to CSV button
+    DONE: Export to readable Excel workbook
     TODO: Fee reminder and escalation rules (7/14/30 days overdue)
     TODO: Promise-to-pay recording (API exists: /api/features/promise-to-pay)
     TODO: Show promise-to-pay status in the table
@@ -1000,7 +1044,7 @@
                   </label>
                 </div>
                 <div class="form-grid section-spacer"><label>Year <input id="outstandingFeesYear" type="number" min="2020" max="2030" value="2026"></label></div>
-                <button class="secondary-button compact-button" data-action="export-outstanding-fees" type="button">Export Outstanding Fees</button>
+                <button class="secondary-button compact-button" data-action="export-outstanding-fees" data-permission="reports.finance.export" type="button">Export Outstanding Fees Excel</button>
               </section>
               <section class="table-panel summary-panel">
                 <div class="panel-header">
@@ -1045,11 +1089,11 @@
           </section>
 
           <section id="invoicesView" class="view grouped-view" data-group="finance">
-          <!-- TODO: Finance / Invoices (README: Invoices Section)
+          <!-- TODO: Invoices (README: Invoices Section)
     DONE: Create invoice form (school, student, amount, due date, description)
-    DONE: Invoice table with number, student, class, billing, amount, paid, status, due, actions
+    DONE: Invoice table with number, student, class, billing, amount, paid, payment date, status, due, actions
     DONE: Filter by student, class, month, year, status
-    DONE: Record payment dialog
+    DONE: Student receipt dialog with invoice allocation
     DONE: Auto monthly invoice generation (server scheduler)
     TODO: Credit note issuing against existing invoice (API exists: /api/features/credit-notes)
     TODO: Invoice template selection (API exists: /api/features/invoice-templates)
@@ -1154,6 +1198,7 @@
                       <th>Billing</th>
                       <th>Amount</th>
                       <th>Paid</th>
+                      <th>Payment date</th>
                       <th>Status</th>
                       <th>Due</th>
                       <th>Actions</th>
@@ -1166,7 +1211,7 @@
           </section>
 
           <section id="billingCategoriesView" class="view grouped-view" data-group="finance">
-          <!-- TODO: Finance / Billing Categories (README: Billing Categories Section)
+          <!-- TODO: Billing Categories (README: Billing Categories Section)
     DONE: Add/edit billing category form (name, amount, frequency, description)
     DONE: Billing categories table with category, amount, term, status, actions
     DONE: Edit and deactivate buttons
@@ -1180,10 +1225,15 @@
                 <div class="panel-header">
                   <div>
                     <h3>Billing Categories</h3>
-                    <p>Add, edit, and deactivate school billing terms.</p>
+                    <p id="billingCategorySchoolHint">Add, edit, and deactivate school billing terms.</p>
                   </div>
                 </div>
                 <input name="billingCategoryId" type="hidden">
+                <label id="billingCategorySchoolField" class="hidden">
+                  School
+                  <select id="billingCategorySchoolSelect" name="schoolId"></select>
+                  <span class="field-help">Billing categories are saved to the selected school only.</span>
+                </label>
                 <label>
                   Category name
                   <input name="categoryName" type="text" required>
@@ -1239,7 +1289,7 @@
           </section>
 
           <section id="payslipsView" class="view grouped-view" data-group="finance">
-          <!-- TODO: Finance / HR / Payroll - Payslips (README: HR / Payroll Section)
+          <!-- TODO: HR / Payroll - Payslips (README: HR / Payroll Section)
     DONE: Create payslip form with itemised fields (basic salary, allowances, overtime, bonus, deductions, tax, UIF)
     DONE: Payslip table with employee, period, net pay, status
     DONE: Employee dropdown
@@ -1260,7 +1310,7 @@
                     <p>Create and review school employee payslips.</p>
                   </div>
                 </div>
-                <form id="payslipForm" class="module-form flush-form">
+                <form id="payslipForm" class="module-form flush-form" data-permission="hr.manage_payslips|payroll.generate">
                   <div class="form-grid">
                     <label>
                       Employee
@@ -1311,7 +1361,7 @@
                       <textarea name="notes" rows="2"></textarea>
                     </label>
                   </div>
-                  <button class="primary-button compact-button" type="submit">Create Payslip</button>
+                  <button class="primary-button compact-button" data-permission="hr.manage_payslips|payroll.generate" type="submit">Create Payslip</button>
                 </form>
               </section>
               <section class="table-panel summary-panel">
@@ -1330,7 +1380,7 @@
           </section>
 
           <section id="leaveView" class="view grouped-view" data-group="finance">
-          <!-- TODO: Finance / HR / Payroll - Leave (README: Leave Management)
+          <!-- TODO: HR / Payroll - Leave (README: Leave Management)
     DONE: Leave request form (type, start date, end date, reason)
     DONE: Leave table with employee, type, dates, status
     DONE: Approve/reject buttons for pending requests
@@ -1352,6 +1402,10 @@
                 </div>
                 <form id="leaveForm" class="module-form flush-form">
                   <div class="form-grid">
+                    <label>
+                      Employee
+                      <select id="leaveEmployeeSelect" name="employeeId" required></select>
+                    </label>
                     <label>
                       Leave type
                       <select name="leaveType" required>
@@ -1393,7 +1447,7 @@
           </section>
 
           <section id="financialAdjustmentsView" class="view grouped-view" data-group="finance">
-          <!-- TODO: Finance / Financial Adjustments (README: Financial Adjustments Section)
+          <!-- TODO: Financial Adjustments (README: Financial Adjustments Section)
     API: GET /api/school-features/adjustments (list)
     API: POST /api/school-features/adjustments (create)
     NEEDS: Form with fields: student (dropdown), family (dropdown), invoice (dropdown), adjustment type (Write-off/Reversal/Credit Correction/Debit Correction/Fee Correction), amount, reason (required)
@@ -1413,7 +1467,7 @@
           </section>
 
           <section id="refundsView" class="view grouped-view" data-group="finance">
-          <!-- TODO: Finance / Refunds (README: Refunds Section)
+          <!-- TODO: Refunds (README: Refunds Section)
     API: GET /api/school-features/refunds (list)
     API: POST /api/school-features/refunds (create)
     API: PUT /api/school-features/refunds/:id/approve (approve)
@@ -1436,7 +1490,7 @@
           </section>
 
           <section id="registrationFeesView" class="view grouped-view" data-group="finance">
-          <!-- TODO: Finance / Registration / Deposit Fees (README: Registration / Deposit Fee Section)
+          <!-- TODO: Registration / Deposit Fees (README: Registration / Deposit Fee Section)
     API: GET /api/school-features/registration-fees (list)
     API: POST /api/school-features/registration-fees (create)
     API: PUT /api/school-features/registration-fees/:id/pay (mark paid)
@@ -1457,7 +1511,7 @@
           </section>
 
           <section id="yearEndClosingView" class="view grouped-view" data-group="finance">
-          <!-- TODO: Finance / Year-End Financial Closing (README: Year-End Financial Closing Section)
+          <!-- TODO: Year-End Financial Closing (README: Year-End Financial Closing Section)
     API: GET /api/hr/year-end (list)
     API: POST /api/hr/year-end (create)
     API: PUT /api/hr/year-end/:id/status (update status)
@@ -1480,6 +1534,46 @@
                 </div>
               </div>
               <p>Year-end financial closing records will appear here.</p>
+            </section>
+          </section>
+
+          <section id="financeAuditView" class="view grouped-view" data-group="finance">
+            <section class="table-panel page-table-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Finance Audit</h3>
+                  <p>Review sensitive finance and payroll activity for this school.</p>
+                </div>
+              </div>
+              <div class="form-grid">
+                <label>
+                  From
+                  <input id="financeAuditFromInput" type="date">
+                </label>
+                <label>
+                  To
+                  <input id="financeAuditToInput" type="date">
+                </label>
+                <label>
+                  Area
+                  <select id="financeAuditEntityFilter">
+                    <option value="">All sensitive areas</option>
+                    <option value="Receipt">Receipts</option>
+                    <option value="Student">Payer changes</option>
+                    <option value="BankStatement">Bank statements</option>
+                    <option value="Transaction">Payment allocation</option>
+                    <option value="Invoice">Invoices</option>
+                    <option value="Payslip">Payslips</option>
+                    <option value="FinancePeriodLock">Period locks</option>
+                  </select>
+                </label>
+              </div>
+              <div class="table-wrap section-spacer">
+                <table>
+                  <thead><tr><th>Date</th><th>Area</th><th>Action</th><th>Record</th><th>User</th></tr></thead>
+                  <tbody id="financeAuditTable"></tbody>
+                </table>
+              </div>
             </section>
           </section>
 
@@ -1508,7 +1602,7 @@
           <section id="reportView" class="view grouped-view" data-group="reporting">
           <!-- TODO: Reporting / School Report (README: School Report Section)
     DONE: Date range filter
-    DONE: Report type selector (Learners, Finance, Attendance)
+    DONE: Report type selector (Learners, Financial Management, Attendance)
     DONE: Report table
     TODO: Show total invoiced, total paid, outstanding fees, advance payments
     TODO: Monthly breakdown
@@ -1539,7 +1633,7 @@
                     Report Type
                     <select>
                       <option>Learners</option>
-                      <option>Finance</option>
+                      <option>Financial Management</option>
                       <option>Attendance</option>
                     </select>
                   </label>
@@ -1621,7 +1715,7 @@
     API: GET /api/export/transactions (CSV)
     API: GET /api/export/students (CSV)
     API: GET /api/export/employees (CSV)
-    API: GET /api/export/outstanding-fees (CSV)
+    API: GET /api/export/outstanding-fees (Excel)
     NEEDS: Export buttons for each report type: students, parents, birthdays, demographics, attendance, outstanding fees, invoices, payments, school finance
     NEEDS: All exports scoped to logged-in SchoolID
     NEEDS: Sensitive exports (ethnicity, medical, HR/payroll) require correct permission and audit log
@@ -1631,7 +1725,7 @@
               <div class="panel-header">
                 <div>
                   <h3>Export Reports</h3>
-                  <p>CSV exports for invoices, transactions, students, employees, and audit-safe reports.</p>
+                  <p>Readable exports for invoices, transactions, students, employees, and audit-safe finance reports.</p>
                 </div>
               </div>
               <p>Export report controls will appear here.</p>
@@ -1743,7 +1837,7 @@
                 <button class="settings-tab" data-settings-tab="school-account" type="button">School Account</button>
                 <button class="settings-tab" data-settings-tab="users" type="button">System Users</button>
                 <button class="settings-tab" data-settings-tab="audit" type="button">Audit Activity</button>
-                <button class="settings-tab" data-settings-tab="finance" type="button">Finance</button>
+                <button class="settings-tab" data-settings-tab="finance" type="button">Financial Management</button>
               </aside>
 
               <div class="settings-content">
@@ -1851,6 +1945,10 @@
                           Temporary password
                           <input name="password" type="password" autocomplete="new-password" minlength="8" required>
                         </label>
+                        <label>
+                          Access role
+                          <select id="schoolUserRoleSelect" name="staffRoleId"></select>
+                        </label>
                       </div>
                       <button class="primary-button compact-button" type="submit">Add user</button>
                     </form>
@@ -1862,12 +1960,60 @@
                             <th>Username</th>
                             <th>Email</th>
                             <th>Role</th>
+                            <th>Access roles</th>
                             <th>Created</th>
                           </tr>
                         </thead>
                         <tbody id="schoolUsersTable"></tbody>
                       </table>
                     </div>
+
+                    <section class="nested-settings-surface" data-permission="school.staff.permissions.manage">
+                      <div class="settings-page-header">
+                        <h3>Permission Matrix</h3>
+                        <p>Allowed and blocked access for each school role.</p>
+                      </div>
+                    <form id="staffRolePermissionForm" class="module-form permission-editor-form">
+                        <div class="form-grid">
+                          <label>
+                            Role
+                            <select id="permissionRoleSelect" name="staffRoleId"></select>
+                          </label>
+                          <label>
+                            Role name
+                            <input name="roleName" type="text" required>
+                          </label>
+                          <label class="wide">
+                            Description
+                            <input name="description" type="text">
+                          </label>
+                        </div>
+                        <div class="actions permission-template-actions">
+                          <button class="ghost-button compact-button" data-action="new-permission-role" type="button">New Role</button>
+                          <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="teacher" type="button">Teacher Template</button>
+                          <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="finance" type="button">Finance Template</button>
+                          <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="hr" type="button">HR Template</button>
+                          <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="admin" type="button">Admin Template</button>
+                        </div>
+                        <div id="permissionEditorList" class="permission-editor-list"></div>
+                        <div class="permission-matrix-toolbar">
+                          <label>
+                            Search permissions
+                            <input id="permissionMatrixSearchInput" type="search" placeholder="Search by area or permission area name">
+                          </label>
+                          <button id="clearPermissionMatrixSearch" class="ghost-button compact-button" type="button">Clear search</button>
+                        </div>
+                        <div class="actions modal-actions">
+                          <button class="primary-button compact-button" type="submit">Save Permissions</button>
+                        </div>
+                      </form>
+                      <div class="table-wrap">
+                        <table class="permission-matrix-table">
+                          <thead id="permissionMatrixHead"></thead>
+                          <tbody id="permissionMatrixTable"></tbody>
+                        </table>
+                      </div>
+                    </section>
                   </section>
                 </section>
 
@@ -1883,7 +2029,7 @@
                 <section class="settings-panel" data-settings-panel="finance">
                   <form id="settingsForm" class="settings-surface">
                     <div class="settings-page-header">
-                      <h3>Finance</h3>
+                      <h3>Financial Management</h3>
                       <p id="settingsSchoolName">-</p>
                     </div>
 
@@ -1910,27 +2056,279 @@
           </section>
         </section>
 
-        <div id="paymentDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="paymentDialogTitle">
-          <form id="paymentForm" class="modal-panel">
+        <div id="studentFinanceDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="studentFinanceDialogTitle">
+          <form id="studentReceiptForm" class="modal-panel wide-modal">
             <div class="modal-header">
               <div>
-                <h3 id="paymentDialogTitle">Record payment</h3>
-                <p id="paymentInvoiceLabel">-</p>
+                <h3 id="studentFinanceDialogTitle">Student Invoices</h3>
+                <p id="studentFinanceDialogSubtitle">Issue receipts and allocate payments for this learner.</p>
               </div>
-              <button id="closePaymentDialogButton" class="ghost-button icon-button" type="button" aria-label="Close payment dialog">&times;</button>
+              <button id="closeStudentFinanceDialogButton" class="ghost-button icon-button" type="button" aria-label="Close student finance">&times;</button>
             </div>
-            <input name="invoiceId" type="hidden">
-            <div class="payment-summary">
-              <span>Remaining</span>
-              <strong id="paymentRemainingLabel">R0.00</strong>
+            <input name="studentId" type="hidden">
+            <div class="metrics-grid">
+              <div class="metric">
+                <span>Outstanding</span>
+                <strong id="studentFinanceOutstanding">R0.00</strong>
+              </div>
+              <div class="metric">
+                <span>Advance wallet</span>
+                <strong id="studentFinanceWallet">R0.00</strong>
+              </div>
+              <div class="metric">
+                <span>Invoices</span>
+                <strong id="studentFinanceInvoiceCount">0</strong>
+              </div>
             </div>
-            <label>
-              Payment amount
-              <input id="paymentAmountInput" name="amount" type="number" min="0.01" step="0.01" required>
-            </label>
+            <div class="actions section-spacer">
+              <button class="secondary-button compact-button" data-action="export-student-statement-excel" data-permission="reports.finance.export" type="button">Export Statement Excel</button>
+              <button class="secondary-button compact-button" data-action="export-student-statement-pdf" data-permission="reports.finance.export" type="button">Print Statement / PDF</button>
+            </div>
+            <section class="table-panel embedded-panel">
+              <div class="panel-header">
+                <div>
+                  <h4>Outstanding Invoices</h4>
+                  <p>Allocate this receipt to the selected invoices. Any unallocated amount is held for future invoices.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Invoice</th>
+                      <th>Due</th>
+                      <th>Remaining</th>
+                      <th>Receipt allocation</th>
+                    </tr>
+                  </thead>
+                  <tbody id="studentReceiptInvoicesTable"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="table-panel embedded-panel">
+              <div class="panel-header">
+                <div>
+                  <h4>Advance Wallet Activity</h4>
+                  <p>Advance receipts and automatic invoice allocations for this learner.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Reference</th>
+                      <th>Amount</th>
+                      <th>Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody id="studentWalletLedgerTable"></tbody>
+                </table>
+              </div>
+            </section>
+            <div class="form-grid section-spacer">
+              <label>
+                Receipt amount
+                <input id="studentReceiptAmountInput" name="amount" type="number" min="0.01" step="0.01" required>
+              </label>
+              <label>
+                Payment date
+                <input name="paymentDate" type="date" required>
+              </label>
+              <label>
+                Payment method
+                <select name="paymentMethod" required>
+                  <option value="EFT">EFT</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                  <option value="Bank deposit">Bank deposit</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              <label>
+                Payee
+                <select id="studentReceiptPayeeTypeSelect" name="payeeType">
+                  <option value="Responsible payer">Responsible payer</option>
+                  <option value="Primary parent">Primary parent</option>
+                  <option value="Secondary parent">Secondary parent</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              <label>
+                Received from <span class="required-marker">*</span>
+                <input name="payeeName" type="text" required>
+              </label>
+              <label>
+                Payee phone
+                <input name="payeePhone" type="tel">
+              </label>
+              <label>
+                Payee email
+                <input name="payeeEmail" type="email">
+              </label>
+              <label>
+                Reference
+                <input name="reference" type="text" placeholder="Parent bank reference / receipt note">
+              </label>
+              <label class="wide">
+                Notes
+                <input name="description" type="text" placeholder="Optional receipt notes">
+              </label>
+            </div>
+            <p id="studentReceiptAdvanceHint" class="field-help"></p>
             <div class="actions modal-actions">
-              <button class="secondary-button compact-button" type="button" id="cancelPaymentButton">Cancel</button>
-              <button class="primary-button compact-button" type="submit">Save payment</button>
+              <button class="secondary-button compact-button" type="button" id="cancelStudentFinanceButton">Cancel</button>
+              <button class="primary-button compact-button" type="submit">Issue Receipt</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="bankStatementDetailDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="bankStatementDetailTitle">
+          <div class="modal-panel wide-modal">
+            <div class="modal-header">
+              <div>
+                <h3 id="bankStatementDetailTitle">Bank Statement</h3>
+                <p id="bankStatementDetailSubtitle">Read-only statement history.</p>
+              </div>
+              <button id="closeBankStatementDetailButton" class="ghost-button icon-button" type="button" aria-label="Close bank statement">&times;</button>
+            </div>
+            <div id="bankStatementDetailSummary" class="metrics-grid">
+              <div class="metric">
+                <span>Transactions</span>
+                <strong id="bankStatementDetailTransactions">0</strong>
+              </div>
+              <div class="metric">
+                <span>Allocated</span>
+                <strong id="bankStatementDetailAllocated">0</strong>
+              </div>
+              <div class="metric">
+                <span>Unallocated</span>
+                <strong id="bankStatementDetailUnallocated">0</strong>
+              </div>
+            </div>
+            <section class="table-panel embedded-panel">
+              <div class="panel-header">
+                <div>
+                  <h4>Payment Assignments</h4>
+                  <p>Completed statements can be viewed, not edited.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Reference</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Assigned to</th>
+                      <th>Assigned by</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bankStatementDetailTable"></tbody>
+                </table>
+              </div>
+            </section>
+            <div class="actions modal-actions">
+              <button class="secondary-button compact-button" type="button" id="cancelBankStatementDetailButton">Close</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="bankReallocationDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="bankReallocationTitle">
+          <form id="bankReallocationForm" class="modal-panel wide-modal" novalidate>
+            <div class="modal-header">
+              <div>
+                <h3 id="bankReallocationTitle">Reallocate Payment</h3>
+                <p id="bankReallocationSubtitle">Recorded correction for an allocated bank payment.</p>
+              </div>
+              <button id="closeBankReallocationButton" class="ghost-button icon-button" type="button" aria-label="Close reallocation">&times;</button>
+            </div>
+            <input name="transactionId" type="hidden">
+            <input name="invoiceId" type="hidden">
+            <input name="studentId" type="hidden">
+            <input name="familyId" type="hidden">
+            <div class="metrics-grid">
+              <div class="metric">
+                <span>Amount</span>
+                <strong id="bankReallocationAmount">R0.00</strong>
+              </div>
+              <div class="metric">
+                <span>Reference</span>
+                <strong id="bankReallocationReference">-</strong>
+              </div>
+              <div class="metric">
+                <span>Current allocation</span>
+                <strong id="bankReallocationCurrent">-</strong>
+              </div>
+            </div>
+            <div class="form-grid section-spacer">
+              <label>
+                Reallocate to
+                <select id="bankReallocationTypeSelect" name="allocationType">
+                  <option value="Debtor">Learner invoice</option>
+                  <option value="Creditor">Creditor / other bank item</option>
+                </select>
+              </label>
+              <label class="wide">
+                Reason <span class="required-marker">*</span>
+                <textarea name="reason" rows="2" required placeholder="Reason for changing this allocation"></textarea>
+              </label>
+            </div>
+            <section id="bankReallocationDebtorPanel" class="table-panel embedded-panel">
+              <div class="panel-header">
+                <div>
+                  <h4>New Learner Account</h4>
+                </div>
+              </div>
+              <div class="form-grid">
+                <label class="wide">
+                  Search learner or family
+                  <input id="bankReallocationSearchInput" type="search" placeholder="Name, family, parent, phone">
+                </label>
+              </div>
+              <div class="table-wrap section-spacer">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Learner</th>
+                      <th>Family</th>
+                      <th>Outstanding</th>
+                      <th>Select</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bankReallocationTargetsTable"></tbody>
+                </table>
+              </div>
+              <div class="table-wrap section-spacer">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Invoice</th>
+                      <th>Due</th>
+                      <th>Remaining</th>
+                      <th>Select</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bankReallocationInvoicesTable"></tbody>
+                </table>
+              </div>
+            </section>
+            <section id="bankReallocationCreditorPanel" class="table-panel embedded-panel hidden">
+              <div class="panel-header">
+                <div>
+                  <h4>Creditor Allocation</h4>
+                </div>
+              </div>
+              <label>
+                Allocation note
+                <input name="creditorName" type="text" placeholder="Supplier, expense, or bank charge">
+              </label>
+            </section>
+            <div class="actions modal-actions">
+              <button class="secondary-button compact-button" type="button" id="cancelBankReallocationButton">Cancel</button>
+              <button class="primary-button compact-button" type="submit">Save Reallocation</button>
             </div>
           </form>
         </div>
@@ -2051,8 +2449,10 @@
               <label>First name <span class="required-marker">*</span><input name="firstName" type="text" required></label>
               <label>Last name <span class="required-marker">*</span><input name="lastName" type="text" required></label>
               <label>Employee number<input name="employeeNumber" type="text" placeholder="EMP001"></label>
+              <label>Payroll number<input name="payrollNumber" type="text" placeholder="PAY001"></label>
               <label>Email<input name="email" type="email"></label>
               <label>Cell Number<input name="phone" type="tel"></label>
+              <label class="wide">Physical address<textarea name="physicalAddress" rows="2"></textarea></label>
               <label>Role
                 <select id="employeeRoleSelect" name="jobTitle" required>
                   <option value="">Select role</option>
@@ -2074,7 +2474,9 @@
               <label>ID number<input name="idNumber" type="text"></label>
               <label>Passport number<input name="passportNumber" type="text"></label>
               <label>Tax number<input name="taxNumber" type="text"></label>
+              <label>PAYE reference<input name="payeReference" type="text"></label>
               <label>UIF number<input name="uifNumber" type="text"></label>
+              <label>UIF reference number<input name="uifReferenceNumber" type="text"></label>
               <label>Payment method<input name="paymentMethod" type="text" placeholder="EFT"></label>
               <label>Bank name<input name="bankName" type="text"></label>
               <label>Bank account number<input name="bankAccountNumber" type="text"></label>
@@ -2201,7 +2603,7 @@
             </div>
             <input name="payslipId" type="hidden">
             <div id="payslipDetailPreview" class="payslip-detail-preview"></div>
-            <div class="form-grid">
+            <div id="payslipEditFields" class="form-grid payslip-edit-fields">
               <label>Basic salary <span class="required-marker">*</span><input name="basicSalary" type="number" min="0" step="0.01" required></label>
               <label>Allowances <span class="required-marker">*</span><input name="allowances" type="number" min="0" step="0.01" required></label>
               <label>Overtime <span class="required-marker">*</span><input name="overtime" type="number" min="0" step="0.01" required></label>
@@ -2270,10 +2672,50 @@
               </div>
             </div>
             <div class="form-tab-panel" data-form-panel="editBilling">
-              <label>
-                Billing categories <span class="required-marker">*</span>
-                <select id="studentEditBillingSelect" name="billingCategoryIds" multiple required></select>
-              </label>
+              <section class="billing-payer-panel">
+                <div class="billing-assignment-header">
+                  <h4>Student Billing</h4>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Responsible payer <span class="required-marker">*</span>
+                    <select id="studentEditResponsiblePayerTypeSelect" name="responsiblePayerType" required>
+                      <option value="Primary parent">Primary parent</option>
+                      <option value="Secondary parent">Secondary parent</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </label>
+                  <label>
+                    Payer name <span class="required-marker">*</span>
+                    <input name="responsiblePayerName" type="text" required>
+                  </label>
+                  <label>
+                    Payer phone
+                    <input name="responsiblePayerPhone" type="tel">
+                  </label>
+                  <label>
+                    Payer email
+                    <input name="responsiblePayerEmail" type="email">
+                  </label>
+                </div>
+              </section>
+              <div class="billing-assignment-grid">
+                <section class="billing-assignment-panel">
+                  <div class="billing-assignment-header">
+                    <h4>Financial Management Billing Categories</h4>
+                    <span>Active categories from Financial Management</span>
+                  </div>
+                  <div id="studentEditBillingAvailable" class="billing-drop-zone" data-billing-zone="edit-available" aria-label="Available billing categories"></div>
+                </section>
+                <section class="billing-assignment-panel">
+                  <div class="billing-assignment-header">
+                    <h4>Assigned Billing</h4>
+                    <span>Used for future monthly invoices</span>
+                  </div>
+                  <div id="studentEditBillingAssigned" class="billing-drop-zone" data-billing-zone="edit-assigned" aria-label="Assigned billing categories"></div>
+                </section>
+              </div>
+              <select id="studentEditBillingSelect" class="hidden" name="billingCategoryIds" multiple required></select>
             </div>
             <div class="actions modal-actions">
               <button class="secondary-button compact-button" type="button" id="cancelStudentEditButton">Cancel</button>

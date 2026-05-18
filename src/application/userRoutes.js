@@ -2,7 +2,7 @@
 
 const express = require('express');
 const UserService = require('../business/userService');
-const { authenticateToken, requireAdmin, requireSchoolOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireAdmin, requireSchoolPermission } = require('../middleware/auth');
 const { audit, auditLog } = require('../middleware/audit');
 
 const router = express.Router();
@@ -108,7 +108,7 @@ router.put('/devforge-users/:id/deactivate', authenticateToken, requireAdmin, au
   }
 });
 
-router.get('/school-users', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
+router.get('/school-users', authenticateToken, requireSchoolPermission('school.staff.view', 'school.staff.manage', 'school.staff.permissions.manage'), async (req, res) => {
   try {
     const users = await userService.getSchoolUsers(req.user, req.query.schoolId);
     res.json(users);
@@ -117,7 +117,7 @@ router.get('/school-users', authenticateToken, requireSchoolOrAdmin, async (req,
   }
 });
 
-router.post('/school-users', authenticateToken, requireSchoolOrAdmin, audit('User', 'CreateSchoolUser'), async (req, res) => {
+router.post('/school-users', authenticateToken, requireSchoolPermission('school.staff.manage', 'school.staff.permissions.manage'), audit('User', 'CreateSchoolUser'), async (req, res) => {
   try {
     const user = await userService.createSchoolUser(req.body, req.user);
     res.status(201).json(user);
@@ -126,7 +126,7 @@ router.post('/school-users', authenticateToken, requireSchoolOrAdmin, audit('Use
   }
 });
 
-router.put('/school-users/:id/activate', authenticateToken, requireSchoolOrAdmin, audit('User', 'Activate'), async (req, res) => {
+router.put('/school-users/:id/activate', authenticateToken, requireSchoolPermission('school.staff.manage', 'school.staff.permissions.manage'), audit('User', 'Activate'), async (req, res) => {
   try {
     const user = await userService.setSchoolUserActive(parseInt(req.params.id, 10), true, req.user);
     res.json(user);
@@ -135,7 +135,7 @@ router.put('/school-users/:id/activate', authenticateToken, requireSchoolOrAdmin
   }
 });
 
-router.put('/school-users/:id/deactivate', authenticateToken, requireSchoolOrAdmin, audit('User', 'Deactivate'), async (req, res) => {
+router.put('/school-users/:id/deactivate', authenticateToken, requireSchoolPermission('school.staff.manage', 'school.staff.permissions.manage'), audit('User', 'Deactivate'), async (req, res) => {
   try {
     const user = await userService.setSchoolUserActive(parseInt(req.params.id, 10), false, req.user);
     res.json(user);
