@@ -1399,6 +1399,136 @@ td[colspan],
   overflow-wrap: anywhere;
 }
 
+.permission-slip-document {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+  box-shadow: var(--shadow-tight);
+}
+
+.consent-list {
+  display: grid;
+  gap: 16px;
+}
+
+.consent-page-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.consent-filter-strip {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px 14px;
+}
+
+.compact-panel-header {
+  margin-bottom: 0;
+}
+
+.consent-composer-form {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
+.permission-slip-modal-panel {
+  width: min(100%, 1040px);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+}
+
+.permission-slip-detail-panel {
+  width: min(100%, 1080px);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+}
+
+.consent-composer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.permission-slip-detail-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.permission-slip-detail-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.permission-slip-heading {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+
+.permission-slip-heading span,
+.permission-slip-grid span,
+.permission-slip-clause span,
+.permission-slip-signature-row span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.permission-slip-heading strong {
+  font-size: 18px;
+}
+
+.permission-slip-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.permission-slip-grid > div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 10px;
+}
+
+.permission-slip-grid strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.permission-slip-document p,
+.permission-slip-clause p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.permission-slip-clause {
+  display: grid;
+  gap: 6px;
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+}
+
+.permission-slip-signature-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
+.permission-slip-signature-row span {
+  border-bottom: 1px solid #9aa8ba;
+  padding-bottom: 18px;
+}
+
 .payslip-financial-grid > div:last-child {
   grid-column: 1 / -1;
 }
@@ -1830,6 +1960,12 @@ tbody tr:hover {
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .permission-slip-grid,
+  .permission-slip-signature-row,
+  .consent-composer-grid {
     grid-template-columns: 1fr;
   }
 

@@ -4,6 +4,7 @@ const state = {
   students: [],
   invoices: [],
   attendance: [],
+  consentRecords: [],
   balance: null
 };
 
@@ -141,6 +142,18 @@ function showToast(message) {
   toastTimer = window.setTimeout(() => elements.toast.classList.add('hidden'), 3200);
 }
 
+function setFormBusy(form, busy, busyLabel) {
+  const submitButtons = form.querySelectorAll('[type="submit"]');
+  form.setAttribute('aria-busy', String(busy));
+  submitButtons.forEach((button) => {
+    if (!button.dataset.defaultText) {
+      button.dataset.defaultText = button.textContent;
+    }
+    button.disabled = busy;
+    button.textContent = busy ? busyLabel : button.dataset.defaultText;
+  });
+}
+
 function clearSession() {
   state.token = null;
   state.user = null;
@@ -156,15 +169,17 @@ function clearSession() {
 
 async function refreshData() {
   try {
-    const [students, invoices, balance] = await Promise.all([
+    const [students, invoices, balance, consentRecords] = await Promise.all([
       api('/api/parent/students'),
       api('/api/parent/invoices'),
-      api('/api/parent/balance')
+      api('/api/parent/balance'),
+      api('/api/school-features/consent/parent')
     ]);
 
     state.students = students;
     state.invoices = invoices;
     state.balance = balance;
+    state.consentRecords = consentRecords;
     await refreshAttendance();
     renderData();
   } catch (error) {
@@ -201,6 +216,7 @@ function renderData() {
   renderStudents();
   renderAttendance();
   renderInvoices();
+  renderConsent();
 }
 
 function renderChildSelectors() {
@@ -310,6 +326,68 @@ function renderAttendance() {
   }).join('') || '<tr><td colspan="3">No attendance records are available yet.</td></tr>';
 }
 
+function renderConsent() {
+  const panel = document.querySelector('#consentView .page-table-panel');
+  if (!panel) {
+    return;
+  }
+
+  const rows = state.consentRecords.map((item) => {
+    const studentName = `${item.FirstName || ''} ${item.LastName || ''}`.trim();
+    const statusClass = item.Response === 'Accepted' ? 'badge' : item.Response === 'Declined' ? 'badge danger' : 'badge warn';
+    const body = item.DocumentBody || item.Notes || 'No permission slip details were supplied.';
+    const riskNotes = item.RiskNotes || 'None recorded';
+    const medicalInstructions = item.MedicalInstructions || 'Use learner emergency details on record.';
+    const responseForm = (item.Response || 'Pending') === 'Pending' ? `
+      <form class="module-form consent-response-form" data-consent-id="${item.ConsentID}">
+        <div class="form-grid">
+          <label>Parent/guardian full name<input name="signatureName" type="text" required></label>
+          <label>Relationship<input name="signatureRelationship" type="text" placeholder="Mother, father, guardian"></label>
+          <label class="wide">Response notes<textarea name="responseNotes" rows="2"></textarea></label>
+        </div>
+        <div class="actions">
+          <button class="primary-button compact-button" data-response="Accepted" type="submit">Grant Permission</button>
+          <button class="danger-button compact-button" data-response="Declined" type="submit">Decline Permission</button>
+        </div>
+      </form>
+    ` : `
+      <div class="compact-item">
+        <div><strong>Signed by ${escapeHtml(item.SignatureName || 'Parent/guardian')}</strong><span>${escapeHtml(item.SignatureRelationship || 'Guardian response recorded')}</span></div>
+        <span>${dateOnly(item.ResponseDate)}</span>
+      </div>
+    `;
+
+    return `
+      <section class="permission-slip-document">
+        <div class="permission-slip-heading">
+          <span>${escapeHtml(studentName || 'Linked learner')}</span>
+          <strong>${escapeHtml(item.RequestTitle || `${item.ConsentType || 'Consent'} request`)}</strong>
+        </div>
+        <div class="permission-slip-grid">
+          <div><span>Type</span><strong>${escapeHtml(item.ConsentType || '-')}</strong></div>
+          <div><span>Activity date</span><strong>${dateOnly(item.ActivityDate)}</strong></div>
+          <div><span>Response due</span><strong>${dateOnly(item.DueDate)}</strong></div>
+          <div><span>Status</span><strong><span class="${statusClass}">${escapeHtml(item.Response || 'Pending')}</span></strong></div>
+        </div>
+        <p>${escapeHtml(body).replaceAll('\n', '<br>')}</p>
+        <div class="permission-slip-clause"><span>Risk / transport / supervision notes</span><p>${escapeHtml(riskNotes).replaceAll('\n', '<br>')}</p></div>
+        <div class="permission-slip-clause"><span>Medical / emergency instructions</span><p>${escapeHtml(medicalInstructions).replaceAll('\n', '<br>')}</p></div>
+        ${responseForm}
+      </section>
+    `;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="panel-header">
+      <div>
+        <h3>Consent</h3>
+        <p>Permission slips and parent responses for linked children only.</p>
+      </div>
+    </div>
+    <div class="consent-list">${rows || '<p>No consent requests are available yet.</p>'}</div>
+  `;
+}
+
 function switchView(viewName) {
   if (!document.getElementById(`${viewName}View`)) {
     viewName = 'overview';
@@ -388,6 +466,33 @@ document.addEventListener('click', (event) => {
 
   if (viewName) {
     switchView(viewName);
+  }
+});
+
+document.addEventListener('submit', async (event) => {
+  const form = event.target.closest('.consent-response-form');
+  if (!form) {
+    return;
+  }
+
+  event.preventDefault();
+  const submitter = event.submitter;
+  const data = Object.fromEntries(new FormData(form).entries());
+  data.response = submitter?.dataset.response || 'Accepted';
+
+  try {
+    setFormBusy(form, true, 'Saving...');
+    await api(`/api/school-features/consent/${form.dataset.consentId}/respond`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+    state.consentRecords = await api('/api/school-features/consent/parent');
+    renderConsent();
+    showToast(data.response === 'Accepted' ? 'Permission granted' : 'Permission declined');
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setFormBusy(form, false);
   }
 });
 

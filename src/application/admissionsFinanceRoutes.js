@@ -57,7 +57,7 @@ router.get('/consent', authenticateToken, requireSchoolOrAdmin, async (req, res)
 });
 
 router.get('/consent/student/:studentId', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
-  try { res.json(await consentRepo.getByStudent(parseInt(req.params.studentId, 10))); }
+  try { res.json(await consentRepo.getByStudent(parseInt(req.params.studentId, 10), schoolId(req.user))); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -75,16 +75,27 @@ router.get('/consent/parent', authenticateToken, async (req, res) => {
 
 router.post('/consent', authenticateToken, requireSchoolOrAdmin, audit('Consent', 'Create'), async (req, res) => {
   try {
-    if (!req.body.studentId || !req.body.consentType) return res.status(400).json({ error: 'Student and consent type are required' });
-    res.status(201).json(await consentRepo.create({ ...req.body, schoolId: schoolId(req.user) }));
+    if (!req.body.consentType) return res.status(400).json({ error: 'Consent type is required' });
+    if (!req.body.title) return res.status(400).json({ error: 'Permission slip title is required' });
+    res.status(201).json(await consentRepo.create({ ...req.body, schoolId: schoolId(req.user), createdBy: req.user.UserID }));
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 router.put('/consent/:id/respond', authenticateToken, audit('Consent', 'Respond'), async (req, res) => {
   try {
-    const { response } = req.body;
+    if (req.user.Role !== 'parent') return res.status(403).json({ error: 'Parent access required to sign permission slips' });
+    const { response, signatureName, signatureRelationship, responseNotes } = req.body;
     if (!['Accepted', 'Declined'].includes(response)) return res.status(400).json({ error: 'Response must be Accepted or Declined' });
-    res.json(await consentRepo.respond(parseInt(req.params.id, 10), response, req.user.UserID));
+    if (!signatureName) return res.status(400).json({ error: 'Parent or guardian signature name is required' });
+    const result = await consentRepo.respond(parseInt(req.params.id, 10), {
+      response,
+      signatureName,
+      signatureRelationship,
+      responseNotes,
+      parentUserId: req.user.UserID
+    });
+    if (!result) return res.status(404).json({ error: 'Consent request not found for this parent account' });
+    res.json(result);
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 

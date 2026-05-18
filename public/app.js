@@ -47,7 +47,7 @@ const VIEW_TITLES = {
   parents: 'Parent Management',
   attendance: 'Attendance',
   reenrolment: 'School / Re-Enrolment / Year Rollover',
-  consentPermissions: 'School / Consent and Permissions',
+  consentPermissions: 'Consent and Permissions',
   registerLearner: 'Register Learner',
   bank: 'Finance / Bank Reconciliation',
   outstanding: 'Finance / Outstanding Fees',
@@ -228,6 +228,12 @@ const state = {
   reEnrolmentPending: [],
   consentRecords: [],
   missingConsent: [],
+  consentSearchQuery: '',
+  consentSearchType: 'Permission slip',
+  consentStatusFilter: 'all',
+  consentPageSize: 10,
+  consentComposerOpen: false,
+  selectedConsentRecordId: null,
   financialAdjustments: [],
   refunds: [],
   registrationFees: [],
@@ -1044,6 +1050,131 @@ function optionsFor(items, idKey, labelFn, emptyLabel = 'Select') {
   )).join('');
 }
 
+function defaultPermissionSlipBody() {
+  return 'I confirm that I am the parent or legal guardian of the learner named on this permission slip. I have read and understood the school request, activity details, risks, transport arrangements, supervision notes, and emergency procedures where applicable. I grant or decline permission for my child to participate as indicated below. I understand that the school will take reasonable care of learners and will contact me using the contact details on record if an emergency arises.';
+}
+
+function uniqueClassNames() {
+  const names = new Set();
+  state.classes.forEach((item) => {
+    if (item.ClassName) names.add(String(item.ClassName).trim());
+  });
+  state.students.forEach((item) => {
+    if (item.ClassName) names.add(String(item.ClassName).trim());
+  });
+  return Array.from(names).filter(Boolean).sort((a, b) => a.localeCompare(b));
+}
+
+function gradeNameFromClassName(className) {
+  const value = String(className || '').trim();
+  if (!value) return '';
+  const gradeMatch = value.match(/^(grade\s*\d+|gr\s*\d+|grade\s*r|gr\s*r|pre[-\s]?r|rr|r)\b/i);
+  if (gradeMatch) return gradeMatch[0].replace(/\s+/g, ' ').trim();
+  const sectionMatch = value.match(/^(.+?)(?:\s*[-/]\s*[A-Z0-9]+|\s+[A-Z])$/i);
+  return (sectionMatch?.[1] || value).trim();
+}
+
+function uniqueGradeNames() {
+  const names = new Set();
+  uniqueClassNames().forEach((className) => {
+    const gradeName = gradeNameFromClassName(className);
+    if (gradeName) names.add(gradeName);
+  });
+  return Array.from(names).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+function matchingConsentStudents(scope, targetValue, studentId) {
+  const activeStudents = state.students.filter((student) => student.IsActive !== false);
+  if (scope === 'Student') {
+    return activeStudents.filter((student) => Number(student.StudentID) === Number(studentId));
+  }
+  if (scope === 'Class') {
+    return activeStudents.filter((student) => String(student.ClassName || '').trim() === String(targetValue || '').trim());
+  }
+  if (scope === 'Grade') {
+    const grade = String(targetValue || '').trim();
+    return activeStudents.filter((student) => {
+      const className = String(student.ClassName || '').trim();
+      return className === grade || className.startsWith(grade);
+    });
+  }
+  return activeStudents;
+}
+
+function renderConsentTargetInputs() {
+  const scopeSelect = document.getElementById('consentTargetScope');
+  const targetWrap = document.getElementById('consentTargetValueWrap');
+  const targetSelect = document.getElementById('consentTargetValueSelect');
+  const studentWrap = document.getElementById('consentStudentWrap');
+  const studentSelect = document.getElementById('consentStudentSelect');
+  const summary = document.getElementById('consentTargetSummary');
+  if (!scopeSelect) return;
+
+  const scope = scopeSelect.value || 'School';
+  const needsTarget = scope === 'Class' || scope === 'Grade';
+  const needsStudent = scope === 'Student';
+
+  if (targetWrap) targetWrap.hidden = !needsTarget;
+  if (targetSelect) {
+    targetSelect.disabled = !needsTarget;
+    const options = scope === 'Grade'
+      ? uniqueGradeNames().map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')
+      : uniqueClassNames().map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    const empty = scope === 'Grade' ? '<option value="">Select grade</option>' : '<option value="">Select class</option>';
+    const nextOptions = empty + options;
+    if (targetSelect.dataset.lastOptions !== nextOptions) {
+      targetSelect.innerHTML = nextOptions;
+      targetSelect.dataset.lastOptions = nextOptions;
+    }
+  }
+
+  if (studentWrap) studentWrap.hidden = !needsStudent;
+  if (studentSelect) studentSelect.disabled = !needsStudent;
+
+  const selectedStudents = matchingConsentStudents(scope, targetSelect?.value, studentSelect?.value);
+  if (summary) {
+    const label = selectedStudents.length === 1 ? 'learner' : 'learners';
+    summary.textContent = `This will create pending legal permission slips for ${selectedStudents.length} ${label}.`;
+  }
+  updateConsentDocumentPreview();
+}
+
+function updateConsentDocumentPreview() {
+  const preview = document.getElementById('consentDocumentPreview');
+  if (!preview) return;
+
+  const title = document.getElementById('consentTitleInput')?.value || 'Permission Slip';
+  const consentType = document.getElementById('consentTypeSelect')?.value || 'General Permission';
+  const activityDate = document.getElementById('consentActivityDateInput')?.value || '-';
+  const dueDate = document.getElementById('consentDueDateInput')?.value || '-';
+  const location = document.getElementById('consentLocationInput')?.value || '-';
+  const body = document.getElementById('consentDocumentBodyInput')?.value || defaultPermissionSlipBody();
+  const riskNotes = document.getElementById('consentRiskNotesInput')?.value || 'None recorded';
+  const medicalInstructions = document.getElementById('consentMedicalInstructionsInput')?.value || 'Use learner emergency details on record.';
+
+  preview.innerHTML = `
+    <div class="permission-slip-document">
+      <div class="permission-slip-heading">
+        <span>Legal Permission Slip</span>
+        <strong>${escapeHtml(title)}</strong>
+      </div>
+      <div class="permission-slip-grid">
+        <div><span>Type</span><strong>${escapeHtml(consentType)}</strong></div>
+        <div><span>Activity date</span><strong>${escapeHtml(activityDate)}</strong></div>
+        <div><span>Response due</span><strong>${escapeHtml(dueDate)}</strong></div>
+        <div><span>Location</span><strong>${escapeHtml(location)}</strong></div>
+      </div>
+      <p>${escapeHtml(body).replaceAll('\n', '<br>')}</p>
+      <div class="permission-slip-clause"><span>Risk / transport / supervision notes</span><p>${escapeHtml(riskNotes).replaceAll('\n', '<br>')}</p></div>
+      <div class="permission-slip-clause"><span>Medical / emergency instructions</span><p>${escapeHtml(medicalInstructions).replaceAll('\n', '<br>')}</p></div>
+      <div class="permission-slip-signature-row">
+        <span>Parent/guardian signature</span>
+        <span>Date</span>
+      </div>
+    </div>
+  `;
+}
+
 function setPanel(viewId, content) {
   const panel = document.querySelector(`#${viewId} .page-table-panel`);
   if (panel && !panel.dataset.wiredFeature) {
@@ -1068,16 +1199,76 @@ function installFeaturePanels() {
   `);
 
   setPanel('consentPermissionsView', `
-    <div class="panel-header"><div><h3>Consent and Permissions</h3><p>Consent requests and missing consent review.</p></div></div>
-    <form id="consentForm" class="module-form flush-form">
-      <div class="form-grid">
-        <label>Student<select name="studentId" id="consentStudentSelect" required></select></label>
-        <label>Consent type<select name="consentType" required><option>Photo</option><option>Trip</option><option>Medical</option><option>Communication</option><option>Data-processing</option></select></label>
-        <label class="wide">Notes<textarea name="notes" rows="2"></textarea></label>
+    <div class="consent-page-layout">
+      <section class="consent-filter-strip">
+        <div class="class-filter-heading">
+          <span class="filter-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M4 6h16l-6 7v5l-4 2v-7L4 6z"></path>
+            </svg>
+          </span>
+          <span>Filter permission slips</span>
+        </div>
+        <div class="class-filter-grid student-filter-grid">
+          <label>
+            Search Type
+            <select id="consentSearchTypeSelect" class="thin-input">
+              <option>Permission slip</option>
+              <option>Student name</option>
+              <option>Class</option>
+              <option>Parent / family</option>
+            </select>
+          </label>
+          <label>
+            Search Value
+            <input id="consentSearchInput" class="thin-input" type="search" placeholder="Search permission slips...">
+          </label>
+          <label>
+            Show
+            <select id="consentPageSize" class="thin-input">
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="40">40</option>
+              <option value="80">80</option>
+              <option value="160">160</option>
+              <option value="9999">All</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select id="consentStatusFilterInput" class="thin-input">
+              <option value="all">All</option>
+              <option value="Pending">Pending</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Declined">Declined</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <div class="panel-header compact-panel-header">
+        <div>
+          <h3>Permission Slip List</h3>
+        </div>
       </div>
-      <button class="primary-button compact-button" type="submit">Create Consent Request</button>
-    </form>
-    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Type</th><th>Response</th><th>Date</th><th>Actions</th></tr></thead><tbody id="consentTable"></tbody></table></div>
+      <div id="consentRequestSummaryMetrics" class="metrics-grid section-spacer"></div>
+      <div class="table-wrap section-spacer"><table><thead><tr><th>Permission slip</th><th>Student</th><th>Target</th><th>Response</th><th>Due</th><th>Signed by</th><th>Actions</th></tr></thead><tbody id="consentTable"></tbody></table></div>
+      <div class="panel-header compact-panel-header section-spacer">
+        <div>
+          <h3>Outstanding Responses</h3>
+        </div>
+      </div>
+      <div class="table-wrap section-spacer"><table><thead><tr><th>Permission slip</th><th>Learner</th><th>Class</th><th>Parent / family</th><th>Contact</th><th>Due</th><th>Actions</th></tr></thead><tbody id="outstandingConsentTable"></tbody></table></div>
+      <div class="panel-header compact-panel-header section-spacer">
+        <div>
+          <h3>Signed Permission Slips</h3>
+        </div>
+      </div>
+      <div class="table-wrap section-spacer"><table><thead><tr><th>Permission slip</th><th>Learner</th><th>Parent / guardian</th><th>Relationship</th><th>Response</th><th>Signed date</th><th>Notes</th><th>Actions</th></tr></thead><tbody id="signedConsentTable"></tbody></table></div>
+      <div class="section-spacer actions">
+        <button id="openConsentComposerButton" class="primary-button compact-button" data-action="open-consent-composer" type="button">New Permission Slip</button>
+      </div>
+    </div>
   `);
 
   setPanel('financialAdjustmentsView', `
@@ -1177,7 +1368,7 @@ function installFeaturePanels() {
   setPanel('consentReportView', `
     <div class="panel-header"><div><h3>Consent Report</h3><p>Consent responses and missing consent records.</p></div></div>
     <div id="consentReportSummary" class="metrics-grid"></div>
-    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Type</th><th>Response</th><th>Date</th></tr></thead><tbody id="consentReportTable"></tbody></table></div>
+    <div class="table-wrap section-spacer"><table><thead><tr><th>Student</th><th>Permission slip</th><th>Response</th><th>Signed by</th><th>Date</th></tr></thead><tbody id="consentReportTable"></tbody></table></div>
   `);
 
   setPanel('yearEndReportView', `
@@ -1210,8 +1401,50 @@ function wireFeatureForms() {
 
   bind('consentForm', 'submit', async (event) => {
     event.preventDefault();
-    await submitFeatureForm(event.currentTarget, '/api/school-features/consent', 'Consent request created');
+    const form = event.currentTarget;
+    setFormBusy(form, true, 'Sending...');
+    try {
+      const data = normalizeFeaturePayload(formData(form));
+      const result = await api('/api/school-features/consent', { method: 'POST', body: JSON.stringify(data) });
+      form.reset();
+      closeConsentDialog();
+      await refreshFeatureData();
+      renderFeaturePages();
+      showToast(`Permission slip sent to ${result.createdCount || 0} learners`);
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      setFormBusy(form, false);
+    }
   });
+
+  bind('consentTargetScope', 'change', renderConsentTargetInputs);
+  bind('consentTargetValueSelect', 'change', renderConsentTargetInputs);
+  bind('consentStudentSelect', 'change', renderConsentTargetInputs);
+  bind('consentSearchInput', 'input', (event) => {
+    state.consentSearchQuery = event.target.value;
+    renderConsentFeature();
+  });
+  bind('consentSearchTypeSelect', 'change', (event) => {
+    state.consentSearchType = event.target.value;
+    renderConsentFeature();
+  });
+  bind('consentStatusFilterInput', 'change', (event) => {
+    state.consentStatusFilter = event.target.value;
+    renderConsentFeature();
+  });
+  bind('consentPageSize', 'change', (event) => {
+    state.consentPageSize = Number(event.target.value) || 10;
+    renderConsentFeature();
+  });
+  bind('consentTitleInput', 'input', updateConsentDocumentPreview);
+  bind('consentTypeSelect', 'change', updateConsentDocumentPreview);
+  bind('consentActivityDateInput', 'input', updateConsentDocumentPreview);
+  bind('consentDueDateInput', 'input', updateConsentDocumentPreview);
+  bind('consentLocationInput', 'input', updateConsentDocumentPreview);
+  bind('consentDocumentBodyInput', 'input', updateConsentDocumentPreview);
+  bind('consentRiskNotesInput', 'input', updateConsentDocumentPreview);
+  bind('consentMedicalInstructionsInput', 'input', updateConsentDocumentPreview);
 
   bind('adjustmentForm', 'submit', async (event) => {
     event.preventDefault();
@@ -1304,6 +1537,8 @@ function renderFeatureSelects() {
       select.dataset.lastOptions = options;
     }
   });
+
+  renderConsentTargetInputs();
 }
 
 function metricCard(label, value) {
@@ -1332,20 +1567,250 @@ function renderReenrolmentFeature() {
   setTable('reenrolmentTable', rows, 6, 'No re-enrolment records found for the selected year.');
 }
 
-function renderConsentFeature() {
-  const rows = state.consentRecords.map((item) => `
+function renderConsentComposerState() {
+  const dialog = document.getElementById('consentDialog');
+  if (dialog) {
+    dialog.classList.toggle('hidden', !state.consentComposerOpen);
+  }
+  if (state.consentComposerOpen) {
+    document.body.classList.add('modal-open');
+  } else if (!Array.from(document.querySelectorAll('.modal-backdrop')).some((item) => item.id !== 'consentDialog' && !item.classList.contains('hidden'))) {
+    document.body.classList.remove('modal-open');
+  }
+  if (state.consentComposerOpen) {
+    updateConsentDocumentPreview();
+  }
+}
+
+function openConsentDialog() {
+  const form = document.getElementById('consentForm');
+  if (form) {
+    form.reset();
+  }
+  state.consentComposerOpen = true;
+  renderConsentComposerState();
+  renderConsentTargetInputs();
+  window.setTimeout(() => document.getElementById('consentTitleInput')?.focus(), 0);
+}
+
+function closeConsentDialog() {
+  state.consentComposerOpen = false;
+  renderConsentComposerState();
+}
+
+function consentRequestKey(item) {
+  return item?.ConsentRequestID ? `request-${item.ConsentRequestID}` : `record-${item?.ConsentID}`;
+}
+
+function consentGroupForRecord(record) {
+  const key = consentRequestKey(record);
+  return state.consentRecords.filter((item) => consentRequestKey(item) === key);
+}
+
+function closeConsentDetailDialog() {
+  state.selectedConsentRecordId = null;
+  const dialog = document.getElementById('consentDetailDialog');
+  dialog?.classList.add('hidden');
+  if (!Array.from(document.querySelectorAll('.modal-backdrop')).some((item) => !item.classList.contains('hidden'))) {
+    document.body.classList.remove('modal-open');
+  }
+}
+
+function renderConsentDetailDialog() {
+  const content = document.getElementById('consentDetailContent');
+  const record = state.consentRecords.find((item) => Number(item.ConsentID) === Number(state.selectedConsentRecordId));
+  if (!content || !record) {
+    return;
+  }
+
+  const records = consentGroupForRecord(record);
+  const pending = records.filter((item) => (item.Response || 'Pending') === 'Pending').length;
+  const accepted = records.filter((item) => item.Response === 'Accepted').length;
+  const declined = records.filter((item) => item.Response === 'Declined').length;
+  const targetLabel = record.TargetScope === 'School'
+    ? 'Entire student body'
+    : record.TargetValue || record.ClassName || '-';
+
+  const recipientRows = records.map((item) => `
     <tr>
-      <td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td>
-      <td>${escapeHtml(item.ConsentType || '-')}</td>
-      <td><span class="badge">${escapeHtml(item.Response || 'Pending')}</span></td>
-      <td>${dateOnly(item.ResponseDate || item.CreatedDate)}</td>
-      <td><div class="actions">
-        <button class="ghost-button" data-action="consent-response" data-id="${item.ConsentID}" data-response="Accepted" type="button">Accept</button>
-        <button class="danger-button" data-action="consent-response" data-id="${item.ConsentID}" data-response="Declined" type="button">Decline</button>
-      </div></td>
+      <td>
+        <strong>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</strong>
+        <span class="table-subtext">${escapeHtml(item.ClassName || '-')}</span>
+      </td>
+      <td>
+        <strong>${escapeHtml(item.FamilyName || '-')}</strong>
+        <span class="table-subtext">${escapeHtml(item.PrimaryParentName || '')}</span>
+      </td>
+      <td>
+        <strong>${escapeHtml(item.PrimaryParentEmail || '-')}</strong>
+        <span class="table-subtext">${escapeHtml(item.PrimaryParentPhone || '')}</span>
+      </td>
+      <td><span class="badge ${item.Response === 'Declined' ? 'danger' : (item.Response === 'Pending' || !item.Response) ? 'warn' : ''}">${escapeHtml(item.Response || 'Pending')}</span></td>
+      <td>
+        <strong>${escapeHtml(item.SignatureName || '-')}</strong>
+        <span class="table-subtext">${escapeHtml(item.SignatureRelationship || '')}</span>
+      </td>
+      <td>${dateOnly(item.ResponseDate)}</td>
     </tr>
   `).join('');
-  setTable('consentTable', rows, 5, 'No consent records found.');
+
+  content.innerHTML = `
+    <div class="permission-slip-detail-layout">
+      <section class="permission-slip-document">
+        <div class="permission-slip-heading">
+          <span>${escapeHtml(record.ConsentType || 'Permission slip')}</span>
+          <strong>${escapeHtml(record.RequestTitle || `${record.ConsentType || 'Consent'} request`)}</strong>
+        </div>
+        <div class="permission-slip-grid">
+          <div><span>Target</span><strong>${escapeHtml(targetLabel)}</strong></div>
+          <div><span>Activity date</span><strong>${dateOnly(record.ActivityDate)}</strong></div>
+          <div><span>Response due</span><strong>${dateOnly(record.DueDate)}</strong></div>
+          <div><span>Location</span><strong>${escapeHtml(record.Location || '-')}</strong></div>
+        </div>
+        <p>${escapeHtml(record.DocumentBody || record.Notes || 'No permission slip details were supplied.').replaceAll('\n', '<br>')}</p>
+        <div class="permission-slip-clause"><span>Risk / transport / supervision notes</span><p>${escapeHtml(record.RiskNotes || 'None recorded').replaceAll('\n', '<br>')}</p></div>
+        <div class="permission-slip-clause"><span>Medical / emergency instructions</span><p>${escapeHtml(record.MedicalInstructions || 'Use learner emergency details on record.').replaceAll('\n', '<br>')}</p></div>
+      </section>
+      <section>
+        <div class="metrics-grid permission-slip-detail-metrics">
+          ${metricCard('Recipients', records.length)}
+          ${metricCard('Pending', pending)}
+          ${metricCard('Accepted', accepted)}
+          ${metricCard('Declined', declined)}
+        </div>
+        <div class="table-wrap section-spacer">
+          <table>
+            <thead><tr><th>Learner</th><th>Family</th><th>Contact</th><th>Response</th><th>Signed by</th><th>Signed date</th></tr></thead>
+            <tbody>${recipientRows || '<tr><td colspan="6">No recipients found.</td></tr>'}</tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function openConsentDetailDialog(consentId) {
+  state.selectedConsentRecordId = Number(consentId);
+  renderConsentDetailDialog();
+  document.getElementById('consentDetailDialog')?.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function filteredConsentRecords() {
+  const query = (state.consentSearchQuery || '').toLowerCase();
+  const searchType = state.consentSearchType || 'Permission slip';
+  const status = state.consentStatusFilter || 'all';
+
+  return state.consentRecords.filter((item) => {
+    const response = item.Response || 'Pending';
+    if (status !== 'all' && response !== status) {
+      return false;
+    }
+
+    if (!query) {
+      return true;
+    }
+
+    const values = {
+      'Permission slip': [item.RequestTitle, item.ConsentType, item.DocumentBody].join(' '),
+      'Student name': [item.FirstName, item.LastName].join(' '),
+      Class: [item.ClassName, item.TargetValue].join(' '),
+      'Parent / family': [item.FamilyName, item.PrimaryParentName, item.PrimaryParentEmail].join(' ')
+    };
+
+    return String(values[searchType] || '').toLowerCase().includes(query);
+  });
+}
+
+function renderConsentFeature() {
+  renderConsentComposerState();
+
+  const metrics = document.getElementById('consentRequestSummaryMetrics');
+  if (metrics) {
+    const pending = state.consentRecords.filter((item) => (item.Response || 'Pending') === 'Pending').length;
+    const accepted = state.consentRecords.filter((item) => item.Response === 'Accepted').length;
+    const declined = state.consentRecords.filter((item) => item.Response === 'Declined').length;
+    const signed = accepted + declined;
+    const requestIds = new Set(state.consentRecords.map((item) => item.ConsentRequestID || `legacy-${item.ConsentID}`));
+    metrics.innerHTML = metricCard('Permission slips', requestIds.size) + metricCard('Pending', pending) + metricCard('Signed', signed) + metricCard('Accepted', accepted) + metricCard('Declined', declined);
+  }
+
+  const filtered = filteredConsentRecords();
+  const pageSize = state.consentPageSize || 10;
+  const limited = filtered.slice(0, pageSize);
+
+  const rows = limited.map((item) => `
+    <tr>
+      <td>
+        <strong>${escapeHtml(item.RequestTitle || `${item.ConsentType || 'Consent'} request`)}</strong>
+        <span class="table-subtext">${escapeHtml(item.ConsentType || '-')}</span>
+      </td>
+      <td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td>
+      <td>${escapeHtml(item.TargetScope === 'School' ? 'Entire student body' : item.TargetValue || item.ClassName || '-')}</td>
+      <td><span class="badge ${item.Response === 'Declined' ? 'danger' : (item.Response === 'Pending' || !item.Response) ? 'warn' : ''}">${escapeHtml(item.Response || 'Pending')}</span></td>
+      <td>${dateOnly(item.DueDate || item.CreatedDate)}</td>
+      <td>
+        <strong>${escapeHtml(item.SignatureName || 'Awaiting signature')}</strong>
+        <span class="table-subtext">${escapeHtml(item.SignatureRelationship || '')} ${item.ResponseDate ? dateOnly(item.ResponseDate) : ''}</span>
+      </td>
+      <td><button class="ghost-button" data-action="view-consent-detail" data-id="${item.ConsentID}" type="button">View</button></td>
+    </tr>
+  `).join('');
+  setTable('consentTable', rows, 7, 'No consent records found.');
+
+  const outstandingRows = filtered
+    .filter((item) => (item.Response || 'Pending') === 'Pending')
+    .slice(0, pageSize)
+    .map((item) => `
+      <tr>
+        <td>
+          <strong>${escapeHtml(item.RequestTitle || `${item.ConsentType || 'Consent'} request`)}</strong>
+          <span class="table-subtext">${escapeHtml(item.ConsentType || '-')}</span>
+        </td>
+        <td>
+          <strong>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</strong>
+          <span class="table-subtext">${escapeHtml(item.FamilyName || '-')}</span>
+        </td>
+        <td>${escapeHtml(item.ClassName || '-')}</td>
+        <td>
+          <strong>${escapeHtml(item.PrimaryParentName || '-')}</strong>
+          <span class="table-subtext">${escapeHtml(item.FamilyName || '')}</span>
+        </td>
+        <td>
+          <strong>${escapeHtml(item.PrimaryParentEmail || '-')}</strong>
+          <span class="table-subtext">${escapeHtml(item.PrimaryParentPhone || '')}</span>
+        </td>
+        <td>${dateOnly(item.DueDate || item.CreatedDate)}</td>
+        <td><button class="ghost-button" data-action="view-consent-detail" data-id="${item.ConsentID}" type="button">View</button></td>
+      </tr>
+    `).join('');
+  setTable('outstandingConsentTable', outstandingRows, 7, 'No outstanding responses match the current filters.');
+
+  const signedRows = filtered
+    .filter((item) => (item.Response || 'Pending') !== 'Pending')
+    .slice(0, pageSize)
+    .map((item) => `
+      <tr>
+        <td>
+          <strong>${escapeHtml(item.RequestTitle || `${item.ConsentType || 'Consent'} request`)}</strong>
+          <span class="table-subtext">${escapeHtml(item.ConsentType || '-')}</span>
+        </td>
+        <td>
+          <strong>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</strong>
+          <span class="table-subtext">${escapeHtml(item.ClassName || '-')}</span>
+        </td>
+        <td>
+          <strong>${escapeHtml(item.SignatureName || item.PrimaryParentName || '-')}</strong>
+          <span class="table-subtext">${escapeHtml(item.PrimaryParentEmail || item.FamilyName || '')}</span>
+        </td>
+        <td>${escapeHtml(item.SignatureRelationship || '-')}</td>
+        <td><span class="badge ${item.Response === 'Declined' ? 'danger' : ''}">${escapeHtml(item.Response || '-')}</span></td>
+        <td>${dateOnly(item.ResponseDate)}</td>
+        <td>${escapeHtml(item.ResponseNotes || '-')}</td>
+        <td><button class="ghost-button" data-action="view-consent-detail" data-id="${item.ConsentID}" type="button">View</button></td>
+      </tr>
+    `).join('');
+  setTable('signedConsentTable', signedRows, 8, 'No signed permission slips match the current filters.');
 }
 
 function renderFinanceFeatureTables() {
@@ -1516,8 +1981,12 @@ function renderReenrolmentReport() {
 
 function renderConsentReport() {
   const summary = document.getElementById('consentReportSummary');
-  if (summary) summary.innerHTML = metricCard('Consent records', state.consentRecords.length) + metricCard('Pending', state.missingConsent.length);
-  setTable('consentReportTable', state.consentRecords.map((item) => `<tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td><td>${escapeHtml(item.ConsentType || '-')}</td><td>${escapeHtml(item.Response || 'Pending')}</td><td>${dateOnly(item.ResponseDate || item.CreatedDate)}</td></tr>`).join(''), 4, 'No consent records found.');
+  if (summary) {
+    const accepted = state.consentRecords.filter((item) => item.Response === 'Accepted').length;
+    const declined = state.consentRecords.filter((item) => item.Response === 'Declined').length;
+    summary.innerHTML = metricCard('Consent records', state.consentRecords.length) + metricCard('Pending', state.missingConsent.length) + metricCard('Signed', accepted + declined) + metricCard('Accepted', accepted) + metricCard('Declined', declined);
+  }
+  setTable('consentReportTable', state.consentRecords.map((item) => `<tr><td>${escapeHtml(`${item.FirstName || ''} ${item.LastName || ''}`.trim())}</td><td>${escapeHtml(item.RequestTitle || item.ConsentType || '-')}</td><td><span class="badge ${item.Response === 'Declined' ? 'danger' : (item.Response === 'Pending' || !item.Response) ? 'warn' : ''}">${escapeHtml(item.Response || 'Pending')}</span></td><td>${escapeHtml(item.SignatureName || '-')}</td><td>${dateOnly(item.ResponseDate || item.DueDate || item.CreatedDate)}</td></tr>`).join(''), 5, 'No consent records found.');
 }
 
 function renderCommunicationHistory() {
@@ -4404,6 +4873,10 @@ elements.closePaymentDialogButton.addEventListener('click', closePaymentDialog);
 elements.cancelPaymentButton.addEventListener('click', closePaymentDialog);
 elements.closeRequiredInfoDialogButton?.addEventListener('click', closeRequiredInfoDialog);
 elements.cancelRequiredInfoDialogButton?.addEventListener('click', closeRequiredInfoDialog);
+document.getElementById('closeConsentDialogButton')?.addEventListener('click', closeConsentDialog);
+document.getElementById('cancelConsentDialogButton')?.addEventListener('click', closeConsentDialog);
+document.getElementById('closeConsentDetailDialogButton')?.addEventListener('click', closeConsentDetailDialog);
+document.getElementById('cancelConsentDetailDialogButton')?.addEventListener('click', closeConsentDetailDialog);
 elements.closeEmployeeDialogButton?.addEventListener('click', closeEmployeeDialog);
 elements.cancelEmployeeButton?.addEventListener('click', closeEmployeeDialog);
 elements.closePayslipDialogButton?.addEventListener('click', closePayslipDialog);
@@ -4429,6 +4902,18 @@ elements.requiredInfoDialog?.addEventListener('click', (event) => {
 elements.classDialog?.addEventListener('click', (event) => {
   if (event.target === elements.classDialog) {
     resetClassForm();
+  }
+});
+
+document.getElementById('consentDialog')?.addEventListener('click', (event) => {
+  if (event.target === document.getElementById('consentDialog')) {
+    closeConsentDialog();
+  }
+});
+
+document.getElementById('consentDetailDialog')?.addEventListener('click', (event) => {
+  if (event.target === document.getElementById('consentDetailDialog')) {
+    closeConsentDetailDialog();
   }
 });
 
@@ -4477,6 +4962,14 @@ document.addEventListener('keydown', (event) => {
   }
   if (event.key === 'Escape' && elements.classDialog && !elements.classDialog.classList.contains('hidden')) {
     resetClassForm();
+  }
+  const consentDialog = document.getElementById('consentDialog');
+  if (event.key === 'Escape' && consentDialog && !consentDialog.classList.contains('hidden')) {
+    closeConsentDialog();
+  }
+  const consentDetailDialog = document.getElementById('consentDetailDialog');
+  if (event.key === 'Escape' && consentDetailDialog && !consentDetailDialog.classList.contains('hidden')) {
+    closeConsentDetailDialog();
   }
   if (event.key === 'Escape' && elements.employeeDialog && !elements.employeeDialog.classList.contains('hidden')) {
     closeEmployeeDialog();
@@ -4652,6 +5145,21 @@ document.addEventListener('click', async (event) => {
     } finally {
       button.disabled = false;
     }
+    return;
+  }
+
+  if (action === 'open-consent-composer') {
+    openConsentDialog();
+    return;
+  }
+
+  if (action === 'cancel-consent-composer') {
+    closeConsentDialog();
+    return;
+  }
+
+  if (action === 'view-consent-detail') {
+    openConsentDetailDialog(button.dataset.id);
     return;
   }
 

@@ -1049,6 +1049,38 @@ BEGIN
     CREATE INDEX IX_Admissions_SchoolID_Status ON dbo.Admissions(SchoolID, Status);
 END;
 
+-- Consent permission-slip request header
+IF OBJECT_ID('dbo.ConsentRequests', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ConsentRequests (
+        ConsentRequestID INT IDENTITY(1,1) PRIMARY KEY,
+        SchoolID INT NOT NULL,
+        ConsentType NVARCHAR(100) NOT NULL,
+        Title NVARCHAR(255) NOT NULL,
+        ActivityDate DATE NULL,
+        DueDate DATE NULL,
+        Location NVARCHAR(255) NULL,
+        TargetScope NVARCHAR(30) NOT NULL DEFAULT 'Student',
+        TargetValue NVARCHAR(255) NULL,
+        DocumentBody NVARCHAR(MAX) NOT NULL,
+        RiskNotes NVARCHAR(1000) NULL,
+        MedicalInstructions NVARCHAR(1000) NULL,
+        Status NVARCHAR(30) NOT NULL DEFAULT 'Open',
+        CreatedBy INT NULL,
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT CK_ConsentRequests_TargetScope CHECK (TargetScope IN ('Student','Class','Grade','School')),
+        CONSTRAINT CK_ConsentRequests_Status CHECK (Status IN ('Open','Closed','Cancelled')),
+        CONSTRAINT FK_ConsentRequests_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_ConsentRequests_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES dbo.Users(UserID)
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ConsentRequests_SchoolID_CreatedDate' AND object_id = OBJECT_ID('dbo.ConsentRequests'))
+BEGIN
+    CREATE INDEX IX_ConsentRequests_SchoolID_CreatedDate ON dbo.ConsentRequests(SchoolID, CreatedDate DESC);
+END;
+
 -- Consent Records
 IF OBJECT_ID('dbo.ConsentRecords', 'U') IS NULL
 BEGIN
@@ -1056,23 +1088,63 @@ BEGIN
         ConsentID INT IDENTITY(1,1) PRIMARY KEY,
         SchoolID INT NOT NULL,
         StudentID INT NOT NULL,
+        ConsentRequestID INT NULL,
         ParentUserID INT NULL,
         ConsentType NVARCHAR(100) NOT NULL,
         Response NVARCHAR(20) NOT NULL DEFAULT 'Pending',
         ResponseDate DATETIME NULL,
         Notes NVARCHAR(500) NULL,
+        SignatureName NVARCHAR(255) NULL,
+        SignatureRelationship NVARCHAR(100) NULL,
+        ResponseNotes NVARCHAR(1000) NULL,
         CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
         UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
         CONSTRAINT CK_Consent_Response CHECK (Response IN ('Pending','Accepted','Declined')),
         CONSTRAINT FK_Consent_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
         CONSTRAINT FK_Consent_Students FOREIGN KEY (StudentID) REFERENCES dbo.Students(StudentID),
+        CONSTRAINT FK_Consent_Requests FOREIGN KEY (ConsentRequestID) REFERENCES dbo.ConsentRequests(ConsentRequestID),
         CONSTRAINT FK_Consent_ParentUser FOREIGN KEY (ParentUserID) REFERENCES dbo.Users(UserID)
     );
+END;
+
+IF COL_LENGTH('dbo.ConsentRecords', 'ConsentRequestID') IS NULL
+BEGIN
+    ALTER TABLE dbo.ConsentRecords ADD ConsentRequestID INT NULL;
+END;
+
+IF COL_LENGTH('dbo.ConsentRecords', 'SignatureName') IS NULL
+BEGIN
+    ALTER TABLE dbo.ConsentRecords ADD SignatureName NVARCHAR(255) NULL;
+END;
+
+IF COL_LENGTH('dbo.ConsentRecords', 'SignatureRelationship') IS NULL
+BEGIN
+    ALTER TABLE dbo.ConsentRecords ADD SignatureRelationship NVARCHAR(100) NULL;
+END;
+
+IF COL_LENGTH('dbo.ConsentRecords', 'ResponseNotes') IS NULL
+BEGIN
+    ALTER TABLE dbo.ConsentRecords ADD ResponseNotes NVARCHAR(1000) NULL;
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Consent_Requests')
+BEGIN
+    ALTER TABLE dbo.ConsentRecords ADD CONSTRAINT FK_Consent_Requests FOREIGN KEY (ConsentRequestID) REFERENCES dbo.ConsentRequests(ConsentRequestID);
 END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ConsentRecords_SchoolID' AND object_id = OBJECT_ID('dbo.ConsentRecords'))
 BEGIN
     CREATE INDEX IX_ConsentRecords_SchoolID ON dbo.ConsentRecords(SchoolID);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ConsentRecords_RequestID' AND object_id = OBJECT_ID('dbo.ConsentRecords'))
+BEGIN
+    CREATE INDEX IX_ConsentRecords_RequestID ON dbo.ConsentRecords(ConsentRequestID);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ConsentRecords_SchoolID_Response' AND object_id = OBJECT_ID('dbo.ConsentRecords'))
+BEGIN
+    CREATE INDEX IX_ConsentRecords_SchoolID_Response ON dbo.ConsentRecords(SchoolID, Response);
 END;
 
 -- Financial Adjustments

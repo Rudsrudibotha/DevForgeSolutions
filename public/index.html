@@ -1986,6 +1986,57 @@
           </form>
         </div>
 
+        <div id="consentDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="consentDialogTitle">
+          <form id="consentForm" class="modal-panel permission-slip-modal-panel" novalidate>
+            <div class="modal-header">
+              <div>
+                <h3 id="consentDialogTitle">New Permission Slip</h3>
+                <p>Send one legal request to all matching learners.</p>
+              </div>
+              <button id="closeConsentDialogButton" class="ghost-button icon-button" type="button" aria-label="Close permission slip form">&times;</button>
+            </div>
+            <div class="consent-composer-grid">
+              <div class="form-grid">
+                <label class="wide">Permission title<input id="consentTitleInput" name="title" type="text" value="School Activity Permission Slip" required></label>
+                <label>Consent type<select id="consentTypeSelect" name="consentType" required><option>General Permission</option><option>Trip / Excursion</option><option>Sports Participation</option><option>Photo / Media</option><option>Medical Treatment</option><option>Communication</option><option>Data Processing</option></select></label>
+                <label>Send to<select id="consentTargetScope" name="targetScope" required><option value="School">Entire student body</option><option value="Grade">Grade</option><option value="Class">Class</option><option value="Student">Individual learner</option></select></label>
+                <label id="consentTargetValueWrap" hidden>Target<select id="consentTargetValueSelect" name="targetValue"></select></label>
+                <label id="consentStudentWrap" hidden>Student<select name="studentId" id="consentStudentSelect"></select></label>
+                <label>Activity date<input id="consentActivityDateInput" name="activityDate" type="date"></label>
+                <label>Response due date<input id="consentDueDateInput" name="dueDate" type="date"></label>
+                <label class="wide">Location<input id="consentLocationInput" name="location" type="text" placeholder="School, venue, or destination"></label>
+                <label class="wide">Legal permission slip document<textarea id="consentDocumentBodyInput" name="documentBody" rows="6" required>I confirm that I am the parent or legal guardian of the learner named on this permission slip. I have read and understood the school request, activity details, risks, transport arrangements, supervision notes, and emergency procedures where applicable. I grant or decline permission for my child to participate as indicated below. I understand that the school will take reasonable care of learners and will contact me using the contact details on record if an emergency arises.</textarea></label>
+                <label class="wide">Risk, transport, and supervision notes<textarea id="consentRiskNotesInput" name="riskNotes" rows="2"></textarea></label>
+                <label class="wide">Medical and emergency instructions<textarea id="consentMedicalInstructionsInput" name="medicalInstructions" rows="2"></textarea></label>
+              </div>
+              <div>
+                <div id="consentTargetSummary" class="form-message info"></div>
+                <div id="consentDocumentPreview"></div>
+              </div>
+            </div>
+            <div class="actions modal-actions">
+              <button id="cancelConsentDialogButton" class="secondary-button compact-button" type="button">Cancel</button>
+              <button class="primary-button compact-button" type="submit">Send Permission Slip</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="consentDetailDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="consentDetailDialogTitle">
+          <div class="modal-panel permission-slip-detail-panel">
+            <div class="modal-header">
+              <div>
+                <h3 id="consentDetailDialogTitle">Permission Slip Detail</h3>
+                <p>Document wording, recipients, signatures, and outstanding responses.</p>
+              </div>
+              <button id="closeConsentDetailDialogButton" class="ghost-button icon-button" type="button" aria-label="Close permission slip detail">&times;</button>
+            </div>
+            <div id="consentDetailContent"></div>
+            <div class="actions modal-actions">
+              <button id="cancelConsentDetailDialogButton" class="primary-button compact-button" type="button">Close</button>
+            </div>
+          </div>
+        </div>
+
         <div id="employeeDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="employeeDialogTitle">
           <form id="employeeForm" class="modal-panel student-edit-panel" novalidate>
             <div class="modal-header">
