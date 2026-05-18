@@ -35,7 +35,8 @@ router.get('/school/:schoolId', authenticateToken, requireSchoolPermission('fina
     const invoices = await invoiceService.getInvoicesBySchool(parseInt(req.params.schoolId, 10), req.user);
     res.json(invoices);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const status = error.message.includes('only access invoices for your own school') ? 403 : 400;
+    res.status(status).json({ error: error.message });
   }
 });
 
