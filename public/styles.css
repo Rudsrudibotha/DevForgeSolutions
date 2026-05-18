@@ -3675,7 +3675,7 @@ body.school-user[data-section="settings"] {
   --section-row: #f8fafc;
 }
 
-body.parent-user {
+body.school-user.parent-user {
   --section-accent: #0891b2;
   --section-accent-strong: #0e7490;
   --section-accent-rgb: 8, 145, 178;
@@ -3685,7 +3685,7 @@ body.parent-user {
   --section-row: #f6feff;
 }
 
-body.platform-user {
+body.school-user.platform-user {
   --section-accent: #7c3aed;
   --section-accent-strong: #5b21b6;
   --section-accent-rgb: 124, 58, 237;
