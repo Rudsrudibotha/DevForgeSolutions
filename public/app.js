@@ -6173,6 +6173,18 @@ function registerLearnerMissingFields(form) {
   return missing;
 }
 
+function syncStudentSearchControls() {
+  const studentSearchTypeSelect = document.getElementById('studentSearchTypeSelect');
+  const studentSearchInput = document.getElementById('studentSearchInput');
+
+  if (studentSearchTypeSelect) {
+    studentSearchTypeSelect.value = state.studentSearchType || 'Student name';
+  }
+  if (studentSearchInput) {
+    studentSearchInput.value = state.studentSearchQuery || '';
+  }
+}
+
 function getAccountSchool() {
   if (!state.schools.length) {
     return null;
@@ -8456,7 +8468,7 @@ if (elements.registerLearnerForm) {
         familyId = family.FamilyID;
       }
 
-      await api('/api/students', {
+      const createdStudent = await api('/api/students', {
         method: 'POST',
         body: JSON.stringify({
           familyId,
@@ -8481,11 +8493,32 @@ if (elements.registerLearnerForm) {
 
       form.reset();
       state.registerLearnerBillingIds = [];
+      state.studentSearchType = 'Student surname';
+      state.studentSearchQuery = data.lastName || createdStudent.LastName || '';
+      state.students = [
+        {
+          ...createdStudent,
+          FamilyName: data.familyName || createdStudent.FamilyName,
+          ClassName: data.className || createdStudent.ClassName,
+          IsActive: createdStudent.IsActive !== false,
+          PrimaryParentName: data.primaryParentName || createdStudent.PrimaryParentName,
+          PrimaryParentPhone: data.primaryParentPhone || createdStudent.PrimaryParentPhone,
+          PrimaryParentEmail: data.primaryParentEmail || createdStudent.PrimaryParentEmail
+        },
+        ...state.students.filter((student) => Number(student.StudentID) !== Number(createdStudent.StudentID))
+      ];
       updateRegisterLearnerParentFields();
       renderRegisterLearnerBillingPicker();
       showToast('Learner registered successfully');
-      await refreshData();
       switchView('students');
+      syncStudentSearchControls();
+      renderStudentsTable();
+      refreshData()
+        .then(() => {
+          syncStudentSearchControls();
+          renderStudentsTable();
+        })
+        .catch((error) => showToast(error.message || 'Learner saved, but the dashboard refresh failed'));
     } catch (error) {
       showToast(error.message || 'Failed to register learner');
     } finally {
