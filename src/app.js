@@ -68,10 +68,17 @@ app.use(cors({
   credentials: false
 }));
 
+function positiveIntegerEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
 // Rate limiting
+// Dashboards load several scoped resources at once, and schools often share one
+// public IP. Keep authentication strict while allowing normal portal navigation.
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: positiveIntegerEnv('API_RATE_LIMIT_MAX', 1500),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later' }
@@ -79,7 +86,7 @@ const apiLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: positiveIntegerEnv('AUTH_RATE_LIMIT_MAX', 20),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many login attempts, please try again later' }
