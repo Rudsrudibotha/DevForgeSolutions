@@ -7133,23 +7133,26 @@ elements.classForm.addEventListener('submit', async (event) => {
     payload.teacherId = payload.teacherId ? Number(payload.teacherId) : null;
     payload.capacity = payload.capacity ? Number(payload.capacity) : null;
     payload.classYear = payload.classYear ? Number(payload.classYear) : new Date().getFullYear();
+    const selectedClassYear = payload.classYear;
 
     if (isEdit) {
       await api('/api/classes/' + state.editingClassId, {
         method: 'PUT',
         body: JSON.stringify(payload)
       });
-      resetClassForm();
       showToast('Class updated');
     } else {
       await api('/api/classes', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-      elements.classForm.reset();
       showToast('Class added');
     }
 
+    if (elements.classYearFilterInput && selectedClassYear) {
+      elements.classYearFilterInput.value = String(selectedClassYear);
+    }
+    resetClassForm();
     await refreshClasses();
     renderClasses();
   } catch (error) {
