@@ -1294,6 +1294,30 @@ function navViewFor(viewName) {
   return VIEW_MODULE[viewName] || viewName;
 }
 
+function themeToken(value) {
+  return String(value || 'overview')
+    .replace(/([a-z])([A-Z])/g, '$1-$2')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-');
+}
+
+function applyViewTheme(viewName, sectionName) {
+  const body = document.body;
+  const previous = Array.from(body.classList)
+    .filter((className) => className.startsWith('view-') || className.startsWith('section-'));
+
+  if (previous.length) {
+    body.classList.remove(...previous);
+  }
+
+  const viewToken = themeToken(viewName);
+  const sectionToken = themeToken(sectionName || navViewFor(viewName));
+
+  body.dataset.view = viewToken;
+  body.dataset.section = sectionToken;
+  body.classList.add(`view-${viewToken}`, `section-${sectionToken}`);
+}
+
 function isViewAllowed(viewName) {
   return Boolean(document.getElementById(`${viewName}View`)) && viewName !== 'schools';
 }
@@ -6676,6 +6700,7 @@ function switchView(viewName, options = {}) {
   }
 
   const activeNavView = navViewFor(viewName);
+  applyViewTheme(viewName, activeNavView);
 
   document.querySelectorAll('.nav-item').forEach((item) => {
     const isActive = item.dataset.view === activeNavView;

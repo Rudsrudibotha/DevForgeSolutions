@@ -354,6 +354,10 @@ function renderAuditTable() {
 }
 
 function switchView(viewName) {
+  document.body.dataset.portal = 'platform';
+  document.body.dataset.section = 'platform';
+  document.body.dataset.view = viewName;
+
   document.querySelectorAll('.nav-item').forEach((item) => {
     const isActive = item.dataset.view === viewName;
     item.classList.toggle('active', isActive);

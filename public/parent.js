@@ -397,6 +397,10 @@ function switchView(viewName) {
     viewName = 'overview';
   }
 
+  document.body.dataset.portal = 'parent';
+  document.body.dataset.section = viewName;
+  document.body.dataset.view = viewName;
+
   document.querySelectorAll('.nav-item').forEach((item) => {
     const isActive = item.dataset.view === viewName;
     item.classList.toggle('active', isActive);
