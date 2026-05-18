@@ -8,6 +8,9 @@ const state = {
 };
 
 document.body.classList.add('school-user', 'platform-user');
+document.body.dataset.portal = 'platform';
+document.body.dataset.section = 'platform';
+document.body.dataset.view = 'overview';
 
 const elements = {
   workspace: document.getElementById('workspace'),

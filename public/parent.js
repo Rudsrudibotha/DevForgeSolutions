@@ -10,6 +10,9 @@ const state = {
 
 document.body.classList.remove('platform-user');
 document.body.classList.add('school-user');
+document.body.dataset.portal = 'parent';
+document.body.dataset.section = 'overview';
+document.body.dataset.view = 'overview';
 
 const elements = {
   workspace: document.getElementById('workspace'),
