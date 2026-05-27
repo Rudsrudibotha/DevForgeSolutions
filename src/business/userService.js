@@ -13,6 +13,20 @@ class UserService {
     this.schoolService = new SchoolService();
   }
 
+  normalizeEmail(email) {
+    return String(email || '').trim().toLowerCase();
+  }
+
+  isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+  }
+
+  validatePassword(password) {
+    if (typeof password !== 'string' || password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+      throw new Error('Password must be at least 8 characters long and include both letters and numbers');
+    }
+  }
+
   // Register a new user and optionally create the linked school tenant.
   async register(userData, options = {}) {
     const {
@@ -29,14 +43,19 @@ class UserService {
       website
     } = userData;
 
+    const normalizedEmail = this.normalizeEmail(email);
     const normalizedUsername = this.normalizeUsername(username);
 
-    this.validateRegistration(email, normalizedUsername, password, role, schoolName, contactEmail, options);
+    this.validateRegistration(normalizedEmail, normalizedUsername, password, role, schoolName, contactEmail, options);
 
-    const existingUser = await this.userRepository.getUserByEmail(email);
-
-    if (existingUser) {
+    const existingEmailUser = await this.userRepository.getUserByEmail(normalizedEmail);
+    if (existingEmailUser) {
       throw new Error('User already exists');
+    }
+
+    const existingUsername = await this.userRepository.getUserByUsername(normalizedUsername);
+    if (existingUsername) {
+      throw new Error('Username already exists');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -67,7 +86,9 @@ class UserService {
     const loginType = String(request.loginType || '').trim().toLowerCase();
     const identifier = this.normalizeUsername(request.identifier || request.username || request.email);
     const password = String(request.password || '');
-    const resolvedType = loginType || (Number(request.schoolId) === 0 ? 'devforge' : 'school');
+    const parsedSchoolId = Number(request.schoolId);
+    const hasSchoolId = Number.isInteger(parsedSchoolId) && parsedSchoolId > 0;
+    const resolvedType = loginType || (hasSchoolId ? 'school' : 'devforge');
 
     if (!identifier || !password) {
       throw new Error('Login identifier and password are required');
@@ -141,21 +162,28 @@ class UserService {
       throw new Error('DevForge admin access required');
     }
 
-    const email = this.requiredString(userData.email, 'Email', 255);
+    const email = this.normalizeEmail(this.requiredString(userData.email, 'Email', 255));
     const username = this.normalizeUsername(userData.username || email);
     const password = String(userData.password || '');
+
+    if (!this.isValidEmail(email)) {
+      throw new Error('A valid email address is required');
+    }
 
     if (!/^[a-z0-9._-]{3,50}$/.test(username)) {
       throw new Error('Username must be 3 to 50 characters and use only letters, numbers, dots, underscores, or hyphens');
     }
 
-    if (password.length < 8) {
-      throw new Error('Password must be at least 8 characters long');
-    }
+    this.validatePassword(password);
 
     const existingEmail = await this.userRepository.getUserByEmail(email);
     if (existingEmail) {
       throw new Error('A user with this email already exists');
+    }
+
+    const existingUsername = await this.userRepository.getUserByUsername(username);
+    if (existingUsername) {
+      throw new Error('A user with this username already exists');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -177,17 +205,19 @@ class UserService {
 
   async createSchoolUser(userData, currentUser) {
     const managedSchoolId = this.resolveManagedSchoolId(currentUser, userData.schoolId);
-    const email = this.requiredString(userData.email, 'Email', 255);
+    const email = this.normalizeEmail(this.requiredString(userData.email, 'Email', 255));
     const username = this.normalizeUsername(userData.username);
     const password = String(userData.password || '');
+
+    if (!this.isValidEmail(email)) {
+      throw new Error('A valid email address is required');
+    }
 
     if (!/^[a-z0-9._-]{3,50}$/.test(username)) {
       throw new Error('Username must be 3 to 50 characters and use only letters, numbers, dots, underscores, or hyphens');
     }
 
-    if (password.length < 8) {
-      throw new Error('Password must be at least 8 characters long');
-    }
+    this.validatePassword(password);
 
     const existingEmail = await this.userRepository.getUserByEmail(email);
     if (existingEmail) {
@@ -297,6 +327,10 @@ class UserService {
       throw new Error('Email, username, password, and role are required');
     }
 
+    if (!this.isValidEmail(email) || email.length > 255) {
+      throw new Error('A valid email address is required');
+    }
+
     if (!/^[a-z0-9._-]{3,50}$/.test(username)) {
       throw new Error('Username must be 3 to 50 characters and use only letters, numbers, dots, underscores, or hyphens');
     }
@@ -305,16 +339,24 @@ class UserService {
       throw new Error(options.allowAdmin ? 'Role must be admin or school' : 'Public registration is only available for school accounts');
     }
 
-    if (password.length < 8) {
-      throw new Error('Password must be at least 8 characters long');
+    this.validatePassword(password);
+
+    if (role === 'school') {
+      if (!schoolName || !contactEmail) {
+        throw new Error('School name and contact email are required for school registration');
+      }
+      if (!this.isValidEmail(contactEmail)) {
+        throw new Error('A valid contact email is required for school registration');
+      }
     }
 
-    if (role === 'school' && (!schoolName || !contactEmail)) {
-      throw new Error('School name and contact email are required for school registration');
-    }
-
-    if (role === 'parent' && !contactEmail) {
-      throw new Error('Contact email is required for parent registration');
+    if (role === 'parent') {
+      if (!contactEmail) {
+        throw new Error('Contact email is required for parent registration');
+      }
+      if (!this.isValidEmail(contactEmail)) {
+        throw new Error('A valid contact email is required for parent registration');
+      }
     }
   }
 
@@ -326,7 +368,7 @@ class UserService {
     const token = jwt.sign(
       { userId: user.UserID, username: user.Username, email: user.Email, role: user.Role, schoolId: user.SchoolID },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '24h', algorithm: 'HS256' }
     );
 
     const permissions = await getSchoolPermissions(user);

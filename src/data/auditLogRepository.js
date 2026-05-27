@@ -4,6 +4,10 @@ const { getPool, sql } = require('./db');
 
 class AuditLogRepository {
   async log(entry) {
+    if (!entry || !entry.entityName || !entry.action) {
+      return;
+    }
+
     try {
       const pool = await getPool();
       await pool.request()
@@ -18,7 +22,7 @@ class AuditLogRepository {
         .query(`INSERT INTO AuditLogs (UserID, SchoolID, EntityName, EntityID, Action, BeforeValue, AfterValue, IpAddress)
                 VALUES (@userId, @schoolId, @entityName, @entityId, @action, @beforeValue, @afterValue, @ipAddress)`);
     } catch (err) {
-      console.error('Audit log write failed:', err.message);
+      console.error('Audit log write failed:', err.stack || err.message);
     }
   }
 

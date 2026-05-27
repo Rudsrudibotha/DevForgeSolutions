@@ -712,6 +712,7 @@ const state = {
   families: [],
   students: [],
   billingCategories: [],
+  transactions: [],
   classes: [],
   attendance: [],
   completedAttendance: [],
@@ -1023,6 +1024,9 @@ let studentSearchWired = false;
 let parentSearchWired = false;
 const attendanceAutosaveTimers = new Map();
 let bankReallocationSearchTimer = null;
+let refreshDataRunId = 0;
+let schoolsFetchPromise = null;
+const SKIP_FETCH = Symbol('skip-fetch');
 
 function rememberActivity() {
   if (state.token) {
@@ -1545,45 +1549,145 @@ function renderShell() {
   document.getElementById('profileRole').textContent = state.user.role;
   document.getElementById('profileSchool').textContent = state.user.schoolId || 'Global';
   document.getElementById('profileSchoolName').textContent = '-';
-  switchView(viewFromPath(), { replace: true });
+  switchView(viewFromPath(), { replace: true, skipRefresh: true });
   startInactivityTimer();
   refreshData();
 }
 
-async function refreshData() {
+function dataNeedsForView(viewName = activeViewName()) {
+  const is = (...views) => views.includes(viewName);
+  const reportingViews = ['studentReports', 'report', 'admissionsReport', 'reenrolmentReport', 'consentReport', 'yearEndReport'];
+  const featureViews = [
+    'admissionsReport',
+    'consentPermissions',
+    'financialAdjustments',
+    'refunds',
+    'registrationFees',
+    'yearEndClosing',
+    'communicationHistory',
+    'reenrolment',
+    'reenrolmentReport',
+    'yearEndReport'
+  ];
+
+  const needsStudents = is(
+    'overview',
+    'students',
+    'parents',
+    'registerLearner',
+    'invoices',
+    'outstanding',
+    'classes',
+    'attendance',
+    'consentPermissions',
+    'sendInvoices',
+    ...reportingViews
+  );
+  const needsInvoices = is(
+    'overview',
+    'invoices',
+    'outstanding',
+    'bank',
+    'bankTransactions',
+    'bankStatements',
+    'sendInvoices',
+    'financeAudit',
+    'yearEndClosing',
+    'yearEndReport',
+    'report',
+    'studentReports'
+  );
+
+  return {
+    dashboard: is('overview'),
+    invoices: needsInvoices,
+    families: is('overview', 'parents', 'students', 'registerLearner', 'invoices', 'outstanding', 'sendInvoices', ...reportingViews),
+    students: needsStudents,
+    billingCategories: is('overview', 'students', 'registerLearner', 'invoices', 'billingCategories', 'outstanding', 'settings'),
+    employees: is('staff', 'classes', 'payslips', 'leave', 'settings'),
+    leaves: is('leave'),
+    schoolUsers: is('settings'),
+    auditLogs: is('settings'),
+    financeAuditLogs: is('financeAudit', 'yearEndClosing'),
+    matchSuggestions: is('bank'),
+    classes: is('classes', 'attendance', 'students', 'registerLearner', 'consentPermissions', 'reenrolment', ...reportingViews),
+    staffRoles: is('staff', 'settings'),
+    attendance: is('attendance'),
+    payslips: is('payslips'),
+    featureData: is(...featureViews),
+    reportData: is(...reportingViews),
+    outstandingFees: is('outstanding'),
+    transactions: is('bankTransactions')
+  };
+}
+
+function maybeApi(condition, loader) {
+  return condition ? loader() : Promise.resolve(SKIP_FETCH);
+}
+
+function loadSchools() {
+  if (!schoolsFetchPromise) {
+    schoolsFetchPromise = api('/api/schools').finally(() => {
+      schoolsFetchPromise = null;
+    });
+  }
+
+  return schoolsFetchPromise;
+}
+
+async function refreshData(options = {}) {
+  const viewName = options.viewName || activeViewName();
+  const runId = ++refreshDataRunId;
+  const needs = dataNeedsForView(viewName);
+  const employeePath = viewName === 'payslips' ? '/api/employees/payroll-options' : '/api/employees';
+
   try {
     const [schools, dashboard, invoices, families, students, billingCategories, employees, leaves] = await Promise.all([
-      api('/api/schools'),
-      userCan('school.students.view|finance.invoices.view|finance.bank_reconciliation.view|reports.view') ? api('/api/dashboard') : Promise.resolve({ warnings: [] }),
-      userCan('finance.invoices.view|finance.invoices.create|finance.invoices.edit') ? api('/api/invoices') : Promise.resolve([]),
-      userCan('school.parents.view|school.parents.manage') ? api('/api/families') : Promise.resolve([]),
-      userCan('school.students.view|school.students.manage|classes.view_assigned|attendance.view_assigned|attendance.submit_assigned') ? api(`/api/students?status=${encodeURIComponent(state.studentStatusFilter)}`) : Promise.resolve([]),
-      userCan('finance.billing_categories.manage|finance.invoices.view|finance.invoices.create') ? api('/api/billing-categories') : Promise.resolve([]),
-      userCan('school.staff.view|school.staff.manage|school.staff.permissions.manage|hr.view_payslips|hr.manage_payslips|sensitive.payroll.view') ? api('/api/employees') : Promise.resolve([]),
-      userCan('leave.view_all|leave.approve|leave.decline') ? api('/api/leaves') : Promise.resolve([])
+      maybeApi(options.forceSchools || !state.schools.length, loadSchools),
+      maybeApi(needs.dashboard && userCan('school.students.view|finance.invoices.view|finance.bank_reconciliation.view|reports.view'), () => api('/api/dashboard')),
+      maybeApi(needs.invoices && userCan('finance.invoices.view|finance.invoices.create|finance.invoices.edit'), () => api('/api/invoices')),
+      maybeApi(needs.families && userCan('school.parents.view|school.parents.manage'), () => api('/api/families')),
+      maybeApi(needs.students && userCan('school.students.view|school.students.manage|classes.view_assigned|attendance.view_assigned|attendance.submit_assigned'), () => api(`/api/students?status=${encodeURIComponent(state.studentStatusFilter)}`)),
+      maybeApi(needs.billingCategories && userCan('finance.billing_categories.manage|finance.invoices.view|finance.invoices.create'), () => api('/api/billing-categories')),
+      maybeApi(needs.employees && userCan('school.staff.view|school.staff.manage|school.staff.permissions.manage|hr.view_payslips|hr.manage_payslips|payroll.generate|payroll.review|payroll.finalize|payroll.view_previous|sensitive.payroll.view'), () => api(employeePath)),
+      maybeApi(needs.leaves && userCan('leave.view_all|leave.approve|leave.decline'), () => api('/api/leaves'))
     ]);
 
-    state.schools = schools;
-    state.dashboardWarnings = Array.isArray(dashboard?.warnings) ? dashboard.warnings : [];
-    state.invoices = invoices;
-    state.families = families;
-    state.students = students;
-    state.billingCategories = billingCategories;
-    state.employees = employees;
-    state.leaves = leaves;
+    if (runId !== refreshDataRunId || viewName !== activeViewName()) {
+      return;
+    }
+
+    if (schools !== SKIP_FETCH) state.schools = schools;
+    if (dashboard !== SKIP_FETCH) state.dashboardWarnings = Array.isArray(dashboard?.warnings) ? dashboard.warnings : [];
+    if (invoices !== SKIP_FETCH) state.invoices = invoices;
+    if (families !== SKIP_FETCH) state.families = families;
+    if (students !== SKIP_FETCH) state.students = students;
+    if (billingCategories !== SKIP_FETCH) state.billingCategories = billingCategories;
+    if (employees !== SKIP_FETCH) state.employees = employees;
+    if (leaves !== SKIP_FETCH) state.leaves = leaves;
+
     await Promise.all([
-      refreshSchoolUsers(),
-      refreshAuditLogs(),
-      refreshFinanceAuditLogs(),
-      refreshMatchSuggestions(),
-      refreshClasses(),
-      refreshStaffRoles(),
-      refreshAttendance(),
-      refreshPayslips(),
-      refreshFeatureData(),
-      refreshReportData()
+      needs.schoolUsers ? refreshSchoolUsers() : Promise.resolve(),
+      needs.auditLogs ? refreshAuditLogs() : Promise.resolve(),
+      needs.financeAuditLogs ? refreshFinanceAuditLogs() : Promise.resolve(),
+      needs.matchSuggestions ? refreshMatchSuggestions() : Promise.resolve(),
+      needs.classes ? refreshClasses() : Promise.resolve(),
+      needs.staffRoles ? refreshStaffRoles() : Promise.resolve(),
+      needs.attendance ? refreshAttendance() : Promise.resolve(),
+      needs.payslips ? refreshPayslips() : Promise.resolve(),
+      needs.featureData ? refreshFeatureData() : Promise.resolve(),
+      needs.reportData ? refreshReportData() : Promise.resolve(),
+      needs.transactions ? refreshTransactions() : Promise.resolve()
     ]);
-    await refreshOutstandingFees();
+
+    if (needs.outstandingFees) {
+      await refreshOutstandingFees();
+    }
+
+    if (runId !== refreshDataRunId || viewName !== activeViewName()) {
+      return;
+    }
+
     renderData();
   } catch (error) {
     showToast(error.message);
@@ -1749,14 +1853,17 @@ async function refreshCompletedAttendance() {
 }
 
 async function refreshPayslips() {
-  if (!userCan('hr.view_payslips|hr.manage_payslips|sensitive.payroll.view')) {
+  const canReadPayslips = userCan('hr.view_payslips|hr.manage_payslips|payroll.generate|payroll.review|payroll.finalize|sensitive.payroll.view');
+  const canReadPreviousPayslips = userCan('payroll.view_previous');
+
+  if (!canReadPayslips && !canReadPreviousPayslips) {
     state.payslips = [];
     state.payslipStatusMessage = '';
     return;
   }
 
   try {
-    state.payslips = await api('/api/payslips');
+    state.payslips = await api(canReadPayslips ? '/api/payslips' : '/api/payslips/previous');
     state.payslipStatusMessage = '';
   } catch (error) {
     state.payslips = [];
@@ -4887,7 +4994,8 @@ function renderPayslips() {
     const employeeName = `${payslip.FirstName || ''} ${payslip.LastName || ''}`.trim() || `Employee ${payslip.EmployeeID}`;
     const employee = state.employees.find((item) => item.EmployeeID === payslip.EmployeeID);
     const isFinalized = payslip.IsFinalized === true || payslip.IsFinalized === 1 || payslip.Status === 'Finalized';
-    const canManagePayroll = userCan('hr.manage_payslips|payroll.review|payroll.finalize');
+    const canEditPayroll = userCan('hr.manage_payslips|payroll.review');
+    const canFinalizePayroll = userCan('hr.manage_payslips|payroll.finalize');
     const status = payslipStatus(payslip);
     const statusClass = isFinalized ? 'badge' : 'badge warn';
 
@@ -4902,13 +5010,53 @@ function renderPayslips() {
         <td>
           <div class="actions stacked-actions">
             <button class="ghost-button" data-action="view-payslip" data-id="${payslip.PayslipID}" type="button">View</button>
-            ${isFinalized || !canManagePayroll ? '' : `<button class="ghost-button" data-action="edit-payslip" data-id="${payslip.PayslipID}" type="button">Edit</button>`}
-            ${isFinalized || !canManagePayroll ? '' : `<button class="secondary-button" data-action="finalize-payslip" data-id="${payslip.PayslipID}" type="button">Finalize</button>`}
+            ${isFinalized || !canEditPayroll ? '' : `<button class="ghost-button" data-action="edit-payslip" data-id="${payslip.PayslipID}" type="button">Edit</button>`}
+            ${isFinalized || !canFinalizePayroll ? '' : `<button class="secondary-button" data-action="finalize-payslip" data-id="${payslip.PayslipID}" type="button">Finalize</button>`}
           </div>
         </td>
       </tr>
     `;
   }).join('') || '<tr><td colspan="7">No payslip records found.</td></tr>';
+}
+
+function payslipSortValue(payslip) {
+  return `${payslip.PayPeriod || ''}-${String(payslip.PayslipID || '').padStart(10, '0')}`;
+}
+
+function enrichPayslipForTable(payslip, fallback = {}) {
+  const employeeId = Number(payslip.EmployeeID || payslip.employeeId || fallback.EmployeeID || fallback.employeeId);
+  const employee = state.employees.find((item) => Number(item.EmployeeID) === employeeId);
+
+  return {
+    ...fallback,
+    ...payslip,
+    EmployeeID: employeeId || payslip.EmployeeID || fallback.EmployeeID,
+    FirstName: payslip.FirstName ?? fallback.FirstName ?? employee?.FirstName,
+    LastName: payslip.LastName ?? fallback.LastName ?? employee?.LastName,
+    EmployeeNumber: payslip.EmployeeNumber ?? fallback.EmployeeNumber ?? employee?.EmployeeNumber,
+    PayrollNumber: payslip.PayrollNumber ?? fallback.PayrollNumber ?? employee?.PayrollNumber,
+    JobTitle: payslip.JobTitle ?? fallback.JobTitle ?? employee?.JobTitle,
+    Department: payslip.Department ?? fallback.Department ?? employee?.Department
+  };
+}
+
+function upsertPayslipInState(payslip) {
+  const payslipId = Number(payslip.PayslipID);
+  const existing = state.payslips.find((item) => Number(item.PayslipID) === payslipId);
+  const next = enrichPayslipForTable(payslip, existing);
+  state.payslips = [
+    next,
+    ...state.payslips.filter((item) => Number(item.PayslipID) !== payslipId)
+  ].sort((a, b) => payslipSortValue(b).localeCompare(payslipSortValue(a)));
+}
+
+function refreshPayslipsInBackground() {
+  refreshPayslips()
+    .then(renderPayslips)
+    .catch((error) => {
+      state.payslipStatusMessage = error.message;
+      renderPayslips();
+    });
 }
 
 
@@ -4993,6 +5141,19 @@ async function refreshOutstandingFees() {
   renderOutstandingFees();
 }
 
+async function refreshTransactions() {
+  if (!userCan('finance.bank_reconciliation.view|finance.payments.view|finance.audit.view')) {
+    state.transactions = [];
+    return;
+  }
+
+  try {
+    state.transactions = await api('/api/transactions');
+  } catch (error) {
+    state.transactions = [];
+  }
+}
+
 function renderStudentStatusFilter() {
   const statusSelect = document.getElementById('studentStatusFilterInput');
   if (statusSelect) {
@@ -5005,26 +5166,26 @@ function renderTransactions() {
     return;
   }
 
-  api('/api/transactions').then((transactions) => {
-    const school = getSettingsSchool();
-    elements.transactionsTable.innerHTML = transactions.length
-      ? transactions.map((tx) => `
-        <tr>
-          <td>${dateOnly(tx.TransactionDate)}</td>
-          <td><span class="badge">${escapeHtml(tx.TransactionType)}</span></td>
-          <td>${money(tx.Amount, school)}</td>
-          <td>${escapeHtml(tx.Reference || tx.InvoiceNumber || '-')}</td>
-          <td>${escapeHtml(tx.Description || '-')}</td>
-        </tr>
-      `).join('')
-      : '<tr><td colspan="5">No transactions found.</td></tr>';
-  }).catch(() => {
-    elements.transactionsTable.innerHTML = '<tr><td colspan="5">No transactions found.</td></tr>';
-  });
+  const school = getSettingsSchool();
+  elements.transactionsTable.innerHTML = state.transactions.length
+    ? state.transactions.map((tx) => `
+      <tr>
+        <td>${dateOnly(tx.TransactionDate)}</td>
+        <td><span class="badge">${escapeHtml(tx.TransactionType)}</span></td>
+        <td>${money(tx.Amount, school)}</td>
+        <td>${escapeHtml(tx.Reference || tx.InvoiceNumber || '-')}</td>
+        <td>${escapeHtml(tx.Description || '-')}</td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="5">No transactions found.</td></tr>';
 }
 
 function renderReconciliation() {
   if (!elements.totalCredits || !elements.totalDebits || !elements.accountBalance || !elements.outstandingAmount) {
+    return;
+  }
+
+  if (activeViewName() !== 'bank') {
     return;
   }
 
@@ -6724,6 +6885,10 @@ function switchView(viewName, options = {}) {
 
   elements.viewTitle.textContent = VIEW_TITLES[viewName] || viewName.charAt(0).toUpperCase() + viewName.slice(1);
   elements.viewTitle.focus({ preventScroll: true });
+
+  if (!options.skipRefresh && state.token) {
+    refreshData({ viewName }).catch((error) => showToast(error.message));
+  }
 }
 
 function switchFinanceTab(tabName) {
@@ -6893,7 +7058,7 @@ elements.accountSchoolForm.addEventListener('submit', async (event) => {
       body: JSON.stringify(payload)
     });
 
-    await refreshData();
+    await refreshData({ forceSchools: true });
     showToast('School account saved');
   } catch (error) {
     showToast(error.message);
@@ -7040,7 +7205,7 @@ elements.settingsForm.addEventListener('submit', async (event) => {
       })
     });
 
-    await refreshData();
+    await refreshData({ forceSchools: true });
     showToast('Settings saved');
   } catch (error) {
     showToast(error.message);
@@ -7427,13 +7592,15 @@ elements.payslipForm.addEventListener('submit', async (event) => {
     payload.uifDeduction = Number(payload.uifDeduction || 0);
     payload.otherDeductions = Number(payload.otherDeductions || 0);
 
-    await api('/api/payslips', {
+    const createdPayslip = await api('/api/payslips', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
 
+    upsertPayslipInState(createdPayslip);
     elements.payslipForm.reset();
-    await refreshData();
+    renderPayslips();
+    refreshPayslipsInBackground();
     showToast('Payslip created');
   } catch (error) {
     showToast(error.message);
@@ -7488,13 +7655,15 @@ elements.payslipEditForm?.addEventListener('submit', async (event) => {
       payload[field] = Number(payload[field] || 0);
     });
 
-    await api(`/api/payslips/${payslipId}`, {
+    const updatedPayslip = await api(`/api/payslips/${payslipId}`, {
       method: 'PUT',
       body: JSON.stringify(payload)
     });
 
+    upsertPayslipInState(updatedPayslip);
     closePayslipDialog();
-    await refreshData();
+    renderPayslips();
+    refreshPayslipsInBackground();
     showToast('Payslip updated');
   } catch (error) {
     showToast(error.message);
@@ -8187,8 +8356,10 @@ document.addEventListener('click', async (event) => {
       return;
     }
     try {
-      await api(`/api/payslips/${button.dataset.id}/finalize`, { method: 'PUT' });
-      await refreshData();
+      const finalizedPayslip = await api(`/api/payslips/${button.dataset.id}/finalize`, { method: 'PUT' });
+      upsertPayslipInState(finalizedPayslip);
+      renderPayslips();
+      refreshPayslipsInBackground();
       showToast('Payslip finalized');
     } catch (error) {
       showToast(error.message);

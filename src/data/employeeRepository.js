@@ -20,6 +20,30 @@ class EmployeeRepository {
     return result.recordset;
   }
 
+  async getPayrollOptionsBySchool(schoolId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('schoolId', sql.Int, schoolId)
+      .query(`SELECT EmployeeID, SchoolID, FirstName, LastName, EmployeeNumber, PayrollNumber,
+                Salary, StandardAllowances, StandardDeductions, TaxPaye, UifDeduction, IsActive
+              FROM Employees
+              WHERE SchoolID = @schoolId
+              ORDER BY LastName, FirstName`);
+    return result.recordset;
+  }
+
+  async getAllPayrollOptions() {
+    const pool = await getPool();
+    const result = await pool.request()
+      .query(`SELECT e.EmployeeID, e.SchoolID, e.FirstName, e.LastName, e.EmployeeNumber, e.PayrollNumber,
+                e.Salary, e.StandardAllowances, e.StandardDeductions, e.TaxPaye, e.UifDeduction, e.IsActive,
+                s.SchoolName
+              FROM Employees e
+              INNER JOIN Schools s ON e.SchoolID = s.SchoolID
+              ORDER BY e.LastName, e.FirstName`);
+    return result.recordset;
+  }
+
   async getEmployeeById(id) {
     const pool = await getPool();
     const result = await pool.request()

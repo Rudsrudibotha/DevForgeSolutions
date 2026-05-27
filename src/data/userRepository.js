@@ -7,7 +7,15 @@ class UserRepository {
     const pool = await getPool();
     const result = await pool.request()
       .input('email', sql.NVarChar, email)
-      .query('SELECT * FROM Users WHERE Email = @email');
+      .query('SELECT * FROM Users WHERE LOWER(Email) = LOWER(@email)');
+    return result.recordset[0];
+  }
+
+  async getUserByUsername(username) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('username', sql.NVarChar, username)
+      .query('SELECT * FROM Users WHERE LOWER(Username) = LOWER(@username)');
     return result.recordset[0];
   }
 

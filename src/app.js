@@ -37,7 +37,7 @@ const InvoiceService = require('./business/invoiceService');
 const app = express();
 
 app.disable('x-powered-by');
-app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
+app.set('trust proxy', Number(process.env.TRUST_PROXY || 0));
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -246,18 +246,37 @@ function startOverdueScheduler() {
 
 async function start() {
   const basePort = Number(process.env.PORT) || 3000;
-  const launchServer = async (port) => {
-    app.listen(port, async () => {
-      console.log(`Server running on port ${port}`);
+  const schedulersEnabled = process.env.ENABLE_SCHEDULERS === 'true';
+  const skipDatabase = process.env.SKIP_DB === 'true' || process.env.START_WITHOUT_DB === 'true';
 
+  const launchServer = async (port) => {
+    if (!skipDatabase) {
       try {
         await connectDB();
+      } catch (error) {
+        console.error('Failed to connect to database during startup:', error.message);
+        process.exit(1);
+      }
+    } else {
+      try {
+        await connectDB();
+      } catch (error) {
+        console.warn('Skipping database startup for testing because SKIP_DB is set:', error.message);
+      }
+    }
+
+    const server = app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+
+      if (schedulersEnabled) {
         startOverdueScheduler();
         startMonthlyInvoiceScheduler();
-      } catch (error) {
-        console.error('Application started without database connection:', error.message);
+      } else {
+        console.log('Schedulers are disabled. Set ENABLE_SCHEDULERS=true to enable them.');
       }
-    }).on('error', async (error) => {
+    });
+
+    server.on('error', async (error) => {
       if (error.code === 'EADDRINUSE') {
         const nextPort = port + 1;
         console.warn(`Port ${port} is already in use. Trying port ${nextPort}...`);

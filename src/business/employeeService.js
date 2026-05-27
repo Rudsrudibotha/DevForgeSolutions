@@ -15,6 +15,14 @@ class EmployeeService {
     return await this.employeeRepository.getEmployeesBySchool(this.resolveSchoolId(currentUser));
   }
 
+  async getPayrollOptions(currentUser) {
+    if (currentUser.Role === 'admin') {
+      return await this.employeeRepository.getAllPayrollOptions();
+    }
+
+    return await this.employeeRepository.getPayrollOptionsBySchool(this.resolveSchoolId(currentUser));
+  }
+
   async getEmployeeById(id, currentUser) {
     this.validateId(id, 'Employee ID');
     const employee = await this.employeeRepository.getEmployeeById(id);

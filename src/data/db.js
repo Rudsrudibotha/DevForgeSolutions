@@ -20,10 +20,10 @@ function getConnectionConfig() {
 
 async function connectDB() {
   try {
-    pool = await sql.connect(getConnectionConfig());
-    dbState.connected = true;
-    dbState.lastError = null;
-    console.log('Connected to Azure SQL Database');
+    const poolInstance = await getPool();
+    if (poolInstance.connected) {
+      console.log('Connected to Azure SQL Database');
+    }
   } catch (err) {
     dbState.connected = false;
     dbState.lastError = err.message;
@@ -33,8 +33,24 @@ async function connectDB() {
 }
 
 async function getPool() {
-  if (pool) {
+  if (pool && pool.connected) {
     return pool;
+  }
+
+  if (pool && pool.connecting) {
+    await pool.connect();
+    if (pool.connected) {
+      return pool;
+    }
+  }
+
+  if (pool) {
+    try {
+      await pool.close();
+    } catch (closeError) {
+      console.warn('Closing stale database connection pool failed:', closeError?.message || closeError);
+    }
+    pool = null;
   }
 
   try {
@@ -45,6 +61,7 @@ async function getPool() {
   } catch (err) {
     dbState.connected = false;
     dbState.lastError = err.message;
+    pool = null;
     throw err;
   }
 }

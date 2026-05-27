@@ -4,7 +4,28 @@
 const PayslipRepository = require('../data/payslipRepository');
 const EmployeeRepository = require('../data/employeeRepository');
 const SchoolRepository = require('../data/schoolRepository');
-const { hasSchoolPermission } = require('../security/schoolPermissions');
+const { getSchoolPermissions, hasSchoolPermission } = require('../security/schoolPermissions');
+
+const PAYSLIP_LIST_PERMISSIONS = [
+  'hr.view_payslips',
+  'hr.manage_payslips',
+  'payroll.generate',
+  'payroll.review',
+  'payroll.finalize',
+  'sensitive.payroll.view'
+];
+
+const PAYSLIP_VIEW_PERMISSIONS = [
+  ...PAYSLIP_LIST_PERMISSIONS,
+  'payroll.view_previous'
+];
+
+const PAYSLIP_PREVIOUS_PERMISSIONS = [
+  'hr.view_payslips',
+  'hr.manage_payslips',
+  'payroll.view_previous',
+  'sensitive.payroll.view'
+];
 
 class PayslipService {
   constructor() {
@@ -15,13 +36,13 @@ class PayslipService {
 
   async getPayslips(currentUser, options = {}) {
     if (currentUser.Role === 'admin') return await this.payslipRepository.getAllPayslips();
-    this.requireHrPermission(currentUser);
+    await this.requirePayrollPermission(currentUser, PAYSLIP_LIST_PERMISSIONS);
     return await this.payslipRepository.getPayslipsBySchool(currentUser.SchoolID, options);
   }
 
   async getPreviousPayslips(currentUser) {
     if (currentUser.Role === 'admin') return await this.payslipRepository.getAllPayslips();
-    this.requireHrPermission(currentUser);
+    await this.requirePayrollPermission(currentUser, PAYSLIP_PREVIOUS_PERMISSIONS);
     return await this.payslipRepository.getPreviousPayslipsBySchool(currentUser.SchoolID);
   }
 
@@ -51,14 +72,16 @@ class PayslipService {
         const school = await this.schoolRepository.getSchoolById(payslip.SchoolID);
         if (!school || !school.AllowStaffPayslipView) throw new Error('Your school has not enabled staff payslip viewing');
       } else {
-        this.requireHrPermission(currentUser);
+        await this.requirePayrollPermission(currentUser, PAYSLIP_VIEW_PERMISSIONS);
       }
     }
     return payslip;
   }
 
   async createPayslip(data, currentUser) {
-    if (currentUser.Role !== 'admin') this.requireHrPermission(currentUser);
+    if (currentUser.Role !== 'admin') {
+      await this.requirePayrollPermission(currentUser, ['hr.manage_payslips', 'payroll.generate']);
+    }
 
     this.validateId(Number(data.employeeId), 'Employee ID');
     const employee = await this.employeeRepository.getEmployeeById(Number(data.employeeId));
@@ -69,8 +92,7 @@ class PayslipService {
 
     const payPeriod = String(data.payPeriod || '').trim();
     if (!/^\d{4}-\d{2}$/.test(payPeriod)) throw new Error('Pay period must be in YYYY-MM format');
-    const paymentDate = String(data.paymentDate || '').trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(paymentDate)) throw new Error('Payment date is required');
+    const paymentDate = this.normalizeDate(data.paymentDate, 'Payment date');
 
     const exists = await this.payslipRepository.payslipExistsForPeriod(employee.EmployeeID, payPeriod);
     if (exists) throw new Error('A payslip already exists for this employee and period');
@@ -117,7 +139,9 @@ class PayslipService {
 
   async updatePayslip(id, data, currentUser) {
     this.validateId(id, 'Payslip ID');
-    if (currentUser.Role !== 'admin') this.requireHrPermission(currentUser);
+    if (currentUser.Role !== 'admin') {
+      await this.requirePayrollPermission(currentUser, ['hr.manage_payslips', 'payroll.review']);
+    }
 
     const payslip = await this.payslipRepository.getPayslipById(id);
     if (!payslip) throw new Error('Payslip not found');
@@ -138,8 +162,7 @@ class PayslipService {
     const grossAmount = basicSalary + allowances + overtime + bonus;
     const totalDeductions = leaveDeduction + taxPaye + uifDeduction + otherDeductions;
     const netAmount = grossAmount - totalDeductions;
-    const paymentDate = String(data.paymentDate || payslip.PaymentDate || '').slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(paymentDate)) throw new Error('Payment date is required');
+    const paymentDate = this.normalizeDate(data.paymentDate ?? payslip.PaymentDate, 'Payment date');
     if (grossAmount <= 0) throw new Error('Gross amount must be positive');
     if (netAmount < 0) throw new Error('Net pay cannot be negative');
 
@@ -153,7 +176,9 @@ class PayslipService {
 
   async finalizePayslip(id, currentUser) {
     this.validateId(id, 'Payslip ID');
-    if (currentUser.Role !== 'admin') this.requireHrPermission(currentUser);
+    if (currentUser.Role !== 'admin') {
+      await this.requirePayrollPermission(currentUser, ['hr.manage_payslips', 'payroll.finalize']);
+    }
 
     const payslip = await this.payslipRepository.getPayslipById(id);
     if (!payslip) throw new Error('Payslip not found');
@@ -167,10 +192,41 @@ class PayslipService {
     return result;
   }
 
-  requireHrPermission(currentUser) {
-    if (!currentUser.HasHrPermission && !hasSchoolPermission(currentUser, ['hr.view_payslips', 'hr.manage_payslips', 'sensitive.payroll.view'])) {
-      throw new Error('HR permission is required to access payslip records');
+  async requirePayrollPermission(currentUser, permissions) {
+    if (currentUser.HasHrPermission || currentUser.hasHrPermission) return;
+
+    await this.ensurePermissionContext(currentUser);
+
+    if (!hasSchoolPermission(currentUser, permissions)) {
+      throw new Error('HR or payroll permission is required to access payslip records');
     }
+  }
+
+  normalizeDate(value, label) {
+    const dateValue = value instanceof Date ? value : String(value || '').trim();
+
+    if (!dateValue) {
+      throw new Error(`${label} is required`);
+    }
+
+    const parsed = new Date(dateValue);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error(`${label} is required`);
+    }
+
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  async ensurePermissionContext(currentUser) {
+    if (currentUser.SchoolPermissionSet instanceof Set
+      || Array.isArray(currentUser.SchoolPermissions)
+      || Array.isArray(currentUser.permissions)) {
+      return;
+    }
+
+    const permissions = await getSchoolPermissions(currentUser);
+    currentUser.SchoolPermissions = permissions;
+    currentUser.SchoolPermissionSet = new Set(permissions);
   }
 
   validateId(id, label) {

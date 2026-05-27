@@ -32,7 +32,7 @@ const authenticateToken = async (req, res, next) => {
       return res.status(500).json({ error: 'JWT_SECRET is required' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     let user;
 
     try {

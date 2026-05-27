@@ -29,9 +29,9 @@ class PayslipRepository {
       where += ' AND p.Status = @status';
     }
 
-    const result = await req.query(`SELECT p.*, e.FirstName, e.LastName, e.EmployeeNumber, e.PayrollNumber, e.JobTitle, e.Department,
-              e.Email, e.Phone, e.PhysicalAddress, e.IdNumber, e.PassportNumber, e.TaxNumber, e.PayeReference, e.UifNumber, e.UifReferenceNumber,
-              e.PaymentMethod, e.BankName, e.BankAccountNumber, e.BranchCode, e.AccountType
+    const result = await req.query(`SELECT p.PayslipID, p.EmployeeID, p.PayPeriod, p.GrossAmount, p.Deductions,
+              p.NetAmount, p.Status, p.IsFinalized, p.FinalizedDate, p.CreatedDate, p.UpdatedDate,
+              e.FirstName, e.LastName, e.EmployeeNumber, e.PayrollNumber, e.JobTitle, e.Department
             FROM Payslips p
             INNER JOIN Employees e ON p.EmployeeID = e.EmployeeID
             ${where}
@@ -43,7 +43,9 @@ class PayslipRepository {
     const pool = await getPool();
     const result = await pool.request()
       .input('schoolId', sql.Int, schoolId)
-      .query(`SELECT p.*, e.FirstName, e.LastName, e.EmployeeNumber, e.PayrollNumber, e.JobTitle, e.Department
+      .query(`SELECT p.PayslipID, p.EmployeeID, p.PayPeriod, p.GrossAmount, p.Deductions,
+                p.NetAmount, p.Status, p.IsFinalized, p.FinalizedDate, p.CreatedDate, p.UpdatedDate,
+                e.FirstName, e.LastName, e.EmployeeNumber, e.PayrollNumber, e.JobTitle, e.Department
               FROM Payslips p
               INNER JOIN Employees e ON p.EmployeeID = e.EmployeeID
               WHERE e.SchoolID = @schoolId AND p.IsFinalized = 1
@@ -54,7 +56,9 @@ class PayslipRepository {
   async getAllPayslips() {
     const pool = await getPool();
     const result = await pool.request()
-      .query(`SELECT p.*, e.FirstName, e.LastName, e.EmployeeNumber, e.PayrollNumber, e.JobTitle, s.SchoolName
+      .query(`SELECT p.PayslipID, p.EmployeeID, p.PayPeriod, p.GrossAmount, p.Deductions,
+                p.NetAmount, p.Status, p.IsFinalized, p.FinalizedDate, p.CreatedDate, p.UpdatedDate,
+                e.FirstName, e.LastName, e.EmployeeNumber, e.PayrollNumber, e.JobTitle, s.SchoolName
               FROM Payslips p
               INNER JOIN Employees e ON p.EmployeeID = e.EmployeeID
               INNER JOIN Schools s ON e.SchoolID = s.SchoolID
