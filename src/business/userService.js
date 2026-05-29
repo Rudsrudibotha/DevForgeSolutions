@@ -387,6 +387,57 @@ class UserService {
     };
   }
 
+  // Find or create a user based on OAuth provider email and requested login type
+  async findOrCreateOAuthUser(provider, email, loginType, schoolId) {
+    const normalizedEmail = this.normalizeEmail(email);
+    const parsedSchoolId = Number(schoolId);
+
+    if (!normalizedEmail) throw new Error('Email is required from provider');
+
+    const existing = await this.userRepository.getUserByEmail(normalizedEmail);
+
+    if (loginType === 'devforge') {
+      if (!existing || (existing.Role !== 'admin' && existing.Role !== 'devforge')) {
+        throw new Error('User not authorized for DevForge login');
+      }
+      return existing;
+    }
+
+    if (loginType === 'school') {
+      if (!Number.isInteger(parsedSchoolId) || parsedSchoolId <= 0) {
+        throw new Error('School ID is required for school login');
+      }
+
+      // Only allow existing school users to sign in via provider
+      if (!existing || (existing.Role !== 'school') || Number(existing.SchoolID) !== parsedSchoolId) {
+        throw new Error('No matching school user found for this email and school');
+      }
+
+      return existing;
+    }
+
+    if (loginType === 'parent') {
+      // If parent exists, return; otherwise create a new parent account
+      if (existing && existing.Role === 'parent') return existing;
+
+      const username = (normalizedEmail.split('@')[0]).replace(/[^a-z0-9._-]/g, '').slice(0, 40) || normalizedEmail;
+      const randPass = Math.random().toString(36) + Math.random().toString(36);
+      const passwordHash = await require('bcryptjs').hash(randPass, 10);
+
+      const created = await this.userRepository.createUser({
+        username,
+        email: normalizedEmail,
+        passwordHash,
+        role: 'parent',
+        schoolId: null
+      });
+
+      return created;
+    }
+
+    throw new Error('Invalid login type');
+  }
+
   normalizeUsername(username) {
     return String(username || '').trim().toLowerCase();
   }

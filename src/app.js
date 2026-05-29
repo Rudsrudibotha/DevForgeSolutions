@@ -153,6 +153,209 @@ app.get('/parent-login', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
 });
 
+// Azure AD sign-in routes for DevForge admin users
+const UserService = require('./business/userService');
+const jwt = require('jsonwebtoken');
+const userServiceInstance = new UserService();
+
+app.get('/auth/azure', (req, res) => {
+  const tenant = process.env.AZURE_AD_TENANT_ID;
+  const clientId = process.env.AZURE_AD_CLIENT_ID;
+  const redirectUri = process.env.AZURE_AD_REDIRECT_URI || `${process.env.BASE_URL || ''}/auth/azure/callback`;
+
+  if (!tenant || !clientId) {
+    return res.status(500).send('Azure AD not configured');
+  }
+
+  const authorizeUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&response_mode=query&scope=${encodeURIComponent('openid profile email')}`;
+  res.redirect(authorizeUrl);
+});
+
+app.get('/auth/azure/callback', async (req, res) => {
+  try {
+    const code = req.query.code;
+    const tenant = process.env.AZURE_AD_TENANT_ID;
+    const clientId = process.env.AZURE_AD_CLIENT_ID;
+    const clientSecret = process.env.AZURE_AD_CLIENT_SECRET;
+    const redirectUri = process.env.AZURE_AD_REDIRECT_URI || `${process.env.BASE_URL || ''}/auth/azure/callback`;
+
+    if (!code || !tenant || !clientId || !clientSecret) {
+      return res.status(400).send('Missing Azure AD configuration or code');
+    }
+
+    const tokenUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+    const params = new URLSearchParams();
+    params.append('client_id', clientId);
+    params.append('scope', 'openid profile email');
+    params.append('code', code);
+    params.append('redirect_uri', redirectUri);
+    params.append('grant_type', 'authorization_code');
+    params.append('client_secret', clientSecret);
+
+    const tokenResp = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+
+    const tokenJson = await tokenResp.json();
+
+    if (!tokenResp.ok) {
+      return res.status(500).send('Token exchange failed');
+    }
+
+    const idToken = tokenJson.id_token;
+    if (!idToken) return res.status(500).send('No id_token returned');
+
+    const decoded = jwt.decode(idToken);
+    const email = decoded?.preferred_username || decoded?.email || decoded?.upn;
+
+    if (!email) return res.status(400).send('No email claim in id_token');
+
+    // Find user by email and ensure admin role
+    const userRecord = await userServiceInstance.userRepository.getUserByEmail(String(email).toLowerCase());
+
+    if (!userRecord || (userRecord.Role !== 'admin' && userRecord.Role !== 'devforge')) {
+      return res.status(403).send('User not authorized for DevForge login');
+    }
+
+    const authResponse = await userServiceInstance.buildAuthResponse(userRecord);
+
+    // Render a small page to set localStorage token and redirect to dashboard
+    const token = JSON.stringify(authResponse.token);
+    const user = JSON.stringify(authResponse.user);
+    const redirectTo = '/devforge';
+
+    res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Signing in...</title></head><body><script>localStorage.setItem('smsToken', ${token}); localStorage.setItem('smsUser', ${user}); localStorage.setItem('smsLastActivity', '${Date.now()}'); window.location.href='${redirectTo}';</script></body></html>`);
+  } catch (err) {
+    console.error('Azure callback error', err);
+    res.status(500).send('Azure authentication failed');
+  }
+});
+
+// Generic Microsoft (personal/work) OAuth for school/parent
+app.get('/auth/microsoft', (req, res) => {
+  const tenant = process.env.MICROSOFT_AUTH_TENANT || 'common';
+  const clientId = process.env.MICROSOFT_CLIENT_ID;
+  const redirectUri = process.env.MICROSOFT_REDIRECT_URI || `${process.env.BASE_URL || ''}/auth/microsoft/callback`;
+  const type = String(req.query.type || '').trim();
+  const schoolId = req.query.schoolId || '';
+
+  if (!clientId) return res.status(500).send('Microsoft OAuth not configured');
+
+  const state = Buffer.from(JSON.stringify({ type, schoolId })).toString('base64');
+  const authorizeUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&response_mode=query&scope=${encodeURIComponent('openid profile email')}&state=${encodeURIComponent(state)}`;
+  res.redirect(authorizeUrl);
+});
+
+app.get('/auth/microsoft/callback', async (req, res) => {
+  try {
+    const code = req.query.code;
+    const state = req.query.state ? JSON.parse(Buffer.from(req.query.state, 'base64').toString('utf8')) : {};
+    const type = state.type || 'parent';
+    const schoolId = state.schoolId || null;
+
+    const tenant = process.env.MICROSOFT_AUTH_TENANT || 'common';
+    const clientId = process.env.MICROSOFT_CLIENT_ID;
+    const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
+    const redirectUri = process.env.MICROSOFT_REDIRECT_URI || `${process.env.BASE_URL || ''}/auth/microsoft/callback`;
+
+    if (!code || !clientId || !clientSecret) return res.status(400).send('Missing Microsoft auth config');
+
+    const tokenUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+    const params = new URLSearchParams();
+    params.append('client_id', clientId);
+    params.append('scope', 'openid profile email');
+    params.append('code', code);
+    params.append('redirect_uri', redirectUri);
+    params.append('grant_type', 'authorization_code');
+    params.append('client_secret', clientSecret);
+
+    const tokenResp = await fetch(tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+    const tokenJson = await tokenResp.json();
+    if (!tokenResp.ok) return res.status(500).send('Token exchange failed');
+
+    const idToken = tokenJson.id_token;
+    if (!idToken) return res.status(500).send('No id_token returned');
+
+    const decoded = jwt.decode(idToken);
+    const email = decoded?.preferred_username || decoded?.email || decoded?.upn;
+    if (!email) return res.status(400).send('No email claim');
+
+    const userRecord = await userServiceInstance.findOrCreateOAuthUser('microsoft', email, type, schoolId);
+    const authResponse = await userServiceInstance.buildAuthResponse(userRecord);
+
+    const token = JSON.stringify(authResponse.token);
+    const user = JSON.stringify(authResponse.user);
+    const redirectTo = type === 'devforge' ? '/devforge' : (type === 'school' ? '/sms' : '/parent');
+
+    res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Signing in...</title></head><body><script>localStorage.setItem('smsToken', ${token}); localStorage.setItem('smsUser', ${user}); localStorage.setItem('smsLastActivity', '${Date.now()}'); window.location.href='${redirectTo}';</script></body></html>`);
+  } catch (err) {
+    console.error('Microsoft callback error', err);
+    res.status(500).send('Microsoft authentication failed');
+  }
+});
+
+// Google OAuth for school/parent
+app.get('/auth/google', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.BASE_URL || ''}/auth/google/callback`;
+  const type = String(req.query.type || '').trim();
+  const schoolId = req.query.schoolId || '';
+
+  if (!clientId) return res.status(500).send('Google OAuth not configured');
+
+  const state = Buffer.from(JSON.stringify({ type, schoolId })).toString('base64');
+  const authorizeUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('openid email profile')}&state=${encodeURIComponent(state)}&access_type=online&prompt=select_account`;
+  res.redirect(authorizeUrl);
+});
+
+app.get('/auth/google/callback', async (req, res) => {
+  try {
+    const code = req.query.code;
+    const state = req.query.state ? JSON.parse(Buffer.from(req.query.state, 'base64').toString('utf8')) : {};
+    const type = state.type || 'parent';
+    const schoolId = state.schoolId || null;
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.BASE_URL || ''}/auth/google/callback`;
+
+    if (!code || !clientId || !clientSecret) return res.status(400).send('Missing Google auth config');
+
+    const tokenUrl = 'https://oauth2.googleapis.com/token';
+    const params = new URLSearchParams();
+    params.append('code', code);
+    params.append('client_id', clientId);
+    params.append('client_secret', clientSecret);
+    params.append('redirect_uri', redirectUri);
+    params.append('grant_type', 'authorization_code');
+
+    const tokenResp = await fetch(tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+    const tokenJson = await tokenResp.json();
+    if (!tokenResp.ok) return res.status(500).send('Token exchange failed');
+
+    const idToken = tokenJson.id_token;
+    if (!idToken) return res.status(500).send('No id_token returned');
+
+    const decoded = jwt.decode(idToken);
+    const email = decoded?.email || decoded?.preferred_username;
+    if (!email) return res.status(400).send('No email claim');
+
+    const userRecord = await userServiceInstance.findOrCreateOAuthUser('google', email, type, schoolId);
+    const authResponse = await userServiceInstance.buildAuthResponse(userRecord);
+
+    const token = JSON.stringify(authResponse.token);
+    const user = JSON.stringify(authResponse.user);
+    const redirectTo = type === 'devforge' ? '/devforge' : (type === 'school' ? '/sms' : '/parent');
+
+    res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Signing in...</title></head><body><script>localStorage.setItem('smsToken', ${token}); localStorage.setItem('smsUser', ${user}); localStorage.setItem('smsLastActivity', '${Date.now()}'); window.location.href='${redirectTo}';</script></body></html>`);
+  } catch (err) {
+    console.error('Google callback error', err);
+    res.status(500).send('Google authentication failed');
+  }
+});
+
 app.get('/sms', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });

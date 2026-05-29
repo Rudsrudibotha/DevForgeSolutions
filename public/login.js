@@ -130,6 +130,37 @@ function configureLoginPage() {
     fields.identifier.type = 'text';
     fields.identifier.autocomplete = 'username';
   }
+  // Show Azure sign-in only for DevForge admin login
+  const azureBtn = document.getElementById('azureSignIn');
+  if (azureBtn) {
+    azureBtn.classList.toggle('hidden', config.type !== 'devforge');
+    if (config.type === 'devforge') {
+      azureBtn.addEventListener('click', () => { window.location.href = '/auth/azure'; });
+    }
+  }
+    // Show provider buttons for school and parent logins
+    const googleBtn = document.getElementById('googleSignIn');
+    const msBtn = document.getElementById('microsoftSignIn');
+
+    if (googleBtn) {
+      googleBtn.classList.toggle('hidden', !(config.type === 'school' || config.type === 'parent'));
+      googleBtn.onclick = () => {
+        const type = config.type;
+        const schoolId = (type === 'school') ? (elements.loginForm.elements.schoolId.value || '') : '';
+        const url = `/auth/google?type=${encodeURIComponent(type)}${schoolId ? `&schoolId=${encodeURIComponent(schoolId)}` : ''}`;
+        window.location.href = url;
+      };
+    }
+
+    if (msBtn) {
+      msBtn.classList.toggle('hidden', !(config.type === 'school' || config.type === 'parent'));
+      msBtn.onclick = () => {
+        const type = config.type;
+        const schoolId = (type === 'school') ? (elements.loginForm.elements.schoolId.value || '') : '';
+        const url = `/auth/microsoft?type=${encodeURIComponent(type)}${schoolId ? `&schoolId=${encodeURIComponent(schoolId)}` : ''}`;
+        window.location.href = url;
+      };
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
