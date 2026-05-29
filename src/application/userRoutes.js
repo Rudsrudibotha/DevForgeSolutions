@@ -144,6 +144,20 @@ router.put('/school-users/:id/deactivate', authenticateToken, requireSchoolPermi
   }
 });
 
+router.get('/session', authenticateToken, async (req, res) => {
+  res.json({
+    authenticated: true,
+    user: {
+      id: req.user.UserID,
+      username: req.user.Username,
+      email: req.user.Email,
+      role: req.user.Role,
+      schoolId: req.user.SchoolID,
+      hasHrPermission: Boolean(req.user.HasHrPermission)
+    }
+  });
+});
+
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const requestedUserId = parseInt(req.params.id, 10);

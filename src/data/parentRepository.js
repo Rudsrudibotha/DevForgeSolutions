@@ -29,6 +29,15 @@ class ParentRepository {
     return result.recordset[0];
   }
 
+  async getParentLinkByUserAndFamily(userId, familyId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('userId', sql.Int, userId)
+      .input('familyId', sql.Int, familyId)
+      .query('SELECT * FROM ParentLinks WHERE UserID = @userId AND FamilyID = @familyId');
+    return result.recordset[0];
+  }
+
   async createParentLink(userId, familyId, schoolId) {
     const pool = await getPool();
     const result = await pool.request()

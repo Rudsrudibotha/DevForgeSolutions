@@ -10,9 +10,9 @@
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <span class="brand-mark">DFS</span>
+          <img class="brand-logo" src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub">
           <div>
-            <h1>School Management</h1>
+            <h1>Kinder Care Hub</h1>
             <p>Client school dashboard</p>
           </div>
         </div>
@@ -2756,6 +2756,36 @@
               <button class="primary-button compact-button" type="submit">Save parent</button>
             </div>
           </form>
+        </div>
+
+        <div id="schoolHelpWidget" class="school-help-widget hidden">
+          <button id="schoolHelpToggle" class="school-help-toggle" type="button" aria-expanded="false" aria-controls="schoolHelpPanel" aria-label="Open school assistant">
+            <img src="/assets/kinder-care-chatbot-logo.png" alt="">
+          </button>
+
+          <section id="schoolHelpPanel" class="school-help-panel hidden" aria-labelledby="schoolHelpTitle">
+            <div class="school-help-header">
+              <img src="/assets/kinder-care-chatbot-logo.png" alt="">
+              <div>
+                <h3 id="schoolHelpTitle">School Assistant</h3>
+                <p>Support</p>
+              </div>
+              <button id="schoolHelpClose" class="ghost-button icon-button" type="button" aria-label="Close school assistant">&times;</button>
+            </div>
+
+            <form id="faultReportForm" class="fault-report-form">
+              <label>
+                Fault path
+                <input id="faultReportPath" name="pagePath" type="text" readonly>
+              </label>
+              <label>
+                Report a fault
+                <textarea name="remarks" rows="4" maxlength="2000" required></textarea>
+              </label>
+              <p id="faultReportMessage" class="form-message hidden"></p>
+              <button class="primary-button" type="submit">Send Fault Report</button>
+            </form>
+          </section>
         </div>
 
         <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>

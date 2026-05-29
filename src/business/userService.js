@@ -2,9 +2,11 @@
 // This service contains account registration, login, password hashing, and token creation.
 
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const UserRepository = require('../data/userRepository');
 const SchoolService = require('./schoolService');
+const { isAadAdminEmailAllowed } = require('../security/adminAccess');
 const { getSchoolPermissions } = require('../security/schoolPermissions');
 
 class UserService {
@@ -94,6 +96,10 @@ class UserService {
       throw new Error('Login identifier and password are required');
     }
 
+    if (resolvedType === 'devforge') {
+      throw new Error('Admin dashboard requires AAD sign-in');
+    }
+
     const user = await this.findLoginUser(resolvedType, request.schoolId, identifier);
 
     if (!user) {
@@ -142,7 +148,7 @@ class UserService {
     const school = await this.schoolService.getSchoolById(parsedSchoolId);
 
     if (school.SubscriptionStatus !== 'Active') {
-      throw new Error('This school account is suspended. Please contact DevForge Solutions.');
+      throw new Error('This school account is suspended. Please contact Kinder Care Hub.');
     }
 
     return await this.userRepository.getUserBySchoolAndIdentifier(parsedSchoolId, identifier);
@@ -159,7 +165,7 @@ class UserService {
 
   async createDevForgeUser(userData, currentUser) {
     if (!currentUser || currentUser.Role !== 'admin') {
-      throw new Error('DevForge admin access required');
+      throw new Error('Kinder Care Hub admin access required');
     }
 
     const email = this.normalizeEmail(this.requiredString(userData.email, 'Email', 255));
@@ -274,7 +280,7 @@ class UserService {
     const parsedUserId = Number(userId);
 
     if (!currentUser || currentUser.Role !== 'admin') {
-      throw new Error('DevForge admin access required');
+      throw new Error('Kinder Care Hub admin access required');
     }
 
     if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
@@ -287,7 +293,7 @@ class UserService {
 
     const existingUser = await this.userRepository.getUserRecordById(parsedUserId);
     if (!existingUser || existingUser.Role !== 'admin' || existingUser.SchoolID !== null) {
-      throw new Error('Only DevForge internal users can be managed here');
+      throw new Error('Only Kinder Care Hub internal users can be managed here');
     }
 
     const updatedUser = await this.userRepository.setUserActive(parsedUserId, Boolean(isActive));
@@ -388,7 +394,7 @@ class UserService {
   }
 
   // Find or create a user based on OAuth provider email and requested login type
-  async findOrCreateOAuthUser(provider, email, loginType, schoolId) {
+  async findOrCreateOAuthUser(provider, email, loginType, schoolId, options = {}) {
     const normalizedEmail = this.normalizeEmail(email);
     const parsedSchoolId = Number(schoolId);
 
@@ -397,10 +403,27 @@ class UserService {
     const existing = await this.userRepository.getUserByEmail(normalizedEmail);
 
     if (loginType === 'devforge') {
-      if (!existing || (existing.Role !== 'admin' && existing.Role !== 'devforge')) {
-        throw new Error('User not authorized for DevForge login');
+      if (!isAadAdminEmailAllowed(normalizedEmail)) {
+        throw new Error('User not authorized for Admin dashboard login');
       }
-      return existing;
+
+      if (existing) {
+        if (existing.Role !== 'admin' && existing.Role !== 'devforge') {
+          throw new Error('User not authorized for Admin dashboard login');
+        }
+
+        if (!this.isActiveUser(existing)) {
+          throw new Error('This admin account is inactive');
+        }
+
+        return existing;
+      }
+
+      if (!options.allowAdminProvisioning) {
+        throw new Error('User not authorized for Admin dashboard login');
+      }
+
+      return await this.createAadAdminUser(normalizedEmail);
     }
 
     if (loginType === 'school') {
@@ -409,7 +432,7 @@ class UserService {
       }
 
       // Only allow existing school users to sign in via provider
-      if (!existing || (existing.Role !== 'school') || Number(existing.SchoolID) !== parsedSchoolId) {
+      if (!existing || (existing.Role !== 'school') || Number(existing.SchoolID) !== parsedSchoolId || !this.isActiveUser(existing)) {
         throw new Error('No matching school user found for this email and school');
       }
 
@@ -417,25 +440,49 @@ class UserService {
     }
 
     if (loginType === 'parent') {
-      // If parent exists, return; otherwise create a new parent account
-      if (existing && existing.Role === 'parent') return existing;
+      if (!existing || existing.Role !== 'parent') {
+        throw new Error('Parent registration is required before signing in');
+      }
 
-      const username = (normalizedEmail.split('@')[0]).replace(/[^a-z0-9._-]/g, '').slice(0, 40) || normalizedEmail;
-      const randPass = Math.random().toString(36) + Math.random().toString(36);
-      const passwordHash = await require('bcryptjs').hash(randPass, 10);
+      if (!this.isActiveUser(existing)) {
+        throw new Error('This parent account is inactive');
+      }
 
-      const created = await this.userRepository.createUser({
-        username,
-        email: normalizedEmail,
-        passwordHash,
-        role: 'parent',
-        schoolId: null
-      });
+      const linkedSchools = await this.userRepository.getParentLinkedSchools(existing.UserID);
 
-      return created;
+      if (!linkedSchools.length) {
+        throw new Error('Parent registration is pending school verification');
+      }
+
+      if (linkedSchools.every((school) => school.SubscriptionStatus !== 'Active')) {
+        throw new Error('This school account is suspended. Please contact the school.');
+      }
+
+      return existing;
     }
 
     throw new Error('Invalid login type');
+  }
+
+  async createAadAdminUser(email) {
+    const baseUsername = email.split('@')[0].replace(/[^a-z0-9._-]/g, '').slice(0, 40) || 'admin';
+    const existingUsername = await this.userRepository.getUserByUsername(baseUsername);
+    const username = existingUsername
+      ? `${baseUsername}${Date.now().toString(36)}`.slice(0, 50)
+      : baseUsername;
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+
+    return await this.userRepository.createUser({
+      username,
+      email,
+      passwordHash,
+      role: 'admin',
+      schoolId: null
+    });
+  }
+
+  isActiveUser(user) {
+    return user?.IsActive === undefined || user?.IsActive === null || Boolean(user.IsActive);
   }
 
   normalizeUsername(username) {

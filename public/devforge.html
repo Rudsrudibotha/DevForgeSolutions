@@ -3,16 +3,16 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>DevForge Solutions Management</title>
+    <title>Kinder Care Hub Management</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body class="platform-user school-user">
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <span class="brand-mark">DFS</span>
+          <img class="brand-logo" src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub">
           <div>
-            <h1>DevForge Solutions</h1>
+            <h1>Kinder Care Hub</h1>
             <p>Management dashboard</p>
           </div>
         </div>
@@ -22,6 +22,7 @@
           <button class="nav-item" data-view="schools" type="button">Schools</button>
           <button class="nav-item" data-view="users" type="button">Users</button>
           <button class="nav-item" data-view="audit" type="button">Audit</button>
+          <button class="nav-item" data-view="faults" type="button">Faults</button>
           <button class="nav-item" data-view="account" type="button">Account</button>
         </nav>
 
@@ -34,7 +35,7 @@
       <main class="main-panel">
         <header class="topbar">
           <div>
-            <h2 id="viewTitle" tabindex="-1">DevForge Solutions Management Dashboard</h2>
+            <h2 id="viewTitle" tabindex="-1">Kinder Care Hub Management Dashboard</h2>
           </div>
           <div id="statusPill" class="status-pill">Connecting</div>
         </header>
@@ -58,6 +59,10 @@
                   <button class="module-tile" data-action="open-audit" type="button">
                     <img class="module-icon-img" src="/assets/icons/icon-devforge-audit.png" alt="" aria-hidden="true">
                     <span>Audit</span>
+                  </button>
+                  <button class="module-tile" data-action="open-faults" type="button">
+                    <span class="module-icon report-icon" aria-hidden="true">FR</span>
+                    <span>Fault Reports</span>
                   </button>
                 </div>
               </section>
@@ -168,7 +173,7 @@
                 <div class="panel-header">
                   <div>
                     <h3>Users</h3>
-                    <p>Manage DevForge internal dashboard users only.</p>
+                    <p>Manage Kinder Care Hub internal dashboard users only.</p>
                   </div>
                 </div>
                 <label>
@@ -189,7 +194,7 @@
                     <input name="password" type="password" autocomplete="new-password" minlength="8" required>
                   </label>
                 </div>
-                <button class="primary-button" type="submit">Add DevForge User</button>
+                <button class="primary-button" type="submit">Add Kinder Care Hub User</button>
               </form>
 
               <section class="table-panel summary-panel">
@@ -249,7 +254,7 @@
                       <option value="">All activity</option>
                       <option value="Login">Login</option>
                       <option value="CreateSchoolUser">User added</option>
-                      <option value="CreateDevForgeUser">DevForge user added</option>
+                      <option value="CreateDevForgeUser">Kinder Care Hub user added</option>
                       <option value="SchoolSuspended">School suspended</option>
                       <option value="SchoolActivated">School activated</option>
                       <option value="Payment">Payment allocated</option>
@@ -296,11 +301,76 @@
             </section>
           </section>
 
+          <section id="faultsView" class="view">
+            <div class="icon-page-layout">
+              <section class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Fault Reports</h3>
+                    <p>School dashboard reports sent from the assistant popup.</p>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Status
+                    <select id="faultStatusFilter">
+                      <option value="">All statuses</option>
+                      <option value="Open">Open</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Resolved">Resolved</option>
+                      <option value="Closed">Closed</option>
+                    </select>
+                  </label>
+                  <label>
+                    Search
+                    <input id="faultSearchInput" type="search" placeholder="School, path, or remarks">
+                  </label>
+                </div>
+              </section>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Fault Summary</h3>
+                    <p>Open items needing follow-up.</p>
+                  </div>
+                </div>
+                <div class="metrics-grid">
+                  <div class="metric">
+                    <span>Open faults</span>
+                    <strong id="openFaultCount">0</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Total reports</span>
+                    <strong id="totalFaultCount">0</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="table-panel page-table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>School</th>
+                      <th>Path</th>
+                      <th>Remarks</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="faultReportsTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
           <section id="accountView" class="view">
             <section class="table-panel">
               <div class="panel-header">
                 <div>
-                  <h3>DevForge account</h3>
+                  <h3>Kinder Care Hub account</h3>
                   <p>Current platform operator session.</p>
                 </div>
               </div>

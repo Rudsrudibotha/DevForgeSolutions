@@ -1,9 +1,27 @@
+function readStoredUser() {
+  const storedUser = localStorage.getItem('smsUser');
+
+  if (!storedUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(storedUser);
+  } catch (error) {
+    localStorage.removeItem('smsToken');
+    localStorage.removeItem('smsUser');
+    localStorage.removeItem('smsLastActivity');
+    return null;
+  }
+}
+
 const state = {
   token: localStorage.getItem('smsToken'),
-  user: JSON.parse(localStorage.getItem('smsUser') || 'null'),
+  user: readStoredUser(),
   schools: [],
   users: [],
   auditLogs: [],
+  faultReports: [],
   dashboard: null
 };
 
@@ -26,6 +44,11 @@ const elements = {
   schoolsTable: document.getElementById('schoolsTable'),
   devforgeUsersTable: document.getElementById('devforgeUsersTable'),
   auditTable: document.getElementById('auditTable'),
+  faultReportsTable: document.getElementById('faultReportsTable'),
+  faultSearchInput: document.getElementById('faultSearchInput'),
+  faultStatusFilter: document.getElementById('faultStatusFilter'),
+  openFaultCount: document.getElementById('openFaultCount'),
+  totalFaultCount: document.getElementById('totalFaultCount'),
   schoolForm: document.getElementById('schoolForm'),
   devforgeUserForm: document.getElementById('devforgeUserForm'),
   schoolSearchInput: document.getElementById('schoolSearchInput'),
@@ -38,10 +61,11 @@ const elements = {
 };
 
 const VIEW_TITLES = {
-  overview: 'DevForge Solutions Management Dashboard',
+  overview: 'Kinder Care Hub Management Dashboard',
   schools: 'Schools',
   users: 'Users',
   audit: 'Audit',
+  faults: 'Fault Reports',
   account: 'Account'
 };
 
@@ -189,17 +213,19 @@ function clearSession() {
 
 async function refreshData() {
   try {
-    const [dashboard, schools, users, auditLogs] = await Promise.all([
+    const [dashboard, schools, users, auditLogs, faultReports] = await Promise.all([
       api('/api/dashboard'),
       api('/api/schools'),
       api('/api/users/devforge-users'),
-      api('/api/audit?limit=100')
+      api('/api/audit?limit=100'),
+      api('/api/faults?limit=100').catch(() => [])
     ]);
 
     state.dashboard = dashboard;
     state.schools = schools;
     state.users = users;
     state.auditLogs = auditLogs;
+    state.faultReports = faultReports;
     renderData();
   } catch (error) {
     showToast(error.message);
@@ -213,12 +239,12 @@ function renderShell() {
 
   elements.workspace.classList.remove('hidden');
   elements.logoutButton.classList.remove('hidden');
-  elements.sessionLabel.textContent = `${state.user.username || state.user.email} (DevForge)`;
+  elements.sessionLabel.textContent = `${state.user.username || state.user.email} (Kinder Care Hub)`;
   elements.statusPill.textContent = 'Platform';
   startInactivityTimer();
   document.getElementById('profileUsername').textContent = state.user.username || '-';
   document.getElementById('profileEmail').textContent = state.user.email || '-';
-  document.getElementById('profileRole').textContent = 'DevForge admin';
+  document.getElementById('profileRole').textContent = 'Kinder Care Hub admin';
   refreshData();
 }
 
@@ -234,6 +260,7 @@ function renderData() {
   renderSchoolsTable();
   renderUsersTable();
   renderAuditTable();
+  renderFaultReportsTable();
 }
 
 function filteredSchools() {
@@ -313,7 +340,7 @@ function renderUsersTable() {
         </td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="4">No DevForge users found.</td></tr>';
+  }).join('') || '<tr><td colspan="4">No Kinder Care Hub users found.</td></tr>';
 }
 
 function filteredAuditLogs() {
@@ -354,6 +381,82 @@ function renderAuditTable() {
       </td>
     </tr>
   `).join('') || '<tr><td colspan="4">No audit activity found.</td></tr>';
+}
+
+function filteredFaultReports() {
+  const search = String(elements.faultSearchInput?.value || '').trim().toLowerCase();
+  const status = elements.faultStatusFilter?.value || '';
+
+  return state.faultReports.filter((report) => {
+    const matchesStatus = !status || report.Status === status;
+    const matchesSearch = !search || [
+      report.SchoolName,
+      report.Username,
+      report.Email,
+      report.PagePath,
+      report.ViewName,
+      report.Remarks,
+      report.Status
+    ].some((value) => String(value || '').toLowerCase().includes(search));
+
+    return matchesStatus && matchesSearch;
+  });
+}
+
+function faultBadgeClass(status) {
+  if (status === 'Open') {
+    return 'badge danger';
+  }
+
+  if (status === 'In Progress') {
+    return 'badge warn';
+  }
+
+  if (status === 'Resolved' || status === 'Closed') {
+    return 'badge muted';
+  }
+
+  return 'badge';
+}
+
+function renderFaultReportsTable() {
+  if (!elements.faultReportsTable) {
+    return;
+  }
+
+  const reports = filteredFaultReports();
+  const openCount = state.faultReports.filter((report) => ['Open', 'In Progress'].includes(report.Status)).length;
+
+  if (elements.openFaultCount) {
+    elements.openFaultCount.textContent = openCount;
+  }
+
+  if (elements.totalFaultCount) {
+    elements.totalFaultCount.textContent = state.faultReports.length;
+  }
+
+  elements.faultReportsTable.innerHTML = reports.map((report) => `
+    <tr>
+      <td>${dateOnly(report.CreatedDate)}</td>
+      <td>
+        <strong>${escapeHtml(report.SchoolName || `School ${report.SchoolID}`)}</strong>
+        <span class="table-subtext">${escapeHtml(report.Email || report.Username || '-')}</span>
+      </td>
+      <td>
+        <strong>${escapeHtml(report.PagePath)}</strong>
+        <span class="table-subtext">${escapeHtml(report.ViewName || '-')}</span>
+      </td>
+      <td>${escapeHtml(report.Remarks)}</td>
+      <td>
+        <span class="${faultBadgeClass(report.Status)}">${escapeHtml(report.Status)}</span>
+        <select class="thin-input fault-status-select" data-action="fault-status" data-id="${report.FaultReportID}">
+          ${['Open', 'In Progress', 'Resolved', 'Closed'].map((status) => `
+            <option value="${status}" ${report.Status === status ? 'selected' : ''}>${status}</option>
+          `).join('')}
+        </select>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="5">No fault reports found.</td></tr>';
 }
 
 function switchView(viewName) {
@@ -410,6 +513,27 @@ elements.auditSearchInput.addEventListener('input', renderAuditTable);
 elements.auditTypeFilter.addEventListener('change', renderAuditTable);
 elements.auditDateFrom.addEventListener('change', renderAuditTable);
 elements.auditDateTo.addEventListener('change', renderAuditTable);
+elements.faultSearchInput?.addEventListener('input', renderFaultReportsTable);
+elements.faultStatusFilter?.addEventListener('change', renderFaultReportsTable);
+elements.faultReportsTable?.addEventListener('change', async (event) => {
+  const select = event.target.closest('[data-action="fault-status"]');
+
+  if (!select) {
+    return;
+  }
+
+  try {
+    await api(`/api/faults/${select.dataset.id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: select.value })
+    });
+    await refreshData();
+    showToast('Fault status updated');
+  } catch (error) {
+    showToast(error.message);
+    await refreshData();
+  }
+});
 
 elements.schoolForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -446,7 +570,7 @@ elements.devforgeUserForm.addEventListener('submit', async (event) => {
 
     elements.devforgeUserForm.reset();
     await refreshData();
-    showToast('DevForge user added');
+    showToast('Kinder Care Hub user added');
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -475,6 +599,11 @@ document.addEventListener('click', async (event) => {
 
   if (action === 'open-audit') {
     switchView('audit');
+    return;
+  }
+
+  if (action === 'open-faults') {
+    switchView('faults');
     return;
   }
 

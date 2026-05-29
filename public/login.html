@@ -3,16 +3,16 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>DevForge Solutions Login</title>
+    <title>Kinder Care Hub Login</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <div class="auth-shell">
       <div class="auth-card dedicated-login-card">
         <div class="auth-brand">
-          <span class="brand-mark" id="brandMark">DFS</span>
+          <img class="brand-logo auth-brand-logo" id="brandMark" src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub">
           <div>
-            <h1 id="loginTitle">School Management Portal</h1>
+            <h1 id="loginTitle">Kinder Care Hub</h1>
             <p id="loginSubtitle">School Portal Login</p>
           </div>
         </div>
@@ -22,21 +22,23 @@
             School ID
             <input name="schoolId" type="number" min="1" step="1" inputmode="numeric">
           </label>
-          <label>
+          <label id="identifierField">
             <span id="identifierLabel">Email Address</span>
             <input name="identifier" type="text" autocomplete="username" required>
           </label>
-          <label>
+          <label id="passwordField">
             Password
             <input name="password" type="password" autocomplete="current-password" required>
           </label>
           <input name="loginType" type="hidden" value="school">
           <p id="loginMessage" class="form-message hidden"></p>
           <div class="form-actions">
-            <button class="primary-button" type="submit">Login</button>
-            <button id="azureSignIn" class="secondary-button hidden" type="button">Sign in with Microsoft</button>
-              <button id="googleSignIn" class="secondary-button hidden" type="button">Sign in with Google</button>
-              <button id="microsoftSignIn" class="secondary-button hidden" type="button">Sign in with Microsoft</button>
+            <button id="passwordSignIn" class="primary-button" type="submit">Login</button>
+            <button id="azureSignIn" class="secondary-button hidden" type="button">Sign in with AAD</button>
+            <button id="googleSignIn" class="secondary-button hidden" type="button">Sign in with Google</button>
+            <button id="microsoftSignIn" class="secondary-button hidden" type="button">Sign in with Microsoft</button>
+            <a id="schoolRegisterLink" class="secondary-button link-button hidden" href="/school-register">Register School</a>
+            <a id="parentRegisterLink" class="secondary-button link-button hidden" href="/parent-register">Register Parent</a>
           </div>
         </form>
       </div>

@@ -1,6 +1,23 @@
+function readStoredUser() {
+  const storedUser = localStorage.getItem('smsUser');
+
+  if (!storedUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(storedUser);
+  } catch (error) {
+    localStorage.removeItem('smsToken');
+    localStorage.removeItem('smsUser');
+    localStorage.removeItem('smsLastActivity');
+    return null;
+  }
+}
+
 const state = {
   token: localStorage.getItem('smsToken'),
-  user: JSON.parse(localStorage.getItem('smsUser') || 'null'),
+  user: readStoredUser(),
   students: [],
   invoices: [],
   attendance: [],

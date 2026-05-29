@@ -40,6 +40,457 @@ body.signed-out {
   background: #f4f7fb;
 }
 
+body.marketing-site {
+  min-height: 100vh;
+  background: #f6fbff;
+  color: #102033;
+}
+
+.marketing-site a {
+  color: inherit;
+}
+
+.site-header {
+  position: relative;
+  z-index: 3;
+  border-bottom: 1px solid rgba(16, 32, 51, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.site-header-inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 24px;
+  align-items: center;
+  width: min(1160px, calc(100% - 40px));
+  min-height: 74px;
+  margin: 0 auto;
+}
+
+.site-brand,
+.site-actions,
+.site-nav,
+.site-footer div,
+.site-footer nav {
+  display: flex;
+  align-items: center;
+}
+
+.site-brand {
+  gap: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.site-brand img {
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(16, 32, 51, 0.08);
+  border-radius: 8px;
+  background: #ffffff;
+  object-fit: contain;
+  padding: 3px;
+}
+
+.site-nav {
+  justify-content: center;
+  gap: 22px;
+  color: #50657d;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.site-nav a,
+.site-link,
+.site-footer a {
+  text-decoration: none;
+}
+
+.site-nav a:hover,
+.site-link:hover,
+.site-footer a:hover {
+  color: #0b6fb8;
+}
+
+.site-actions {
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.site-link {
+  color: #50657d;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.site-button {
+  display: inline-grid;
+  min-height: 40px;
+  place-items: center;
+  border-radius: 8px;
+  background: #102033;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 8px 14px;
+  text-decoration: none;
+}
+
+.site-button:hover {
+  background: #0b6fb8;
+}
+
+.site-brand:focus-visible,
+.site-nav a:focus-visible,
+.site-link:focus-visible,
+.site-button:focus-visible,
+.site-footer a:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 3px;
+}
+
+.marketing-hero {
+  position: relative;
+  display: grid;
+  min-height: calc(82vh - 74px);
+  align-items: center;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(16, 32, 51, 0.08);
+  background: #eef8ff;
+  padding: 82px 24px 64px;
+}
+
+.marketing-hero::before {
+  position: absolute;
+  inset: 0;
+  background-image: url("/assets/kinder-care-hub-logo.png");
+  background-position: right 8% center;
+  background-repeat: no-repeat;
+  background-size: min(680px, 58vw);
+  content: "";
+  opacity: 0.12;
+}
+
+.marketing-hero::after {
+  position: absolute;
+  inset: 0;
+  background: rgba(238, 248, 255, 0.72);
+  content: "";
+}
+
+.marketing-hero-inner {
+  position: relative;
+  z-index: 1;
+  width: min(1160px, 100%);
+  margin: 0 auto;
+}
+
+.marketing-eyebrow {
+  margin: 0 0 12px;
+  color: #14786f;
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.marketing-hero h1,
+.section-heading h2,
+.pricing-inner h2 {
+  margin: 0;
+  color: #102033;
+  line-height: 1.08;
+}
+
+.marketing-hero h1 {
+  max-width: 760px;
+  font-size: 56px;
+}
+
+.marketing-lede {
+  max-width: 650px;
+  margin: 22px 0 0;
+  color: #40566f;
+  font-size: 19px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.marketing-site .hero-actions .primary-button,
+.marketing-site .hero-actions .secondary-button,
+.pricing-card .primary-button {
+  display: inline-grid;
+  width: auto;
+  min-width: 190px;
+  place-items: center;
+  padding: 10px 16px;
+  text-decoration: none;
+}
+
+.hero-proof {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 180px));
+  gap: 14px;
+  margin: 44px 0 0;
+}
+
+.hero-proof div {
+  border-left: 4px solid #ff9f1c;
+  background: rgba(255, 255, 255, 0.68);
+  padding: 10px 14px;
+}
+
+.hero-proof dt {
+  margin: 0;
+  color: #0b6fb8;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.hero-proof dd {
+  margin: 2px 0 0;
+  color: #50657d;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.marketing-section,
+.pricing-section {
+  padding: 72px 24px;
+}
+
+.product-section {
+  background: #ffffff;
+}
+
+.section-heading,
+.feature-card-grid,
+.pricing-inner,
+.security-grid,
+.site-footer {
+  width: min(1160px, 100%);
+  margin: 0 auto;
+}
+
+.section-heading h2,
+.pricing-inner h2 {
+  max-width: 700px;
+  font-size: 38px;
+}
+
+.feature-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 30px;
+}
+
+.feature-card,
+.pricing-card,
+.security-grid article {
+  border: 1px solid rgba(16, 32, 51, 0.1);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(16, 32, 51, 0.08);
+}
+
+.feature-card {
+  min-height: 250px;
+  padding: 22px;
+}
+
+.feature-card img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.feature-card h3,
+.security-grid h3 {
+  margin: 18px 0 8px;
+  color: #102033;
+  font-size: 18px;
+}
+
+.feature-card p,
+.security-grid p,
+.pricing-inner p {
+  margin: 0;
+  color: #50657d;
+}
+
+.pricing-section {
+  background: #eaf7f1;
+}
+
+.pricing-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 40px;
+  align-items: center;
+}
+
+.pricing-inner p {
+  max-width: 640px;
+  margin-top: 14px;
+  font-size: 17px;
+}
+
+.pricing-card {
+  display: grid;
+  gap: 10px;
+  padding: 26px;
+}
+
+.pricing-card span {
+  color: #14786f;
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pricing-card strong {
+  color: #0b6fb8;
+  font-size: 48px;
+  line-height: 1;
+}
+
+.pricing-card small {
+  color: #50657d;
+  font-weight: 800;
+}
+
+.pricing-card .primary-button {
+  margin-top: 12px;
+}
+
+.security-section {
+  background: #f6fbff;
+}
+
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.security-grid article {
+  border-top: 5px solid #0b8f3a;
+  padding: 22px;
+}
+
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  border-top: 1px solid rgba(16, 32, 51, 0.08);
+  padding: 28px 0;
+  color: #50657d;
+}
+
+.site-footer div {
+  gap: 10px;
+  color: #102033;
+  font-weight: 900;
+}
+
+.site-footer img {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.site-footer nav {
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+@media (max-width: 960px) {
+  .site-header-inner {
+    grid-template-columns: 1fr auto;
+    padding: 14px 0;
+  }
+
+  .site-nav {
+    display: none;
+  }
+
+  .marketing-hero h1 {
+    font-size: 42px;
+  }
+
+  .feature-card-grid,
+  .security-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pricing-inner {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .site-header-inner {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    width: min(100% - 28px, 1160px);
+  }
+
+  .site-actions {
+    justify-content: flex-start;
+  }
+
+  .marketing-hero {
+    min-height: 58vh;
+    padding: 48px 18px;
+  }
+
+  .marketing-hero::before {
+    background-position: center bottom;
+    background-size: 92vw;
+  }
+
+  .marketing-hero::after {
+    background: rgba(238, 248, 255, 0.86);
+  }
+
+  .marketing-hero h1,
+  .section-heading h2,
+  .pricing-inner h2 {
+    font-size: 32px;
+  }
+
+  .marketing-lede {
+    font-size: 16px;
+  }
+
+  .hero-proof,
+  .feature-card-grid,
+  .security-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .marketing-site .hero-actions .primary-button,
+  .marketing-site .hero-actions .secondary-button,
+  .pricing-card .primary-button {
+    width: 100%;
+  }
+
+  .site-footer {
+    flex-direction: column;
+    width: min(100% - 36px, 1160px);
+  }
+}
+
 button,
 input,
 select,
@@ -102,6 +553,50 @@ textarea {
   color: #8fd4ff;
   font-weight: 800;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.brand-logo {
+  display: block;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 8px;
+  background: #ffffff;
+  object-fit: contain;
+  padding: 3px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.auth-brand-logo {
+  width: 68px;
+  height: 68px;
+}
+
+.registration-card {
+  width: min(100%, 720px);
+}
+
+.registration-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.registration-grid .span-two {
+  grid-column: 1 / -1;
+}
+
+.link-button {
+  display: inline-grid;
+  place-items: center;
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .registration-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .brand h1,
@@ -2298,6 +2793,106 @@ tbody tr:hover {
   box-shadow: 0 16px 34px rgba(15, 23, 42, 0.24);
 }
 
+.school-help-widget {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+}
+
+.school-help-toggle {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+  cursor: pointer;
+  padding: 7px;
+}
+
+.school-help-toggle:hover {
+  transform: translateY(-2px);
+}
+
+.school-help-toggle img {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: contain;
+}
+
+.school-help-panel {
+  position: absolute;
+  right: 0;
+  bottom: 86px;
+  width: min(360px, calc(100vw - 32px));
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  overflow: hidden;
+}
+
+.school-help-header {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  background: #f6fbff;
+  padding: 14px;
+}
+
+.school-help-header img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: #ffffff;
+  object-fit: contain;
+}
+
+.school-help-header h3,
+.school-help-header p {
+  margin: 0;
+}
+
+.school-help-header h3 {
+  font-size: 16px;
+}
+
+.school-help-header p {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.fault-report-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.fault-report-form textarea {
+  min-height: 110px;
+}
+
+.fault-report-form .primary-button {
+  width: 100%;
+}
+
+.fault-status-select {
+  width: 100%;
+  min-width: 132px;
+  margin-top: 8px;
+}
+
+.toast {
+  z-index: 30;
+}
+
 .hidden {
   display: none !important;
 }
@@ -2980,7 +3575,7 @@ body.school-user .permission-slip-document {
 /* --------------------------------------------------------------------------
    Final shared portal theme
    Keeps the existing HTML/JS features intact while aligning School, Parent,
-   DevForge, and login screens to the same clean dashboard layout.
+   Kinder Care Hub, and login screens to the same clean dashboard layout.
    -------------------------------------------------------------------------- */
 
 :root {

@@ -1,3 +1,20 @@
+function readStoredUser() {
+  const storedUser = localStorage.getItem('smsUser');
+
+  if (!storedUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(storedUser);
+  } catch (error) {
+    localStorage.removeItem('smsToken');
+    localStorage.removeItem('smsUser');
+    localStorage.removeItem('smsLastActivity');
+    return null;
+  }
+}
+
 const CURRENCIES = [
   { code: 'ZAR', name: 'South African Rand', symbol: 'R' },
   { code: 'USD', name: 'US Dollar', symbol: '$' },
@@ -706,7 +723,7 @@ const ROLE_PERMISSION_TEMPLATES = {
 
 const state = {
   token: localStorage.getItem('smsToken'),
-  user: JSON.parse(localStorage.getItem('smsUser') || 'null'),
+  user: readStoredUser(),
   schools: [],
   invoices: [],
   families: [],
@@ -1015,6 +1032,13 @@ const elements = {
   requiredInfoList: document.getElementById('requiredInfoList'),
   closeRequiredInfoDialogButton: document.getElementById('closeRequiredInfoDialogButton'),
   cancelRequiredInfoDialogButton: document.getElementById('cancelRequiredInfoDialogButton'),
+  schoolHelpWidget: document.getElementById('schoolHelpWidget'),
+  schoolHelpToggle: document.getElementById('schoolHelpToggle'),
+  schoolHelpPanel: document.getElementById('schoolHelpPanel'),
+  schoolHelpClose: document.getElementById('schoolHelpClose'),
+  faultReportForm: document.getElementById('faultReportForm'),
+  faultReportPath: document.getElementById('faultReportPath'),
+  faultReportMessage: document.getElementById('faultReportMessage'),
   toast: document.getElementById('toast')
 };
 
@@ -1456,6 +1480,67 @@ function showFormMessage(element, message, type = 'error') {
   element.classList.toggle('hidden', !message);
 }
 
+function currentFaultPath() {
+  return `${window.location.pathname}${window.location.search}${window.location.hash}` || '/sms';
+}
+
+function updateFaultReportPath() {
+  if (elements.faultReportPath) {
+    elements.faultReportPath.value = currentFaultPath();
+  }
+}
+
+function setSchoolHelpOpen(open) {
+  if (!elements.schoolHelpPanel || !elements.schoolHelpToggle) {
+    return;
+  }
+
+  elements.schoolHelpPanel.classList.toggle('hidden', !open);
+  elements.schoolHelpToggle.setAttribute('aria-expanded', String(open));
+
+  if (open) {
+    updateFaultReportPath();
+    elements.faultReportForm?.elements?.remarks?.focus();
+  }
+}
+
+async function submitFaultReport(event) {
+  event.preventDefault();
+
+  const form = elements.faultReportForm;
+  const message = elements.faultReportMessage;
+
+  try {
+    setFormBusy(form, true, 'Sending...');
+    showFormMessage(message, '');
+
+    const data = formData(form);
+    const remarks = String(data.remarks || '').trim();
+
+    if (!remarks) {
+      throw new Error('Fault remarks are required');
+    }
+
+    await api('/api/faults', {
+      method: 'POST',
+      body: JSON.stringify({
+        pagePath: currentFaultPath(),
+        viewName: activeViewName(),
+        remarks
+      })
+    });
+
+    form.reset();
+    updateFaultReportPath();
+    showFormMessage(message, 'Fault report sent', 'success');
+    showToast('Fault report sent');
+  } catch (error) {
+    showFormMessage(message, error.message);
+  } finally {
+    setFormBusy(form, false);
+  }
+}
+
 function setFormBusy(form, busy, busyLabel) {
   const submitButton = form.matches?.('button')
     ? form
@@ -1541,6 +1626,7 @@ function renderShell() {
   applyRoleShell();
   elements.workspace.classList.remove('hidden');
   elements.logoutButton.classList.remove('hidden');
+  elements.schoolHelpWidget?.classList.remove('hidden');
   elements.sessionLabel.textContent = `${state.user.username || state.user.email} (${state.user.role})`;
   elements.statusPill.textContent = 'Signed in';
 
@@ -6885,6 +6971,7 @@ function switchView(viewName, options = {}) {
 
   elements.viewTitle.textContent = VIEW_TITLES[viewName] || viewName.charAt(0).toUpperCase() + viewName.slice(1);
   elements.viewTitle.focus({ preventScroll: true });
+  updateFaultReportPath();
 
   if (!options.skipRefresh && state.token) {
     refreshData({ viewName }).catch((error) => showToast(error.message));
@@ -8556,6 +8643,14 @@ document.getElementById('outstandingFeesYear')?.addEventListener('change', refre
   await refreshFinanceAuditLogs();
   renderFinanceAuditLogs();
 }));
+
+elements.schoolHelpToggle?.addEventListener('click', () => {
+  const isOpen = elements.schoolHelpToggle.getAttribute('aria-expanded') === 'true';
+  setSchoolHelpOpen(!isOpen);
+});
+
+elements.schoolHelpClose?.addEventListener('click', () => setSchoolHelpOpen(false));
+elements.faultReportForm?.addEventListener('submit', submitFaultReport);
 
 elements.reconciliationSearch?.addEventListener('input', () => {
   window.clearTimeout(elements.reconciliationSearch._timer);

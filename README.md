@@ -167,11 +167,11 @@ Each dashboard must have its own separate login link for security:
 /parent-login
 ```
 
-DevForge Solutions staff use `/devforge-login` with Email and Password.
+DevForge Solutions admin users use `/devforge-login` with AAD / Microsoft Entra ID. The allowed admin emails are `rudi@devforgesolutions.com`, `tristan@devforgesolutions.com`, and `calvin@devforgesolutions.com`.
 
-School staff/client users use `/school-login` with School ID, Email, and Password.
+School staff/client users use `/school-login` with School ID and either Google or Microsoft.
 
-Parents use `/parent-login` with Email/Cell Number and Password.
+Parents use `/parent-login` with either Google or Microsoft.
 
 Users must not land on one page where all three login options are visible.
 
@@ -2198,20 +2198,21 @@ Once the server starts, open the local app in your browser.
 - Default URL: `http://localhost:3000`
 - If port `3000` is already in use, the server now automatically falls back to `http://localhost:3001`
 - Confirm the backend is live at `/health` on whichever port the server starts on.
-- The login page no longer includes hard-coded demo credentials. Use the correct role-specific login link and sign in with an existing user from the connected database.
+- The default URL opens the Kinder Care Hub website. Use the correct role-specific login link and sign in with an existing user from the connected database.
 
 ## Change History
 
+- **Public website and pricing page:** Added a Kinder Care Hub public website at `/` with product information, school and parent registration links, and the R 899 per month price. The school, parent, and admin dashboards remain on their dedicated login routes.
 - **HR / Payroll payslip view, edit, and PDF print flow:** Finance / HR / Payroll now opens payslips in a detail popup, shows required school and employee payroll details, allows draft payslip editing for HR-permitted users, finalizes payslips as read-only history, and provides a clean print layout that can be saved as PDF from the browser print dialog. Employee payroll defaults, school registration number, payment date, and itemised financial fields are stored in the database and used when generating payslips.
 - **Staff popup CRUD and Outstanding Fees data fix:** School / Staff now opens Add Staff in a popup, supports row-level Edit before the status column, and persists staff start-date edits. Finance / Outstanding Fees now routes correctly to the outstanding-fees data endpoint so the year-calendar table loads real invoice balances.
 - **Learner enrolment and edit persistence:** School / Register Learner now captures learner, parent/family, billing, and medical details in a tabbed CRUD form. School / Students now edits learners in a popup and saves learner fields to `Students`, parent/family fields to `Families`, and multiple billing-category assignments to `StudentBillingCategories`.
 - **Three-level dashboard layout:** Updated the README and school/parent dashboard wiring to use Level 1 side navigation, Level 2 module landing pages with feature icons, and Level 3 dedicated feature pages. School, Finance, Reporting, DevForge, and Parent navigation now match the final layout rules.
 - **Port fallback:** Updated `src/app.js` to automatically try the next port if `3000` is already in use.
-- **Static route fix:** Disabled Express static index file serving so `/` now correctly serves `public/login.html` instead of `public/index.html`.
+- **Static route fix:** Disabled Express static index file serving so route handlers can explicitly serve the public website, login screens, and dashboards.
 - **Login card square:** Made the login card square with `aspect-ratio: 1` in `public/styles.css`.
 - **Admin password fix:** Updated the seeded admin user password hash in `db/schema.sql` to match the `admin123` password used in the test login.
 - **Login flow cleanup:** Removed stale auth/register-only logic from `public/app.js` so the main SPA stays separate from the dedicated login page.
-- **Dedicated login route:** Kept `/` serving `public/login.html` and `/sms` serving `public/index.html`.
+- **Dedicated login route:** Kept `/sms` serving `public/index.html` and moved login to role-specific routes.
 - **Removed stale demo login:** Removed the hard-coded Test Login button and demo credential hint because the database setup script does not seed that account.
 - **Runtime port note:** Use the port printed in the terminal. The app uses `3000` by default and falls back to `3001` when `3000` is occupied.
 - **CSRF / CORS hardening:** Replaced the open `cors()` call with a restricted origin list read from `ALLOWED_ORIGINS` env var. Set `credentials: false` and explicit allowed methods/headers. Since auth uses JWT via the `Authorization` header and not cookies, this eliminates the CSRF attack surface flagged by the code review.
@@ -2245,8 +2246,8 @@ Once the server starts, open the local app in your browser.
 - **Notification service placeholder:** Added `notificationService` with email trigger methods. Set `SMTP_HOST` or `EMAIL_PROVIDER` env var to enable.
 - **CSV data export:** Added `exportService` and `/api/export` routes for downloading invoices, transactions, students, and employees as CSV.
 - **Role-based dashboard:** Added `dashboardService` and `/api/dashboard` route. Returns school-specific or platform-wide metrics depending on user role.
-- **Separate login links:** Added `/devforge-login`, `/school-login`, and `/parent-login` so each user type has its own entry point. The root URL redirects to `/school-login`.
-- **Role-specific login validation:** DevForge staff sign in with email and password, school staff sign in with School ID, email, and password, and parents sign in with email or cell number and password.
+- **Separate login links:** Added `/devforge-login`, `/school-login`, and `/parent-login` so each user type has its own entry point. The root URL now serves the public website.
+- **Role-specific login validation:** Admin dashboard users sign in with AAD / Microsoft Entra ID from the configured email allowlist, while school staff and parents sign in with Google or Microsoft consumer accounts.
 - **Suspended school blocking:** School users linked to suspended schools are blocked at login and during authenticated API use. Other schools continue to work normally.
 - **Icon-based dashboard homes:** Reworked DevForge, School, and Parent dashboard homes so they show grouped icon sections only. Operational tables, filters, forms, and summaries now live behind the selected icon page.
 - **DevForge management dashboard:** Moved platform management into `/devforge`, with separate Schools, Users, Audit, and Account pages. DevForge Users manages internal DevForge staff only.
@@ -2359,9 +2360,9 @@ After successful login, role-specific dashboards are separated as follows:
 The current vertical slice includes:
 
 - Separate login access for DevForge Solutions staff, school staff, and parents.
-- School Management login with School ID, email, and password.
-- DevForge staff login with email and password.
-- Parent login with email or cell number and password.
+- School Management login with School ID and either Google or Microsoft.
+- Admin dashboard login with AAD / Microsoft Entra ID for the configured DevForge email allowlist.
+- Parent login with either Google or Microsoft.
 - School account admins can add additional staff users for their school.
 - School account admins can activate and deactivate staff user access.
 - DevForge dashboard metrics.

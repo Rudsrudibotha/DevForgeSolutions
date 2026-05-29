@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kinder Care Hub Registration</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="auth-shell">
+      <div class="auth-card registration-card">
+        <div class="auth-brand">
+          <img class="brand-logo auth-brand-logo" src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub">
+          <div>
+            <h1 id="registerTitle">Kinder Care Hub</h1>
+            <p id="registerSubtitle">Registration</p>
+          </div>
+        </div>
+
+        <form id="schoolRegistrationForm" class="auth-form hidden">
+          <div class="registration-grid">
+            <label>
+              School name
+              <input name="schoolName" type="text" required>
+            </label>
+            <label>
+              Registration number
+              <input name="registrationNumber" type="text">
+            </label>
+            <label class="span-two">
+              Address
+              <input name="address" type="text" autocomplete="street-address">
+            </label>
+            <label>
+              Website
+              <input name="website" type="url" placeholder="https://">
+            </label>
+            <label>
+              Contact person
+              <input name="contactPerson" type="text" autocomplete="name" required>
+            </label>
+            <label>
+              Contact email
+              <input name="contactEmail" type="email" autocomplete="email" required>
+            </label>
+            <label>
+              Contact phone
+              <input name="contactPhone" type="tel" autocomplete="tel" required>
+            </label>
+            <label>
+              Billing contact
+              <input name="billingContactName" type="text" autocomplete="name">
+            </label>
+            <label>
+              Billing email
+              <input name="billingContactEmail" type="email" autocomplete="email">
+            </label>
+            <label>
+              Billing phone
+              <input name="billingContactPhone" type="tel" autocomplete="tel">
+            </label>
+            <label class="span-two">
+              Billing address
+              <input name="billingAddress" type="text" autocomplete="street-address">
+            </label>
+            <label>
+              Requested plan
+              <select name="requestedPlan">
+                <option value="">Select plan</option>
+                <option value="Starter">Starter</option>
+                <option value="Standard">Standard</option>
+                <option value="Premium">Premium</option>
+              </select>
+            </label>
+            <label>
+              Payment provider
+              <input name="paymentProvider" type="text" value="Placeholder" readonly>
+            </label>
+            <label>
+              Customer reference
+              <input name="paymentCustomerReference" type="text">
+            </label>
+            <label class="span-two">
+              Billing notes
+              <textarea name="billingNotes" rows="3"></textarea>
+            </label>
+          </div>
+          <p id="schoolRegistrationMessage" class="form-message hidden"></p>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Submit Registration</button>
+            <a class="secondary-button link-button" href="/school-login">School Login</a>
+          </div>
+        </form>
+
+        <form id="parentRegistrationForm" class="auth-form hidden">
+          <div class="registration-grid">
+            <label class="span-two">
+              School
+              <select name="schoolId" id="parentSchoolSelect" required>
+                <option value="">Select school</option>
+              </select>
+            </label>
+            <label>
+              First name
+              <input name="firstName" type="text" autocomplete="given-name" required>
+            </label>
+            <label>
+              Last name
+              <input name="lastName" type="text" autocomplete="family-name" required>
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" autocomplete="email" required>
+            </label>
+            <label>
+              Phone
+              <input name="phone" type="tel" autocomplete="tel">
+            </label>
+            <label class="span-two">
+              Relationship
+              <input name="relationship" type="text">
+            </label>
+          </div>
+          <p id="parentRegistrationMessage" class="form-message hidden"></p>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Submit Registration</button>
+            <a class="secondary-button link-button" href="/parent-login">Parent Login</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="/register.js"></script>
+  </body>
+</html>

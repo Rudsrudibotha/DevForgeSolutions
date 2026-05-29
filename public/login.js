@@ -1,33 +1,36 @@
 const LOGIN_CONFIG = {
   '/devforge-login': {
     type: 'devforge',
-    title: 'DevForge Solutions',
-    subtitle: 'Admin Portal Login',
+    title: 'Kinder Care Hub',
+    subtitle: 'AAD Login',
     identifierLabel: 'Email Address',
     showSchoolId: false,
     redirect: '/devforge',
-    brandMark: 'DF',
-    pageClass: 'devforge-login'
+    brandMark: 'Kinder Care Hub',
+    pageClass: 'devforge-login',
+    usePasswordLogin: false
   },
   '/school-login': {
     type: 'school',
-    title: 'School Management Portal',
+    title: 'Kinder Care Hub',
     subtitle: 'School Portal Login',
     identifierLabel: 'Email Address',
     showSchoolId: true,
     redirect: '/sms',
-    brandMark: 'SP',
-    pageClass: 'school-login'
+    brandMark: 'Kinder Care Hub',
+    pageClass: 'school-login',
+    usePasswordLogin: false
   },
   '/parent-login': {
     type: 'parent',
-    title: 'Parent Portal',
+    title: 'Kinder Care Hub',
     subtitle: 'Parent Portal Login',
     identifierLabel: 'Email / Cell Number',
     showSchoolId: false,
     redirect: '/parent',
-    brandMark: 'PP',
-    pageClass: 'parent-login'
+    brandMark: 'Kinder Care Hub',
+    pageClass: 'parent-login',
+    usePasswordLogin: false
   }
 };
 
@@ -38,8 +41,33 @@ const elements = {
   loginSubtitle: document.getElementById('loginSubtitle'),
   brandMark: document.getElementById('brandMark'),
   schoolIdField: document.getElementById('schoolIdField'),
-  identifierLabel: document.getElementById('identifierLabel')
+  identifierField: document.getElementById('identifierField'),
+  identifierLabel: document.getElementById('identifierLabel'),
+  passwordField: document.getElementById('passwordField'),
+  passwordSignIn: document.getElementById('passwordSignIn'),
+  azureSignIn: document.getElementById('azureSignIn'),
+  googleSignIn: document.getElementById('googleSignIn'),
+  microsoftSignIn: document.getElementById('microsoftSignIn'),
+  schoolRegisterLink: document.getElementById('schoolRegisterLink'),
+  parentRegisterLink: document.getElementById('parentRegisterLink')
 };
+
+function readStoredUser() {
+  const storedUser = localStorage.getItem('smsUser');
+
+  if (!storedUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(storedUser);
+  } catch (error) {
+    localStorage.removeItem('smsToken');
+    localStorage.removeItem('smsUser');
+    localStorage.removeItem('smsLastActivity');
+    return null;
+  }
+}
 
 function currentConfig() {
   return LOGIN_CONFIG[window.location.pathname] || LOGIN_CONFIG['/school-login'];
@@ -108,6 +136,44 @@ function setSession(authPayload) {
   window.location.href = dashboardPath(authPayload.user);
 }
 
+function clearSession() {
+  localStorage.removeItem('smsToken');
+  localStorage.removeItem('smsUser');
+  localStorage.removeItem('smsLastActivity');
+}
+
+function schoolIdForProvider(config) {
+  if (config.type !== 'school') {
+    return '';
+  }
+
+  const schoolId = Number(elements.loginForm.elements.schoolId.value);
+
+  if (!Number.isInteger(schoolId) || schoolId <= 0) {
+    showFormMessage(elements.loginMessage, 'School ID is required for school login');
+    elements.loginForm.elements.schoolId.focus();
+    return null;
+  }
+
+  return String(schoolId);
+}
+
+function startProviderSignIn(provider, config) {
+  const schoolId = schoolIdForProvider(config);
+
+  if (schoolId === null) {
+    return;
+  }
+
+  const params = new URLSearchParams({ type: config.type });
+
+  if (schoolId) {
+    params.set('schoolId', schoolId);
+  }
+
+  window.location.href = `/auth/${provider}?${params.toString()}`;
+}
+
 function configureLoginPage() {
   const config = currentConfig();
   const fields = elements.loginForm.elements;
@@ -116,12 +182,20 @@ function configureLoginPage() {
   document.title = `${config.title} - ${config.subtitle}`;
   elements.loginTitle.textContent = config.title;
   elements.loginSubtitle.textContent = config.subtitle;
-  elements.brandMark.textContent = config.brandMark;
+  elements.brandMark.alt = config.brandMark;
   elements.identifierLabel.textContent = config.identifierLabel;
   fields.loginType.value = config.type;
   fields.schoolId.required = config.showSchoolId;
   fields.schoolId.disabled = !config.showSchoolId;
   elements.schoolIdField.classList.toggle('hidden', !config.showSchoolId);
+  fields.identifier.required = config.usePasswordLogin;
+  fields.identifier.disabled = !config.usePasswordLogin;
+  fields.password.required = config.usePasswordLogin;
+  fields.password.disabled = !config.usePasswordLogin;
+  elements.identifierField.classList.toggle('hidden', !config.usePasswordLogin);
+  elements.passwordField.classList.toggle('hidden', !config.usePasswordLogin);
+  elements.passwordSignIn.classList.toggle('hidden', !config.usePasswordLogin);
+  elements.passwordSignIn.disabled = !config.usePasswordLogin;
 
   if (config.type === 'devforge') {
     fields.identifier.type = 'email';
@@ -130,37 +204,33 @@ function configureLoginPage() {
     fields.identifier.type = 'text';
     fields.identifier.autocomplete = 'username';
   }
-  // Show Azure sign-in only for DevForge admin login
-  const azureBtn = document.getElementById('azureSignIn');
-  if (azureBtn) {
-    azureBtn.classList.toggle('hidden', config.type !== 'devforge');
-    if (config.type === 'devforge') {
-      azureBtn.addEventListener('click', () => { window.location.href = '/auth/azure'; });
-    }
+
+  if (elements.azureSignIn) {
+    elements.azureSignIn.classList.toggle('hidden', config.type !== 'devforge');
+    elements.azureSignIn.onclick = () => {
+      window.location.href = '/auth/azure';
+    };
   }
-    // Show provider buttons for school and parent logins
-    const googleBtn = document.getElementById('googleSignIn');
-    const msBtn = document.getElementById('microsoftSignIn');
 
-    if (googleBtn) {
-      googleBtn.classList.toggle('hidden', !(config.type === 'school' || config.type === 'parent'));
-      googleBtn.onclick = () => {
-        const type = config.type;
-        const schoolId = (type === 'school') ? (elements.loginForm.elements.schoolId.value || '') : '';
-        const url = `/auth/google?type=${encodeURIComponent(type)}${schoolId ? `&schoolId=${encodeURIComponent(schoolId)}` : ''}`;
-        window.location.href = url;
-      };
-    }
+  const providerVisible = config.type === 'school' || config.type === 'parent';
 
-    if (msBtn) {
-      msBtn.classList.toggle('hidden', !(config.type === 'school' || config.type === 'parent'));
-      msBtn.onclick = () => {
-        const type = config.type;
-        const schoolId = (type === 'school') ? (elements.loginForm.elements.schoolId.value || '') : '';
-        const url = `/auth/microsoft?type=${encodeURIComponent(type)}${schoolId ? `&schoolId=${encodeURIComponent(schoolId)}` : ''}`;
-        window.location.href = url;
-      };
-    }
+  if (elements.googleSignIn) {
+    elements.googleSignIn.classList.toggle('hidden', !providerVisible);
+    elements.googleSignIn.onclick = () => startProviderSignIn('google', config);
+  }
+
+  if (elements.microsoftSignIn) {
+    elements.microsoftSignIn.classList.toggle('hidden', !providerVisible);
+    elements.microsoftSignIn.onclick = () => startProviderSignIn('microsoft', config);
+  }
+
+  if (elements.schoolRegisterLink) {
+    elements.schoolRegisterLink.classList.toggle('hidden', config.type !== 'school');
+  }
+
+  if (elements.parentRegisterLink) {
+    elements.parentRegisterLink.classList.toggle('hidden', config.type !== 'parent');
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -173,16 +243,16 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   const token = localStorage.getItem('smsToken');
-  const user = JSON.parse(localStorage.getItem('smsUser') || 'null');
+  const user = readStoredUser();
 
   if (token && user) {
     // Verify token is still valid before redirecting
-    fetch('/api/dashboard', { headers: { Authorization: 'Bearer ' + token } })
+    fetch('/api/users/session', { headers: { Authorization: 'Bearer ' + token } })
       .then(r => {
         if (r.ok) window.location.href = dashboardPath(user);
-        else { localStorage.removeItem('smsToken'); localStorage.removeItem('smsUser'); localStorage.removeItem('smsLastActivity'); }
+        else clearSession();
       })
-      .catch(() => { localStorage.removeItem('smsToken'); localStorage.removeItem('smsUser'); localStorage.removeItem('smsLastActivity'); });
+      .catch(clearSession);
   }
 });
 
@@ -190,6 +260,10 @@ elements.loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const config = currentConfig();
+
+  if (!config.usePasswordLogin) {
+    return;
+  }
 
   try {
     const payload = formData(elements.loginForm);

@@ -54,7 +54,7 @@ const authenticateToken = async (req, res, next) => {
         const school = await schoolService.getSchoolById(user.SchoolID);
 
         if (school.SubscriptionStatus !== 'Active') {
-          return res.status(403).json({ error: 'This school account is suspended. Please contact DevForge Solutions.' });
+          return res.status(403).json({ error: 'This school account is suspended. Please contact Kinder Care Hub.' });
         }
       } catch (error) {
         if (isDatabaseConnectionError(error)) {

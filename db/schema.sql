@@ -604,6 +604,28 @@ BEGIN
     );
 END;
 
+IF OBJECT_ID('dbo.FaultReports', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.FaultReports (
+        FaultReportID INT IDENTITY(1,1) PRIMARY KEY,
+        SchoolID INT NOT NULL,
+        UserID INT NULL,
+        PagePath NVARCHAR(500) NOT NULL,
+        ViewName NVARCHAR(120) NULL,
+        Remarks NVARCHAR(2000) NOT NULL,
+        Status NVARCHAR(30) NOT NULL CONSTRAINT DF_FaultReports_Status DEFAULT 'Open',
+        UserAgent NVARCHAR(500) NULL,
+        CreatedDate DATETIME NOT NULL CONSTRAINT DF_FaultReports_CreatedDate DEFAULT GETDATE(),
+        UpdatedDate DATETIME NULL,
+        ResolvedDate DATETIME NULL,
+        ResolvedBy INT NULL,
+        CONSTRAINT CK_FaultReports_Status CHECK (Status IN ('Open', 'In Progress', 'Resolved', 'Closed')),
+        CONSTRAINT FK_FaultReports_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_FaultReports_Users FOREIGN KEY (UserID) REFERENCES dbo.Users(UserID),
+        CONSTRAINT FK_FaultReports_ResolvedBy FOREIGN KEY (ResolvedBy) REFERENCES dbo.Users(UserID)
+    );
+END;
+
 IF OBJECT_ID('dbo.ReconciliationMatches', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.ReconciliationMatches (
@@ -748,6 +770,70 @@ BEGIN
     CREATE INDEX IX_ParentLinks_UserID ON dbo.ParentLinks(UserID);
 END;
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ParentLinks_SchoolID' AND object_id = OBJECT_ID('dbo.ParentLinks'))
+BEGIN
+    CREATE INDEX IX_ParentLinks_SchoolID ON dbo.ParentLinks(SchoolID);
+END;
+
+IF OBJECT_ID('dbo.SchoolRegistrationRequests', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SchoolRegistrationRequests (
+        RequestID INT IDENTITY(1,1) PRIMARY KEY,
+        SchoolName NVARCHAR(255) NOT NULL,
+        RegistrationNumber NVARCHAR(100) NULL,
+        Address NVARCHAR(500) NULL,
+        Website NVARCHAR(255) NULL,
+        ContactPerson NVARCHAR(255) NOT NULL,
+        ContactEmail NVARCHAR(255) NOT NULL,
+        ContactPhone NVARCHAR(50) NOT NULL,
+        BillingContactName NVARCHAR(255) NULL,
+        BillingContactEmail NVARCHAR(255) NULL,
+        BillingContactPhone NVARCHAR(50) NULL,
+        BillingAddress NVARCHAR(500) NULL,
+        RequestedPlan NVARCHAR(100) NULL,
+        PaymentProvider NVARCHAR(100) NULL,
+        PaymentCustomerReference NVARCHAR(255) NULL,
+        BillingNotes NVARCHAR(1000) NULL,
+        Status NVARCHAR(50) NOT NULL DEFAULT 'Pending',
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT CK_SchoolRegistrationRequests_Status CHECK (Status IN ('Pending','Approved','Rejected','Converted'))
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SchoolRegistrationRequests_Status' AND object_id = OBJECT_ID('dbo.SchoolRegistrationRequests'))
+BEGIN
+    CREATE INDEX IX_SchoolRegistrationRequests_Status ON dbo.SchoolRegistrationRequests(Status, CreatedDate);
+END;
+
+IF OBJECT_ID('dbo.ParentRegistrationRequests', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ParentRegistrationRequests (
+        RequestID INT IDENTITY(1,1) PRIMARY KEY,
+        SchoolID INT NOT NULL,
+        FirstName NVARCHAR(100) NOT NULL,
+        LastName NVARCHAR(100) NOT NULL,
+        Email NVARCHAR(255) NOT NULL,
+        Phone NVARCHAR(50) NULL,
+        Relationship NVARCHAR(100) NULL,
+        MatchedFamilyID INT NULL,
+        ParentUserID INT NULL,
+        Status NVARCHAR(50) NOT NULL DEFAULT 'PendingReview',
+        Notes NVARCHAR(1000) NULL,
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT FK_ParentRegistrationRequests_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_ParentRegistrationRequests_Families FOREIGN KEY (MatchedFamilyID) REFERENCES dbo.Families(FamilyID),
+        CONSTRAINT FK_ParentRegistrationRequests_Users FOREIGN KEY (ParentUserID) REFERENCES dbo.Users(UserID),
+        CONSTRAINT CK_ParentRegistrationRequests_Status CHECK (Status IN ('Matched','PendingReview','Rejected'))
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ParentRegistrationRequests_School_Email' AND object_id = OBJECT_ID('dbo.ParentRegistrationRequests'))
+BEGIN
+    CREATE INDEX IX_ParentRegistrationRequests_School_Email ON dbo.ParentRegistrationRequests(SchoolID, Email, CreatedDate);
+END;
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AuditLogs_SchoolID' AND object_id = OBJECT_ID('dbo.AuditLogs'))
 BEGIN
     CREATE INDEX IX_AuditLogs_SchoolID ON dbo.AuditLogs(SchoolID);
@@ -756,6 +842,16 @@ END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AuditLogs_EntityName_EntityID' AND object_id = OBJECT_ID('dbo.AuditLogs'))
 BEGIN
     CREATE INDEX IX_AuditLogs_EntityName_EntityID ON dbo.AuditLogs(EntityName, EntityID);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_FaultReports_Status_CreatedDate' AND object_id = OBJECT_ID('dbo.FaultReports'))
+BEGIN
+    CREATE INDEX IX_FaultReports_Status_CreatedDate ON dbo.FaultReports(Status, CreatedDate DESC);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_FaultReports_SchoolID_CreatedDate' AND object_id = OBJECT_ID('dbo.FaultReports'))
+BEGIN
+    CREATE INDEX IX_FaultReports_SchoolID_CreatedDate ON dbo.FaultReports(SchoolID, CreatedDate DESC);
 END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReconciliationMatches_SchoolID_Status' AND object_id = OBJECT_ID('dbo.ReconciliationMatches'))
