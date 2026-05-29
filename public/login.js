@@ -1,11 +1,13 @@
 const LOGIN_CONFIG = {
   '/devforge-login': {
     type: 'devforge',
-    title: 'School Management Portal',
-    subtitle: 'DevForge Solutions Portal Login',
+    title: 'DevForge Solutions',
+    subtitle: 'Admin Portal Login',
     identifierLabel: 'Email Address',
     showSchoolId: false,
-    redirect: '/devforge'
+    redirect: '/devforge',
+    brandMark: 'DF',
+    pageClass: 'devforge-login'
   },
   '/school-login': {
     type: 'school',
@@ -13,15 +15,19 @@ const LOGIN_CONFIG = {
     subtitle: 'School Portal Login',
     identifierLabel: 'Email Address',
     showSchoolId: true,
-    redirect: '/sms'
+    redirect: '/sms',
+    brandMark: 'SP',
+    pageClass: 'school-login'
   },
   '/parent-login': {
     type: 'parent',
-    title: 'School Management Portal',
+    title: 'Parent Portal',
     subtitle: 'Parent Portal Login',
     identifierLabel: 'Email / Cell Number',
     showSchoolId: false,
-    redirect: '/parent'
+    redirect: '/parent',
+    brandMark: 'PP',
+    pageClass: 'parent-login'
   }
 };
 
@@ -30,6 +36,7 @@ const elements = {
   loginMessage: document.getElementById('loginMessage'),
   loginTitle: document.getElementById('loginTitle'),
   loginSubtitle: document.getElementById('loginSubtitle'),
+  brandMark: document.getElementById('brandMark'),
   schoolIdField: document.getElementById('schoolIdField'),
   identifierLabel: document.getElementById('identifierLabel')
 };
@@ -105,8 +112,11 @@ function configureLoginPage() {
   const config = currentConfig();
   const fields = elements.loginForm.elements;
 
+  document.body.className = config.pageClass;
+  document.title = `${config.title} - ${config.subtitle}`;
   elements.loginTitle.textContent = config.title;
   elements.loginSubtitle.textContent = config.subtitle;
+  elements.brandMark.textContent = config.brandMark;
   elements.identifierLabel.textContent = config.identifierLabel;
   fields.loginType.value = config.type;
   fields.schoolId.required = config.showSchoolId;

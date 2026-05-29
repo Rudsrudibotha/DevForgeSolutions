@@ -57,13 +57,13 @@ textarea {
 }
 
 .auth-card {
-  width: min(100%, 400px);
-  min-height: 400px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  padding: 28px;
-  box-shadow: var(--shadow);
+  width: min(100%, 420px);
+  min-height: auto;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 36px 36px 32px;
+  box-shadow: 0 32px 80px rgba(15, 23, 42, 0.16);
 }
 
 .app-shell {
@@ -329,7 +329,28 @@ textarea:focus-visible,
 }
 
 .auth-form {
-  display: block;
+  display: grid;
+  gap: 16px;
+  width: 100%;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.auth-form .form-message {
+  margin: 0;
+}
+
+.auth-form .form-actions {
+  display: grid;
+}
+
+.auth-form .primary-button {
+  padding: 14px 16px;
+  font-size: 15px;
 }
 
 .form-panel,
