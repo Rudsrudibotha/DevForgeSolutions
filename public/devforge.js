@@ -22,6 +22,7 @@ const state = {
   users: [],
   auditLogs: [],
   faultReports: [],
+  emailStatus: null,
   dashboard: null
 };
 
@@ -49,8 +50,12 @@ const elements = {
   faultStatusFilter: document.getElementById('faultStatusFilter'),
   openFaultCount: document.getElementById('openFaultCount'),
   totalFaultCount: document.getElementById('totalFaultCount'),
+  emailProvider: document.getElementById('emailProvider'),
+  emailConfigured: document.getElementById('emailConfigured'),
+  emailSender: document.getElementById('emailSender'),
   schoolForm: document.getElementById('schoolForm'),
   devforgeUserForm: document.getElementById('devforgeUserForm'),
+  emailTestForm: document.getElementById('emailTestForm'),
   schoolSearchInput: document.getElementById('schoolSearchInput'),
   userSearchInput: document.getElementById('userSearchInput'),
   auditSearchInput: document.getElementById('auditSearchInput'),
@@ -66,6 +71,7 @@ const VIEW_TITLES = {
   users: 'Users',
   audit: 'Audit',
   faults: 'Fault Reports',
+  email: 'Email',
   account: 'Account'
 };
 
@@ -213,12 +219,13 @@ function clearSession() {
 
 async function refreshData() {
   try {
-    const [dashboard, schools, users, auditLogs, faultReports] = await Promise.all([
+    const [dashboard, schools, users, auditLogs, faultReports, emailStatus] = await Promise.all([
       api('/api/dashboard'),
       api('/api/schools'),
       api('/api/users/devforge-users'),
       api('/api/audit?limit=100'),
-      api('/api/faults?limit=100').catch(() => [])
+      api('/api/faults?limit=100').catch(() => []),
+      api('/api/email/status').catch(() => null)
     ]);
 
     state.dashboard = dashboard;
@@ -226,6 +233,7 @@ async function refreshData() {
     state.users = users;
     state.auditLogs = auditLogs;
     state.faultReports = faultReports;
+    state.emailStatus = emailStatus;
     renderData();
   } catch (error) {
     showToast(error.message);
@@ -261,6 +269,7 @@ function renderData() {
   renderUsersTable();
   renderAuditTable();
   renderFaultReportsTable();
+  renderEmailStatus();
 }
 
 function filteredSchools() {
@@ -459,6 +468,18 @@ function renderFaultReportsTable() {
   `).join('') || '<tr><td colspan="5">No fault reports found.</td></tr>';
 }
 
+function renderEmailStatus() {
+  if (!elements.emailProvider || !elements.emailConfigured || !elements.emailSender) {
+    return;
+  }
+
+  const status = state.emailStatus || {};
+
+  elements.emailProvider.textContent = status.provider || 'Not set';
+  elements.emailConfigured.textContent = status.configured ? 'Configured' : 'Not configured';
+  elements.emailSender.textContent = status.providers?.azure?.senderAddress || (status.configured ? status.fromEmail : '-');
+}
+
 function switchView(viewName) {
   document.body.dataset.portal = 'platform';
   document.body.dataset.section = 'platform';
@@ -578,6 +599,25 @@ elements.devforgeUserForm.addEventListener('submit', async (event) => {
   }
 });
 
+elements.emailTestForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  try {
+    setFormBusy(elements.emailTestForm, true, 'Sending...');
+    const result = await api('/api/email/test', {
+      method: 'POST',
+      body: JSON.stringify(formData(elements.emailTestForm))
+    });
+
+    await refreshData();
+    showToast(result.sent ? 'Test email sent' : result.reason || 'Email not sent');
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setFormBusy(elements.emailTestForm, false);
+  }
+});
+
 document.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-action]');
 
@@ -604,6 +644,11 @@ document.addEventListener('click', async (event) => {
 
   if (action === 'open-faults') {
     switchView('faults');
+    return;
+  }
+
+  if (action === 'open-email') {
+    switchView('email');
     return;
   }
 

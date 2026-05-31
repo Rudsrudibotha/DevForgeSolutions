@@ -35,6 +35,7 @@ const rolloverTemplateRoutes = require('./application/rolloverTemplateRoutes');
 const permissionLeaveYearEndRoutes = require('./application/permissionLeaveYearEndRoutes');
 const registrationRoutes = require('./application/registrationRoutes');
 const faultRoutes = require('./application/faultRoutes');
+const emailRoutes = require('./application/emailRoutes');
 const InvoiceService = require('./business/invoiceService');
 
 // Express application instance shared by the server and local tests.
@@ -138,6 +139,7 @@ app.use('/api/platform', rolloverTemplateRoutes);
 app.use('/api/hr', permissionLeaveYearEndRoutes);
 app.use('/api/registrations', registrationRoutes);
 app.use('/api/faults', faultRoutes);
+app.use('/api/email', emailRoutes);
 
 // Health endpoint used by Azure/GitHub deployment checks.
 app.get('/health', (req, res) => {

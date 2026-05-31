@@ -23,6 +23,7 @@
           <button class="nav-item" data-view="users" type="button">Users</button>
           <button class="nav-item" data-view="audit" type="button">Audit</button>
           <button class="nav-item" data-view="faults" type="button">Faults</button>
+          <button class="nav-item" data-view="email" type="button">Email</button>
           <button class="nav-item" data-view="account" type="button">Account</button>
         </nav>
 
@@ -63,6 +64,10 @@
                   <button class="module-tile" data-action="open-faults" type="button">
                     <span class="module-icon report-icon" aria-hidden="true">FR</span>
                     <span>Fault Reports</span>
+                  </button>
+                  <button class="module-tile" data-action="open-email" type="button">
+                    <span class="module-icon report-icon" aria-hidden="true">EM</span>
+                    <span>Email</span>
                   </button>
                 </div>
               </section>
@@ -364,6 +369,57 @@
                 </table>
               </div>
             </section>
+          </section>
+
+          <section id="emailView" class="view">
+            <div class="icon-page-layout">
+              <form id="emailTestForm" class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Email</h3>
+                    <p>Validate outbound application email.</p>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Recipient
+                    <input name="to" type="email" autocomplete="email" required>
+                  </label>
+                  <label>
+                    Subject
+                    <input name="subject" type="text" value="Kinder Care Hub email test" maxlength="200">
+                  </label>
+                  <label class="wide">
+                    Message
+                    <textarea name="body" rows="4" maxlength="5000">This is a test email from Kinder Care Hub.</textarea>
+                  </label>
+                </div>
+                <button class="primary-button" type="submit">Send Test Email</button>
+              </form>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Email Status</h3>
+                    <p>Current provider configuration.</p>
+                  </div>
+                </div>
+                <div class="metrics-grid">
+                  <div class="metric">
+                    <span>Provider</span>
+                    <strong id="emailProvider">-</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Status</span>
+                    <strong id="emailConfigured">-</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Sender</span>
+                    <strong id="emailSender">-</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
           </section>
 
           <section id="accountView" class="view">
