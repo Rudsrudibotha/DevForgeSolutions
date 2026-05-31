@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const UserRepository = require('../data/userRepository');
 const SchoolService = require('./schoolService');
-const { isAadAdminEmailAllowed } = require('../security/adminAccess');
+const { isAadAdminEmailAllowed, normalizeEmail: normalizeAadEmail } = require('../security/adminAccess');
 const { getSchoolPermissions } = require('../security/schoolPermissions');
 
 class UserService {
@@ -395,7 +395,9 @@ class UserService {
 
   // Find or create a user based on OAuth provider email and requested login type
   async findOrCreateOAuthUser(provider, email, loginType, schoolId, options = {}) {
-    const normalizedEmail = this.normalizeEmail(email);
+    const normalizedEmail = loginType === 'devforge'
+      ? normalizeAadEmail(email)
+      : this.normalizeEmail(email);
     const parsedSchoolId = Number(schoolId);
 
     if (!normalizedEmail) throw new Error('Email is required from provider');

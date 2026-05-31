@@ -8,8 +8,26 @@ const DEFAULT_AAD_ADMIN_EMAILS = [
 
 const APPROVED_AAD_ADMIN_EMAILS = new Set(DEFAULT_AAD_ADMIN_EMAILS.map(normalizeEmail));
 
+function normalizeAadGuestUpn(value) {
+  const cleaned = String(value || '').trim().toLowerCase();
+  const extIndex = cleaned.indexOf('#ext#');
+
+  if (extIndex === -1) {
+    return cleaned;
+  }
+
+  const externalName = cleaned.slice(0, extIndex);
+  const separator = externalName.lastIndexOf('_');
+
+  if (separator <= 0 || separator === externalName.length - 1) {
+    return cleaned;
+  }
+
+  return `${externalName.slice(0, separator)}@${externalName.slice(separator + 1)}`;
+}
+
 function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
+  return normalizeAadGuestUpn(email);
 }
 
 function parseEmailList(value) {
