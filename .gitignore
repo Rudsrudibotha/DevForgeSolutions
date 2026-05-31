@@ -1,5 +1,8 @@
 .env
+.env.*
 node_modules/
+.venv/
+.vscode/
 dist/
 __pycache__/
 *.pyc
