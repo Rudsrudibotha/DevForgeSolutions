@@ -3,6 +3,7 @@ const DEFAULT_AAD_ADMIN_EMAILS = [
   'tristan@devforgesolutions.com',
   'calvin@devforgesolutions.com',
   'ruds.botha@gmqail.com',
+  'ruds.botha@gmail.com',
   'rudsrudibotha@gmail.com'
 ];
 
@@ -10,6 +11,12 @@ const APPROVED_AAD_ADMIN_EMAILS = new Set(DEFAULT_AAD_ADMIN_EMAILS.map(normalize
 
 function normalizeAadGuestUpn(value) {
   const cleaned = String(value || '').trim().toLowerCase();
+  const msaPrefixMatch = cleaned.match(/^(?:live\.com|outlook\.com|hotmail\.com)#(.+@.+)$/);
+
+  if (msaPrefixMatch) {
+    return msaPrefixMatch[1];
+  }
+
   const extIndex = cleaned.indexOf('#ext#');
 
   if (extIndex === -1) {

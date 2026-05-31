@@ -275,13 +275,30 @@ app.get('/auth/azure/callback', async (req, res) => {
     }
 
     const claims = await verifyMicrosoftIdToken(idToken, clientId, tenant);
-    const email = normalizeEmail(getEmailClaim(claims));
+    const emailCandidates = [
+      claims.email,
+      claims.preferred_username,
+      claims.upn,
+      claims.unique_name,
+      getEmailClaim(claims)
+    ].map(normalizeEmail).filter(Boolean);
+    const email = emailCandidates.find(isAadAdminEmailAllowed) || emailCandidates[0];
 
     if (!email) {
       return res.status(400).send('No email claim in id_token');
     }
 
     if (!isAadAdminEmailAllowed(email)) {
+      console.warn('[AAD] Unauthorized admin login attempt', {
+        selectedEmail: email,
+        candidates: emailCandidates,
+        email: normalizeEmail(claims.email),
+        preferredUsername: normalizeEmail(claims.preferred_username),
+        upn: normalizeEmail(claims.upn),
+        uniqueName: normalizeEmail(claims.unique_name),
+        oid: claims.oid,
+        tid: claims.tid
+      });
       return res.status(403).send('User not authorized for Admin dashboard login');
     }
 

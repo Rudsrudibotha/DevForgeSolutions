@@ -189,7 +189,7 @@ async function verifyGoogleIdToken(idToken, clientId) {
 }
 
 function getEmailClaim(claims) {
-  return claims?.email || claims?.preferred_username || claims?.upn;
+  return claims?.email || claims?.preferred_username || claims?.upn || claims?.unique_name;
 }
 
 function safeJson(value) {
