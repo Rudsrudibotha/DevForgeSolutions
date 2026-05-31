@@ -61,11 +61,55 @@ jobs:
             -x ".venv/*" \
             -x ".vscode/*"
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: devforgesolutions-saas-app-24
-          package: release.zip
+      - name: Publish package and restart Azure Web App
+        run: |
+          storage_account="devforgepkgdfs24"
+          container="app-packages"
+          blob_name="release-${GITHUB_SHA}.zip"
+          expiry=$(date -u -d "30 days" '+%Y-%m-%dT%H:%MZ')
+          storage_key=$(az storage account keys list \
+            --account-name "$storage_account" \
+            --resource-group devforge-saas-rg \
+            --query "[0].value" \
+            -o tsv)
+
+          az storage container create \
+            --account-name "$storage_account" \
+            --account-key "$storage_key" \
+            --name "$container" \
+            --public-access off \
+            --output none
+
+          az storage blob upload \
+            --account-name "$storage_account" \
+            --account-key "$storage_key" \
+            --container-name "$container" \
+            --name "$blob_name" \
+            --file release.zip \
+            --overwrite true \
+            --output none
+
+          sas=$(az storage blob generate-sas \
+            --account-name "$storage_account" \
+            --account-key "$storage_key" \
+            --container-name "$container" \
+            --name "$blob_name" \
+            --permissions r \
+            --expiry "$expiry" \
+            --https-only \
+            -o tsv)
+          package_url="https://${storage_account}.blob.core.windows.net/${container}/${blob_name}?${sas}"
+
+          az webapp config appsettings set \
+            --name devforgesolutions-saas-app-24 \
+            --resource-group devforge-saas-rg \
+            --settings WEBSITE_RUN_FROM_PACKAGE="$package_url" SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false \
+            --output none
+
+          az webapp restart \
+            --name devforgesolutions-saas-app-24 \
+            --resource-group devforge-saas-rg \
+            --output none
 
       - name: Verify Azure health
         run: |
