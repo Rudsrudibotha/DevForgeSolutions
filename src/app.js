@@ -75,6 +75,11 @@ function positiveIntegerEnv(name, fallback) {
   return Number.isInteger(value) && value > 0 ? value : fallback;
 }
 
+function nonNegativeIntegerEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isInteger(value) && value >= 0 ? value : fallback;
+}
+
 // Rate limiting
 // Dashboards load several scoped resources at once, and schools often share one
 // public IP. Keep authentication strict while allowing normal portal navigation.
@@ -536,29 +541,56 @@ function startOverdueScheduler() {
   }, interval);
 }
 
+function databaseRetryDelayMs(attempt) {
+  const configuredDelay = positiveIntegerEnv('DB_CONNECT_RETRY_MS', 0);
+  if (configuredDelay > 0) {
+    return configuredDelay;
+  }
+
+  return Math.min(30000, 1000 * (2 ** Math.min(attempt - 1, 5)));
+}
+
+function startDatabaseConnectionLoop({ skipDatabase }) {
+  let attempt = 0;
+  const maxAttempts = skipDatabase ? 1 : nonNegativeIntegerEnv('DB_CONNECT_MAX_ATTEMPTS', 0);
+
+  const tryConnect = async () => {
+    attempt += 1;
+
+    try {
+      await connectDB();
+    } catch (error) {
+      const message = error?.message || String(error);
+
+      if (skipDatabase) {
+        console.warn('Skipping database startup for testing because SKIP_DB is set:', message);
+        return;
+      }
+
+      if (maxAttempts > 0 && attempt >= maxAttempts) {
+        console.error(`Database connection failed after ${attempt} attempt(s):`, message);
+        return;
+      }
+
+      const delay = databaseRetryDelayMs(attempt);
+      console.error(`Database connection attempt ${attempt} failed; retrying in ${delay}ms:`, message);
+      const retryTimer = setTimeout(tryConnect, delay);
+      retryTimer.unref?.();
+    }
+  };
+
+  tryConnect();
+}
+
 async function start() {
   const basePort = Number(process.env.PORT) || 3000;
   const schedulersEnabled = process.env.ENABLE_SCHEDULERS === 'true';
   const skipDatabase = process.env.SKIP_DB === 'true' || process.env.START_WITHOUT_DB === 'true';
 
   const launchServer = async (port) => {
-    if (!skipDatabase) {
-      try {
-        await connectDB();
-      } catch (error) {
-        console.error('Failed to connect to database during startup:', error.message);
-        process.exit(1);
-      }
-    } else {
-      try {
-        await connectDB();
-      } catch (error) {
-        console.warn('Skipping database startup for testing because SKIP_DB is set:', error.message);
-      }
-    }
-
     const server = app.listen(port, () => {
       console.log(`Server running on port ${port}`);
+      startDatabaseConnectionLoop({ skipDatabase });
 
       if (schedulersEnabled) {
         startOverdueScheduler();

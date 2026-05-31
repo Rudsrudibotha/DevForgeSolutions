@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: azure-production-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -25,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --omit=dev
 
+      - name: Smoke test application startup
+        run: node -e "const { app } = require('./src/app'); if (!app) process.exit(1); console.log('Express app loaded')"
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -36,4 +43,8 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: devforgesolutions-saas-app-24
+          resource-group-name: devforge-saas-rg
           package: .
+          startup-command: npm start
+          clean: false
+          restart: true
