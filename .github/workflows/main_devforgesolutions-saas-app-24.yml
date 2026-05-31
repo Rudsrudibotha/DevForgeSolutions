@@ -39,6 +39,13 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_83C034F08B6F47ECB73178D7D1CDE1AA }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_957216CA4DF34E498637032CD17A2E53 }}
 
+      - name: Configure Azure package deployment
+        run: |
+          az webapp config appsettings set \
+            --name devforgesolutions-saas-app-24 \
+            --resource-group devforge-saas-rg \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
