@@ -1280,6 +1280,61 @@ BEGIN
     CREATE INDEX IX_CommHistory_SchoolID ON dbo.CommunicationHistory(SchoolID);
 END;
 
+-- Messaging package: private school-family conversations
+IF OBJECT_ID('dbo.MessagingConversations', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.MessagingConversations (
+        ConversationID INT IDENTITY(1,1) PRIMARY KEY,
+        SchoolID INT NOT NULL,
+        FamilyID INT NOT NULL,
+        Subject NVARCHAR(200) NULL,
+        TargetType NVARCHAR(50) NOT NULL DEFAULT 'ParentSchool',
+        CreatedByUserID INT NOT NULL,
+        LastMessageDate DATETIME NOT NULL DEFAULT GETDATE(),
+        IsClosed BIT NOT NULL DEFAULT 0,
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT CK_MessagingConversations_TargetType CHECK (TargetType IN ('ParentSchool','class','entire_school','outstanding_fees','selected_families')),
+        CONSTRAINT FK_MessagingConversations_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_MessagingConversations_Families FOREIGN KEY (FamilyID) REFERENCES dbo.Families(FamilyID),
+        CONSTRAINT FK_MessagingConversations_Users FOREIGN KEY (CreatedByUserID) REFERENCES dbo.Users(UserID)
+    );
+END;
+
+IF OBJECT_ID('dbo.MessagingMessages', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.MessagingMessages (
+        MessageID INT IDENTITY(1,1) PRIMARY KEY,
+        ConversationID INT NOT NULL,
+        SchoolID INT NOT NULL,
+        FamilyID INT NOT NULL,
+        SenderUserID INT NOT NULL,
+        SenderRole NVARCHAR(20) NOT NULL,
+        Body NVARCHAR(MAX) NOT NULL,
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT CK_MessagingMessages_SenderRole CHECK (SenderRole IN ('admin','school','parent')),
+        CONSTRAINT FK_MessagingMessages_Conversations FOREIGN KEY (ConversationID) REFERENCES dbo.MessagingConversations(ConversationID),
+        CONSTRAINT FK_MessagingMessages_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_MessagingMessages_Families FOREIGN KEY (FamilyID) REFERENCES dbo.Families(FamilyID),
+        CONSTRAINT FK_MessagingMessages_Users FOREIGN KEY (SenderUserID) REFERENCES dbo.Users(UserID)
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_MessagingConversations_School_LastMessage' AND object_id = OBJECT_ID('dbo.MessagingConversations'))
+BEGIN
+    CREATE INDEX IX_MessagingConversations_School_LastMessage ON dbo.MessagingConversations(SchoolID, LastMessageDate DESC);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_MessagingConversations_Family_LastMessage' AND object_id = OBJECT_ID('dbo.MessagingConversations'))
+BEGIN
+    CREATE INDEX IX_MessagingConversations_Family_LastMessage ON dbo.MessagingConversations(FamilyID, LastMessageDate DESC);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_MessagingMessages_Conversation_CreatedDate' AND object_id = OBJECT_ID('dbo.MessagingMessages'))
+BEGIN
+    CREATE INDEX IX_MessagingMessages_Conversation_CreatedDate ON dbo.MessagingMessages(ConversationID, CreatedDate, MessageID);
+END;
+
 -- Parent notification preferences
 IF OBJECT_ID('dbo.ParentNotificationPrefs', 'U') IS NULL
 BEGIN

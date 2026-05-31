@@ -22,6 +22,7 @@ const state = {
   invoices: [],
   attendance: [],
   consentRecords: [],
+  messagingConversations: [],
   balance: null
 };
 
@@ -49,6 +50,10 @@ const elements = {
   attendanceMonthInput: document.getElementById('attendanceMonthInput'),
   attendanceTable: document.getElementById('attendanceTable'),
   parentDetailsForm: document.getElementById('parentDetailsForm'),
+  parentMessageForm: document.getElementById('parentMessageForm'),
+  parentMessageSchoolSelect: document.getElementById('parentMessageSchoolSelect'),
+  parentMessageFamilySelect: document.getElementById('parentMessageFamilySelect'),
+  parentMessagesTable: document.getElementById('parentMessagesTable'),
   toast: document.getElementById('toast')
 };
 
@@ -203,6 +208,7 @@ async function refreshData() {
     state.invoices = invoices;
     state.balance = balance;
     state.consentRecords = consentRecords;
+    state.messagingConversations = await loadParentMessagingConversations();
     await refreshAttendance();
     renderData();
   } catch (error) {
@@ -240,6 +246,7 @@ function renderData() {
   renderAttendance();
   renderInvoices();
   renderConsent();
+  renderMessaging();
 }
 
 function renderChildSelectors() {
@@ -412,6 +419,58 @@ function renderConsent() {
   `;
 }
 
+async function loadParentMessagingConversations() {
+  const schoolId = firstLinkedSchoolId();
+  if (!schoolId) {
+    return [];
+  }
+
+  try {
+    return await api(`/api/messaging/parent/conversations?schoolId=${schoolId}`);
+  } catch {
+    return [];
+  }
+}
+
+function firstLinkedSchoolId() {
+  const schoolIds = [...new Set(state.students.map((student) => Number(student.SchoolID)).filter((id) => Number.isInteger(id) && id > 0))];
+  return schoolIds[0] || state.user?.schoolId || null;
+}
+
+function renderMessaging() {
+  if (!elements.parentMessageSchoolSelect || !elements.parentMessageFamilySelect || !elements.parentMessagesTable) {
+    return;
+  }
+
+  const schools = [];
+  state.students.forEach((student) => {
+    if (student.SchoolID && !schools.some((school) => Number(school.schoolId) === Number(student.SchoolID))) {
+      schools.push({ schoolId: student.SchoolID, schoolName: student.SchoolName || `School ${student.SchoolID}` });
+    }
+  });
+  elements.parentMessageSchoolSelect.innerHTML = schools.map((school) => `
+    <option value="${school.schoolId}">${escapeHtml(school.schoolName)}</option>
+  `).join('') || '<option value="">No linked school</option>';
+
+  const families = [];
+  state.students.forEach((student) => {
+    if (student.FamilyID && !families.some((family) => Number(family.familyId) === Number(student.FamilyID))) {
+      families.push({ familyId: student.FamilyID, familyName: student.FamilyName || `Family ${student.FamilyID}` });
+    }
+  });
+  elements.parentMessageFamilySelect.innerHTML = families.map((family) => `
+    <option value="${family.familyId}">${escapeHtml(family.familyName)}</option>
+  `).join('') || '<option value="">No linked family</option>';
+
+  elements.parentMessagesTable.innerHTML = state.messagingConversations.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.SchoolName || '-')}</td>
+      <td>${escapeHtml(item.Subject || '-')}<span class="table-subtext">${dateOnly(item.LastMessageDate)}</span></td>
+      <td>${escapeHtml(item.LastMessageBody || '-')}<span class="table-subtext">${escapeHtml(item.LastMessageSenderRole || '')}</span></td>
+    </tr>
+  `).join('') || '<tr><td colspan="3">No messaging conversations found.</td></tr>';
+}
+
 function switchView(viewName) {
   if (!document.getElementById(`${viewName}View`)) {
     viewName = 'overview';
@@ -439,7 +498,7 @@ function switchView(viewName) {
     overview: 'Parent Management Dashboard',
     students: 'My Child',
     account: 'Account',
-    notifications: 'Notifications',
+    notifications: 'Messages',
     admissions: 'Admissions / Re-Enrolment',
     consent: 'Consent'
   };
@@ -527,6 +586,28 @@ document.addEventListener('submit', async (event) => {
 elements.parentDetailsForm.addEventListener('submit', (event) => {
   event.preventDefault();
   showToast('Details submitted for school review');
+});
+
+elements.parentMessageForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+
+  try {
+    setFormBusy(form, true, 'Sending...');
+    await api('/api/messaging/parent/send', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    form.reset();
+    state.messagingConversations = await loadParentMessagingConversations();
+    renderMessaging();
+    showToast('Message sent');
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setFormBusy(form, false);
+  }
 });
 
 elements.attendanceChildSelect.addEventListener('change', async () => {

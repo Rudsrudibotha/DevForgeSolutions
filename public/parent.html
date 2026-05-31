@@ -21,7 +21,7 @@
           <button class="nav-item active" data-view="overview" type="button" aria-current="page">Home</button>
           <button class="nav-item" data-view="students" type="button">My Child</button>
           <button class="nav-item" data-view="account" type="button">Account</button>
-          <button class="nav-item" data-view="notifications" type="button">Notifications</button>
+          <button class="nav-item" data-view="notifications" type="button">Messages</button>
           <button class="nav-item" data-view="admissions" type="button">Admissions</button>
           <button class="nav-item" data-view="consent" type="button">Consent</button>
         </nav>
@@ -66,7 +66,7 @@
                   </button>
                   <button class="module-tile" data-action="open-notifications" type="button">
                     <img class="module-icon-img" src="/assets/icons/icon-parent-notifications.svg" alt="" aria-hidden="true">
-                    <span>Notifications</span>
+                    <span>Messages</span>
                   </button>
                   <button class="module-tile" data-action="open-admissions" type="button">
                     <img class="module-icon-img" src="/assets/icons/icon-parent-admissions-re-enrolment.svg" alt="" aria-hidden="true">
@@ -270,15 +270,56 @@
           </section>
 
           <section id="notificationsView" class="view">
-            <section class="table-panel page-table-panel">
-              <div class="panel-header">
-                <div>
-                  <h3>Notifications</h3>
-                  <p>Messages, statement delivery updates, and school notices linked to this parent account.</p>
+            <div class="icon-page-layout">
+              <form id="parentMessageForm" class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Messages</h3>
+                    <p>Contact your linked school.</p>
+                  </div>
                 </div>
-              </div>
-              <p>No notifications are available yet.</p>
-            </section>
+                <div class="form-grid">
+                  <label>
+                    School
+                    <select id="parentMessageSchoolSelect" name="schoolId"></select>
+                  </label>
+                  <label>
+                    Family
+                    <select id="parentMessageFamilySelect" name="familyId"></select>
+                  </label>
+                  <label class="wide">
+                    Subject
+                    <input name="subject" type="text" maxlength="200">
+                  </label>
+                  <label class="wide">
+                    Message
+                    <textarea name="body" rows="4" maxlength="5000" required></textarea>
+                  </label>
+                </div>
+                <button class="primary-button" type="submit">Send Message</button>
+              </form>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Conversations</h3>
+                    <p>Private school conversations.</p>
+                  </div>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>School</th>
+                        <th>Subject</th>
+                        <th>Last Message</th>
+                      </tr>
+                    </thead>
+                    <tbody id="parentMessagesTable"></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
           </section>
 
           <section id="admissionsView" class="view">
