@@ -36,6 +36,7 @@ const permissionLeaveYearEndRoutes = require('./application/permissionLeaveYearE
 const registrationRoutes = require('./application/registrationRoutes');
 const faultRoutes = require('./application/faultRoutes');
 const emailRoutes = require('./application/emailRoutes');
+const messagingRoutes = require('./application/messagingRoutes');
 const InvoiceService = require('./business/invoiceService');
 
 // Express application instance shared by the server and local tests.
@@ -140,6 +141,7 @@ app.use('/api/hr', permissionLeaveYearEndRoutes);
 app.use('/api/registrations', registrationRoutes);
 app.use('/api/faults', faultRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/messaging', messagingRoutes);
 
 // Health endpoint used by Azure/GitHub deployment checks.
 app.get('/health', (req, res) => {

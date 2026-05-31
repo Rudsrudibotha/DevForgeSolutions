@@ -2,11 +2,13 @@
 
 const express = require('express');
 const SchoolService = require('../business/schoolService');
+const { MessagingPackageService } = require('../business/messagingPackageService');
 const { authenticateToken, requireAdmin, requireSchoolOrAdmin } = require('../middleware/auth');
 const { audit, auditLog } = require('../middleware/audit');
 
 const router = express.Router();
 const schoolService = new SchoolService();
+const messagingPackageService = new MessagingPackageService();
 
 router.get('/', authenticateToken, requireSchoolOrAdmin, async (req, res) => {
   try {
@@ -66,6 +68,15 @@ router.put('/:id', authenticateToken, requireSchoolOrAdmin, async (req, res) => 
       });
     }
     res.status(status).json({ message: error.message });
+  }
+});
+
+router.put('/:id/plan', authenticateToken, requireAdmin, audit('School', 'UpdateSubscriptionPlan'), async (req, res) => {
+  try {
+    const status = await messagingPackageService.setSchoolPlan(parseInt(req.params.id, 10), req.body.subscriptionPlan, req.user);
+    res.json(status);
+  } catch (error) {
+    res.status(error.message.includes('not found') ? 404 : 400).json({ error: error.message });
   }
 });
 

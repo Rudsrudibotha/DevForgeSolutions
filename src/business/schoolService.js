@@ -2,6 +2,7 @@
 // This service owns school tenant validation and access rules.
 
 const SchoolRepository = require('../data/schoolRepository');
+const { normalizeSubscriptionPlan } = require('./messagingPackageService');
 
 class SchoolService {
   constructor() {
@@ -182,6 +183,10 @@ class SchoolService {
       ? existingSchool.SubscriptionStatus || 'Active'
       : this.subscriptionStatus(source.subscriptionStatus ?? existingSchool.SubscriptionStatus ?? 'Active');
     const currency = this.currency(source.currencyCode ?? existingSchool.CurrencyCode ?? 'ZAR');
+    const hasSubmittedPlan = source.subscriptionPlan !== undefined
+      && source.subscriptionPlan !== null
+      && String(source.subscriptionPlan).trim() !== '';
+    const planSource = hasSubmittedPlan ? source.subscriptionPlan : existingSchool.SubscriptionPlan || 'Basic';
 
     return {
       schoolName,
@@ -196,6 +201,7 @@ class SchoolService {
       currencySymbol: currency.symbol,
       defaultMonthlyFee: this.optionalDecimal(source.defaultMonthlyFee ?? existingSchool.DefaultMonthlyFee, 'Default monthly fee'),
       paymentInstructions: this.optionalString(source.paymentInstructions ?? existingSchool.PaymentInstructions, 'Payment instructions', 2000),
+      subscriptionPlan: normalizeSubscriptionPlan(planSource, hasSubmittedPlan ? null : 'Basic'),
       subscriptionStatus
     };
   }

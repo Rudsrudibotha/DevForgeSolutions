@@ -114,6 +114,15 @@
                     </select>
                   </label>
                   <label>
+                    Subscription plan
+                    <select name="subscriptionPlan">
+                      <option value="Basic">Basic</option>
+                      <option value="Standard">Standard</option>
+                      <option value="Pro">Pro</option>
+                      <option value="Premium">Premium</option>
+                    </select>
+                  </label>
+                  <label>
                     Default monthly fee
                     <input name="defaultMonthlyFee" type="number" min="0" step="0.01" value="0">
                   </label>
@@ -162,6 +171,8 @@
                     <tr>
                       <th>School Name</th>
                       <th>Status</th>
+                      <th>Plan</th>
+                      <th>Messaging</th>
                       <th>Users</th>
                       <th>Action</th>
                     </tr>

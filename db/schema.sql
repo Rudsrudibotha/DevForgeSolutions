@@ -16,11 +16,36 @@ BEGIN
         CurrencySymbol NVARCHAR(10) NOT NULL DEFAULT 'R',
         DefaultMonthlyFee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
         PaymentInstructions NVARCHAR(MAX) NULL,
+        SubscriptionPlan NVARCHAR(50) NOT NULL DEFAULT 'Basic',
         SubscriptionStatus NVARCHAR(50) NOT NULL DEFAULT 'Active',
         CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
         UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT CK_Schools_SubscriptionPlan CHECK (SubscriptionPlan IN ('Basic', 'Standard', 'Pro', 'Premium')),
         CONSTRAINT CK_Schools_SubscriptionStatus CHECK (SubscriptionStatus IN ('Active', 'Suspended', 'Cancelled'))
     );
+END;
+
+IF COL_LENGTH('dbo.Schools', 'SubscriptionPlan') IS NULL
+BEGIN
+    ALTER TABLE dbo.Schools ADD SubscriptionPlan NVARCHAR(50) NOT NULL DEFAULT 'Basic';
+END;
+
+IF COL_LENGTH('dbo.Schools', 'SubscriptionPlan') IS NOT NULL
+BEGIN
+    EXEC('UPDATE dbo.Schools
+          SET SubscriptionPlan = ''Basic''
+          WHERE SubscriptionPlan IS NULL
+             OR SubscriptionPlan NOT IN (''Basic'', ''Standard'', ''Pro'', ''Premium'')');
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.check_constraints
+    WHERE name = 'CK_Schools_SubscriptionPlan'
+        AND parent_object_id = OBJECT_ID('dbo.Schools')
+)
+BEGIN
+    EXEC('ALTER TABLE dbo.Schools ADD CONSTRAINT CK_Schools_SubscriptionPlan CHECK (SubscriptionPlan IN (''Basic'', ''Standard'', ''Pro'', ''Premium''))');
 END;
 
 -- School-level toggle: allow staff to view their own payslips

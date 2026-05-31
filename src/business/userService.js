@@ -42,7 +42,8 @@ class UserService {
       contactPerson,
       contactEmail,
       contactPhone,
-      website
+      website,
+      subscriptionPlan
     } = userData;
 
     const normalizedEmail = this.normalizeEmail(email);
@@ -64,7 +65,7 @@ class UserService {
     let schoolId = null;
 
     if (role === 'school') {
-      const schoolData = { schoolName, address, logoUrl, contactPerson, contactEmail, contactPhone, website };
+      const schoolData = { schoolName, address, logoUrl, contactPerson, contactEmail, contactPhone, website, subscriptionPlan };
       const newSchool = await this.schoolService.createSchool(schoolData);
       schoolId = newSchool.SchoolID;
     }

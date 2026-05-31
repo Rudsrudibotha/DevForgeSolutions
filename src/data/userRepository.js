@@ -105,7 +105,7 @@ class UserRepository {
     const pool = await getPool();
     const result = await pool.request()
       .input('userId', sql.Int, userId)
-      .query(`SELECT DISTINCT s.SchoolID, s.SchoolName, s.SubscriptionStatus
+      .query(`SELECT DISTINCT s.SchoolID, s.SchoolName, s.SubscriptionStatus, s.SubscriptionPlan
               FROM ParentLinks pl
               INNER JOIN Schools s ON s.SchoolID = pl.SchoolID
               WHERE pl.UserID = @userId`);

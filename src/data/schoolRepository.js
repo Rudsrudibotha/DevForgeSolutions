@@ -77,12 +77,13 @@ class SchoolRepository {
       .input('currencySymbol', sql.NVarChar, schoolData.currencySymbol)
       .input('defaultMonthlyFee', sql.Decimal(10,2), schoolData.defaultMonthlyFee)
       .input('paymentInstructions', sql.NVarChar(sql.MAX), optionalString(schoolData.paymentInstructions))
+      .input('subscriptionPlan', sql.NVarChar, schoolData.subscriptionPlan || 'Basic')
       .input('subscriptionStatus', sql.NVarChar, schoolData.subscriptionStatus || 'Active')
       .query(`INSERT INTO Schools (SchoolName, Address, LogoUrl, ContactPerson, ContactEmail, ContactPhone, RegistrationNumber, Website,
-              CurrencyCode, CurrencySymbol, DefaultMonthlyFee, PaymentInstructions, SubscriptionStatus)
+              CurrencyCode, CurrencySymbol, DefaultMonthlyFee, PaymentInstructions, SubscriptionPlan, SubscriptionStatus)
               OUTPUT INSERTED.*
               VALUES (@schoolName, @address, @logoUrl, @contactPerson, @contactEmail, @contactPhone, @registrationNumber, @website,
-              @currencyCode, @currencySymbol, @defaultMonthlyFee, @paymentInstructions, @subscriptionStatus)`);
+              @currencyCode, @currencySymbol, @defaultMonthlyFee, @paymentInstructions, @subscriptionPlan, @subscriptionStatus)`);
     return result.recordset[0];
   }
 
@@ -102,12 +103,13 @@ class SchoolRepository {
       .input('currencySymbol', sql.NVarChar, schoolData.currencySymbol)
       .input('defaultMonthlyFee', sql.Decimal(10,2), schoolData.defaultMonthlyFee)
       .input('paymentInstructions', sql.NVarChar(sql.MAX), optionalString(schoolData.paymentInstructions))
+      .input('subscriptionPlan', sql.NVarChar, schoolData.subscriptionPlan)
       .input('subscriptionStatus', sql.NVarChar, schoolData.subscriptionStatus)
       .query(`UPDATE Schools SET SchoolName = @schoolName, Address = @address, ContactEmail = @contactEmail,
               LogoUrl = @logoUrl, ContactPerson = @contactPerson, ContactPhone = @contactPhone,
               RegistrationNumber = @registrationNumber, Website = @website, CurrencyCode = @currencyCode, CurrencySymbol = @currencySymbol,
               DefaultMonthlyFee = @defaultMonthlyFee, PaymentInstructions = @paymentInstructions,
-              SubscriptionStatus = @subscriptionStatus, UpdatedDate = GETDATE()
+              SubscriptionPlan = @subscriptionPlan, SubscriptionStatus = @subscriptionStatus, UpdatedDate = GETDATE()
               OUTPUT INSERTED.*
               WHERE SchoolID = @id`);
     return result.recordset[0];
@@ -146,6 +148,18 @@ class SchoolRepository {
       .input('id', sql.Int, id)
       .query(`UPDATE Schools SET SubscriptionStatus = 'Active', UpdatedDate = GETDATE() WHERE SchoolID = @id`);
     return result.rowsAffected[0] > 0;
+  }
+
+  async updateSubscriptionPlan(id, subscriptionPlan) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .input('subscriptionPlan', sql.NVarChar, subscriptionPlan)
+      .query(`UPDATE Schools
+              SET SubscriptionPlan = @subscriptionPlan, UpdatedDate = GETDATE()
+              OUTPUT INSERTED.*
+              WHERE SchoolID = @id`);
+    return result.recordset[0];
   }
 }
 

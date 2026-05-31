@@ -283,6 +283,7 @@ function filteredSchools() {
     school.SchoolName,
     school.ContactPerson,
     school.ContactEmail,
+    school.SubscriptionPlan,
     school.SubscriptionStatus
   ].some((value) => String(value || '').toLowerCase().includes(search)));
 }
@@ -293,6 +294,8 @@ function renderSchoolsTable() {
   elements.schoolsTable.innerHTML = schools.map((school) => {
     const isActive = (school.SubscriptionStatus || 'Active') === 'Active';
     const statusClass = isActive ? 'badge' : 'badge danger';
+    const plan = school.SubscriptionPlan || 'Basic';
+    const messagingActive = isActive && plan === 'Pro';
 
     return `
       <tr>
@@ -301,6 +304,17 @@ function renderSchoolsTable() {
           <span class="table-subtext">School ID ${school.SchoolID}</span>
         </td>
         <td><span class="${statusClass}">${escapeHtml(school.SubscriptionStatus || 'Active')}</span></td>
+        <td>
+          <select class="thin-input" data-action="school-plan" data-id="${school.SchoolID}">
+            ${['Basic', 'Standard', 'Pro', 'Premium'].map((option) => `
+              <option value="${option}" ${plan === option ? 'selected' : ''}>${option}</option>
+            `).join('')}
+          </select>
+        </td>
+        <td>
+          <span class="${messagingActive ? 'badge' : 'badge muted'}">${messagingActive ? 'Active' : 'Off'}</span>
+          <span class="table-subtext">Pro plan</span>
+        </td>
         <td>${escapeHtml(school.UserCount || '-')}</td>
         <td>
           <div class="actions">
@@ -311,7 +325,7 @@ function renderSchoolsTable() {
         </td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="4">No schools found.</td></tr>';
+  }).join('') || '<tr><td colspan="6">No schools found.</td></tr>';
 }
 
 function filteredUsers() {
@@ -550,6 +564,26 @@ elements.faultReportsTable?.addEventListener('change', async (event) => {
     });
     await refreshData();
     showToast('Fault status updated');
+  } catch (error) {
+    showToast(error.message);
+    await refreshData();
+  }
+});
+
+elements.schoolsTable?.addEventListener('change', async (event) => {
+  const select = event.target.closest('[data-action="school-plan"]');
+
+  if (!select) {
+    return;
+  }
+
+  try {
+    const status = await api(`/api/schools/${select.dataset.id}/plan`, {
+      method: 'PUT',
+      body: JSON.stringify({ subscriptionPlan: select.value })
+    });
+    await refreshData();
+    showToast(status.active ? 'Messaging activated for Pro plan' : 'Messaging package is off for this plan');
   } catch (error) {
     showToast(error.message);
     await refreshData();
