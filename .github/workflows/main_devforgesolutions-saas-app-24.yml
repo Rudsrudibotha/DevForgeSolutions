@@ -46,8 +46,27 @@ jobs:
             --resource-group devforge-saas-rg \
             --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false
 
+      - name: Create deployment package
+        run: |
+          rm -f release.zip
+          zip -r release.zip . \
+            -x "release.zip" \
+            -x ".git/*" \
+            -x ".github/*" \
+            -x ".env" \
+            -x "*.log" \
+            -x "azure-logs/*" \
+            -x "backup/*" \
+            -x "test-results/*" \
+            -x ".venv/*" \
+            -x ".vscode/*"
+
       - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: devforgesolutions-saas-app-24
-          package: .
+        run: |
+          az webapp deploy \
+            --name devforgesolutions-saas-app-24 \
+            --resource-group devforge-saas-rg \
+            --src-path release.zip \
+            --type zip \
+            --clean false \
+            --restart true
