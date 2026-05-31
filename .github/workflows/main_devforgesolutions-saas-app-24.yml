@@ -62,16 +62,10 @@ jobs:
             -x ".vscode/*"
 
       - name: Deploy to Azure Web App
-        run: |
-          az webapp deploy \
-            --name devforgesolutions-saas-app-24 \
-            --resource-group devforge-saas-rg \
-            --src-path release.zip \
-            --type zip \
-            --clean false \
-            --restart true \
-            --track-status false \
-            --timeout 600000
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: devforgesolutions-saas-app-24
+          package: release.zip
 
       - name: Verify Azure health
         run: |
