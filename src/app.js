@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 require('dotenv').config();
 
+// Core data and route modules used by the API.
 const { connectDB, getDbState } = require('./data/db');
 const userRoutes = require('./application/userRoutes');
 const schoolRoutes = require('./application/schoolRoutes');
@@ -36,11 +37,14 @@ const registrationRoutes = require('./application/registrationRoutes');
 const faultRoutes = require('./application/faultRoutes');
 const InvoiceService = require('./business/invoiceService');
 
+// Express application instance shared by the server and local tests.
 const app = express();
 
+// Hide Express from response headers and let Azure/proxies provide the client IP.
 app.disable('x-powered-by');
 app.set('trust proxy', Number(process.env.TRUST_PROXY || 0));
 
+// Security headers: CSP blocks unknown scripts/frames, Helmet adds safe defaults.
 app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
@@ -63,6 +67,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
   : ['http://localhost:3000', 'http://localhost:3001'];
 
+// CORS only permits the configured frontend origins to call the API.
 app.use(cors({
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -103,9 +108,11 @@ app.use('/api/', apiLimiter);
 app.use('/api/users/login', authLimiter);
 app.use('/api/users/register', authLimiter);
 
+// JSON body parsing for API calls and static file serving for the browser app.
 app.use(express.json({ limit: '3mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public'), { index: false }));
 
+// API route map. Each module owns the business endpoints for that feature area.
 app.use('/api/users', userRoutes);
 app.use('/api/schools', schoolRoutes);
 app.use('/api/invoices', invoiceRoutes);
@@ -132,6 +139,7 @@ app.use('/api/hr', permissionLeaveYearEndRoutes);
 app.use('/api/registrations', registrationRoutes);
 app.use('/api/faults', faultRoutes);
 
+// Health endpoint used by Azure/GitHub deployment checks.
 app.get('/health', (req, res) => {
   const database = getDbState();
   const isProduction = process.env.NODE_ENV === 'production';
@@ -146,6 +154,7 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Public marketing/login/register pages.
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'home.html'));
 });
@@ -174,6 +183,8 @@ app.get('/parent-register', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'register.html'));
 });
 
+// OAuth dependencies are loaded after the basic public routes to keep the file
+// readable: the next block handles AAD admin login and parent/school OAuth.
 const UserService = require('./business/userService');
 const {
   createOAuthState,
@@ -189,6 +200,7 @@ const userServiceInstance = new UserService();
 
 const MICROSOFT_CONSUMER_TENANT = 'consumers';
 
+// Prefer BASE_URL in production so OAuth redirect URIs stay stable behind Azure.
 function publicBaseUrl(req) {
   const configuredBaseUrl = String(process.env.BASE_URL || '').trim().replace(/\/+$/, '');
 
@@ -199,10 +211,12 @@ function publicBaseUrl(req) {
   return `${req.protocol}://${req.get('host')}`;
 }
 
+// OAuth providers must receive the exact callback URL configured in their portal.
 function redirectUri(req, envName, callbackPath) {
   return process.env[envName] || `${publicBaseUrl(req)}${callbackPath}`;
 }
 
+// Build provider authorization URLs without manually concatenating query strings.
 function buildAuthorizeUrl(baseUrl, params) {
   const url = new URL(baseUrl);
 
@@ -215,16 +229,19 @@ function buildAuthorizeUrl(baseUrl, params) {
   return url.toString();
 }
 
+// Parent and school share OAuth routes, so normalize unknown values to parent.
 function normalizePortalType(value, fallback = 'parent') {
   const type = String(value || '').trim().toLowerCase();
 
   return ['school', 'parent'].includes(type) ? type : fallback;
 }
 
+// After OAuth succeeds, send users to the correct dashboard shell.
 function oauthRedirectForType(type) {
   return type === 'school' ? '/sms' : '/parent';
 }
 
+// OAuth state proves the callback belongs to a sign-in that this app started.
 function readRequiredOAuthState(req, res) {
   try {
     return readOAuthState(req.query.state);
@@ -244,6 +261,7 @@ app.get('/auth/azure', (req, res) => {
     return res.status(500).send('Azure AD not configured');
   }
 
+  // AAD is locked to admin/devforge login only; parent/school use other routes.
   const state = createOAuthState({ type: 'admin', provider: 'azure' });
   const authorizeUrl = buildAuthorizeUrl(`https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/authorize`, {
     client_id: clientId,
@@ -278,6 +296,7 @@ app.get('/auth/azure/callback', async (req, res) => {
       return res.status(400).send('Missing Azure AD configuration or code');
     }
 
+    // Exchange the temporary code from Microsoft for an ID token.
     const tokenJson = await postForm(`https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/token`, {
       client_id: clientId,
       scope: 'openid profile email',
@@ -291,7 +310,10 @@ app.get('/auth/azure/callback', async (req, res) => {
       return res.status(500).send('No id_token returned');
     }
 
+    // Verify token signature, tenant, audience, and issuer before trusting it.
     const claims = await verifyMicrosoftIdToken(idToken, clientId, tenant);
+
+    // Entra guest accounts can put the email in different claim fields.
     const emailCandidates = [
       claims.email,
       claims.preferred_username,
@@ -305,6 +327,7 @@ app.get('/auth/azure/callback', async (req, res) => {
       return res.status(400).send('No email claim in id_token');
     }
 
+    // Only explicitly allowed admin emails can enter the DevForge dashboard.
     if (!isAadAdminEmailAllowed(email)) {
       console.warn('[AAD] Unauthorized admin login attempt', {
         selectedEmail: email,
@@ -319,6 +342,7 @@ app.get('/auth/azure/callback', async (req, res) => {
       return res.status(403).send('User not authorized for Admin dashboard login');
     }
 
+    // Allowed AAD admins are provisioned automatically if the user row is absent.
     const userRecord = await userServiceInstance.findOrCreateOAuthUser(
       'azure',
       email,
@@ -351,6 +375,7 @@ app.get('/auth/microsoft', (req, res) => {
     return res.status(400).send('School ID is required for school login');
   }
 
+  // The signed state carries whether this is a parent or school login.
   const state = createOAuthState({ type, schoolId, provider: 'microsoft' });
   const authorizeUrl = buildAuthorizeUrl(`https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/authorize`, {
     client_id: clientId,
@@ -390,6 +415,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
       return res.status(400).send('Missing Microsoft auth config');
     }
 
+    // Microsoft consumer login uses the "consumers" tenant, not the AAD admin tenant.
     const tokenJson = await postForm(`https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/token`, {
       client_id: clientId,
       scope: 'openid profile email',
@@ -410,6 +436,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
       return res.status(400).send('No email claim');
     }
 
+    // Parent/school OAuth users are matched or created by role and school context.
     const userRecord = await userServiceInstance.findOrCreateOAuthUser('microsoft', email, type, schoolId);
     const authResponse = await userServiceInstance.buildAuthResponse(userRecord);
 
@@ -435,6 +462,7 @@ app.get('/auth/google', (req, res) => {
     return res.status(400).send('School ID is required for school login');
   }
 
+  // Google receives signed state so callbacks cannot switch portal type.
   const state = createOAuthState({ type, schoolId, provider: 'google' });
   const authorizeUrl = buildAuthorizeUrl('https://accounts.google.com/o/oauth2/v2/auth', {
     client_id: clientId,
@@ -473,6 +501,7 @@ app.get('/auth/google/callback', async (req, res) => {
       return res.status(400).send('Missing Google auth config');
     }
 
+    // Exchange Google's code and verify the returned ID token before login.
     const tokenJson = await postForm('https://oauth2.googleapis.com/token', {
       code,
       client_id: clientId,
@@ -492,6 +521,7 @@ app.get('/auth/google/callback', async (req, res) => {
       return res.status(400).send('No email claim');
     }
 
+    // Parent/school Google users follow the same app-user flow as Microsoft.
     const userRecord = await userServiceInstance.findOrCreateOAuthUser('google', email, type, schoolId);
     const authResponse = await userServiceInstance.buildAuthResponse(userRecord);
 
@@ -502,6 +532,7 @@ app.get('/auth/google/callback', async (req, res) => {
   }
 });
 
+// Dashboard shells. The frontend JavaScript checks tokens before loading data.
 app.get('/sms', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
@@ -525,6 +556,7 @@ app.get('/parent', (req, res) => {
 // Monthly invoices run only for the first-day billing cycle.
 const MAX_SCHEDULER_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 
+// Work out the next first-of-month billing time.
 function nextMonthlyInvoiceRun(from = new Date(), skipCurrentMonth = false) {
   const candidate = new Date(from.getFullYear(), from.getMonth(), 1, 0, 5, 0, 0);
   if (skipCurrentMonth || from >= candidate) {
@@ -534,6 +566,7 @@ function nextMonthlyInvoiceRun(from = new Date(), skipCurrentMonth = false) {
   return candidate;
 }
 
+// Generates recurring monthly invoices when schedulers are enabled.
 function startMonthlyInvoiceScheduler() {
   const invoiceService = new InvoiceService();
   const runGeneration = async () => {
@@ -593,6 +626,7 @@ function startOverdueScheduler() {
   }, interval);
 }
 
+// Backoff delay for database startup retries.
 function databaseRetryDelayMs(attempt) {
   const configuredDelay = positiveIntegerEnv('DB_CONNECT_RETRY_MS', 0);
   if (configuredDelay > 0) {
@@ -602,6 +636,7 @@ function databaseRetryDelayMs(attempt) {
   return Math.min(30000, 1000 * (2 ** Math.min(attempt - 1, 5)));
 }
 
+// Keep trying to connect to the database so Azure cold starts are more resilient.
 function startDatabaseConnectionLoop({ skipDatabase }) {
   let attempt = 0;
   const maxAttempts = skipDatabase ? 1 : nonNegativeIntegerEnv('DB_CONNECT_MAX_ATTEMPTS', 0);
@@ -634,6 +669,7 @@ function startDatabaseConnectionLoop({ skipDatabase }) {
   tryConnect();
 }
 
+// Application startup: bind a port, connect DB, and optionally start schedulers.
 async function start() {
   const basePort = Number(process.env.PORT) || 3000;
   const schedulersEnabled = process.env.ENABLE_SCHEDULERS === 'true';
@@ -668,8 +704,10 @@ async function start() {
   await launchServer(basePort);
 }
 
+// Only start the HTTP server when this file is run directly.
 if (require.main === module) {
   start();
 }
 
+// Export app/start for local smoke tests without binding a fixed port.
 module.exports = { app, start, nextMonthlyInvoiceRun };
