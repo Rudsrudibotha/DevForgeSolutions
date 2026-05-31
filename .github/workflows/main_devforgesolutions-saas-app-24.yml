@@ -69,4 +69,22 @@ jobs:
             --src-path release.zip \
             --type zip \
             --clean false \
-            --restart true
+            --restart true \
+            --track-status false \
+            --timeout 600000
+
+      - name: Verify Azure health
+        run: |
+          for attempt in {1..30}; do
+            status=$(curl -sS -o /tmp/health.json -w "%{http_code}" https://devforgesolutions-saas-app-24.azurewebsites.net/health || true)
+            if [ "$status" = "200" ]; then
+              cat /tmp/health.json
+              exit 0
+            fi
+
+            echo "Health check attempt ${attempt} returned ${status}; waiting..."
+            sleep 10
+          done
+
+          cat /tmp/health.json || true
+          exit 1
