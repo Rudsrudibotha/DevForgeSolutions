@@ -116,7 +116,7 @@ AAD / Microsoft Entra ID (Admin dashboard sign-in):
 - `AZURE_AD_CLIENT_ID`
 - `AZURE_AD_CLIENT_SECRET`
 - `AZURE_AD_REDIRECT_URI` (optional; defaults to `${BASE_URL}/auth/azure/callback`)
-- `AZURE_AD_ADMIN_EMAILS` (defaults to `rudi@devforgesolutions.com,tristan@devforgesolutions.com,calvin@devforgesolutions.com,ruds.botha@gmqail.com`)
+- `AZURE_AD_ADMIN_EMAILS` (defaults to `rudi@devforgesolutions.com,tristan@devforgesolutions.com,calvin@devforgesolutions.com,ruds.botha@gmqail.com,rudsrudibotha@gmail.com`)
 
 Redirect URIs to register in provider consoles
 
