@@ -225,6 +225,15 @@ function oauthRedirectForType(type) {
   return type === 'school' ? '/sms' : '/parent';
 }
 
+function readRequiredOAuthState(req, res) {
+  try {
+    return readOAuthState(req.query.state);
+  } catch (err) {
+    res.status(400).send('Invalid or expired OAuth state');
+    return null;
+  }
+}
+
 // Azure AD sign-in route for the Admin dashboard only.
 app.get('/auth/azure', (req, res) => {
   const tenant = process.env.AZURE_AD_TENANT_ID;
@@ -255,9 +264,17 @@ app.get('/auth/azure/callback', async (req, res) => {
     const clientId = process.env.AZURE_AD_CLIENT_ID;
     const clientSecret = process.env.AZURE_AD_CLIENT_SECRET;
     const callbackUri = redirectUri(req, 'AZURE_AD_REDIRECT_URI', '/auth/azure/callback');
-    const state = readOAuthState(req.query.state);
 
-    if (!code || !tenant || !clientId || !clientSecret || state.type !== 'admin') {
+    if (!code) {
+      return res.status(400).send('Missing Azure AD code');
+    }
+
+    const state = readRequiredOAuthState(req, res);
+    if (!state) {
+      return undefined;
+    }
+
+    if (!tenant || !clientId || !clientSecret || state.type !== 'admin') {
       return res.status(400).send('Missing Azure AD configuration or code');
     }
 
@@ -351,7 +368,16 @@ app.get('/auth/microsoft', (req, res) => {
 app.get('/auth/microsoft/callback', async (req, res) => {
   try {
     const code = req.query.code;
-    const state = readOAuthState(req.query.state);
+
+    if (!code) {
+      return res.status(400).send('Missing Microsoft auth code');
+    }
+
+    const state = readRequiredOAuthState(req, res);
+    if (!state) {
+      return undefined;
+    }
+
     const type = normalizePortalType(state.type);
     const schoolId = state.schoolId || null;
 
@@ -360,7 +386,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
     const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
     const callbackUri = redirectUri(req, 'MICROSOFT_REDIRECT_URI', '/auth/microsoft/callback');
 
-    if (!code || !clientId || !clientSecret || state.provider !== 'microsoft') {
+    if (!clientId || !clientSecret || state.provider !== 'microsoft') {
       return res.status(400).send('Missing Microsoft auth config');
     }
 
@@ -426,7 +452,16 @@ app.get('/auth/google', (req, res) => {
 app.get('/auth/google/callback', async (req, res) => {
   try {
     const code = req.query.code;
-    const state = readOAuthState(req.query.state);
+
+    if (!code) {
+      return res.status(400).send('Missing Google auth code');
+    }
+
+    const state = readRequiredOAuthState(req, res);
+    if (!state) {
+      return undefined;
+    }
+
     const type = normalizePortalType(state.type);
     const schoolId = state.schoolId || null;
 
@@ -434,7 +469,7 @@ app.get('/auth/google/callback', async (req, res) => {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     const callbackUri = redirectUri(req, 'GOOGLE_REDIRECT_URI', '/auth/google/callback');
 
-    if (!code || !clientId || !clientSecret || state.provider !== 'google') {
+    if (!clientId || !clientSecret || state.provider !== 'google') {
       return res.status(400).send('Missing Google auth config');
     }
 
