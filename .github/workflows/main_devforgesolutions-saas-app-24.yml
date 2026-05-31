@@ -43,8 +43,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: devforgesolutions-saas-app-24
-          resource-group-name: devforge-saas-rg
           package: .
-          startup-command: npm start
-          clean: false
-          restart: true
