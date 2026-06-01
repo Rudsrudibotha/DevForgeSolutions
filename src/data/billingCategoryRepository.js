@@ -23,8 +23,8 @@ class BillingCategoryRepository {
     const result = await pool.request()
       .input('schoolId', sql.Int, schoolId)
       .query(`SELECT * FROM BillingCategories
-              WHERE SchoolID = @schoolId AND IsActive = 1
-              ORDER BY CategoryName`);
+              WHERE SchoolID = @schoolId
+              ORDER BY IsActive DESC, CategoryName`);
     return result.recordset;
   }
 
@@ -71,8 +71,7 @@ class BillingCategoryRepository {
       .query(`SELECT bc.*, s.SchoolName
               FROM BillingCategories bc
               INNER JOIN Schools s ON bc.SchoolID = s.SchoolID
-              WHERE bc.IsActive = 1
-              ORDER BY s.SchoolName, bc.CategoryName`);
+              ORDER BY s.SchoolName, bc.IsActive DESC, bc.CategoryName`);
     return result.recordset;
   }
 }

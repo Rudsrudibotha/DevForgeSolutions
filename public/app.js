@@ -4070,7 +4070,9 @@ function renderBillingCategories() {
         <td>
           <div class="actions">
             <button class="ghost-button" data-action="edit-billing-category" data-id="${category.BillingCategoryID}" type="button">Edit</button>
-            <button class="danger-button" data-action="deactivate-billing-category" data-id="${category.BillingCategoryID}" type="button">Deactivate</button>
+            ${isActive
+              ? `<button class="danger-button" data-action="deactivate-billing-category" data-id="${category.BillingCategoryID}" type="button">Deactivate</button>`
+              : '<span class="table-subtext">Already inactive</span>'}
           </div>
         </td>
       </tr>
@@ -8854,8 +8856,16 @@ document.addEventListener('click', async (event) => {
     }
 
     if (action === 'deactivate-billing-category') {
-      await api(`/api/billing-categories/${id}`, { method: 'DELETE' });
-      await refreshData();
+      const updatedCategory = await api(`/api/billing-categories/${id}`, { method: 'DELETE' });
+      const categoryId = Number(id);
+      state.billingCategories = state.billingCategories.map((category) => (
+        Number(category.BillingCategoryID) === categoryId
+          ? { ...category, ...updatedCategory, IsActive: false }
+          : category
+      ));
+      renderBillingCategories();
+      renderBillingCategoryOptions();
+      refreshData({ viewName: 'billingCategories' }).catch(() => {});
       showToast('Billing category deactivated');
       return;
     }
