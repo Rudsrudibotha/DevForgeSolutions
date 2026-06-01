@@ -2,7 +2,8 @@ const DEFAULT_AAD_ADMIN_EMAILS = [
   'rudi@devforgesolutions.com',
   'tristan@devforgesolutions.com',
   'calvin@devforgesolutions.com',
-  'rudsrudibotha@gmail.com'
+  'rudsrudibotha@gmail.com',
+  'ruds.botha.96@rudsbotha96gmail.onmicrosoft.com'
 ];
 
 const APPROVED_AAD_ADMIN_EMAILS = new Set(DEFAULT_AAD_ADMIN_EMAILS.map(normalizeEmail));
