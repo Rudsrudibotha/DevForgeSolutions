@@ -106,6 +106,36 @@ BEGIN
     ALTER TABLE dbo.Schools ADD PaymentInstructions NVARCHAR(MAX) NULL;
 END;
 
+IF COL_LENGTH('dbo.Schools', 'BankName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Schools ADD BankName NVARCHAR(255) NULL;
+END;
+
+IF COL_LENGTH('dbo.Schools', 'BankAccountNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Schools ADD BankAccountNumber NVARCHAR(100) NULL;
+END;
+
+IF COL_LENGTH('dbo.Schools', 'BankBranchCode') IS NULL
+BEGIN
+    ALTER TABLE dbo.Schools ADD BankBranchCode NVARCHAR(50) NULL;
+END;
+
+IF COL_LENGTH('dbo.Schools', 'BankAccountType') IS NULL
+BEGIN
+    ALTER TABLE dbo.Schools ADD BankAccountType NVARCHAR(100) NULL;
+END;
+
+IF COL_LENGTH('dbo.Schools', 'FinancialYearStartDate') IS NULL
+BEGIN
+    ALTER TABLE dbo.Schools ADD FinancialYearStartDate DATE NULL;
+END;
+
+IF COL_LENGTH('dbo.Schools', 'FinancialYearEndDate') IS NULL
+BEGIN
+    ALTER TABLE dbo.Schools ADD FinancialYearEndDate DATE NULL;
+END;
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Schools_SchoolName' AND object_id = OBJECT_ID('dbo.Schools'))
     AND NOT EXISTS (
         SELECT 1
@@ -303,6 +333,11 @@ END;
 IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_BillingCategories_Frequency')
 BEGIN
     ALTER TABLE dbo.BillingCategories DROP CONSTRAINT CK_BillingCategories_Frequency;
+END;
+
+IF COL_LENGTH('dbo.BillingCategories', 'BillingYear') IS NULL
+BEGIN
+    ALTER TABLE dbo.BillingCategories ADD BillingYear INT NOT NULL CONSTRAINT DF_BillingCategories_BillingYear DEFAULT (YEAR(GETDATE())) WITH VALUES;
 END;
 
 IF COL_LENGTH('dbo.Invoices', 'BillingCategoryID') IS NOT NULL

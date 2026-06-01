@@ -218,8 +218,9 @@ class InvoiceService {
 
         const shouldGenerate = this.billingCategoryService.shouldGenerateInvoice({
           Frequency: category.Frequency,
-          BaseAmount: category.BaseAmount
-        });
+          BaseAmount: category.BaseAmount,
+          BillingYear: category.BillingYear
+        }, null, monthStart);
 
         if (!shouldGenerate) {
           continue;
@@ -259,16 +260,12 @@ class InvoiceService {
   }
 
   billingCategoryAppliesToInvoiceMonth(category, monthStart) {
-    if (!category.CreatedDate) {
-      return true;
+    const billingYear = Number(category.BillingYear || monthStart.getFullYear());
+    if (Number.isInteger(billingYear) && billingYear !== monthStart.getFullYear()) {
+      return false;
     }
 
-    const assignedDate = new Date(category.CreatedDate);
-    if (Number.isNaN(assignedDate.getTime())) {
-      return true;
-    }
-
-    return assignedDate < monthStart;
+    return monthStart.getMonth() + 1 <= this.billingCategoryService.termEndMonth(category.Frequency || '12 months');
   }
 
   dueDateForBillingMonth(billingDate, year, month) {
@@ -323,6 +320,7 @@ class InvoiceService {
         CategoryName: student.CategoryName,
         BaseAmount: student.CategoryAmount,
         Frequency: student.CategoryFrequency,
+        BillingYear: student.CategoryBillingYear,
         IsActive: student.CategoryIsActive
       }];
     }

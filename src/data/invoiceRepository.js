@@ -48,9 +48,10 @@ class InvoiceRepository {
     req.input('offset', sql.Int, offset);
 
     const result = await req.query(`
-      SELECT i.*, s.FirstName, s.LastName, s.ClassName, bc.CategoryName
+      SELECT i.*, s.FirstName, s.LastName, s.ClassName, s.FamilyID, f.FamilyName, bc.CategoryName
       FROM Invoices i
       LEFT JOIN Students s ON i.StudentID = s.StudentID
+      LEFT JOIN Families f ON s.FamilyID = f.FamilyID AND f.SchoolID = i.SchoolID
       LEFT JOIN BillingCategories bc ON i.BillingCategoryID = bc.BillingCategoryID
       ${where}
       ORDER BY i.IssueDate DESC, i.InvoiceID DESC
@@ -64,9 +65,10 @@ class InvoiceRepository {
     const result = await pool.request()
       .input('id', sql.Int, id)
       .query(`
-        SELECT i.*, s.FirstName, s.LastName, s.ClassName, bc.CategoryName
+        SELECT i.*, s.FirstName, s.LastName, s.ClassName, s.FamilyID, f.FamilyName, bc.CategoryName
         FROM Invoices i
         LEFT JOIN Students s ON i.StudentID = s.StudentID
+        LEFT JOIN Families f ON s.FamilyID = f.FamilyID AND f.SchoolID = i.SchoolID
         LEFT JOIN BillingCategories bc ON i.BillingCategoryID = bc.BillingCategoryID
         WHERE i.InvoiceID = @id AND i.IsDeleted = 0
       `);
@@ -110,9 +112,10 @@ class InvoiceRepository {
     req.input('offset', sql.Int, offset);
 
     const result = await req.query(`
-      SELECT i.*, s.FirstName, s.LastName, s.ClassName, bc.CategoryName
+      SELECT i.*, s.FirstName, s.LastName, s.ClassName, s.FamilyID, f.FamilyName, bc.CategoryName
       FROM Invoices i
       LEFT JOIN Students s ON i.StudentID = s.StudentID
+      LEFT JOIN Families f ON s.FamilyID = f.FamilyID AND f.SchoolID = i.SchoolID
       LEFT JOIN BillingCategories bc ON i.BillingCategoryID = bc.BillingCategoryID
       ${where}
       ORDER BY i.IssueDate DESC, i.InvoiceID DESC

@@ -22,7 +22,7 @@
           <button class="nav-item" data-view="school" type="button">School Management</button>
           <button class="nav-item" data-view="finance" type="button">Financial Management</button>
           <button class="nav-item" data-view="reporting" type="button">Reporting</button>
-          <button class="nav-item" data-view="settings" type="button">Settings</button>
+          <button class="nav-item" data-view="settings" data-permission="school.staff.permissions.manage|hr.view_payslips|hr.manage_payslips|finance.audit.view|finance.year_end_close|finance.year_end_reopen" type="button">Settings</button>
         </nav>
 
         <div class="session-box">
@@ -86,7 +86,6 @@
                 <button class="module-tile" data-action="open-attendance" data-permission="attendance.view_all|attendance.edit_all|attendance.view_assigned|attendance.submit_assigned" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-attendance.svg" alt="" aria-hidden="true"><span>Attendance</span></button>
                 <button class="module-tile" data-action="open-reenrolment" data-permission="school.year_rollover.preview|school.year_rollover.apply" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-re-enrolment-year-rollover.svg" alt="" aria-hidden="true"><span>Re-Enrolment / Year Rollover</span></button>
                 <button class="module-tile" data-action="open-consent-permissions" data-permission="school.consent.view|school.consent.manage" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-consent-permissions.svg" alt="" aria-hidden="true"><span>Consent and Permissions</span></button>
-                <button class="module-tile" data-action="open-register-learner" data-permission="school.students.manage|admissions.convert_to_student" type="button"><img class="module-icon-img" src="/assets/icons/icon-school-students.svg" alt="" aria-hidden="true"><span>Register Learner</span></button>
               </div>
             </section>
           </section>
@@ -99,7 +98,6 @@
               <div class="module-grid feature-grid">
                 <button class="module-tile" data-action="open-bank" data-permission="finance.bank_reconciliation.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-bank-reconciliation.svg" alt="" aria-hidden="true"><span>Bank Reconciliation</span></button>
                 <button class="module-tile" data-action="open-outstanding" data-permission="finance.outstanding_fees.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-outstanding-fees.svg" alt="" aria-hidden="true"><span>Outstanding Fees</span></button>
-                <button class="module-tile" data-action="open-bank-transactions" data-permission="finance.payments.view|finance.bank_reconciliation.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-bank-transactions.svg" alt="" aria-hidden="true"><span>Bank Transactions</span></button>
                 <button class="module-tile" data-action="open-bank-statements" data-permission="finance.bank_reconciliation.view" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-bank-statements.svg" alt="" aria-hidden="true"><span>Bank Statements</span></button>
                 <button class="module-tile" data-action="open-invoices" data-permission="finance.invoices.view|finance.invoices.create|finance.invoices.edit" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-invoices.svg" alt="" aria-hidden="true"><span>Invoices</span></button>
                 <button class="module-tile" data-action="open-billing-categories" data-permission="finance.billing_categories.manage" type="button"><img class="module-icon-img" src="/assets/icons/icon-finance-billing-categories.svg" alt="" aria-hidden="true"><span>Billing Categories</span></button>
@@ -1052,7 +1050,7 @@
                   </label>
                 </div>
                 <div class="form-grid section-spacer"><label>Year <input id="outstandingFeesYear" type="number" min="2020" max="2030" value="2026"></label></div>
-                <button class="secondary-button compact-button" data-action="export-outstanding-fees" data-permission="reports.finance.export" type="button">Export Outstanding Fees Excel</button>
+                <button class="secondary-button compact-button" data-action="export-outstanding-fees" data-permission="reports.finance.export" type="button">Export</button>
               </section>
               <section class="table-panel summary-panel">
                 <div class="panel-header">
@@ -1251,15 +1249,18 @@
                   <input name="baseAmount" type="number" min="0" step="0.01" required>
                 </label>
                 <label>
-                  Billing frequency or term
-                  <input name="frequency" type="text" list="billingTermOptions" placeholder="10 months" required>
-                  <datalist id="billingTermOptions">
-                    <option value="3 months"></option>
-                    <option value="6 months"></option>
-                    <option value="10 months"></option>
-                    <option value="12 months"></option>
-                    <option value="Monthly"></option>
-                  </datalist>
+                  Billing year
+                  <input name="billingYear" type="number" min="2000" max="2100" value="2026" required>
+                </label>
+                <label>
+                  Billing term
+                  <select name="frequency" required>
+                    <option value="3 months">3 months (Jan-Mar)</option>
+                    <option value="6 months">6 months (Jan-Jun)</option>
+                    <option value="10 months" selected>10 months (Jan-Oct)</option>
+                    <option value="11 months">11 months (Jan-Nov)</option>
+                    <option value="12 months">12 months (Jan-Dec)</option>
+                  </select>
                 </label>
                 <label>
                   Description
@@ -1285,6 +1286,7 @@
                     <tr>
                       <th>Category</th>
                       <th>Amount</th>
+                      <th>Year</th>
                       <th>Term</th>
                       <th>Status</th>
                       <th>Actions</th>
@@ -1919,6 +1921,30 @@
                         Registration number
                         <input name="registrationNumber" type="text">
                       </label>
+                      <label>
+                        Bank name
+                        <input name="bankName" type="text" autocomplete="off">
+                      </label>
+                      <label>
+                        Bank account number
+                        <input name="bankAccountNumber" type="text" autocomplete="off">
+                      </label>
+                      <label>
+                        Branch code
+                        <input name="bankBranchCode" type="text" autocomplete="off">
+                      </label>
+                      <label>
+                        Account type
+                        <input name="bankAccountType" type="text" placeholder="Cheque / Savings">
+                      </label>
+                      <label>
+                        Financial year start
+                        <input name="financialYearStartDate" type="date">
+                      </label>
+                      <label>
+                        Financial year end
+                        <input name="financialYearEndDate" type="date">
+                      </label>
                       <label class="wide">
                         Website
                         <input name="website" type="url" inputmode="url" autocomplete="url" placeholder="https://example.com">
@@ -2033,6 +2059,12 @@
                     <div class="settings-page-header">
                       <h3>Audit Activity</h3>
                       <p>Recent account and finance changes for this school.</p>
+                    </div>
+                    <div class="table-wrap">
+                      <table>
+                        <thead><tr><th>Date</th><th>Area</th><th>Action</th><th>Worked by</th></tr></thead>
+                        <tbody id="settingsAuditLogsTable"></tbody>
+                      </table>
                     </div>
                   </section>
                 </section>

@@ -196,6 +196,12 @@ class SchoolService {
       contactEmail: this.optionalString(source.contactEmail ?? existingSchool.ContactEmail, 'Contact email', 255),
       contactPhone: this.optionalString(source.contactPhone ?? existingSchool.ContactPhone, 'Contact phone', 50),
       registrationNumber: this.optionalString(source.registrationNumber ?? existingSchool.RegistrationNumber, 'Registration number', 100),
+      bankName: this.optionalString(source.bankName ?? existingSchool.BankName, 'Bank name', 255),
+      bankAccountNumber: this.optionalString(source.bankAccountNumber ?? existingSchool.BankAccountNumber, 'Bank account number', 100),
+      bankBranchCode: this.optionalString(source.bankBranchCode ?? existingSchool.BankBranchCode, 'Branch code', 50),
+      bankAccountType: this.optionalString(source.bankAccountType ?? existingSchool.BankAccountType, 'Account type', 100),
+      financialYearStartDate: this.optionalDate(source.financialYearStartDate ?? existingSchool.FinancialYearStartDate, 'Financial year start'),
+      financialYearEndDate: this.optionalDate(source.financialYearEndDate ?? existingSchool.FinancialYearEndDate, 'Financial year end'),
       website: this.optionalString(source.website ?? existingSchool.Website, 'Website', 255),
       currencyCode: currency.code,
       currencySymbol: currency.symbol,
@@ -242,6 +248,23 @@ class SchoolService {
     }
 
     return Number(parsed.toFixed(2));
+  }
+
+  optionalDate(value, label) {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error(`${label} must be a valid date`);
+    }
+
+    if (value instanceof Date) {
+      return parsed.toISOString().slice(0, 10);
+    }
+
+    return String(value).slice(0, 10);
   }
 
   subscriptionStatus(value) {

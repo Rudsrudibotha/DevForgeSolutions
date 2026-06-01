@@ -11,8 +11,45 @@ function optionalString(value) {
   return trimmed || null;
 }
 
+function optionalDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : value;
+}
+
 class SchoolRepository {
+  constructor() {
+    this.schoolFinanceColumnsEnsured = false;
+  }
+
+  async ensureSchoolFinanceColumns() {
+    if (this.schoolFinanceColumnsEnsured) {
+      return;
+    }
+
+    const pool = await getPool();
+    await pool.request().query(`
+      IF COL_LENGTH('dbo.Schools', 'BankName') IS NULL
+        ALTER TABLE dbo.Schools ADD BankName NVARCHAR(255) NULL;
+      IF COL_LENGTH('dbo.Schools', 'BankAccountNumber') IS NULL
+        ALTER TABLE dbo.Schools ADD BankAccountNumber NVARCHAR(100) NULL;
+      IF COL_LENGTH('dbo.Schools', 'BankBranchCode') IS NULL
+        ALTER TABLE dbo.Schools ADD BankBranchCode NVARCHAR(50) NULL;
+      IF COL_LENGTH('dbo.Schools', 'BankAccountType') IS NULL
+        ALTER TABLE dbo.Schools ADD BankAccountType NVARCHAR(100) NULL;
+      IF COL_LENGTH('dbo.Schools', 'FinancialYearStartDate') IS NULL
+        ALTER TABLE dbo.Schools ADD FinancialYearStartDate DATE NULL;
+      IF COL_LENGTH('dbo.Schools', 'FinancialYearEndDate') IS NULL
+        ALTER TABLE dbo.Schools ADD FinancialYearEndDate DATE NULL;
+    `);
+    this.schoolFinanceColumnsEnsured = true;
+  }
+
   async getAllSchools() {
+    await this.ensureSchoolFinanceColumns();
     const pool = await getPool();
     const result = await pool.request().query(`SELECT s.*,
               (SELECT COUNT(1) FROM Users u WHERE u.SchoolID = s.SchoolID) AS UserCount,
@@ -35,6 +72,7 @@ class SchoolRepository {
   }
 
   async getSchoolById(id) {
+    await this.ensureSchoolFinanceColumns();
     const pool = await getPool();
     const result = await pool.request()
       .input('id', sql.Int, id)
@@ -79,6 +117,7 @@ class SchoolRepository {
   }
 
   async createSchool(schoolData) {
+    await this.ensureSchoolFinanceColumns();
     const pool = await getPool();
     const result = await pool.request()
       .input('schoolName', sql.NVarChar, schoolData.schoolName)
@@ -88,6 +127,12 @@ class SchoolRepository {
       .input('contactEmail', sql.NVarChar, schoolData.contactEmail)
       .input('contactPhone', sql.NVarChar, schoolData.contactPhone)
       .input('registrationNumber', sql.NVarChar, optionalString(schoolData.registrationNumber))
+      .input('bankName', sql.NVarChar, optionalString(schoolData.bankName))
+      .input('bankAccountNumber', sql.NVarChar, optionalString(schoolData.bankAccountNumber))
+      .input('bankBranchCode', sql.NVarChar, optionalString(schoolData.bankBranchCode))
+      .input('bankAccountType', sql.NVarChar, optionalString(schoolData.bankAccountType))
+      .input('financialYearStartDate', sql.Date, optionalDate(schoolData.financialYearStartDate))
+      .input('financialYearEndDate', sql.Date, optionalDate(schoolData.financialYearEndDate))
       .input('website', sql.NVarChar, optionalString(schoolData.website))
       .input('currencyCode', sql.NVarChar, schoolData.currencyCode)
       .input('currencySymbol', sql.NVarChar, schoolData.currencySymbol)
@@ -95,15 +140,18 @@ class SchoolRepository {
       .input('paymentInstructions', sql.NVarChar(sql.MAX), optionalString(schoolData.paymentInstructions))
       .input('subscriptionPlan', sql.NVarChar, schoolData.subscriptionPlan || 'Basic')
       .input('subscriptionStatus', sql.NVarChar, schoolData.subscriptionStatus || 'Active')
-      .query(`INSERT INTO Schools (SchoolName, Address, LogoUrl, ContactPerson, ContactEmail, ContactPhone, RegistrationNumber, Website,
+      .query(`INSERT INTO Schools (SchoolName, Address, LogoUrl, ContactPerson, ContactEmail, ContactPhone, RegistrationNumber,
+              BankName, BankAccountNumber, BankBranchCode, BankAccountType, FinancialYearStartDate, FinancialYearEndDate, Website,
               CurrencyCode, CurrencySymbol, DefaultMonthlyFee, PaymentInstructions, SubscriptionPlan, SubscriptionStatus)
               OUTPUT INSERTED.*
-              VALUES (@schoolName, @address, @logoUrl, @contactPerson, @contactEmail, @contactPhone, @registrationNumber, @website,
+              VALUES (@schoolName, @address, @logoUrl, @contactPerson, @contactEmail, @contactPhone, @registrationNumber,
+              @bankName, @bankAccountNumber, @bankBranchCode, @bankAccountType, @financialYearStartDate, @financialYearEndDate, @website,
               @currencyCode, @currencySymbol, @defaultMonthlyFee, @paymentInstructions, @subscriptionPlan, @subscriptionStatus)`);
     return result.recordset[0];
   }
 
   async updateSchool(id, schoolData) {
+    await this.ensureSchoolFinanceColumns();
     const pool = await getPool();
     const result = await pool.request()
       .input('id', sql.Int, id)
@@ -114,6 +162,12 @@ class SchoolRepository {
       .input('contactEmail', sql.NVarChar, schoolData.contactEmail)
       .input('contactPhone', sql.NVarChar, schoolData.contactPhone)
       .input('registrationNumber', sql.NVarChar, optionalString(schoolData.registrationNumber))
+      .input('bankName', sql.NVarChar, optionalString(schoolData.bankName))
+      .input('bankAccountNumber', sql.NVarChar, optionalString(schoolData.bankAccountNumber))
+      .input('bankBranchCode', sql.NVarChar, optionalString(schoolData.bankBranchCode))
+      .input('bankAccountType', sql.NVarChar, optionalString(schoolData.bankAccountType))
+      .input('financialYearStartDate', sql.Date, optionalDate(schoolData.financialYearStartDate))
+      .input('financialYearEndDate', sql.Date, optionalDate(schoolData.financialYearEndDate))
       .input('website', sql.NVarChar, optionalString(schoolData.website))
       .input('currencyCode', sql.NVarChar, schoolData.currencyCode)
       .input('currencySymbol', sql.NVarChar, schoolData.currencySymbol)
@@ -123,7 +177,10 @@ class SchoolRepository {
       .input('subscriptionStatus', sql.NVarChar, schoolData.subscriptionStatus)
       .query(`UPDATE Schools SET SchoolName = @schoolName, Address = @address, ContactEmail = @contactEmail,
               LogoUrl = @logoUrl, ContactPerson = @contactPerson, ContactPhone = @contactPhone,
-              RegistrationNumber = @registrationNumber, Website = @website, CurrencyCode = @currencyCode, CurrencySymbol = @currencySymbol,
+              RegistrationNumber = @registrationNumber, BankName = @bankName, BankAccountNumber = @bankAccountNumber,
+              BankBranchCode = @bankBranchCode, BankAccountType = @bankAccountType,
+              FinancialYearStartDate = @financialYearStartDate, FinancialYearEndDate = @financialYearEndDate,
+              Website = @website, CurrencyCode = @currencyCode, CurrencySymbol = @currencySymbol,
               DefaultMonthlyFee = @defaultMonthlyFee, PaymentInstructions = @paymentInstructions,
               SubscriptionPlan = @subscriptionPlan, SubscriptionStatus = @subscriptionStatus, UpdatedDate = GETDATE()
               OUTPUT INSERTED.*

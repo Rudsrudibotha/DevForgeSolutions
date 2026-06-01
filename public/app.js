@@ -158,6 +158,10 @@ const VIEW_ROUTES = {
   yearEndReport: '/school/reporting/year-end-report'
 };
 
+const VIEW_PERMISSIONS = {
+  settings: 'school.staff.permissions.manage|hr.view_payslips|hr.manage_payslips|finance.audit.view|finance.year_end_close|finance.year_end_reopen'
+};
+
 const ROUTE_VIEWS = Object.fromEntries(Object.entries(VIEW_ROUTES).map(([view, route]) => [route, view]));
 
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
@@ -841,6 +845,7 @@ const elements = {
   schoolUsersTable: document.getElementById('schoolUsersTable'),
   auditPanel: document.getElementById('auditPanel'),
   auditLogsTable: document.getElementById('auditLogsTable'),
+  settingsAuditLogsTable: document.getElementById('settingsAuditLogsTable'),
   dashboardWarningsPanel: document.getElementById('dashboardWarningsPanel'),
   dashboardWarningsList: document.getElementById('dashboardWarningsList'),
   staffRolePermissionForm: document.getElementById('staffRolePermissionForm'),
@@ -2549,7 +2554,7 @@ function installFeaturePanels() {
       <button class="primary-button compact-button" data-action="download-export" data-export="invoices" type="button">Invoices CSV</button>
       <button class="primary-button compact-button" data-action="download-export" data-export="transactions" type="button">Payments CSV</button>
       <button class="primary-button compact-button" data-action="download-export" data-export="employees" type="button">Employees CSV</button>
-      <button class="primary-button compact-button" data-action="download-export" data-export="outstanding-fees" type="button">Outstanding Fees Excel</button>
+      <button class="primary-button compact-button" data-action="download-export" data-export="outstanding-fees" type="button">Export</button>
       <button class="secondary-button compact-button" data-action="print-report" data-report-prefix="schoolReport" data-report-title="School Report" type="button">Print Current Report</button>
     </div>
   `);
@@ -4002,6 +4007,7 @@ function renderInvoicesTable() {
     const hasLinkedStudent = Number.isInteger(studentId) && studentId > 0;
     const actions = hasLinkedStudent
       ? `
+            <button class="ghost-button" data-action="print-invoice" data-id="${invoice.InvoiceID}" type="button">Print</button>
             <button class="ghost-button" data-action="view-student-finance" data-id="${studentId}" type="button">View invoices</button>
             <button class="ghost-button" data-action="issue-student-receipt" data-id="${studentId}" type="button">Issue receipt</button>
         `
@@ -4030,6 +4036,173 @@ function renderInvoicesTable() {
   }).join('') || '<tr><td colspan="10">No invoices found.</td></tr>';
 }
 
+function invoiceStudentName(invoice) {
+  return [invoice.FirstName, invoice.LastName].filter(Boolean).join(' ') || 'Learner';
+}
+
+function invoiceRemaining(invoice) {
+  return Math.max(0, Number(invoice.Amount || 0) - Number(invoice.AmountPaid || 0));
+}
+
+function invoicePrintRows(anchorInvoice) {
+  const familyId = Number(anchorInvoice.FamilyID || 0);
+  const schoolId = Number(anchorInvoice.SchoolID || 0);
+
+  const invoices = familyId
+    ? state.invoices.filter((invoice) => Number(invoice.SchoolID) === schoolId && Number(invoice.FamilyID || 0) === familyId)
+    : state.invoices.filter((invoice) => Number(invoice.InvoiceID) === Number(anchorInvoice.InvoiceID));
+
+  return invoices
+    .slice()
+    .sort((a, b) => {
+      const studentCompare = invoiceStudentName(a).localeCompare(invoiceStudentName(b));
+      if (studentCompare) return studentCompare;
+      return new Date(a.IssueDate || a.DueDate || 0) - new Date(b.IssueDate || b.DueDate || 0);
+    });
+}
+
+function schoolBankingLines(school) {
+  const lines = [
+    ['Bank', school?.BankName],
+    ['Account number', school?.BankAccountNumber],
+    ['Branch code', school?.BankBranchCode],
+    ['Account type', school?.BankAccountType]
+  ].filter(([, value]) => value);
+
+  if (!lines.length && school?.PaymentInstructions) {
+    return `<p>${escapeHtml(school.PaymentInstructions)}</p>`;
+  }
+
+  return lines.map(([label, value]) => `
+    <div class="invoice-detail-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
+  `).join('') || '<p>No banking details captured.</p>';
+}
+
+function invoiceDocumentHtml(anchorInvoice) {
+  const school = state.schools.find((item) => Number(item.SchoolID) === Number(anchorInvoice.SchoolID)) || getSettingsSchool() || {};
+  const invoices = invoicePrintRows(anchorInvoice);
+  const logo = school.LogoUrl ? `<img src="${escapeHtml(school.LogoUrl)}" alt="">` : '';
+  const familyCode = anchorInvoice.FamilyName || anchorInvoice.FamilyID || '-';
+  const grouped = invoices.reduce((groups, invoice) => {
+    const key = `${invoice.StudentID || invoiceStudentName(invoice)}`;
+    if (!groups.has(key)) {
+      groups.set(key, { studentName: invoiceStudentName(invoice), className: invoice.ClassName || '-', rows: [] });
+    }
+    groups.get(key).rows.push(invoice);
+    return groups;
+  }, new Map());
+
+  const sections = [...grouped.values()].map((group) => {
+    const rows = group.rows.map((invoice) => `
+      <tr>
+        <td>${escapeHtml(invoice.InvoiceNumber || '-')}</td>
+        <td>${escapeHtml(invoice.CategoryName || invoice.Description || '-')}</td>
+        <td>${dateOnly(invoice.IssueDate)}</td>
+        <td>${dateOnly(invoice.DueDate)}</td>
+        <td>${money(invoice.Amount, school)}</td>
+        <td>${money(invoice.AmountPaid || 0, school)}</td>
+        <td>${money(invoiceRemaining(invoice), school)}</td>
+        <td>${escapeHtml(invoice.Status || '-')}</td>
+      </tr>
+    `).join('');
+    const total = group.rows.reduce((sum, invoice) => sum + invoiceRemaining(invoice), 0);
+
+    return `
+      <section class="invoice-student-section">
+        <h3>${escapeHtml(group.studentName)}</h3>
+        <p>Class: ${escapeHtml(group.className)} | Family code: ${escapeHtml(String(familyCode))}</p>
+        <table>
+          <thead><tr><th>Invoice</th><th>Billing</th><th>Issued</th><th>Due</th><th>Amount</th><th>Paid</th><th>Outstanding</th><th>Status</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><th colspan="6">Student outstanding</th><th>${money(total, school)}</th><th></th></tr></tfoot>
+        </table>
+      </section>
+    `;
+  }).join('');
+
+  const grandTotal = invoices.reduce((sum, invoice) => sum + invoiceRemaining(invoice), 0);
+
+  return `
+    <article class="invoice-document">
+      <header class="invoice-document-header">
+        ${logo}
+        <div>
+          <h2>${escapeHtml(school.SchoolName || 'School Invoice')}</h2>
+          <p>${escapeHtml([school.RegistrationNumber ? `Reg: ${school.RegistrationNumber}` : '', school.ContactPhone, school.ContactEmail].filter(Boolean).join(' | '))}</p>
+          <p>${escapeHtml(school.Address || '')}</p>
+        </div>
+      </header>
+      <section class="invoice-document-grid">
+        <div>
+          <span class="invoice-block-label">Customer / family</span>
+          <div class="invoice-detail-line"><span>Family code</span><strong>${escapeHtml(String(familyCode))}</strong></div>
+          <div class="invoice-detail-line"><span>Responsible payer</span><strong>${escapeHtml(anchorInvoice.ResponsiblePayerName || anchorInvoice.FamilyName || '-')}</strong></div>
+        </div>
+        <div>
+          <span class="invoice-block-label">School account details</span>
+          ${schoolBankingLines(school)}
+        </div>
+      </section>
+      ${sections}
+      <footer class="invoice-document-footer">
+        <strong>Total outstanding: ${money(grandTotal, school)}</strong>
+        <span>${escapeHtml(school.PaymentInstructions || 'Please use the family code as payment reference.')}</span>
+      </footer>
+    </article>
+  `;
+}
+
+function invoicePrintCss() {
+  return `
+    body { font-family: Arial, sans-serif; color: #111827; padding: 18px; background: #fff; }
+    .invoice-document { max-width: 980px; margin: 0 auto; border: 1px solid #d1d5db; padding: 24px; }
+    .invoice-document-header { display: grid; grid-template-columns: 92px 1fr; gap: 16px; align-items: center; border-bottom: 2px solid #111827; padding-bottom: 14px; margin-bottom: 18px; }
+    .invoice-document-header img { width: 80px; max-height: 80px; object-fit: contain; }
+    .invoice-document-header h2 { margin: 0 0 4px; font-size: 22px; }
+    .invoice-document-header p { margin: 2px 0; font-size: 12px; }
+    .invoice-document-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+    .invoice-detail-line { display: grid; grid-template-columns: 130px 1fr; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+    .invoice-detail-line span, .invoice-block-label { font-weight: 700; }
+    .invoice-student-section { break-inside: avoid; margin-top: 18px; }
+    .invoice-student-section h3 { margin: 0; font-size: 16px; }
+    .invoice-student-section p { margin: 4px 0 10px; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { border: 1px solid #d1d5db; padding: 7px; text-align: left; }
+    thead th, tfoot th { background: #f3f4f6; }
+    .invoice-document-footer { display: flex; justify-content: space-between; gap: 16px; border-top: 1px solid #d1d5db; margin-top: 20px; padding-top: 12px; font-size: 12px; }
+    @media print { body { padding: 0; } .invoice-document { border: 0; } }
+  `;
+}
+
+function printInvoice(invoiceId) {
+  const invoice = state.invoices.find((item) => Number(item.InvoiceID) === Number(invoiceId));
+  if (!invoice) {
+    showToast('Invoice not found');
+    return;
+  }
+
+  const win = window.open('', '_blank', 'width=980,height=720');
+  if (!win) {
+    showToast('Allow popups to print the invoice');
+    return;
+  }
+
+  win.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <title>Invoice ${escapeHtml(invoice.InvoiceNumber || '')}</title>
+        <style>${invoicePrintCss()}</style>
+      </head>
+      <body>
+        ${invoiceDocumentHtml(invoice)}
+        <script>window.onload = function(){ window.print(); };</script>
+      </body>
+    </html>
+  `);
+  win.document.close();
+}
+
 function renderRecentLists() {
   const recentInvoicesEl = document.getElementById('recentInvoices');
   if (!recentInvoicesEl) return;
@@ -4046,6 +4219,19 @@ function renderRecentLists() {
     </div>
   `;
   }).join('') || '<p>No invoices yet.</p>';
+}
+
+function billingCategoryYear(category) {
+  const year = Number(category.BillingYear || category.billingYear || new Date().getFullYear());
+  return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : new Date().getFullYear();
+}
+
+function billingTermLabel(frequency) {
+  const value = String(frequency || '12 months').trim();
+  const months = parseInt(value, 10);
+  const termMonths = Number.isInteger(months) && months > 0 ? months : value.toLowerCase() === 'monthly' ? 12 : 12;
+  const lastMonth = new Date(2026, Math.min(Math.max(termMonths, 1), 12) - 1, 1).toLocaleString('en-ZA', { month: 'short' });
+  return `${termMonths} months (Jan-${lastMonth})`;
 }
 
 function renderBillingCategories() {
@@ -4065,7 +4251,8 @@ function renderBillingCategories() {
           <span class="table-subtext">${escapeHtml(category.Description || '')}</span>
         </td>
         <td>${money(category.BaseAmount, getSettingsSchool())}</td>
-        <td>${escapeHtml(category.Frequency || 'Monthly')}</td>
+        <td>${escapeHtml(String(billingCategoryYear(category)))}</td>
+        <td>${escapeHtml(billingTermLabel(category.Frequency))}</td>
         <td><span class="${isActive ? 'badge' : 'badge danger'}">${isActive ? 'Active' : 'Inactive'}</span></td>
         <td>
           <div class="actions">
@@ -4077,7 +4264,7 @@ function renderBillingCategories() {
         </td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="5">No billing categories found.</td></tr>';
+  }).join('') || '<tr><td colspan="6">No billing categories found.</td></tr>';
 }
 
 function editBillingCategory(categoryId) {
@@ -4092,7 +4279,11 @@ function editBillingCategory(categoryId) {
   elements.billingCategoryForm.elements.billingCategoryId.value = category.BillingCategoryID;
   elements.billingCategoryForm.elements.categoryName.value = category.CategoryName || '';
   elements.billingCategoryForm.elements.baseAmount.value = Number(category.BaseAmount || 0).toFixed(2);
-  elements.billingCategoryForm.elements.frequency.value = category.Frequency || '';
+  elements.billingCategoryForm.elements.billingYear.value = billingCategoryYear(category);
+  const existingTerm = String(category.Frequency || '').trim();
+  elements.billingCategoryForm.elements.frequency.value = ['3 months', '6 months', '10 months', '11 months', '12 months'].includes(existingTerm)
+    ? existingTerm
+    : '12 months';
   elements.billingCategoryForm.elements.description.value = category.Description || '';
   elements.cancelBillingCategoryEditButton.classList.remove('hidden');
   renderBillingCategorySchoolControls();
@@ -4103,6 +4294,7 @@ function resetBillingCategoryForm() {
   state.editingBillingCategoryId = null;
   elements.billingCategoryForm.reset();
   elements.billingCategoryForm.elements.billingCategoryId.value = '';
+  elements.billingCategoryForm.elements.billingYear.value = String(new Date().getFullYear());
   elements.cancelBillingCategoryEditButton.classList.add('hidden');
   renderBillingCategorySchoolControls();
 }
@@ -6658,6 +6850,12 @@ function renderAccount() {
   fields.contactEmail.value = school.ContactEmail || '';
   fields.contactPhone.value = school.ContactPhone || '';
   fields.registrationNumber.value = school.RegistrationNumber || '';
+  if (fields.bankName) fields.bankName.value = school.BankName || '';
+  if (fields.bankAccountNumber) fields.bankAccountNumber.value = school.BankAccountNumber || '';
+  if (fields.bankBranchCode) fields.bankBranchCode.value = school.BankBranchCode || '';
+  if (fields.bankAccountType) fields.bankAccountType.value = school.BankAccountType || '';
+  if (fields.financialYearStartDate) fields.financialYearStartDate.value = dateInputValue(school.FinancialYearStartDate);
+  if (fields.financialYearEndDate) fields.financialYearEndDate.value = dateInputValue(school.FinancialYearEndDate);
   fields.website.value = school.Website || '';
   fields.address.value = school.Address || '';
 
@@ -6707,8 +6905,8 @@ function renderSchoolUsers() {
           ${userId ? assignedRoleBadges(userId) : '<span class="badge muted">No access role</span>'}
         </td>
         <td>
-          ${dateOnly(employee.CreatedDate)}
-          <div class="actions stacked-actions">
+          <div class="actions inline-date-actions">
+            <span>${dateOnly(employee.CreatedDate)}</span>
             ${isActive
               ? `<button class="danger-button" data-action="deactivate-employee" data-id="${employee.EmployeeID}" type="button">Deactivate</button>`
               : `<button class="ghost-button" data-action="activate-employee" data-id="${employee.EmployeeID}" type="button">Activate</button>`}
@@ -6745,7 +6943,7 @@ function assignedRoleBadges(userId) {
 }
 
 function renderAuditLogs() {
-  elements.auditLogsTable.innerHTML = state.auditLogs.map((log) => `
+  const rows = state.auditLogs.map((log) => `
     <tr>
       <td>${dateOnly(log.CreatedDate)}</td>
       <td>
@@ -6753,9 +6951,17 @@ function renderAuditLogs() {
         <span class="table-subtext">${escapeHtml(log.EntityID)}</span>
       </td>
       <td>${escapeHtml(log.Action)}</td>
-      <td>${escapeHtml(log.UserID || '-')}</td>
+      <td>${escapeHtml(auditUserLabel(log))}</td>
     </tr>
   `).join('') || '<tr><td colspan="4">No audit activity yet.</td></tr>';
+
+  if (elements.auditLogsTable) {
+    elements.auditLogsTable.innerHTML = rows;
+  }
+
+  if (elements.settingsAuditLogsTable) {
+    elements.settingsAuditLogsTable.innerHTML = rows;
+  }
 }
 
 function auditUserLabel(log) {
@@ -7129,6 +7335,12 @@ function renderAdminControls() {
 
 function switchView(viewName, options = {}) {
   if (!isViewAllowed(viewName)) {
+    viewName = 'overview';
+  }
+
+  const requiredPermission = VIEW_PERMISSIONS[viewName];
+  if (requiredPermission && !userCan(requiredPermission)) {
+    showToast('You do not have permission to open Settings');
     viewName = 'overview';
   }
 
@@ -8046,6 +8258,7 @@ elements.studentEditForm?.addEventListener('submit', async (event) => {
 
     const studentId = Number(form.elements.studentId.value);
     const familyId = Number(form.elements.familyId.value);
+    const student = state.students.find((item) => Number(item.StudentID) === studentId) || {};
     setFormBusy(form, true, 'Saving...');
 
     await api(`/api/families/${familyId}`, {
@@ -8857,10 +9070,11 @@ document.addEventListener('click', async (event) => {
 
     if (action === 'deactivate-billing-category') {
       const updatedCategory = await api(`/api/billing-categories/${id}`, { method: 'DELETE' });
+      const deactivatedCategory = updatedCategory.category || updatedCategory;
       const categoryId = Number(id);
       state.billingCategories = state.billingCategories.map((category) => (
         Number(category.BillingCategoryID) === categoryId
-          ? { ...category, ...updatedCategory, IsActive: false }
+          ? { ...category, ...deactivatedCategory, IsActive: false }
           : category
       ));
       renderBillingCategories();
@@ -8873,6 +9087,11 @@ document.addEventListener('click', async (event) => {
     if (action === 'delete-invoice') {
       await api(`/api/invoices/${id}`, { method: 'DELETE' });
       showToast('Invoice deleted');
+    }
+
+    if (action === 'print-invoice') {
+      printInvoice(id);
+      return;
     }
 
     await refreshData();

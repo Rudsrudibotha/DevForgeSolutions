@@ -20,7 +20,8 @@ class BillingCategoryService {
       categoryName: payload.categoryName,
       description: payload.description,
       baseAmount: Number(payload.baseAmount || 0),
-      frequency: payload.frequency || 'Monthly',
+      frequency: this.normalizeTerm(payload.frequency),
+      billingYear: this.billingYear(payload.billingYear),
       isActive: payload.isActive !== false
     });
   }
@@ -64,7 +65,8 @@ class BillingCategoryService {
       categoryName: payload.categoryName,
       description: payload.description,
       baseAmount: Number(payload.baseAmount || 0),
-      frequency: payload.frequency || category.Frequency,
+      frequency: this.normalizeTerm(payload.frequency || category.Frequency),
+      billingYear: this.billingYear(payload.billingYear || category.BillingYear),
       isActive: payload.isActive !== undefined ? payload.isActive : category.IsActive
     });
   }
@@ -92,10 +94,21 @@ class BillingCategoryService {
   }
 
   // Check if an invoice should be generated for this category this month.
-  shouldGenerateInvoice(category, lastInvoiceDate = null) {
+  shouldGenerateInvoice(category, lastInvoiceDate = null, invoiceDate = new Date()) {
     const frequency = String(category.Frequency || 'Monthly').trim();
 
     if (frequency === 'One-time' && lastInvoiceDate) {
+      return false;
+    }
+
+    const invoiceYear = invoiceDate.getFullYear();
+    const billingYear = Number(category.BillingYear || invoiceYear);
+    if (Number.isInteger(billingYear) && billingYear !== invoiceYear) {
+      return false;
+    }
+
+    const invoiceMonth = invoiceDate.getMonth() + 1;
+    if (invoiceMonth > this.termEndMonth(frequency)) {
       return false;
     }
 
@@ -115,6 +128,30 @@ class BillingCategoryService {
     if (!isNaN(parsed) && parsed > 0) return parsed;
 
     return 1;
+  }
+
+  termEndMonth(frequency) {
+    const lower = String(frequency || '').trim().toLowerCase();
+    if (lower === 'monthly') return 12;
+    return Math.min(Math.max(this.parseTermMonths(frequency), 1), 12);
+  }
+
+  normalizeTerm(value) {
+    const text = String(value || '12 months').trim();
+    const months = parseInt(text, 10);
+    if (![3, 6, 10, 11, 12].includes(months)) {
+      throw new Error('Billing term must be 3, 6, 10, 11, or 12 months');
+    }
+
+    return `${months} months`;
+  }
+
+  billingYear(value) {
+    const year = Number(value || new Date().getFullYear());
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      throw new Error('Billing year must be between 2000 and 2100');
+    }
+    return year;
   }
 
   validateCategoryData(categoryData) {
@@ -138,6 +175,9 @@ class BillingCategoryService {
     if (categoryData.frequency && String(categoryData.frequency).trim().length > 50) {
       throw new Error('Frequency or term must be 50 characters or less');
     }
+
+    this.normalizeTerm(categoryData.frequency);
+    this.billingYear(categoryData.billingYear);
   }
 
   validateId(id, label) {

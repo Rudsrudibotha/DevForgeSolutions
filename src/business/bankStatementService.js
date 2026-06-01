@@ -51,8 +51,9 @@ class BankStatementService {
     });
 
     for (const item of parsedTransactions) {
-      // Skip current-day transactions and treat them as pending.
-      if (item.transactionDate === today) {
+      // Skip current-day and future-dated transactions and treat them as pending.
+      // This prevents a future month (for example July) from being imported during the current month.
+      if (item.transactionDate >= today) {
         rowsSkippedPending++;
         continue;
       }

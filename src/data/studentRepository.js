@@ -12,16 +12,33 @@ function optionalString(value) {
 }
 
 class StudentRepository {
+  constructor() {
+    this.billingColumnsEnsured = false;
+  }
+
+  async ensureBillingColumns() {
+    if (this.billingColumnsEnsured) {
+      return;
+    }
+
+    const pool = await getPool();
+    await pool.request().query(`
+      IF COL_LENGTH('dbo.BillingCategories', 'BillingYear') IS NULL
+        ALTER TABLE dbo.BillingCategories ADD BillingYear INT NOT NULL CONSTRAINT DF_BillingCategories_BillingYear DEFAULT (YEAR(GETDATE())) WITH VALUES;
+    `);
+    this.billingColumnsEnsured = true;
+  }
+
   studentSelectColumns() {
     return `s.*, f.FamilyName, f.PrimaryParentName, f.PrimaryParentPhone, f.PrimaryParentEmail,
                   f.PrimaryParentIdNumber, f.SecondaryParentName, f.SecondaryParentPhone,
                   f.SecondaryParentEmail, f.SecondaryParentIdNumber, f.HomeAddress AS FamilyHomeAddress,
                   f.EmergencyContactName, f.EmergencyContactPhone, f.FamilyDoctor,
                   f.MedicalAidName, f.MedicalAidNumber,
-                  bc.CategoryName, bc.BaseAmount AS CategoryAmount,
+                  bc.CategoryName, bc.BaseAmount AS CategoryAmount, bc.BillingYear AS CategoryBillingYear,
                   bc.Frequency AS CategoryFrequency, bc.IsActive AS CategoryIsActive,
                   (
-                    SELECT sbc.BillingCategoryID, bc2.CategoryName, bc2.BaseAmount, bc2.Frequency, bc2.IsActive, sbc.IsPrimary, sbc.CreatedDate
+                    SELECT sbc.BillingCategoryID, bc2.CategoryName, bc2.BaseAmount, bc2.Frequency, bc2.BillingYear, bc2.IsActive, sbc.IsPrimary, sbc.CreatedDate
                     FROM StudentBillingCategories sbc
                     INNER JOIN BillingCategories bc2 ON sbc.BillingCategoryID = bc2.BillingCategoryID
                     WHERE sbc.StudentID = s.StudentID
@@ -31,6 +48,7 @@ class StudentRepository {
   }
 
   async getStudentsBySchool(schoolId, status = 'active', teacherUserId = null) {
+    await this.ensureBillingColumns();
     const pool = await getPool();
     const statusClause = this.statusClause(status);
     const req = pool.request().input('schoolId', sql.Int, schoolId);
@@ -56,6 +74,7 @@ class StudentRepository {
   }
 
   async getAllStudents(status = 'active') {
+    await this.ensureBillingColumns();
     const pool = await getPool();
     const statusClause = this.statusClause(status);
 
@@ -70,6 +89,7 @@ class StudentRepository {
   }
 
   async getStudentById(id) {
+    await this.ensureBillingColumns();
     const pool = await getPool();
     const result = await pool.request()
       .input('id', sql.Int, id)

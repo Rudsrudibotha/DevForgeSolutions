@@ -1541,6 +1541,11 @@ td[colspan],
   margin-top: 8px;
 }
 
+.inline-date-actions {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
 .badge {
   display: inline-flex;
   min-height: 26px;
