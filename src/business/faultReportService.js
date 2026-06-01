@@ -43,7 +43,7 @@ class FaultReportService {
     const limit = Math.min(Math.max(parseInt(query.limit, 10) || 100, 1), 200);
     const page = Math.max(parseInt(query.page, 10) || 1, 1);
     const status = this.optionalString(query.status, 'Status', 30);
-    const schoolId = query.schoolId ? parseInt(query.schoolId, 10) : null;
+    const schoolId = this.optionalPositiveInteger(query.schoolId, 'School ID');
 
     if (status && !this.allowedStatuses.includes(status)) {
       throw new Error('Fault status is invalid');
@@ -104,6 +104,24 @@ class FaultReportService {
     }
 
     return cleaned || null;
+  }
+
+  optionalPositiveInteger(value, label) {
+    if (value === undefined || value === null) {
+      return null;
+    }
+
+    const cleaned = String(value).trim();
+    if (!cleaned || cleaned.toLowerCase() === 'undefined' || cleaned.toLowerCase() === 'null') {
+      return null;
+    }
+
+    const parsed = Number(cleaned);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error(`${label} must be a positive integer`);
+    }
+
+    return parsed;
   }
 
 }
