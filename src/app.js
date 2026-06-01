@@ -354,7 +354,7 @@ app.get('/auth/azure/callback', async (req, res) => {
       email,
       'devforge',
       null,
-      { allowAdminProvisioning: true }
+      { allowAdminProvisioning: true, aadObjectId: claims.oid }
     );
     const authResponse = await userServiceInstance.buildAuthResponse(userRecord);
 

@@ -6,7 +6,11 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const UserRepository = require('../data/userRepository');
 const SchoolService = require('./schoolService');
-const { isAadAdminEmailAllowed, normalizeEmail: normalizeAadEmail } = require('../security/adminAccess');
+const {
+  isAadAdminEmailAllowed,
+  isAadAdminObjectIdAllowed,
+  normalizeEmail: normalizeAadEmail
+} = require('../security/adminAccess');
 const { getSchoolPermissions } = require('../security/schoolPermissions');
 
 class UserService {
@@ -406,7 +410,8 @@ class UserService {
     const existing = await this.userRepository.getUserByEmail(normalizedEmail);
 
     if (loginType === 'devforge') {
-      if (!isAadAdminEmailAllowed(normalizedEmail)) {
+      const objectIdAllowed = isAadAdminObjectIdAllowed(options.aadObjectId);
+      if (!isAadAdminEmailAllowed(normalizedEmail) && !objectIdAllowed) {
         throw new Error('User not authorized for Admin dashboard login');
       }
 
