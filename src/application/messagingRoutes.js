@@ -1,7 +1,7 @@
 // Application Layer - Messaging package status and validation routes.
 
 const express = require('express');
-const { authenticateToken, requireParent, requireSchoolPermission } = require('../middleware/auth');
+const { authenticateToken, requireAdmin, requireParent } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
 const { MessagingPackageService } = require('../business/messagingPackageService');
 const { MessagingService } = require('../business/messagingService');
@@ -28,7 +28,25 @@ router.post('/package/test', authenticateToken, audit('MessagingPackage', 'Test'
   }
 });
 
-router.get('/school/targets', authenticateToken, requireSchoolPermission('communication.history.view', 'communication.history.resend'), async (req, res) => {
+router.get('/notifications', authenticateToken, async (req, res) => {
+  try {
+    const result = await messagingService.notificationsForUser(req.user);
+    res.json(result);
+  } catch (error) {
+    res.status(statusForError(error)).json({ error: error.message });
+  }
+});
+
+router.put('/notifications/read', authenticateToken, async (req, res) => {
+  try {
+    const result = await messagingService.markRead(req.user, req.body?.conversationId || req.query.conversationId);
+    res.json(result);
+  } catch (error) {
+    res.status(statusForError(error)).json({ error: error.message });
+  }
+});
+
+router.get('/school/targets', authenticateToken, async (req, res) => {
   try {
     const result = await messagingService.previewTargets(req.user, req.query);
     res.json(result);
@@ -37,7 +55,16 @@ router.get('/school/targets', authenticateToken, requireSchoolPermission('commun
   }
 });
 
-router.post('/school/send', authenticateToken, requireSchoolPermission('communication.history.resend'), audit('Messaging', 'SchoolSend'), async (req, res) => {
+router.get('/school/contacts', authenticateToken, async (req, res) => {
+  try {
+    const result = await messagingService.contactsForSchool(req.user, req.query);
+    res.json(result);
+  } catch (error) {
+    res.status(statusForError(error)).json({ error: error.message });
+  }
+});
+
+router.post('/school/send', authenticateToken, audit('Messaging', 'SchoolSend'), async (req, res) => {
   try {
     const result = await messagingService.sendFromSchool(req.user, req.body);
     res.status(201).json(result);
@@ -46,7 +73,16 @@ router.post('/school/send', authenticateToken, requireSchoolPermission('communic
   }
 });
 
-router.get('/school/conversations', authenticateToken, requireSchoolPermission('communication.history.view', 'communication.history.resend'), async (req, res) => {
+router.post('/school/direct', authenticateToken, audit('Messaging', 'SchoolDirectSend'), async (req, res) => {
+  try {
+    const result = await messagingService.sendDirectFromSchool(req.user, req.body);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(statusForError(error)).json({ error: error.message });
+  }
+});
+
+router.get('/school/conversations', authenticateToken, async (req, res) => {
   try {
     const conversations = await messagingService.listSchoolConversations(req.user, req.query);
     res.json(conversations);
@@ -55,7 +91,7 @@ router.get('/school/conversations', authenticateToken, requireSchoolPermission('
   }
 });
 
-router.get('/school/conversations/:id/messages', authenticateToken, requireSchoolPermission('communication.history.view', 'communication.history.resend'), async (req, res) => {
+router.get('/school/conversations/:id/messages', authenticateToken, async (req, res) => {
   try {
     const result = await messagingService.getSchoolMessages(req.user, req.params.id);
     res.json(result);
@@ -64,9 +100,45 @@ router.get('/school/conversations/:id/messages', authenticateToken, requireSchoo
   }
 });
 
-router.post('/school/conversations/:id/messages', authenticateToken, requireSchoolPermission('communication.history.resend'), audit('Messaging', 'SchoolReply'), async (req, res) => {
+router.post('/school/conversations/:id/messages', authenticateToken, audit('Messaging', 'SchoolReply'), async (req, res) => {
   try {
     const result = await messagingService.replyFromSchool(req.user, req.params.id, req.body);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(statusForError(error)).json({ error: error.message });
+  }
+});
+
+router.get('/devforge/conversations', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const conversations = await messagingService.listDevForgeConversations(req.user);
+    res.json(conversations);
+  } catch (error) {
+    res.status(statusForError(error)).json({ error: error.message });
+  }
+});
+
+router.post('/devforge/send', authenticateToken, requireAdmin, audit('Messaging', 'DevForgeSend'), async (req, res) => {
+  try {
+    const result = await messagingService.sendFromDevForge(req.user, req.body);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(statusForError(error)).json({ error: error.message });
+  }
+});
+
+router.get('/devforge/conversations/:id/messages', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await messagingService.getDevForgeMessages(req.user, req.params.id);
+    res.json(result);
+  } catch (error) {
+    res.status(statusForError(error)).json({ error: error.message });
+  }
+});
+
+router.post('/devforge/conversations/:id/messages', authenticateToken, requireAdmin, audit('Messaging', 'DevForgeReply'), async (req, res) => {
+  try {
+    const result = await messagingService.replyFromDevForge(req.user, req.params.id, req.body);
     res.status(201).json(result);
   } catch (error) {
     res.status(statusForError(error)).json({ error: error.message });

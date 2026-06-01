@@ -24,6 +24,8 @@ const state = {
   auditLoaded: false,
   faultReports: [],
   faultChangeMarker: null,
+  messagingConversations: [],
+  messagingNotifications: null,
   emailStatus: null,
   dashboard: null
 };
@@ -48,6 +50,8 @@ const elements = {
   devforgeUsersTable: document.getElementById('devforgeUsersTable'),
   auditTable: document.getElementById('auditTable'),
   faultReportsTable: document.getElementById('faultReportsTable'),
+  devforgeMessagesTable: document.getElementById('devforgeMessagesTable'),
+  devforgeMessageForm: document.getElementById('devforgeMessageForm'),
   faultSearchInput: document.getElementById('faultSearchInput'),
   faultStatusFilter: document.getElementById('faultStatusFilter'),
   openFaultCount: document.getElementById('openFaultCount'),
@@ -74,6 +78,7 @@ const VIEW_TITLES = {
   users: 'Users',
   audit: 'Audit',
   faults: 'Fault Reports',
+  messages: 'Messages',
   email: 'Email',
   account: 'Account'
 };
@@ -88,6 +93,8 @@ let toastTimer = null;
 let inactivityTimer = null;
 let faultAutoRefreshTimer = null;
 let faultChangeWatcherRunning = false;
+let messagingNotificationTimer = null;
+let lastMessagingUnreadCount = 0;
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
 function rememberActivity() {
@@ -212,6 +219,13 @@ function stopFaultAutoRefresh() {
   faultChangeWatcherRunning = false;
 }
 
+function stopMessagingNotifications() {
+  if (messagingNotificationTimer) {
+    window.clearInterval(messagingNotificationTimer);
+    messagingNotificationTimer = null;
+  }
+}
+
 function delay(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -243,6 +257,7 @@ function clearSession() {
     inactivityTimer = null;
   }
   stopFaultAutoRefresh();
+  stopMessagingNotifications();
   window.location.href = '/devforge-login';
 }
 
@@ -351,6 +366,49 @@ async function refreshData(options = {}) {
   }
 }
 
+async function refreshMessagingConversations(options = {}) {
+  if (!state.token || state.user?.role !== 'admin') {
+    return;
+  }
+
+  try {
+    state.messagingConversations = await api('/api/messaging/devforge/conversations');
+    renderDevForgeMessages();
+  } catch (error) {
+    if (!options.silent) {
+      showToast(error.message);
+    }
+  }
+}
+
+async function refreshMessagingNotifications(options = {}) {
+  if (!state.token) {
+    return;
+  }
+
+  try {
+    const result = await api('/api/messaging/notifications');
+    const unreadCount = Number(result?.unreadCount || 0);
+    if (!options.initial && unreadCount > lastMessagingUnreadCount) {
+      const latest = (result.notifications || []).find((item) => !item.IsRead) || result.notifications?.[0];
+      showToast(latest?.Subject ? `New message: ${latest.Subject}` : 'New message received');
+      await refreshMessagingConversations({ silent: true });
+    }
+    state.messagingNotifications = result;
+    lastMessagingUnreadCount = unreadCount;
+  } catch {
+    // Notification polling should never interrupt admin work.
+  }
+}
+
+function startMessagingNotifications() {
+  stopMessagingNotifications();
+  refreshMessagingNotifications({ initial: true }).catch(() => {});
+  messagingNotificationTimer = window.setInterval(() => {
+    refreshMessagingNotifications({ silent: true }).catch(() => {});
+  }, 20000);
+}
+
 async function refreshAuditLogs(options = {}) {
   if (state.auditLoaded && !options.force) {
     return;
@@ -380,6 +438,8 @@ function renderShell() {
   document.getElementById('profileRole').textContent = 'Kinder Care Hub admin';
   refreshData();
   startFaultAutoRefresh();
+  refreshMessagingConversations({ silent: true });
+  startMessagingNotifications();
 }
 
 function renderData() {
@@ -395,6 +455,7 @@ function renderData() {
   renderUsersTable();
   renderAuditTable();
   renderFaultReportsTable();
+  renderDevForgeMessages();
   renderEmailStatus();
 }
 
@@ -421,7 +482,7 @@ function renderSchoolsTable() {
     const isActive = (school.SubscriptionStatus || 'Active') === 'Active';
     const statusClass = isActive ? 'badge' : 'badge danger';
     const plan = normalizePricingPlan(school.SubscriptionPlan);
-    const messagingActive = isActive && ['Pro', 'Pro+'].includes(plan);
+    const messagingActive = isActive && plan === 'Pro+';
     const contactLines = [
       school.ContactPerson,
       school.ContactEmail,
@@ -456,7 +517,7 @@ function renderSchoolsTable() {
         </td>
         <td>
           <span class="${messagingActive ? 'badge' : 'badge muted'}">${messagingActive ? 'Active' : 'Off'}</span>
-          <span class="table-subtext">Included on Pro and Pro+</span>
+          <span class="table-subtext">Included on Pro+</span>
         </td>
         <td>
           <strong>${escapeHtml(school.UserCount || 0)}</strong>
@@ -658,6 +719,38 @@ function renderFaultReportsTable() {
   `).join('') || '<tr><td colspan="5">No fault reports found.</td></tr>';
 }
 
+function renderDevForgeMessages() {
+  if (!elements.devforgeMessagesTable) {
+    return;
+  }
+
+  elements.devforgeMessagesTable.innerHTML = (state.messagingConversations || []).map((item) => {
+    const type = item.ConversationType || item.TargetType || 'Message';
+    const recipient = item.FamilyName
+      || item.RecipientEmail
+      || item.SchoolName
+      || `School ${item.SchoolID}`;
+
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHtml(recipient)}</strong>
+          <span class="table-subtext">${escapeHtml(type)}</span>
+        </td>
+        <td>
+          ${escapeHtml(item.Subject || 'Kinder Care Hub Updates')}
+          <span class="table-subtext">${dateOnly(item.LastMessageDate)}</span>
+        </td>
+        <td>
+          ${escapeHtml(item.LastMessageBody || '-')}
+          <span class="table-subtext">${escapeHtml(item.LastMessageSenderRole || '')}</span>
+        </td>
+        <td><button class="ghost-button compact-button" data-action="reply-devforge-message" data-id="${item.ConversationID}" type="button">Reply</button></td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="4">No messaging conversations found.</td></tr>';
+}
+
 function renderEmailStatus() {
   if (!elements.emailProvider || !elements.emailConfigured || !elements.emailSender) {
     return;
@@ -694,6 +787,10 @@ function switchView(viewName) {
 
   if (viewName === 'audit') {
     refreshAuditLogs().catch(() => {});
+  }
+
+  if (viewName === 'messages') {
+    refreshMessagingConversations().catch(() => {});
   }
 }
 
@@ -840,6 +937,30 @@ elements.emailTestForm?.addEventListener('submit', async (event) => {
   }
 });
 
+elements.devforgeMessageForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  try {
+    setFormBusy(elements.devforgeMessageForm, true, 'Sending...');
+    const result = await api('/api/messaging/devforge/send', {
+      method: 'POST',
+      body: JSON.stringify(formData(elements.devforgeMessageForm))
+    });
+
+    elements.devforgeMessageForm.reset();
+    await Promise.all([
+      refreshMessagingConversations({ silent: true }),
+      refreshMessagingNotifications({ silent: true })
+    ]);
+    const count = (result.results || []).reduce((total, item) => total + Number(item.recipients || 0), 0);
+    showToast(`Message sent to ${count} user${count === 1 ? '' : 's'}`);
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setFormBusy(elements.devforgeMessageForm, false);
+  }
+});
+
 document.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-action]');
 
@@ -869,8 +990,36 @@ document.addEventListener('click', async (event) => {
     return;
   }
 
+  if (action === 'open-messages') {
+    switchView('messages');
+    return;
+  }
+
   if (action === 'open-email') {
     switchView('email');
+    return;
+  }
+
+  if (action === 'reply-devforge-message') {
+    const body = window.prompt('Reply message');
+    if (!body || !body.trim()) {
+      return;
+    }
+
+    try {
+      button.disabled = true;
+      await api(`/api/messaging/devforge/conversations/${button.dataset.id}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ body })
+      });
+      await refreshMessagingConversations({ silent: true });
+      await refreshMessagingNotifications({ silent: true });
+      showToast('Reply sent');
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      button.disabled = false;
+    }
     return;
   }
 

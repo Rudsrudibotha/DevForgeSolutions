@@ -4,6 +4,7 @@ const MessagingRepository = require('../data/messagingRepository');
 const { MessagingPackageService } = require('./messagingPackageService');
 
 const SCHOOL_TARGET_TYPES = ['class', 'entire_school', 'outstanding_fees', 'selected_families'];
+const SCHOOL_DIRECT_TARGETS = ['staff', 'devforge'];
 const MAX_MESSAGE_LENGTH = 5000;
 const MAX_SUBJECT_LENGTH = 200;
 
@@ -16,7 +17,7 @@ class MessagingService {
   async previewTargets(user, request = {}) {
     const school = await this.messagingPackageService.resolveSchoolForUser(user, request.schoolId);
     const status = this.messagingPackageService.statusForSchool(school);
-    this.requireActivePackage(status);
+    this.requireRunnablePackage(status);
 
     if (!['admin', 'school'].includes(user.Role)) {
       throw new Error('Only schools can preview messaging targets');
@@ -36,7 +37,7 @@ class MessagingService {
   async sendFromSchool(user, request = {}) {
     const school = await this.messagingPackageService.resolveSchoolForUser(user, request.schoolId);
     const status = this.messagingPackageService.statusForSchool(school);
-    this.requireActivePackage(status);
+    this.requireRunnablePackage(status);
 
     if (!['admin', 'school'].includes(user.Role)) {
       throw new Error('Only schools can send school messaging broadcasts');
@@ -68,6 +69,8 @@ class MessagingService {
         senderRole: user.Role,
         body
       });
+      const message = await this.lastMessageForConversation(conversation.ConversationID);
+      await this.notifyConversationRecipients(conversation, message, user);
       conversations.push({
         conversationId: conversation.ConversationID,
         familyId: family.FamilyID,
@@ -95,7 +98,7 @@ class MessagingService {
 
     const school = await this.messagingPackageService.resolveSchoolForUser(user, request.schoolId);
     const status = this.messagingPackageService.statusForSchool(school);
-    this.requireActivePackage(status);
+    this.requireRunnablePackage(status);
 
     const body = this.requiredString(request.body || request.message, 'Message', MAX_MESSAGE_LENGTH);
     const subject = this.subject(request.subject, 'school');
@@ -108,7 +111,7 @@ class MessagingService {
       targetType: 'ParentSchool',
       createdByUserId: user.UserID
     });
-    await this.messagingRepository.createMessage({
+    const message = await this.messagingRepository.createMessage({
       conversationId: conversation.ConversationID,
       schoolId: status.schoolId,
       familyId: family.FamilyID,
@@ -116,6 +119,7 @@ class MessagingService {
       senderRole: user.Role,
       body
     });
+    await this.notifyConversationRecipients(conversation, message, user);
 
     return {
       sent: true,
@@ -129,10 +133,14 @@ class MessagingService {
   async listSchoolConversations(user, request = {}) {
     const school = await this.messagingPackageService.resolveSchoolForUser(user, request.schoolId);
     const status = this.messagingPackageService.statusForSchool(school);
-    this.requireActivePackage(status);
+    this.requireRunnablePackage(status);
 
     if (!['admin', 'school'].includes(user.Role)) {
       throw new Error('Only schools can view school messaging conversations');
+    }
+
+    if (user.Role === 'school') {
+      return await this.messagingRepository.listConversationsForSchoolUser(status.schoolId, user.UserID);
     }
 
     return await this.messagingRepository.listConversationsForSchool(status.schoolId);
@@ -145,7 +153,7 @@ class MessagingService {
 
     const school = await this.messagingPackageService.resolveSchoolForUser(user, request.schoolId);
     const status = this.messagingPackageService.statusForSchool(school);
-    this.requireActivePackage(status);
+    this.requireRunnablePackage(status);
 
     return await this.messagingRepository.listConversationsForParent(user.UserID, status.schoolId);
   }
@@ -154,11 +162,13 @@ class MessagingService {
     const conversation = await this.requiredConversation(conversationId);
     const school = await this.messagingPackageService.resolveSchoolForUser(user, conversation.SchoolID);
     const status = this.messagingPackageService.statusForSchool(school);
-    this.requireActivePackage(status);
+    this.requireRunnablePackage(status);
 
     if (!['admin', 'school'].includes(user.Role)) {
       throw new Error('Only schools can view this conversation');
     }
+
+    this.requireSchoolConversationAccess(user, conversation);
 
     return await this.messagesResponse(conversation);
   }
@@ -167,7 +177,7 @@ class MessagingService {
     const conversation = await this.requiredConversation(conversationId);
     const school = await this.messagingPackageService.resolveSchoolForUser(user, conversation.SchoolID);
     const status = this.messagingPackageService.statusForSchool(school);
-    this.requireActivePackage(status);
+    this.requireRunnablePackage(status);
     await this.requireParentLinkedToFamily(user, conversation.SchoolID, conversation.FamilyID);
 
     return await this.messagesResponse(conversation);
@@ -177,11 +187,13 @@ class MessagingService {
     const conversation = await this.requiredConversation(conversationId);
     const school = await this.messagingPackageService.resolveSchoolForUser(user, conversation.SchoolID);
     const status = this.messagingPackageService.statusForSchool(school);
-    this.requireActivePackage(status);
+    this.requireRunnablePackage(status);
 
     if (!['admin', 'school'].includes(user.Role)) {
       throw new Error('Only schools can reply to school messaging conversations');
     }
+
+    this.requireSchoolConversationAccess(user, conversation);
 
     return await this.reply(conversation, user, request);
   }
@@ -194,8 +206,14 @@ class MessagingService {
     const conversation = await this.requiredConversation(conversationId);
     const school = await this.messagingPackageService.resolveSchoolForUser(user, conversation.SchoolID);
     const status = this.messagingPackageService.statusForSchool(school);
-    this.requireActivePackage(status);
+    this.requireRunnablePackage(status);
     await this.requireParentLinkedToFamily(user, conversation.SchoolID, conversation.FamilyID);
+
+    if ((conversation.ConversationType || conversation.TargetType) === 'KinderCareHubParents') {
+      const error = new Error('Kinder Care Hub parent update notifications do not accept replies');
+      error.statusCode = 403;
+      throw error;
+    }
 
     return await this.reply(conversation, user, request);
   }
@@ -210,6 +228,7 @@ class MessagingService {
       senderRole: user.Role,
       body
     });
+    await this.notifyConversationRecipients(conversation, message, user);
 
     return {
       sent: true,
@@ -225,6 +244,249 @@ class MessagingService {
       conversation,
       messages
     };
+  }
+
+  async contactsForSchool(user, request = {}) {
+    const school = await this.messagingPackageService.resolveSchoolForUser(user, request.schoolId);
+    const status = this.messagingPackageService.statusForSchool(school);
+    this.requireRunnablePackage(status);
+    const [staff, families] = await Promise.all([
+      this.messagingRepository.getSchoolUsers(status.schoolId),
+      this.messagingRepository.getFamiliesForEntireSchool(status.schoolId)
+    ]);
+    return {
+      schoolId: status.schoolId,
+      staff: staff.filter((item) => Number(item.UserID) !== Number(user.UserID)),
+      families: families.map((family) => this.targetSummary(family))
+    };
+  }
+
+  async sendDirectFromSchool(user, request = {}) {
+    const school = await this.messagingPackageService.resolveSchoolForUser(user, request.schoolId);
+    const status = this.messagingPackageService.statusForSchool(school);
+    this.requireRunnablePackage(status);
+    const target = String(request.target || request.targetType || '').trim().toLowerCase();
+    if (!SCHOOL_DIRECT_TARGETS.includes(target)) {
+      throw new Error(`Direct messaging target must be one of: ${SCHOOL_DIRECT_TARGETS.join(', ')}`);
+    }
+
+    const body = this.requiredString(request.body || request.message, 'Message', MAX_MESSAGE_LENGTH);
+    const subject = this.subject(request.subject, target);
+    let recipientUserId = null;
+    let channelKey = null;
+    let conversationType = 'StaffDirect';
+    let recipients = [];
+
+    if (target === 'staff') {
+      recipientUserId = this.positiveInteger(request.recipientUserId, 'Recipient user ID');
+      const staff = await this.messagingRepository.getSchoolUsers(status.schoolId);
+      if (!staff.some((item) => Number(item.UserID) === recipientUserId)) {
+        throw new Error('School users can only message staff in their own school');
+      }
+      channelKey = `staff:${status.schoolId}:${[Number(user.UserID), recipientUserId].sort((a, b) => a - b).join(':')}`;
+      recipients = [recipientUserId];
+    } else {
+      const devforgeUsers = await this.messagingRepository.getDevForgeUsers();
+      recipients = devforgeUsers.map((item) => item.UserID);
+      channelKey = `school-devforge:${status.schoolId}`;
+      conversationType = 'SchoolDevForge';
+    }
+
+    const conversation = await this.ensureConversation({
+      schoolId: status.schoolId,
+      familyId: null,
+      recipientUserId,
+      subject,
+      targetType: target === 'staff' ? 'StaffDirect' : 'SchoolDevForge',
+      conversationType,
+      channelKey,
+      createdByUserId: user.UserID
+    });
+    const message = await this.messagingRepository.createMessage({
+      conversationId: conversation.ConversationID,
+      schoolId: status.schoolId,
+      familyId: null,
+      recipientUserId,
+      senderUserId: user.UserID,
+      senderRole: user.Role,
+      body
+    });
+    await this.messagingRepository.createNotifications(message, recipients);
+    return { sent: true, conversationId: conversation.ConversationID, messageId: message.MessageID };
+  }
+
+  async sendFromDevForge(user, request = {}) {
+    if (!user || !['admin', 'devforge'].includes(user.Role)) {
+      throw new Error('Kinder Care Hub admin access required');
+    }
+
+    const body = this.requiredString(request.body || request.message, 'Message', MAX_MESSAGE_LENGTH);
+    const targetType = String(request.targetType || 'schools').trim().toLowerCase();
+    const subject = this.optionalString(request.subject, 'Subject', MAX_SUBJECT_LENGTH) || 'Kinder Care Hub Updates';
+    const results = [];
+
+    if (targetType === 'schools') {
+      const recipients = await this.messagingRepository.getAllSchoolUsers();
+      const grouped = this.groupBy(recipients, 'SchoolID');
+      for (const [schoolId, users] of grouped.entries()) {
+        const conversation = await this.ensureConversation({
+          schoolId: Number(schoolId),
+          familyId: null,
+          subject: subject || 'Kinder Care Hub Updates',
+          targetType: 'KinderCareHubSchools',
+          conversationType: 'KinderCareHubSchools',
+          channelKey: `kch-schools:${schoolId}`,
+          createdByUserId: user.UserID
+        });
+        const message = await this.messagingRepository.createMessage({
+          conversationId: conversation.ConversationID,
+          schoolId: Number(schoolId),
+          familyId: null,
+          senderUserId: user.UserID,
+          senderRole: 'devforge',
+          body
+        });
+        await this.messagingRepository.createNotifications(message, users.map((item) => item.UserID));
+        results.push({ conversationId: conversation.ConversationID, schoolId: Number(schoolId), recipients: users.length });
+      }
+      return { sent: true, targetType, results };
+    }
+
+    if (targetType === 'parents') {
+      const recipients = await this.messagingRepository.getAllParentUsers();
+      const grouped = this.groupBy(recipients, 'FamilyID');
+      for (const [familyId, users] of grouped.entries()) {
+        const schoolId = Number(users[0]?.SchoolID);
+        const conversation = await this.ensureConversation({
+          schoolId,
+          familyId: Number(familyId),
+          subject: subject || 'Kinder Care Hub Updates',
+          targetType: 'KinderCareHubParents',
+          conversationType: 'KinderCareHubParents',
+          channelKey: `kch-parents:${schoolId}:${familyId}`,
+          createdByUserId: user.UserID
+        });
+        const message = await this.messagingRepository.createMessage({
+          conversationId: conversation.ConversationID,
+          schoolId,
+          familyId: Number(familyId),
+          senderUserId: user.UserID,
+          senderRole: 'devforge',
+          body
+        });
+        await this.messagingRepository.createNotifications(message, users.map((item) => item.UserID));
+        results.push({ conversationId: conversation.ConversationID, familyId: Number(familyId), recipients: users.length });
+      }
+      return { sent: true, targetType, results };
+    }
+
+    throw new Error('DevForge message target must be schools or parents');
+  }
+
+  async listDevForgeConversations(user) {
+    if (!user || !['admin', 'devforge'].includes(user.Role)) {
+      throw new Error('Kinder Care Hub admin access required');
+    }
+
+    return await this.messagingRepository.listConversationsForDevForge();
+  }
+
+  async getDevForgeMessages(user, conversationId) {
+    if (!user || !['admin', 'devforge'].includes(user.Role)) {
+      throw new Error('Kinder Care Hub admin access required');
+    }
+
+    const conversation = await this.requiredConversation(conversationId);
+    return await this.messagesResponse(conversation);
+  }
+
+  async replyFromDevForge(user, conversationId, request = {}) {
+    if (!user || !['admin', 'devforge'].includes(user.Role)) {
+      throw new Error('Kinder Care Hub admin access required');
+    }
+
+    const conversation = await this.requiredConversation(conversationId);
+    return await this.reply(conversation, { ...user, Role: 'devforge' }, request);
+  }
+
+  async notificationsForUser(user) {
+    const notifications = await this.messagingRepository.getNotificationsForUser(user.UserID, 25);
+    const unreadCount = await this.messagingRepository.unreadCount(user.UserID);
+    return { unreadCount, notifications };
+  }
+
+  async markRead(user, conversationId = null) {
+    await this.messagingRepository.markNotificationsRead(user.UserID, conversationId ? this.positiveInteger(conversationId, 'Conversation ID') : null);
+    return { unreadCount: await this.messagingRepository.unreadCount(user.UserID) };
+  }
+
+  async ensureConversation(data) {
+    if (data.channelKey) {
+      const existing = await this.messagingRepository.findConversationByChannelKey(data.channelKey);
+      if (existing) {
+        return existing;
+      }
+    }
+    return await this.messagingRepository.createConversation(data);
+  }
+
+  async notifyConversationRecipients(conversation, message, sender) {
+    if (!message) return;
+    const senderRole = sender.Role || sender.role;
+    const conversationType = conversation.ConversationType || conversation.TargetType;
+
+    if (conversation.FamilyID) {
+      if (senderRole === 'parent') {
+        const users = await this.messagingRepository.getSchoolUsers(conversation.SchoolID);
+        await this.messagingRepository.createNotifications(message, users.map((item) => item.UserID));
+      } else {
+        const users = await this.messagingRepository.getParentUsersForFamily(conversation.FamilyID, conversation.SchoolID);
+        await this.messagingRepository.createNotifications(message, users.map((item) => item.UserID));
+      }
+      return;
+    }
+
+    if (conversation.RecipientUserID) {
+      await this.messagingRepository.createNotifications(message, [conversation.RecipientUserID, conversation.CreatedByUserID]);
+      return;
+    }
+
+    if (['SchoolDevForge', 'KinderCareHubSchools', 'DevForgeSchool'].includes(conversationType)) {
+      if (['admin', 'devforge'].includes(senderRole)) {
+        const schoolUsers = await this.messagingRepository.getSchoolUsers(conversation.SchoolID);
+        await this.messagingRepository.createNotifications(message, schoolUsers.map((item) => item.UserID));
+      } else {
+        const devforgeUsers = await this.messagingRepository.getDevForgeUsers();
+        await this.messagingRepository.createNotifications(message, devforgeUsers.map((item) => item.UserID));
+      }
+      return;
+    }
+
+    const devforgeUsers = await this.messagingRepository.getDevForgeUsers();
+    await this.messagingRepository.createNotifications(message, devforgeUsers.map((item) => item.UserID));
+  }
+
+  requireSchoolConversationAccess(user, conversation) {
+    if (user.Role !== 'school') {
+      return;
+    }
+
+    const conversationType = conversation.ConversationType || conversation.TargetType;
+    if (conversationType !== 'StaffDirect') {
+      return;
+    }
+
+    const userId = Number(user.UserID);
+    if (Number(conversation.CreatedByUserID) !== userId && Number(conversation.RecipientUserID) !== userId) {
+      const error = new Error('School staff can only access their own direct staff messages');
+      error.statusCode = 403;
+      throw error;
+    }
+  }
+
+  async lastMessageForConversation(conversationId) {
+    const messages = await this.messagingRepository.getMessages(conversationId);
+    return messages[messages.length - 1] || null;
   }
 
   async resolveSchoolTargets(schoolId, targetType, request) {
@@ -345,6 +607,24 @@ class MessagingService {
       error.statusCode = 403;
       throw error;
     }
+  }
+
+  requireRunnablePackage(status) {
+    if (status.subscriptionStatus !== 'Active') {
+      const error = new Error(status.reason);
+      error.statusCode = 403;
+      throw error;
+    }
+  }
+
+  groupBy(items, key) {
+    const groups = new Map();
+    for (const item of items || []) {
+      const value = item[key];
+      if (!groups.has(value)) groups.set(value, []);
+      groups.get(value).push(item);
+    }
+    return groups;
   }
 
   requiredString(value, label, maxLength) {

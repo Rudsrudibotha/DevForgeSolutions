@@ -23,6 +23,7 @@
           <button class="nav-item" data-view="users" type="button">Users</button>
           <button class="nav-item" data-view="audit" type="button">Audit</button>
           <button class="nav-item" data-view="faults" type="button">Faults</button>
+          <button class="nav-item" data-view="messages" type="button">Messages</button>
           <button class="nav-item" data-view="email" type="button">Email</button>
           <button class="nav-item" data-view="account" type="button">Account</button>
         </nav>
@@ -64,6 +65,10 @@
                   <button class="module-tile" data-action="open-faults" type="button">
                     <span class="module-icon report-icon" aria-hidden="true">FR</span>
                     <span>Fault Reports</span>
+                  </button>
+                  <button class="module-tile" data-action="open-messages" type="button">
+                    <span class="module-icon report-icon" aria-hidden="true">MS</span>
+                    <span>Messages</span>
                   </button>
                   <button class="module-tile" data-action="open-email" type="button">
                     <span class="module-icon report-icon" aria-hidden="true">EM</span>
@@ -425,6 +430,59 @@
                     <span>Sender</span>
                     <strong id="emailSender">-</strong>
                   </div>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section id="messagesView" class="view">
+            <div class="icon-page-layout">
+              <form id="devforgeMessageForm" class="form-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Kinder Care Hub Channel</h3>
+                    <p>Send platform updates to schools or parent update channels.</p>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Send To
+                    <select name="targetType">
+                      <option value="schools">All schools</option>
+                      <option value="parents">All parent update channels</option>
+                    </select>
+                  </label>
+                  <label>
+                    Subject
+                    <input name="subject" type="text" value="Kinder Care Hub Updates" maxlength="200">
+                  </label>
+                  <label class="wide">
+                    Message
+                    <textarea name="body" rows="4" maxlength="5000" required></textarea>
+                  </label>
+                </div>
+                <button class="primary-button" type="submit">Send Message</button>
+              </form>
+
+              <section class="table-panel summary-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Conversations</h3>
+                    <p>School support and update channels.</p>
+                  </div>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Channel</th>
+                        <th>Subject</th>
+                        <th>Last Message</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="devforgeMessagesTable"></tbody>
+                  </table>
                 </div>
               </section>
             </div>

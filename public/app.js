@@ -800,6 +800,8 @@ const state = {
   financePeriodLocks: [],
   communicationHistory: [],
   messagingConversations: [],
+  messagingContacts: { staff: [], families: [] },
+  messagingNotifications: null,
   reportPreview: [],
   reportData: null,
   reportStatusMessage: '',
@@ -1068,6 +1070,8 @@ const attendanceAutosaveTimers = new Map();
 let bankReallocationSearchTimer = null;
 let refreshDataRunId = 0;
 let schoolsFetchPromise = null;
+let messagingNotificationTimer = null;
+let lastMessagingUnreadCount = 0;
 const SKIP_FETCH = Symbol('skip-fetch');
 
 function rememberActivity() {
@@ -1628,6 +1632,7 @@ function clearSession() {
     window.clearInterval(inactivityTimer);
     inactivityTimer = null;
   }
+  stopMessagingNotifications();
   renderShell();
 }
 
@@ -1667,6 +1672,7 @@ function renderShell() {
   document.getElementById('profileSchoolName').textContent = '-';
   switchView(viewFromPath(), { replace: true, skipRefresh: true });
   startInactivityTimer();
+  startMessagingNotifications();
   refreshData();
 }
 
@@ -2082,6 +2088,7 @@ async function refreshFeatureData() {
     ['financePeriodLocks', '/api/school-features/finance-period-locks', 'finance.period_lock.manage|finance.year_end_close|finance.year_end_reopen|reports.year_end.view'],
     ['communicationHistory', '/api/features/communication-history', 'communication.history.view|reports.view'],
     ['messagingConversations', '/api/messaging/school/conversations', 'communication.history.view|communication.history.resend'],
+    ['messagingContacts', '/api/messaging/school/contacts', 'communication.history.view|communication.history.resend'],
     ['reEnrolments', `/api/platform/re-enrolment/${encodeURIComponent(year)}`, 'school.year_rollover.preview|school.year_rollover.apply|reports.year_end.view'],
     ['reEnrolmentPending', `/api/platform/re-enrolment/${encodeURIComponent(year)}/pending`, 'school.year_rollover.preview|school.year_rollover.apply']
   ];
@@ -2091,8 +2098,48 @@ async function refreshFeatureData() {
   )));
   results.forEach((result, index) => {
     const [key] = calls[index];
-    state[key] = result.status === 'fulfilled' ? result.value : [];
+    state[key] = result.status === 'fulfilled'
+      ? result.value
+      : (key === 'messagingContacts' ? { staff: [], families: [] } : []);
   });
+}
+
+function stopMessagingNotifications() {
+  if (messagingNotificationTimer) {
+    window.clearInterval(messagingNotificationTimer);
+    messagingNotificationTimer = null;
+  }
+}
+
+async function refreshMessagingNotifications(options = {}) {
+  if (!state.token) {
+    return;
+  }
+
+  try {
+    const result = await api('/api/messaging/notifications');
+    const unreadCount = Number(result?.unreadCount || 0);
+    if (!options.initial && unreadCount > lastMessagingUnreadCount) {
+      const latest = (result.notifications || []).find((item) => !item.IsRead) || result.notifications?.[0];
+      showToast(latest?.Subject ? `New message: ${latest.Subject}` : 'New message received');
+      if (activeViewName() === 'communicationHistory') {
+        await refreshFeatureData();
+        renderFeaturePages();
+      }
+    }
+    state.messagingNotifications = result;
+    lastMessagingUnreadCount = unreadCount;
+  } catch {
+    // Messaging notifications must not block normal school dashboard work.
+  }
+}
+
+function startMessagingNotifications() {
+  stopMessagingNotifications();
+  refreshMessagingNotifications({ initial: true }).catch(() => {});
+  messagingNotificationTimer = window.setInterval(() => {
+    refreshMessagingNotifications({ silent: true }).catch(() => {});
+  }, 20000);
 }
 
 function renderData() {
@@ -2575,7 +2622,7 @@ function installFeaturePanels() {
   `);
 
   setPanel('communicationHistoryView', `
-    <div class="panel-header"><div><h3>Messaging</h3><p>School-to-parent conversations and delivery history.</p></div></div>
+    <div class="panel-header"><div><h3>Messaging</h3><p>Parent, staff, and Kinder Care Hub conversations.</p></div></div>
     <div class="icon-page-layout">
       <section class="form-panel">
         <div class="panel-header compact-panel-header"><div><h3>New Message</h3></div></div>
@@ -2585,8 +2632,11 @@ function installFeaturePanels() {
             <option value="entire_school">Entire school</option>
             <option value="outstanding_fees">Outstanding fees</option>
             <option value="selected_families">Selected families</option>
+            <option value="staff">Staff member</option>
+            <option value="devforge">Kinder Care Hub</option>
           </select></label>
           <label id="messagingClassLabel">Class<select id="messagingClassName"></select></label>
+          <label id="messagingStaffLabel">Staff<select id="messagingRecipientUserId"></select></label>
           <label id="messagingFamiliesLabel" class="wide">Families<select id="messagingFamilyIds" multiple size="6"></select></label>
           <label class="wide">Subject<input id="messagingSubject" type="text" maxlength="200"></label>
           <label class="wide">Message<textarea id="messagingBody" rows="4" maxlength="5000"></textarea></label>
@@ -2599,7 +2649,7 @@ function installFeaturePanels() {
       </section>
       <section class="table-panel summary-panel">
         <div class="panel-header compact-panel-header"><div><h3>Conversations</h3></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Family</th><th>Subject</th><th>Last Message</th></tr></thead><tbody id="messagingConversationsTable"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Conversation</th><th>Subject</th><th>Last Message</th><th>Action</th></tr></thead><tbody id="messagingConversationsTable"></tbody></table></div>
       </section>
     </div>
     <div class="panel-header section-spacer"><div><h3>Communication History</h3></div></div>
@@ -3749,8 +3799,10 @@ function renderConsentReport() {
 function renderMessagingControls() {
   const targetType = document.getElementById('messagingTargetType')?.value || 'class';
   const classLabel = document.getElementById('messagingClassLabel');
+  const staffLabel = document.getElementById('messagingStaffLabel');
   const familiesLabel = document.getElementById('messagingFamiliesLabel');
   const classSelect = document.getElementById('messagingClassName');
+  const staffSelect = document.getElementById('messagingRecipientUserId');
   const familySelect = document.getElementById('messagingFamilyIds');
 
   if (classLabel) {
@@ -3759,6 +3811,10 @@ function renderMessagingControls() {
 
   if (familiesLabel) {
     familiesLabel.classList.toggle('hidden', targetType !== 'selected_families');
+  }
+
+  if (staffLabel) {
+    staffLabel.classList.toggle('hidden', targetType !== 'staff');
   }
 
   if (classSelect) {
@@ -3773,6 +3829,13 @@ function renderMessagingControls() {
       <option value="${family.FamilyID}">${escapeHtml(family.FamilyName || `Family ${family.FamilyID}`)}</option>
     `).join('') || '<option value="">No families available</option>';
   }
+
+  if (staffSelect) {
+    const staff = state.messagingContacts?.staff || [];
+    staffSelect.innerHTML = staff.map((user) => `
+      <option value="${user.UserID}">${escapeHtml(user.Username || user.Email || `User ${user.UserID}`)}</option>
+    `).join('') || '<option value="">No staff available</option>';
+  }
 }
 
 function selectedMessagingFamilyIds() {
@@ -3786,6 +3849,7 @@ function messagingPayload() {
     targetType: document.getElementById('messagingTargetType')?.value || 'class',
     className: document.getElementById('messagingClassName')?.value || '',
     familyIds: selectedMessagingFamilyIds(),
+    recipientUserId: Number(document.getElementById('messagingRecipientUserId')?.value || 0) || null,
     subject: document.getElementById('messagingSubject')?.value || '',
     body: document.getElementById('messagingBody')?.value || ''
   };
@@ -3802,12 +3866,27 @@ function setMessagingSummary(message, type = 'info') {
 function renderMessagingConversations() {
   const rows = state.messagingConversations.map((item) => `
     <tr>
-      <td>${escapeHtml(item.FamilyName || '-')}</td>
+      <td>${escapeHtml(messageConversationName(item))}</td>
       <td>${escapeHtml(item.Subject || '-')}<span class="table-subtext">${dateOnly(item.LastMessageDate)}</span></td>
       <td>${escapeHtml(item.LastMessageBody || '-')}<span class="table-subtext">${escapeHtml(item.LastMessageSenderRole || '')}</span></td>
+      <td><button class="ghost-button compact-button" data-action="reply-school-message" data-id="${item.ConversationID}" type="button">Reply</button></td>
     </tr>
   `).join('');
-  setTable('messagingConversationsTable', rows, 3, 'No messaging conversations found.');
+  setTable('messagingConversationsTable', rows, 4, 'No messaging conversations found.');
+}
+
+function messageConversationName(item) {
+  const type = item.ConversationType || item.TargetType;
+  if (type === 'StaffDirect') {
+    return item.RecipientUsername || item.RecipientEmail || 'Staff member';
+  }
+  if (type === 'SchoolDevForge' || type === 'KinderCareHubSchools') {
+    return 'Kinder Care Hub';
+  }
+  if (type === 'KinderCareHubParents') {
+    return 'Kinder Care Hub Updates';
+  }
+  return item.FamilyName || item.PrimaryParentName || '-';
 }
 
 function renderCommunicationHistory() {
@@ -9216,6 +9295,11 @@ document.addEventListener('click', async (event) => {
 
   if (action === 'preview-messaging-target') {
     const payload = messagingPayload();
+    if (['staff', 'devforge'].includes(payload.targetType)) {
+      setMessagingSummary(payload.targetType === 'staff' ? 'One staff member selected' : 'Kinder Care Hub support channel selected', 'info');
+      return;
+    }
+
     const params = new URLSearchParams({ targetType: payload.targetType });
     if (payload.className) params.set('className', payload.className);
     payload.familyIds.forEach((familyId) => params.append('familyIds', String(familyId)));
@@ -9233,16 +9317,44 @@ document.addEventListener('click', async (event) => {
     const payload = messagingPayload();
     try {
       button.disabled = true;
-      const result = await api('/api/messaging/school/send', {
+      const isDirect = ['staff', 'devforge'].includes(payload.targetType);
+      const result = await api(isDirect ? '/api/messaging/school/direct' : '/api/messaging/school/send', {
         method: 'POST',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(isDirect
+          ? { ...payload, target: payload.targetType }
+          : payload)
       });
       document.getElementById('messagingBody').value = '';
       await refreshFeatureData();
       renderFeaturePages();
-      showToast(`Message sent to ${result.recipientFamilyCount} family target${result.recipientFamilyCount === 1 ? '' : 's'}`);
+      const count = result.recipientFamilyCount || 1;
+      showToast(isDirect ? 'Message sent' : `Message sent to ${count} family target${count === 1 ? '' : 's'}`);
     } catch (error) {
       setMessagingSummary(error.message, 'error');
+    } finally {
+      button.disabled = false;
+    }
+    return;
+  }
+
+  if (action === 'reply-school-message') {
+    const body = window.prompt('Reply message');
+    if (!body || !body.trim()) {
+      return;
+    }
+
+    try {
+      button.disabled = true;
+      await api(`/api/messaging/school/conversations/${button.dataset.id}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ body })
+      });
+      await refreshFeatureData();
+      renderFeaturePages();
+      await refreshMessagingNotifications({ silent: true });
+      showToast('Reply sent');
+    } catch (error) {
+      showToast(error.message);
     } finally {
       button.disabled = false;
     }

@@ -23,6 +23,7 @@ const state = {
   attendance: [],
   consentRecords: [],
   messagingConversations: [],
+  messagingNotifications: null,
   balance: null
 };
 
@@ -59,6 +60,8 @@ const elements = {
 
 let toastTimer = null;
 let inactivityTimer = null;
+let messagingNotificationTimer = null;
+let lastMessagingUnreadCount = 0;
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
 function rememberActivity() {
@@ -92,6 +95,42 @@ function startInactivityTimer() {
   }
   rememberActivity();
   inactivityTimer = window.setInterval(enforceInactivityTimeout, 30000);
+}
+
+function stopMessagingNotifications() {
+  if (messagingNotificationTimer) {
+    window.clearInterval(messagingNotificationTimer);
+    messagingNotificationTimer = null;
+  }
+}
+
+async function refreshMessagingNotifications(options = {}) {
+  if (!state.token) {
+    return;
+  }
+
+  try {
+    const result = await api('/api/messaging/notifications');
+    const unreadCount = Number(result?.unreadCount || 0);
+    if (!options.initial && unreadCount > lastMessagingUnreadCount) {
+      const latest = (result.notifications || []).find((item) => !item.IsRead) || result.notifications?.[0];
+      showToast(latest?.Subject ? `New message: ${latest.Subject}` : 'New message received');
+      state.messagingConversations = await loadParentMessagingConversations();
+      renderMessaging();
+    }
+    state.messagingNotifications = result;
+    lastMessagingUnreadCount = unreadCount;
+  } catch {
+    // Do not interrupt parent portal workflows if notification polling misses a beat.
+  }
+}
+
+function startMessagingNotifications() {
+  stopMessagingNotifications();
+  refreshMessagingNotifications({ initial: true }).catch(() => {});
+  messagingNotificationTimer = window.setInterval(() => {
+    refreshMessagingNotifications({ silent: true }).catch(() => {});
+  }, 20000);
 }
 
 ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
@@ -192,6 +231,7 @@ function clearSession() {
     window.clearInterval(inactivityTimer);
     inactivityTimer = null;
   }
+  stopMessagingNotifications();
   window.location.href = '/parent-login';
 }
 
@@ -230,6 +270,7 @@ function renderShell() {
   document.getElementById('profileUsername').textContent = state.user.username || '-';
   document.getElementById('profileEmail').textContent = state.user.email || '-';
   document.getElementById('profileRole').textContent = 'Parent';
+  startMessagingNotifications();
   refreshData();
 }
 
@@ -462,13 +503,19 @@ function renderMessaging() {
     <option value="${family.familyId}">${escapeHtml(family.familyName)}</option>
   `).join('') || '<option value="">No linked family</option>';
 
-  elements.parentMessagesTable.innerHTML = state.messagingConversations.map((item) => `
-    <tr>
-      <td>${escapeHtml(item.SchoolName || '-')}</td>
-      <td>${escapeHtml(item.Subject || '-')}<span class="table-subtext">${dateOnly(item.LastMessageDate)}</span></td>
-      <td>${escapeHtml(item.LastMessageBody || '-')}<span class="table-subtext">${escapeHtml(item.LastMessageSenderRole || '')}</span></td>
-    </tr>
-  `).join('') || '<tr><td colspan="3">No messaging conversations found.</td></tr>';
+  elements.parentMessagesTable.innerHTML = state.messagingConversations.map((item) => {
+    const isUpdateChannel = (item.ConversationType || item.TargetType) === 'KinderCareHubParents';
+    return `
+      <tr>
+        <td>${escapeHtml(isUpdateChannel ? 'Kinder Care Hub' : (item.SchoolName || '-'))}</td>
+        <td>${escapeHtml(item.Subject || '-')}<span class="table-subtext">${dateOnly(item.LastMessageDate)}</span></td>
+        <td>${escapeHtml(item.LastMessageBody || '-')}<span class="table-subtext">${escapeHtml(item.LastMessageSenderRole || '')}</span></td>
+        <td>${isUpdateChannel
+          ? '<span class="badge muted">Update</span>'
+          : `<button class="ghost-button compact-button" data-action="reply-parent-message" data-id="${item.ConversationID}" type="button">Reply</button>`}</td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="4">No messaging conversations found.</td></tr>';
 }
 
 function switchView(viewName) {
@@ -554,6 +601,25 @@ document.addEventListener('click', (event) => {
   if (viewName) {
     switchView(viewName);
   }
+
+  if (button.dataset.action === 'reply-parent-message') {
+    const body = window.prompt('Reply message');
+    if (!body || !body.trim()) {
+      return;
+    }
+
+    api(`/api/messaging/parent/conversations/${button.dataset.id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ body })
+    })
+      .then(async () => {
+        state.messagingConversations = await loadParentMessagingConversations();
+        await refreshMessagingNotifications({ silent: true });
+        renderMessaging();
+        showToast('Reply sent');
+      })
+      .catch((error) => showToast(error.message));
+  }
 });
 
 document.addEventListener('submit', async (event) => {
@@ -601,6 +667,7 @@ elements.parentMessageForm?.addEventListener('submit', async (event) => {
     });
     form.reset();
     state.messagingConversations = await loadParentMessagingConversations();
+    await refreshMessagingNotifications({ silent: true });
     renderMessaging();
     showToast('Message sent');
   } catch (error) {

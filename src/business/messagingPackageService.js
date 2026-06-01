@@ -6,7 +6,7 @@ const UserRepository = require('../data/userRepository');
 const PACKAGE_KEY = 'messaging';
 const PACKAGE_NAME = 'Messaging';
 const AVAILABLE_PLANS = ['Standard', 'Pro', 'Pro+'];
-const MESSAGING_INCLUDED_PLANS = ['Pro', 'Pro+'];
+const MESSAGING_INCLUDED_PLANS = ['Pro+'];
 
 class MessagingPackageService {
   constructor(dependencies = {}) {
@@ -130,7 +130,7 @@ class MessagingPackageService {
       active,
       reason: active ? 'Messaging package is active'
         : subscriptionStatus !== 'Active' ? 'School subscription is not active'
-          : 'Messaging is included in the Pro and Pro+ plans'
+          : 'Messaging is included in the Pro+ plan'
     };
   }
 
