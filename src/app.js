@@ -202,7 +202,7 @@ const {
 const { isAadAdminEmailAllowed, isAadAdminObjectIdAllowed, normalizeEmail } = require('./security/adminAccess');
 const userServiceInstance = new UserService();
 
-const MICROSOFT_CONSUMER_TENANT = 'consumers';
+const DEFAULT_MICROSOFT_TENANT = 'common';
 
 // Prefer BASE_URL in production so OAuth redirect URIs stay stable behind Azure.
 function publicBaseUrl(req) {
@@ -240,9 +240,33 @@ function normalizePortalType(value, fallback = 'parent') {
   return ['school', 'parent'].includes(type) ? type : fallback;
 }
 
+// Microsoft school/parent login must accept personal and work/school accounts.
+function microsoftTenant() {
+  return String(process.env.MICROSOFT_TENANT || DEFAULT_MICROSOFT_TENANT).trim() || DEFAULT_MICROSOFT_TENANT;
+}
+
 // After OAuth succeeds, send users to the correct dashboard shell.
 function oauthRedirectForType(type) {
   return type === 'school' ? '/sms' : '/parent';
+}
+
+function oauthFailureStatus(error) {
+  const message = String(error?.message || '');
+
+  if (/not found|no matching|not authorized|registration|suspended|inactive/i.test(message)) {
+    return 403;
+  }
+
+  if (/required|missing|invalid|expired|email|school id/i.test(message)) {
+    return 400;
+  }
+
+  return 500;
+}
+
+function oauthFailureMessage(error, fallback) {
+  const status = oauthFailureStatus(error);
+  return status >= 500 ? fallback : error.message;
 }
 
 // OAuth state proves the callback belongs to a sign-in that this app started.
@@ -365,9 +389,9 @@ app.get('/auth/azure/callback', async (req, res) => {
   }
 });
 
-// Microsoft consumer OAuth for school/parent. AAD is reserved for the Admin dashboard route above.
+// Microsoft OAuth for school/parent. AAD is reserved for the Admin dashboard route above.
 app.get('/auth/microsoft', (req, res) => {
-  const tenant = MICROSOFT_CONSUMER_TENANT;
+  const tenant = microsoftTenant();
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   const callbackUri = redirectUri(req, 'MICROSOFT_REDIRECT_URI', '/auth/microsoft/callback');
   const type = normalizePortalType(req.query.type);
@@ -398,6 +422,10 @@ app.get('/auth/microsoft', (req, res) => {
 
 app.get('/auth/microsoft/callback', async (req, res) => {
   try {
+    if (req.query.error) {
+      throw new Error(String(req.query.error_description || req.query.error));
+    }
+
     const code = req.query.code;
 
     if (!code) {
@@ -412,7 +440,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
     const type = normalizePortalType(state.type);
     const schoolId = state.schoolId || null;
 
-    const tenant = MICROSOFT_CONSUMER_TENANT;
+    const tenant = microsoftTenant();
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
     const callbackUri = redirectUri(req, 'MICROSOFT_REDIRECT_URI', '/auth/microsoft/callback');
@@ -449,7 +477,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
     return sendAuthCompletion(res, authResponse, oauthRedirectForType(type));
   } catch (err) {
     console.error('Microsoft callback error', err);
-    return res.status(500).send('Microsoft authentication failed');
+    return res.status(oauthFailureStatus(err)).send(oauthFailureMessage(err, 'Microsoft authentication failed'));
   }
 });
 
