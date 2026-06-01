@@ -2,22 +2,36 @@
 
 const express = require('express');
 const DashboardService = require('../business/dashboardService');
-const { authenticateToken, requireSchoolPermission } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { getSchoolPermissions, hasSchoolPermission } = require('../security/schoolPermissions');
 
 const router = express.Router();
 const dashboardService = new DashboardService();
-
-router.get('/', authenticateToken, requireSchoolPermission(
+const SCHOOL_DASHBOARD_PERMISSIONS = [
   'school.students.view',
   'school.classes.view',
   'attendance.view_all',
   'finance.invoices.view',
   'reports.view'
-), async (req, res) => {
+];
+
+router.get('/', authenticateToken, async (req, res) => {
   try {
     if (req.user.Role === 'admin') {
       const data = await dashboardService.getAdminDashboard();
       return res.json(data);
+    }
+
+    if (req.user.Role !== 'school') {
+      return res.status(403).json({ error: 'School staff access required' });
+    }
+
+    const permissions = await getSchoolPermissions(req.user);
+    req.user.SchoolPermissions = permissions;
+    req.user.SchoolPermissionSet = new Set(permissions);
+
+    if (!hasSchoolPermission(req.user, SCHOOL_DASHBOARD_PERMISSIONS)) {
+      return res.status(403).json({ error: 'You do not have permission to perform this action' });
     }
 
     if (!req.user.SchoolID) {
