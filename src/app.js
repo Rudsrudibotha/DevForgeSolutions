@@ -199,7 +199,7 @@ const {
   verifyGoogleIdToken,
   verifyMicrosoftIdToken
 } = require('./security/oauth');
-const { isAadAdminEmailAllowed, normalizeEmail } = require('./security/adminAccess');
+const { isAadAdminEmailAllowed, isAadAdminObjectIdAllowed, normalizeEmail } = require('./security/adminAccess');
 const userServiceInstance = new UserService();
 
 const MICROSOFT_CONSUMER_TENANT = 'consumers';
@@ -325,14 +325,16 @@ app.get('/auth/azure/callback', async (req, res) => {
       claims.unique_name,
       getEmailClaim(claims)
     ].map(normalizeEmail).filter(Boolean);
-    const email = emailCandidates.find(isAadAdminEmailAllowed) || emailCandidates[0];
+    const allowedEmail = emailCandidates.find(isAadAdminEmailAllowed);
+    const objectIdAllowed = isAadAdminObjectIdAllowed(claims.oid);
+    const email = allowedEmail || emailCandidates[0];
 
     if (!email) {
       return res.status(400).send('No email claim in id_token');
     }
 
-    // Only explicitly allowed admin emails can enter the DevForge dashboard.
-    if (!isAadAdminEmailAllowed(email)) {
+    // Only explicitly allowed admin emails or AAD object IDs can enter the DevForge dashboard.
+    if (!allowedEmail && !objectIdAllowed) {
       console.warn('[AAD] Unauthorized admin login attempt', {
         selectedEmail: email,
         candidates: emailCandidates,
