@@ -4084,10 +4084,31 @@ function schoolBankingLines(school) {
   `).join('') || '<p>No banking details captured.</p>';
 }
 
+function invoiceSchoolLogoHtml(school) {
+  if (school?.LogoUrl) {
+    return `<img src="${escapeHtml(school.LogoUrl)}" alt="${escapeHtml(school.SchoolName || 'School')} logo">`;
+  }
+
+  return `<div class="invoice-logo-fallback">${escapeHtml(schoolInitials(school?.SchoolName || 'School'))}</div>`;
+}
+
+function invoiceSchoolContactHtml(school) {
+  const lines = [
+    school?.RegistrationNumber ? `Registration no: ${school.RegistrationNumber}` : '',
+    school?.ContactPhone ? `Cell: ${school.ContactPhone}` : '',
+    school?.ContactEmail ? `Email: ${school.ContactEmail}` : '',
+    school?.Website ? `Website: ${school.Website}` : ''
+  ].filter(Boolean);
+
+  return `
+    <p>${escapeHtml(lines.join(' | ') || 'School contact details not captured')}</p>
+    ${school?.Address ? `<p>${escapeHtml(school.Address)}</p>` : ''}
+  `;
+}
+
 function invoiceDocumentHtml(anchorInvoice) {
   const school = state.schools.find((item) => Number(item.SchoolID) === Number(anchorInvoice.SchoolID)) || getSettingsSchool() || {};
   const invoices = invoicePrintRows(anchorInvoice);
-  const logo = school.LogoUrl ? `<img src="${escapeHtml(school.LogoUrl)}" alt="">` : '';
   const familyCode = anchorInvoice.FamilyName || anchorInvoice.FamilyID || '-';
   const grouped = invoices.reduce((groups, invoice) => {
     const key = `${invoice.StudentID || invoiceStudentName(invoice)}`;
@@ -4131,11 +4152,14 @@ function invoiceDocumentHtml(anchorInvoice) {
   return `
     <article class="invoice-document">
       <header class="invoice-document-header">
-        ${logo}
+        ${invoiceSchoolLogoHtml(school)}
         <div>
           <h2>${escapeHtml(school.SchoolName || 'School Invoice')}</h2>
-          <p>${escapeHtml([school.RegistrationNumber ? `Reg: ${school.RegistrationNumber}` : '', school.ContactPhone, school.ContactEmail].filter(Boolean).join(' | '))}</p>
-          <p>${escapeHtml(school.Address || '')}</p>
+          ${invoiceSchoolContactHtml(school)}
+        </div>
+        <div class="invoice-document-title">
+          <strong>Tax Invoice / Statement</strong>
+          <span>Generated ${escapeHtml(dateOnly(new Date()))}</span>
         </div>
       </header>
       <section class="invoice-document-grid">
@@ -4162,10 +4186,14 @@ function invoicePrintCss() {
   return `
     body { font-family: Arial, sans-serif; color: #111827; padding: 18px; background: #fff; }
     .invoice-document { max-width: 980px; margin: 0 auto; border: 1px solid #d1d5db; padding: 24px; }
-    .invoice-document-header { display: grid; grid-template-columns: 92px 1fr; gap: 16px; align-items: center; border-bottom: 2px solid #111827; padding-bottom: 14px; margin-bottom: 18px; }
+    .invoice-document-header { display: grid; grid-template-columns: 92px 1fr auto; gap: 16px; align-items: center; border-bottom: 2px solid #111827; padding-bottom: 14px; margin-bottom: 18px; }
     .invoice-document-header img { width: 80px; max-height: 80px; object-fit: contain; }
+    .invoice-logo-fallback { width: 80px; height: 80px; display: grid; place-items: center; border: 1px solid #cbd5e1; font-size: 22px; font-weight: 800; }
     .invoice-document-header h2 { margin: 0 0 4px; font-size: 22px; }
     .invoice-document-header p { margin: 2px 0; font-size: 12px; }
+    .invoice-document-title { text-align: right; }
+    .invoice-document-title strong { display: block; font-size: 18px; }
+    .invoice-document-title span { display: block; margin-top: 4px; color: #4b5563; font-size: 12px; }
     .invoice-document-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
     .invoice-detail-line { display: grid; grid-template-columns: 130px 1fr; gap: 8px; margin-bottom: 6px; font-size: 12px; }
     .invoice-detail-line span, .invoice-block-label { font-weight: 700; }

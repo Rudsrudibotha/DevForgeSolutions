@@ -275,15 +275,80 @@ class ExportService {
     ];
   }
 
+  statementSchool(statement) {
+    return statement?.school || statement?.student || {};
+  }
+
+  statementMoney(value, school = {}) {
+    const symbol = school.CurrencySymbol || 'R';
+    const amount = Number(value || 0);
+    return `${symbol} ${Number.isFinite(amount) ? amount.toFixed(2) : '0.00'}`;
+  }
+
+  statementInfoLine(label, value) {
+    if (!value) return '';
+    return `<div><span>${this.escapeXml(label)}</span><strong>${this.escapeXml(value)}</strong></div>`;
+  }
+
+  statementLogoHtml(school) {
+    if (school.LogoUrl) {
+      return `<img src="${this.escapeXml(school.LogoUrl)}" alt="${this.escapeXml(school.SchoolName || 'School')} logo">`;
+    }
+
+    const initials = String(school.SchoolName || 'School')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || 'S';
+    return `<div class="statement-logo-fallback">${this.escapeXml(initials)}</div>`;
+  }
+
+  statementContactHtml(school) {
+    const lines = [
+      school.RegistrationNumber ? `Registration no: ${school.RegistrationNumber}` : '',
+      school.ContactPhone ? `Cell: ${school.ContactPhone}` : '',
+      school.ContactEmail ? `Email: ${school.ContactEmail}` : '',
+      school.Website ? `Website: ${school.Website}` : ''
+    ].filter(Boolean);
+
+    return `
+      <p>${this.escapeXml(lines.join(' | ') || 'School contact details not captured')}</p>
+      ${school.Address ? `<p>${this.escapeXml(school.Address)}</p>` : ''}
+    `;
+  }
+
+  statementBankingHtml(school) {
+    const rows = [
+      ['Bank', school.BankName],
+      ['Account number', school.BankAccountNumber],
+      ['Branch code', school.BankBranchCode],
+      ['Account type', school.BankAccountType]
+    ].filter(([, value]) => value);
+
+    if (!rows.length) {
+      return `<p>${this.escapeXml(school.PaymentInstructions || 'No banking details captured.')}</p>`;
+    }
+
+    return rows.map(([label, value]) => this.statementInfoLine(label, value)).join('');
+  }
+
   studentStatementHtml(statement) {
     const student = statement?.student || {};
+    const school = this.statementSchool(statement);
     const rows = this.studentStatementRows(statement);
     const walletBalance = Number(statement?.wallet?.Balance || 0);
     const totalDebit = rows.reduce((sum, row) => sum + Number(row.Debit || 0), 0);
     const totalCredit = rows.reduce((sum, row) => sum + Number(row.Credit || 0), 0);
     const closingBalance = rows.length ? Number(rows[rows.length - 1].Balance || 0) : 0;
-    const schoolName = student.SchoolName || statement?.school?.SchoolName || 'School';
+    const schoolName = school.SchoolName || 'School';
     const studentName = `${student.FirstName || ''} ${student.LastName || ''}`.trim() || `Student ${student.StudentID || ''}`;
+    const familyName = student.FamilyName || statement?.family?.FamilyName || '-';
+    const payerName = student.ResponsiblePayerName || student.PrimaryParentName || familyName;
+    const payerContact = [student.ResponsiblePayerPhone || student.PrimaryParentPhone, student.ResponsiblePayerEmail || student.PrimaryParentEmail]
+      .filter(Boolean)
+      .join(' | ');
+    const generatedDate = new Date().toISOString().slice(0, 10);
 
     return `<!doctype html>
 <html>
@@ -291,9 +356,23 @@ class ExportService {
   <meta charset="utf-8">
   <title>Account Statement - ${this.escapeXml(studentName)}</title>
   <style>
-    body { font-family: Arial, sans-serif; color: #111827; margin: 28px; }
-    h1 { font-size: 22px; margin: 0 0 4px; }
-    h2 { font-size: 16px; margin: 0 0 18px; color: #4b5563; }
+    body { font-family: Arial, sans-serif; color: #111827; margin: 0; background: #fff; }
+    .statement-document { max-width: 980px; margin: 0 auto; padding: 28px; }
+    .statement-header { display: grid; grid-template-columns: 96px 1fr auto; gap: 18px; align-items: center; border-bottom: 2px solid #111827; padding-bottom: 16px; }
+    .statement-header img { width: 88px; max-height: 88px; object-fit: contain; }
+    .statement-logo-fallback { width: 88px; height: 88px; display: grid; place-items: center; border: 1px solid #cbd5e1; font-size: 24px; font-weight: 800; }
+    h1 { font-size: 24px; margin: 0 0 5px; }
+    h2 { font-size: 16px; margin: 0; color: #4b5563; }
+    p { margin: 4px 0; font-size: 12px; }
+    .statement-title { text-align: right; }
+    .statement-title strong { display: block; font-size: 20px; }
+    .statement-title span { display: block; margin-top: 4px; color: #4b5563; font-size: 12px; }
+    .statement-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 18px 0; }
+    .statement-card { border: 1px solid #d1d5db; padding: 12px; }
+    .statement-card h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #374151; }
+    .statement-card div { display: grid; grid-template-columns: 130px 1fr; gap: 8px; margin-bottom: 7px; font-size: 12px; }
+    .statement-card span { color: #6b7280; }
+    .statement-card strong { font-weight: 700; }
     .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
     .summary div { border: 1px solid #d1d5db; padding: 10px; }
     .summary span { display: block; font-size: 11px; color: #6b7280; }
@@ -302,32 +381,73 @@ class ExportService {
     th, td { border: 1px solid #d1d5db; padding: 7px; font-size: 12px; text-align: left; }
     th { background: #111827; color: white; }
     td.money { text-align: right; }
-    @media print { body { margin: 12mm; } }
+    .statement-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; border-top: 1px solid #d1d5db; margin-top: 18px; padding-top: 12px; font-size: 12px; }
+    .statement-footer strong { display: block; margin-bottom: 5px; }
+    @media print { .statement-document { padding: 12mm; } }
   </style>
 </head>
 <body>
-  <h1>${this.escapeXml(schoolName)}</h1>
-  <h2>Parent Account Statement - ${this.escapeXml(studentName)}</h2>
-  <div class="summary">
-    <div><span>Total debit</span><strong>${this.escapeXml(totalDebit.toFixed(2))}</strong></div>
-    <div><span>Total credit</span><strong>${this.escapeXml(totalCredit.toFixed(2))}</strong></div>
-    <div><span>Advance wallet</span><strong>${this.escapeXml(walletBalance.toFixed(2))}</strong></div>
-    <div><span>Closing balance</span><strong>${this.escapeXml(closingBalance.toFixed(2))}</strong></div>
-  </div>
-  <table>
-    <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
-    <tbody>
-      ${rows.map((row) => `<tr>
-        <td>${this.escapeXml(row.Date || '')}</td>
-        <td>${this.escapeXml(row.Type || '')}</td>
-        <td>${this.escapeXml(row.Reference || '')}</td>
-        <td>${this.escapeXml(row.Description || '')}</td>
-        <td class="money">${this.escapeXml(Number(row.Debit || 0).toFixed(2))}</td>
-        <td class="money">${this.escapeXml(Number(row.Credit || 0).toFixed(2))}</td>
-        <td class="money">${this.escapeXml(Number(row.Balance || 0).toFixed(2))}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
+  <article class="statement-document">
+    <header class="statement-header">
+      ${this.statementLogoHtml(school)}
+      <div>
+        <h1>${this.escapeXml(schoolName)}</h1>
+        ${this.statementContactHtml(school)}
+      </div>
+      <div class="statement-title">
+        <strong>Account Statement</strong>
+        <span>Generated ${this.escapeXml(generatedDate)}</span>
+      </div>
+    </header>
+
+    <section class="statement-parties">
+      <div class="statement-card">
+        <h3>Learner</h3>
+        ${this.statementInfoLine('Learner', studentName)}
+        ${this.statementInfoLine('Class', student.ClassName || '-')}
+        ${this.statementInfoLine('Family', familyName)}
+      </div>
+      <div class="statement-card">
+        <h3>Responsible payer</h3>
+        ${this.statementInfoLine('Name', payerName || '-')}
+        ${this.statementInfoLine('Contact', payerContact || '-')}
+        ${this.statementInfoLine('Reference', familyName || student.StudentID || '-')}
+      </div>
+    </section>
+
+    <div class="summary">
+      <div><span>Total debit</span><strong>${this.escapeXml(this.statementMoney(totalDebit, school))}</strong></div>
+      <div><span>Total credit</span><strong>${this.escapeXml(this.statementMoney(totalCredit, school))}</strong></div>
+      <div><span>Advance wallet</span><strong>${this.escapeXml(this.statementMoney(walletBalance, school))}</strong></div>
+      <div><span>Closing balance</span><strong>${this.escapeXml(this.statementMoney(closingBalance, school))}</strong></div>
+    </div>
+
+    <table>
+      <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
+      <tbody>
+        ${rows.map((row) => `<tr>
+          <td>${this.escapeXml(row.Date || '')}</td>
+          <td>${this.escapeXml(row.Type || '')}</td>
+          <td>${this.escapeXml(row.Reference || '')}</td>
+          <td>${this.escapeXml(row.Description || '')}</td>
+          <td class="money">${this.escapeXml(this.statementMoney(row.Debit || 0, school))}</td>
+          <td class="money">${this.escapeXml(this.statementMoney(row.Credit || 0, school))}</td>
+          <td class="money">${this.escapeXml(this.statementMoney(row.Balance || 0, school))}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+
+    <footer class="statement-footer">
+      <div>
+        <strong>Banking details</strong>
+        ${this.statementBankingHtml(school)}
+      </div>
+      <div>
+        <strong>Payment instructions</strong>
+        <p>${this.escapeXml(school.PaymentInstructions || 'Please use the family reference when making payment.')}</p>
+      </div>
+    </footer>
+  </article>
 </body>
 </html>`;
   }

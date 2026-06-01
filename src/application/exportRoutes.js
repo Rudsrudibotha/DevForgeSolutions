@@ -125,12 +125,19 @@ router.get('/student-statement/:studentId/excel', authenticateToken, requireScho
     const statement = await invoiceService.getStudentFinanceStatement(parseInt(req.params.studentId, 10), req.user);
     const rows = exportService.studentStatementRows(statement);
     const student = statement.student || {};
+    const school = statement.school || {};
     const exportDate = new Date().toISOString().slice(0, 10);
     const studentName = `${student.FirstName || ''}-${student.LastName || ''}`.replace(/[^a-z0-9-]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || `student-${student.StudentID}`;
     await auditLog.log({ userId: req.user.UserID, schoolId: student.SchoolID, entityName: 'StudentStatement', entityId: student.StudentID, action: 'ExportExcel', after: { studentId: student.StudentID }, ipAddress: req.ip });
     sendExcel(res, `student-statement-${studentName}-${exportDate}.xls`, exportService.toExcelXml(rows, exportService.studentStatementColumns(), {
-      title: 'Parent Account Statement',
-      subtitle: `${student.FirstName || ''} ${student.LastName || ''} - generated ${exportDate}`,
+      title: `${school.SchoolName || 'School'} - Parent Account Statement`,
+      subtitle: [
+        school.RegistrationNumber ? `Reg: ${school.RegistrationNumber}` : '',
+        school.ContactPhone ? `Cell: ${school.ContactPhone}` : '',
+        school.ContactEmail ? `Email: ${school.ContactEmail}` : '',
+        `${student.FirstName || ''} ${student.LastName || ''}`.trim(),
+        `Generated ${exportDate}`
+      ].filter(Boolean).join(' | '),
       sheetName: 'Account Statement',
       generatedAt: exportDate
     }));

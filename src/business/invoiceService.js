@@ -68,7 +68,8 @@ class InvoiceService {
 
     this.ensureSchoolAccess(student.SchoolID, currentUser);
 
-    const [invoices, wallet, walletLedger, transactions, balanceBroughtForward] = await Promise.all([
+    const [school, invoices, wallet, walletLedger, transactions, balanceBroughtForward] = await Promise.all([
+      this.schoolRepository.getSchoolById(student.SchoolID),
       this.invoiceRepository.getInvoicesByStudentForSchool(studentId, student.SchoolID),
       this.invoiceRepository.getStudentWallet(studentId, student.SchoolID),
       this.invoiceRepository.getStudentWalletLedger(studentId, student.SchoolID),
@@ -77,6 +78,7 @@ class InvoiceService {
     ]);
 
     return {
+      school: school || null,
       student,
       wallet: wallet || {
         SchoolID: student.SchoolID,
