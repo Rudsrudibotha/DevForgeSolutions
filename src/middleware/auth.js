@@ -136,6 +136,12 @@ const requireSchoolOrAdmin = (req, res, next) => {
 };
 
 const requireSchoolPermission = (...requiredPermissions) => async (req, res, next) => {
+  // Dev Forge Solutions internal users sign in through AAD and have full platform rights.
+  // Do not force those admin sessions through school staff permission checks.
+  if (req.user.Role === 'admin') {
+    return next();
+  }
+
   if (req.user.Role !== 'school') {
     return res.status(403).json({ error: 'School staff access required' });
   }

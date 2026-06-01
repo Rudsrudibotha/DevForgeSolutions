@@ -228,7 +228,7 @@ async function refreshData() {
       api('/api/dashboard'),
       api('/api/schools'),
       api('/api/users/devforge-users'),
-      api('/api/audit?limit=100'),
+      api('/api/audit?limit=100').catch(() => []),
       api('/api/faults?limit=100').catch(() => []),
       api('/api/email/status').catch(() => null)
     ]);
