@@ -1,5 +1,6 @@
 // Business Layer - Employee service logic
 
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const EmployeeRepository = require('../data/employeeRepository');
 const UserRepository = require('../data/userRepository');
@@ -60,7 +61,13 @@ class EmployeeService {
     this.validateId(id, 'Employee ID');
     const existing = await this.getEmployeeById(id, currentUser);
     const payload = this.buildPayload(data, existing.SchoolID, existing);
-    return await this.employeeRepository.updateEmployee(id, payload);
+    const updated = await this.employeeRepository.updateEmployee(id, payload);
+
+    if (existing.UserID) {
+      await this.userRepository.setUserActive(existing.UserID, updated.IsActive !== false && updated.IsActive !== 0);
+    }
+
+    return updated;
   }
 
   buildPayload(data, schoolId, existing = {}) {
@@ -106,7 +113,7 @@ class EmployeeService {
     const schoolId = Number(employee.SchoolID);
     const email = this.requiredString(employee.Email, 'Staff email', 255).toLowerCase();
     const username = this.normalizeUsername(data.username || email);
-    const password = String(data.password || '');
+    const password = String(data.password || this.generateTemporaryPassword());
     const staffRoleId = this.positiveInteger(data.staffRoleId, 'Access role');
 
     if (!this.isValidEmail(email)) {
@@ -194,6 +201,10 @@ class EmployeeService {
     if (typeof password !== 'string' || password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
       throw new Error('Password must be at least 8 characters long and include both letters and numbers');
     }
+  }
+
+  generateTemporaryPassword() {
+    return `Kch${crypto.randomBytes(9).toString('base64url')}7`;
   }
 
   normalizeUsername(username) {

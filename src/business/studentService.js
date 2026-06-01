@@ -3,13 +3,15 @@
 const StudentRepository = require('../data/studentRepository');
 const FamilyRepository = require('../data/familyRepository');
 const BillingCategoryRepository = require('../data/billingCategoryRepository');
+const InvoiceRepository = require('../data/invoiceRepository');
 const { hasSchoolPermission } = require('../security/schoolPermissions');
 
 class StudentService {
-  constructor() {
-    this.studentRepository = new StudentRepository();
-    this.familyRepository = new FamilyRepository();
-    this.billingCategoryRepository = new BillingCategoryRepository();
+  constructor(dependencies = {}) {
+    this.studentRepository = dependencies.studentRepository || new StudentRepository();
+    this.familyRepository = dependencies.familyRepository || new FamilyRepository();
+    this.billingCategoryRepository = dependencies.billingCategoryRepository || new BillingCategoryRepository();
+    this.invoiceRepository = dependencies.invoiceRepository || new InvoiceRepository();
     this.allowedStatuses = ['active', 'inactive', 'all'];
     this.departureReasons = ['Left', 'Absconded', 'Moved', 'Other'];
   }
@@ -68,7 +70,14 @@ class StudentService {
 
     const payload = this.buildDeparturePayload(departureData);
 
-    return await this.studentRepository.makeInactive(id, payload);
+    const updated = await this.studentRepository.makeInactive(id, payload);
+    await this.invoiceRepository.cancelUnpaidInvoicesAfterStudentDeparture(
+      student.StudentID,
+      student.SchoolID,
+      payload.departureDate
+    );
+
+    return updated;
   }
 
   async buildStudentPayload(studentData, currentUser, existingStudent = {}) {

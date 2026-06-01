@@ -1678,7 +1678,6 @@ function dataNeedsForView(viewName = activeViewName()) {
     'registerLearner',
     'invoices',
     'outstanding',
-    'classes',
     'attendance',
     'consentPermissions',
     'sendInvoices',
@@ -3935,7 +3934,7 @@ function renderBillingCategoryOptions() {
 function renderClassOptions() {
   if (elements.classTeacherSelect) {
     const teacherOptions = state.employees
-      .filter((employee) => employee.IsActive !== false)
+      .filter(employeeIsActive)
       .map((employee) => `
         <option value="${employee.EmployeeID}">${escapeHtml(`${employee.FirstName || ''} ${employee.LastName || ''}`.trim())}</option>
       `).join('');
@@ -4534,6 +4533,7 @@ function renderStudentsTable() {
   elements.studentsTable.innerHTML = limited.map((student) => {
     const isActive = Boolean(student.IsActive);
     const statusClass = isActive ? 'badge' : 'badge danger';
+    const inactiveStatus = student.DepartureReason === 'Left' ? 'Left' : 'Inactive';
     const fullName = `${student.FirstName} ${student.LastName}`;
 
     return `
@@ -4546,13 +4546,13 @@ function renderStudentsTable() {
         <td>${escapeHtml(student.FamilyName || '-')}</td>
         <td>${dateOnly(student.EnrolledDate)}</td>
         <td>
-          <span class="${statusClass}">${isActive ? 'Active' : 'Inactive'}</span>
+          <span class="${statusClass}">${isActive ? 'Active' : inactiveStatus}</span>
           ${!isActive ? `<span class="table-subtext">${escapeHtml(student.DepartureReason || '')} ${dateOnly(student.DepartureDate)}</span>` : ''}
         </td>
         <td>
           <div class="actions">
             <button class="ghost-button" data-action="edit-student" data-id="${student.StudentID}" type="button">Edit</button>
-            ${isActive ? `<button class="ghost-button" data-action="inactivate-student" data-id="${student.StudentID}" type="button">Mark inactive</button>` : ''}
+            ${isActive ? `<button class="ghost-button" data-action="inactivate-student" data-id="${student.StudentID}" type="button">Mark as Left</button>` : ''}
           </div>
         </td>
       </tr>
@@ -4996,6 +4996,10 @@ function renderAttendance() {
   }).join('');
 }
 
+function employeeIsActive(employee) {
+  return employee?.IsActive !== false && employee?.IsActive !== 0;
+}
+
 function filteredEmployees() {
   const searchType = String(elements.staffSearchTypeInput?.value || 'Name');
   const search = String(elements.staffSearchInput?.value || '').trim().toLowerCase();
@@ -5015,7 +5019,7 @@ function filteredEmployees() {
     })
     .filter((employee) => {
       if (!status) return true;
-      const isActive = employee.IsActive !== false;
+      const isActive = employeeIsActive(employee);
       return status === 'Active' ? isActive : !isActive;
     })
     .filter((employee) => {
@@ -5032,18 +5036,33 @@ function renderEmployees() {
 
   const canManageStaff = userCan('school.staff.manage');
   elements.employeesTable.innerHTML = filteredEmployees().map((employee, index) => {
-    const isActive = employee.IsActive !== false;
+    const isActive = employeeIsActive(employee);
     const employeeNumber = employee.EmployeeNumber || (employee.EmployeeID ? `S${String(employee.EmployeeID).padStart(3, '0')}` : '-');
+    const hasDashboardAccess = Boolean(employee.UserID);
+    const accessLabel = hasDashboardAccess
+      ? (isActive ? 'Dashboard access active' : 'Dashboard access disabled')
+      : 'No dashboard access';
+    const staffActions = canManageStaff
+      ? `<div class="actions stacked-actions">
+          <button class="ghost-button" data-action="edit-employee" data-id="${employee.EmployeeID}" type="button">Edit</button>
+          ${isActive
+            ? `<button class="danger-button" data-action="deactivate-employee" data-id="${employee.EmployeeID}" type="button">Deactivate</button>`
+            : `<button class="ghost-button" data-action="activate-employee" data-id="${employee.EmployeeID}" type="button">Activate</button>`}
+        </div>`
+      : '-';
 
     return `
       <tr>
         <td>${index + 1}</td>
         <td>${escapeHtml(`${employee.FirstName || ''} ${employee.LastName || ''}`.trim())}</td>
         <td>${escapeHtml(employeeNumber)}</td>
-        <td>${escapeHtml(employee.JobTitle || employee.Department || '-')}</td>
+        <td>
+          ${escapeHtml(employee.JobTitle || employee.Department || '-')}
+          <span class="table-subtext">${escapeHtml(accessLabel)}</span>
+        </td>
         <td>${escapeHtml(employee.Phone || '-')}</td>
         <td>${escapeHtml(employee.Email || '-')}</td>
-        <td>${canManageStaff ? `<button class="ghost-button" data-action="edit-employee" data-id="${employee.EmployeeID}" type="button">Edit</button>` : '-'}</td>
+        <td>${staffActions}</td>
         <td><span class="${isActive ? 'badge' : 'badge danger'}">${isActive ? 'Active' : 'Inactive'}</span></td>
       </tr>
     `;
@@ -5092,7 +5111,7 @@ function renderPayslipEmployeeOptions() {
     return;
   }
 
-  const activeEmployees = state.employees.filter((employee) => employee.IsActive !== false);
+  const activeEmployees = state.employees.filter(employeeIsActive);
   elements.payslipEmployeeSelect.innerHTML = activeEmployees.length
     ? activeEmployees.map((employee) => `
       <option value="${employee.EmployeeID}">${escapeHtml(`${employee.FirstName || ''} ${employee.LastName || ''}`.trim())}</option>
@@ -5106,7 +5125,7 @@ function renderLeaveEmployeeOptions() {
     return;
   }
 
-  const activeEmployees = state.employees.filter((employee) => employee.IsActive !== false);
+  const activeEmployees = state.employees.filter(employeeIsActive);
   elements.leaveEmployeeSelect.innerHTML = activeEmployees.length
     ? activeEmployees.map((employee) => `
       <option value="${employee.EmployeeID}">${escapeHtml(`${employee.FirstName || ''} ${employee.LastName || ''}`.trim())}</option>
@@ -5809,12 +5828,14 @@ function showDepartureForm(studentId) {
   elements.departureForm.elements.departureNote.value = '';
   elements.departureOtherGroup.classList.add('hidden');
   elements.departureForm.classList.remove('hidden');
+  document.body.classList.add('modal-open');
 }
 
 function hideDepartureForm() {
   state.selectedDepartureStudentId = null;
   elements.departureForm.classList.add('hidden');
   elements.departureForm.reset();
+  document.body.classList.remove('modal-open');
 }
 
 async function openStudentFinanceDialog(studentId, focusReceipt = false) {
@@ -5987,7 +6008,7 @@ async function openEmployeeDialog(employeeId = null) {
   setFormValue(form, 'firstName', employee?.FirstName || '');
   setFormValue(form, 'lastName', employee?.LastName || '');
   setFormValue(form, 'email', employee?.Email || '');
-  setFormValue(form, 'createSystemUser', 'false');
+  setFormValue(form, 'createSystemUser', employee?.UserID ? 'false' : 'true');
   setFormValue(form, 'username', '');
   setFormValue(form, 'password', '');
   setFormValue(form, 'phone', employee?.Phone || '');
@@ -6013,7 +6034,8 @@ async function openEmployeeDialog(employeeId = null) {
   setFormValue(form, 'branchCode', employee?.BranchCode || '');
   setFormValue(form, 'accountType', employee?.AccountType || '');
   setFormValue(form, 'leaveBalance', employee?.LeaveBalance ?? 21);
-  setFormValue(form, 'isActive', employee && employee.IsActive === false ? 'false' : 'true');
+  setFormValue(form, 'isActive', employee && !employeeIsActive(employee) ? 'false' : 'true');
+  form.querySelector('[data-form-tab="staffDetails"]')?.click();
   document.getElementById('employeeDialogTitle').textContent = employee ? 'Edit staff' : 'Add staff';
   document.getElementById('employeeDialogSubtitle').textContent = employee ? 'Update staff details for this school.' : 'Capture staff details for this school.';
   elements.employeeDialog.classList.remove('hidden');
@@ -6667,7 +6689,7 @@ function renderSchoolUsers() {
       <td>${escapeHtml(user.Email || user.email)}</td>
       <td>
         <span class="badge">${escapeHtml(user.Role || user.role || 'school')}</span>
-        <span class="table-subtext">${(user.IsActive ?? user.isActive) === false || user.StaffIsActive === false ? 'Inactive' : 'Active'}</span>
+        <span class="table-subtext">${[false, 0].includes(user.IsActive ?? user.isActive) || [false, 0].includes(user.StaffIsActive) ? 'Inactive' : 'Active'}</span>
       </td>
       <td>
         ${assignedRoleBadges(user.UserID || user.userId)}
@@ -6675,7 +6697,7 @@ function renderSchoolUsers() {
       <td>
         ${dateOnly(user.CreatedDate || user.createdDate)}
         <div class="actions stacked-actions">
-          ${(user.IsActive ?? user.isActive) === false
+          ${[false, 0].includes(user.IsActive ?? user.isActive)
             ? `<button class="ghost-button" data-action="activate-user" data-id="${user.UserID || user.userId}" type="button">Activate</button>`
             : `<button class="danger-button" data-action="deactivate-user" data-id="${user.UserID || user.userId}" type="button">Deactivate</button>`}
         </div>
@@ -6688,7 +6710,7 @@ function renderSchoolUserEmployeeOptions() {
   if (!elements.schoolUserEmployeeSelect) return;
 
   const availableStaff = state.employees.filter((employee) => (
-    employee.IsActive !== false
+    employeeIsActive(employee)
     && !employee.UserID
     && String(employee.Email || '').trim()
   ));
@@ -7776,11 +7798,12 @@ elements.employeeForm.addEventListener('submit', async (event) => {
       }
 
       if (!payload.username) {
-        throw new Error('Login username is required for dashboard access');
-      }
-
-      if (!payload.password) {
-        throw new Error('Temporary password is required for dashboard access');
+        payload.username = String(payload.email || '')
+          .trim()
+          .toLowerCase()
+          .split('@')[0]
+          .replace(/[^a-z0-9._-]/g, '')
+          .slice(0, 50);
       }
 
       if (!payload.staffRoleId) {
@@ -7966,8 +7989,12 @@ elements.departureForm.addEventListener('submit', async (event) => {
     });
 
     hideDepartureForm();
+    state.studentStatusFilter = 'inactive';
+    if (document.getElementById('studentStatusFilterInput')) {
+      document.getElementById('studentStatusFilterInput').value = 'inactive';
+    }
     await refreshData();
-    showToast('Student marked inactive');
+    showToast('Learner marked as Left. Future billing after the left date is blocked.');
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -8646,6 +8673,27 @@ document.addEventListener('click', async (event) => {
 
   if (action === 'edit-employee') {
     await openEmployeeDialog(button.dataset.id);
+    return;
+  }
+
+  if (action === 'deactivate-employee' || action === 'activate-employee') {
+    const isActivating = action === 'activate-employee';
+    const confirmed = isActivating
+      || window.confirm('Deactivate this staff member? Their dashboard access will be disabled immediately.');
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await api(`/api/employees/${button.dataset.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ isActive: isActivating })
+      });
+      await refreshData();
+      showToast(isActivating ? 'Staff member activated' : 'Staff member deactivated and access disabled');
+    } catch (error) {
+      showToast(error.message);
+    }
     return;
   }
 

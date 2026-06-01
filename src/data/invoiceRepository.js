@@ -281,6 +281,26 @@ class InvoiceRepository {
     return { message: 'Invoice deleted' };
   }
 
+  async cancelUnpaidInvoicesAfterStudentDeparture(studentId, schoolId, departureDate) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('studentId', sql.Int, studentId)
+      .input('schoolId', sql.Int, schoolId)
+      .input('departureDate', sql.Date, departureDate)
+      .query(`UPDATE Invoices
+              SET Status = 'Cancelled',
+                  IsDeleted = 1,
+                  UpdatedDate = GETDATE()
+              OUTPUT INSERTED.*
+              WHERE StudentID = @studentId
+                AND SchoolID = @schoolId
+                AND IsDeleted = 0
+                AND ISNULL(AmountPaid, 0) = 0
+                AND CAST(IssueDate AS date) > @departureDate
+                AND Status IN ('Pending', 'Overdue')`);
+    return result.recordset;
+  }
+
   // Partial payment
   async recordPartialPayment(id, paymentAmount, paymentDate = null) {
     const pool = await getPool();
