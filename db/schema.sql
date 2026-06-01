@@ -51,7 +51,9 @@ BEGIN
 
     IF @SchoolsSubscriptionPlanDefault IS NOT NULL
     BEGIN
-        EXEC('ALTER TABLE dbo.Schools DROP CONSTRAINT ' + QUOTENAME(@SchoolsSubscriptionPlanDefault));
+        DECLARE @DropSchoolsSubscriptionPlanDefaultSql NVARCHAR(MAX);
+        SET @DropSchoolsSubscriptionPlanDefaultSql = N'ALTER TABLE dbo.Schools DROP CONSTRAINT ' + QUOTENAME(@SchoolsSubscriptionPlanDefault);
+        EXEC sp_executesql @DropSchoolsSubscriptionPlanDefaultSql;
     END;
 
     ALTER TABLE dbo.Schools
