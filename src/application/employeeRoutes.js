@@ -50,6 +50,7 @@ router.get('/:id', authenticateToken, requireSchoolPermission(...STAFF_PAYROLL_R
 router.post('/', authenticateToken, requireSchoolPermission('school.staff.manage'), async (req, res) => {
   try {
     if ((req.body?.createSystemUser === true || req.body?.createSystemUser === 'true')
+      && req.user.Role !== 'admin'
       && !hasSchoolPermission(req.user, 'school.staff.permissions.manage')) {
       return res.status(403).json({ error: 'Staff permission management access is required to create dashboard access' });
     }
