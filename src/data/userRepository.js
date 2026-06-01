@@ -73,6 +73,22 @@ class UserRepository {
     return result.recordset[0];
   }
 
+  async getStaffLinkedUserBySchoolAndUsername(schoolId, username) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('schoolId', sql.Int, schoolId)
+      .input('username', sql.NVarChar, username)
+      .query(`SELECT TOP 1 u.*
+              FROM Users u
+              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = @schoolId
+              WHERE u.Role IN ('school', 'admin')
+                AND ISNULL(u.IsActive, 1) = 1
+                AND ISNULL(e.IsActive, 1) = 1
+                AND LOWER(u.Username) = LOWER(@username)
+              ORDER BY CASE WHEN u.SchoolID = @schoolId THEN 0 ELSE 1 END, u.UserID`);
+    return result.recordset[0];
+  }
+
   async getUserRecordBySchoolAndIdentifier(schoolId, identifier) {
     const pool = await getPool();
     const result = await pool.request()

@@ -74,6 +74,21 @@ class EmployeeRepository {
     return result.recordset[0];
   }
 
+  async getEmployeeBySchoolAndEmail(schoolId, email) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('schoolId', sql.Int, schoolId)
+      .input('email', sql.NVarChar, email)
+      .query(`SELECT TOP 1 *
+              FROM Employees
+              WHERE SchoolID = @schoolId
+                AND LOWER(Email) = LOWER(@email)
+              ORDER BY CASE WHEN ISNULL(IsActive, 1) = 1 THEN 0 ELSE 1 END,
+                       CASE WHEN UserID IS NULL THEN 1 ELSE 0 END,
+                       EmployeeID DESC`);
+    return result.recordset[0];
+  }
+
   async createEmployee(data) {
     const pool = await getPool();
     const result = await pool.request()
@@ -111,9 +126,16 @@ class EmployeeRepository {
                 FROM Users
                 WHERE UserID = @userId
                   AND Role IN ('school', 'admin')
-                  AND (SchoolID = @schoolId OR SchoolID IS NULL)
               )
-                THROW 50000, 'Linked user must belong to the selected school', 1;
+                THROW 50000, 'Linked user must be a school or admin account', 1;
+              IF @userId IS NOT NULL AND EXISTS (
+                SELECT 1
+                FROM Employees
+                WHERE UserID = @userId
+                  AND SchoolID = @schoolId
+                  AND ISNULL(IsActive, 1) = 1
+              )
+                THROW 50000, 'Linked user is already a staff member for this school', 1;
               INSERT INTO Employees (SchoolID, UserID, EmployeeNumber, PayrollNumber, FirstName, LastName, Email, Phone,
                 PhysicalAddress, JobTitle, Department, StartDate, Salary, LeaveBalance, IdNumber, PassportNumber,
                 TaxNumber, PayeReference, UifNumber, UifReferenceNumber, PaymentMethod, BankName, BankAccountNumber, BranchCode,
@@ -185,9 +207,17 @@ class EmployeeRepository {
                 FROM Users
                 WHERE UserID = @userId
                   AND Role IN ('school', 'admin')
-                  AND (SchoolID = @schoolId OR SchoolID IS NULL)
               )
-                THROW 50000, 'Linked user must belong to the selected school', 1;
+                THROW 50000, 'Linked user must be a school or admin account', 1;
+              IF EXISTS (
+                SELECT 1
+                FROM Employees
+                WHERE UserID = @userId
+                  AND SchoolID = @schoolId
+                  AND EmployeeID <> @employeeId
+                  AND ISNULL(IsActive, 1) = 1
+              )
+                THROW 50000, 'Linked user is already a staff member for this school', 1;
               UPDATE Employees
               SET UserID = @userId, UpdatedDate = GETDATE()
               OUTPUT INSERTED.*

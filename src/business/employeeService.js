@@ -48,6 +48,21 @@ class EmployeeService {
   async createEmployee(data, currentUser) {
     const schoolId = this.resolveSchoolId(currentUser, data.schoolId);
     const payload = this.buildPayload(data, schoolId);
+    const existingEmployee = await this.findExistingEmployeeByEmail(schoolId, payload.email);
+
+    if (existingEmployee) {
+      if (this.shouldCreateSystemUser(data) && !existingEmployee.UserID) {
+        const updatedEmployee = await this.employeeRepository.updateEmployee(existingEmployee.EmployeeID, {
+          ...payload,
+          schoolId,
+          userId: existingEmployee.UserID || null
+        });
+        return await this.createSystemUserForEmployee(updatedEmployee || existingEmployee, data, currentUser);
+      }
+
+      throw new Error('A staff member with this email already exists for this school');
+    }
+
     const employee = await this.employeeRepository.createEmployee(payload);
 
     if (this.shouldCreateSystemUser(data)) {
@@ -61,6 +76,12 @@ class EmployeeService {
     this.validateId(id, 'Employee ID');
     const existing = await this.getEmployeeById(id, currentUser);
     const payload = this.buildPayload(data, existing.SchoolID, existing);
+    const existingEmployee = await this.findExistingEmployeeByEmail(existing.SchoolID, payload.email);
+
+    if (existingEmployee && Number(existingEmployee.EmployeeID) !== Number(id)) {
+      throw new Error('A staff member with this email already exists for this school');
+    }
+
     const updated = await this.employeeRepository.updateEmployee(id, payload);
 
     if (existing.UserID) {
@@ -115,8 +136,7 @@ class EmployeeService {
   async createSystemUserForEmployee(employee, data, currentUser) {
     const schoolId = Number(employee.SchoolID);
     const email = this.requiredString(employee.Email, 'Staff email', 255).toLowerCase();
-    const username = this.normalizeUsername(data.username || email);
-    const password = String(data.password || this.generateTemporaryPassword());
+    const username = this.normalizeUsername(data.username || this.usernameFromEmail(email));
     const staffRoleId = this.positiveInteger(data.staffRoleId, 'Access role');
 
     if (!this.isValidEmail(email)) {
@@ -127,8 +147,6 @@ class EmployeeService {
       throw new Error('Username must be 3 to 50 characters and use only letters, numbers, dots, underscores, or hyphens');
     }
 
-    this.validatePassword(password);
-
     const role = await this.staffRoleRepository.getById(staffRoleId, schoolId);
     if (!role || role.IsActive === false) {
       throw new Error('Access role not found for this school');
@@ -136,13 +154,16 @@ class EmployeeService {
 
     const existingEmail = await this.userRepository.getUserByEmail(email);
     if (existingEmail) {
-      throw new Error('A user with this staff email already exists');
+      return await this.linkExistingUserToEmployee(existingEmail, employee, staffRoleId, currentUser);
     }
 
-    const existingUsername = await this.userRepository.getUserRecordBySchoolAndUsername(schoolId, username);
+    const existingUsername = await this.getSchoolUsernameConflict(schoolId, username);
     if (existingUsername) {
       throw new Error('A user with this username already exists for this school');
     }
+
+    const password = String(data.password || this.generateTemporaryPassword());
+    this.validatePassword(password);
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await this.userRepository.createUser({
@@ -157,6 +178,36 @@ class EmployeeService {
     await this.staffRoleRepository.assignRole(user.UserID, staffRoleId, schoolId, currentUser?.UserID);
 
     return linkedEmployee || { ...employee, UserID: user.UserID };
+  }
+
+  async linkExistingUserToEmployee(existingUser, employee, staffRoleId, currentUser) {
+    const schoolId = Number(employee.SchoolID);
+
+    if (!['school', 'admin'].includes(existingUser.Role)) {
+      throw new Error(`This email is registered as a ${existingUser.Role} user and cannot be used for school staff access`);
+    }
+
+    if (!this.isActiveUser(existingUser)) {
+      throw new Error('The existing account for this email is inactive');
+    }
+
+    const existingStaffMembership = await this.employeeRepository.getActiveEmployeeByUserAndSchool(existingUser.UserID, schoolId);
+    if (existingStaffMembership && Number(existingStaffMembership.EmployeeID) !== Number(employee.EmployeeID)) {
+      throw new Error('This account is already linked to another staff member for this school');
+    }
+
+    const usernameConflict = await this.getSchoolUsernameConflict(schoolId, existingUser.Username);
+    if (usernameConflict && Number(usernameConflict.UserID) !== Number(existingUser.UserID)) {
+      throw new Error('The existing account username is already in use for this school');
+    }
+
+    const linkedEmployee = await this.employeeRepository.linkEmployeeUser(employee.EmployeeID, schoolId, existingUser.UserID);
+    if (!linkedEmployee) {
+      throw new Error('Could not link this staff member to the existing user account');
+    }
+
+    await this.staffRoleRepository.assignRole(existingUser.UserID, staffRoleId, schoolId, currentUser?.UserID);
+    return linkedEmployee;
   }
 
   async replaceEmployeeRole(userId, staffRoleId, schoolId, currentUser) {
@@ -232,6 +283,36 @@ class EmployeeService {
 
   normalizeUsername(username) {
     return String(username || '').trim().toLowerCase();
+  }
+
+  usernameFromEmail(email) {
+    return String(email || '')
+      .split('@')[0]
+      .replace(/[^a-z0-9._-]/gi, '')
+      .slice(0, 50);
+  }
+
+  async findExistingEmployeeByEmail(schoolId, email) {
+    const cleaned = String(email || '').trim();
+    if (!cleaned) {
+      return null;
+    }
+
+    return await this.employeeRepository.getEmployeeBySchoolAndEmail(schoolId, cleaned);
+  }
+
+  async getSchoolUsernameConflict(schoolId, username) {
+    const normalized = this.normalizeUsername(username);
+    if (!normalized) {
+      return null;
+    }
+
+    return await this.userRepository.getStaffLinkedUserBySchoolAndUsername(schoolId, normalized)
+      || await this.userRepository.getUserRecordBySchoolAndUsername(schoolId, normalized);
+  }
+
+  isActiveUser(user) {
+    return user?.IsActive === undefined || user?.IsActive === null || Boolean(user.IsActive);
   }
 
   requiredString(value, label, maxLength) {

@@ -218,7 +218,6 @@ class UserService {
 
     const email = this.normalizeEmail(this.requiredString(employee.Email, 'Staff email', 255));
     const username = this.normalizeUsername(userData.username);
-    const password = String(userData.password || '');
     const staffRole = await this.staffRoleRepository.getById(staffRoleId, managedSchoolId);
 
     if (!staffRole || staffRole.IsActive === false) {
@@ -233,17 +232,18 @@ class UserService {
       throw new Error('Username must be 3 to 50 characters and use only letters, numbers, dots, underscores, or hyphens');
     }
 
-    this.validatePassword(password);
-
     const existingEmail = await this.userRepository.getUserByEmail(email);
     if (existingEmail) {
-      throw new Error('A user with this email already exists');
+      return await this.linkExistingUserToSchoolStaff(existingEmail, employee, staffRoleId, managedSchoolId, currentUser);
     }
 
-    const existingUsername = await this.userRepository.getUserRecordBySchoolAndUsername(managedSchoolId, username);
+    const existingUsername = await this.getSchoolUsernameConflict(managedSchoolId, username);
     if (existingUsername) {
       throw new Error('A user with this username already exists for this school');
     }
+
+    const password = String(userData.password || '');
+    this.validatePassword(password);
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await this.userRepository.createUser({
@@ -258,6 +258,35 @@ class UserService {
     await this.staffRoleRepository.assignRole(user.UserID, staffRoleId, managedSchoolId, currentUser.UserID);
 
     return this.sanitizeUser(user);
+  }
+
+  async linkExistingUserToSchoolStaff(existingUser, employee, staffRoleId, schoolId, currentUser) {
+    if (!['school', 'admin'].includes(existingUser.Role)) {
+      throw new Error(`This email is registered as a ${existingUser.Role} user and cannot be used for school staff access`);
+    }
+
+    if (!this.isActiveUser(existingUser)) {
+      throw new Error('The existing account for this email is inactive');
+    }
+
+    const existingStaffMembership = await this.employeeRepository.getActiveEmployeeByUserAndSchool(existingUser.UserID, schoolId);
+    if (existingStaffMembership && Number(existingStaffMembership.EmployeeID) !== Number(employee.EmployeeID)) {
+      throw new Error('This account is already linked to another staff member for this school');
+    }
+
+    const usernameConflict = await this.getSchoolUsernameConflict(schoolId, existingUser.Username);
+    if (usernameConflict && Number(usernameConflict.UserID) !== Number(existingUser.UserID)) {
+      throw new Error('The existing account username is already in use for this school');
+    }
+
+    await this.employeeRepository.linkEmployeeUser(employee.EmployeeID, schoolId, existingUser.UserID);
+    await this.staffRoleRepository.assignRole(existingUser.UserID, staffRoleId, schoolId, currentUser?.UserID);
+
+    return this.sanitizeUser({
+      ...existingUser,
+      Role: 'school',
+      SchoolID: schoolId
+    });
   }
 
   async setSchoolUserActive(userId, isActive, currentUser) {
@@ -608,6 +637,16 @@ class UserService {
 
   normalizeUsername(username) {
     return String(username || '').trim().toLowerCase();
+  }
+
+  async getSchoolUsernameConflict(schoolId, username) {
+    const normalized = this.normalizeUsername(username);
+    if (!normalized) {
+      return null;
+    }
+
+    return await this.userRepository.getStaffLinkedUserBySchoolAndUsername(schoolId, normalized)
+      || await this.userRepository.getUserRecordBySchoolAndUsername(schoolId, normalized);
   }
 
   requiredString(value, label, maxLength) {
