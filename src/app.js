@@ -513,6 +513,10 @@ app.get('/auth/google', (req, res) => {
 
 app.get('/auth/google/callback', async (req, res) => {
   try {
+    if (req.query.error) {
+      throw new Error(String(req.query.error_description || req.query.error));
+    }
+
     const code = req.query.code;
 
     if (!code) {
@@ -562,7 +566,7 @@ app.get('/auth/google/callback', async (req, res) => {
     return sendAuthCompletion(res, authResponse, oauthRedirectForType(type));
   } catch (err) {
     console.error('Google callback error', err);
-    return res.status(500).send('Google authentication failed');
+    return res.status(oauthFailureStatus(err)).send(oauthFailureMessage(err, 'Google authentication failed'));
   }
 });
 

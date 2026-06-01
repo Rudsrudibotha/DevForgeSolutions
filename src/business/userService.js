@@ -407,9 +407,8 @@ class UserService {
 
     if (!normalizedEmail) throw new Error('Email is required from provider');
 
-    const existing = await this.userRepository.getUserByEmail(normalizedEmail);
-
     if (loginType === 'devforge') {
+      const existing = await this.userRepository.getAdminByIdentifier(normalizedEmail);
       const objectIdAllowed = isAadAdminObjectIdAllowed(options.aadObjectId);
       if (!isAadAdminEmailAllowed(normalizedEmail) && !objectIdAllowed) {
         throw new Error('User not authorized for Admin dashboard login');
@@ -439,8 +438,19 @@ class UserService {
         throw new Error('School ID is required for school login');
       }
 
+      const existing = await this.userRepository.getUserBySchoolAndIdentifier(parsedSchoolId, normalizedEmail);
+
       // Only allow existing school users to sign in via provider
-      if (!existing || (existing.Role !== 'school') || Number(existing.SchoolID) !== parsedSchoolId || !this.isActiveUser(existing)) {
+      if (!existing) {
+        const conflictingUser = await this.userRepository.getUserByEmail(normalizedEmail);
+        if (conflictingUser?.Role === 'admin') {
+          throw new Error('This email is registered for the Admin dashboard, not this school');
+        }
+
+        if (conflictingUser?.Role && conflictingUser.Role !== 'school') {
+          throw new Error(`This email is registered as a ${conflictingUser.Role} user, not a school user`);
+        }
+
         throw new Error('No matching school user found for this email and school');
       }
 
@@ -448,7 +458,18 @@ class UserService {
     }
 
     if (loginType === 'parent') {
+      const existing = await this.userRepository.getParentByIdentifier(normalizedEmail);
+
       if (!existing || existing.Role !== 'parent') {
+        const conflictingUser = await this.userRepository.getUserByEmail(normalizedEmail);
+        if (conflictingUser?.Role === 'admin') {
+          throw new Error('This email is registered for the Admin dashboard, not a parent account');
+        }
+
+        if (conflictingUser?.Role && conflictingUser.Role !== 'parent') {
+          throw new Error(`This email is registered as a ${conflictingUser.Role} user, not a parent account`);
+        }
+
         throw new Error('Parent registration is required before signing in');
       }
 
