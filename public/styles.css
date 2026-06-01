@@ -1505,6 +1505,15 @@ td strong {
   font-size: 12px;
 }
 
+.archived-row {
+  background: #f8fafc;
+  color: var(--muted);
+}
+
+.archived-row strong {
+  color: #475569;
+}
+
 th {
   color: var(--muted);
   font-size: 12px;

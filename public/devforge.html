@@ -323,11 +323,12 @@
                   <label>
                     Status
                     <select id="faultStatusFilter">
-                      <option value="">All statuses</option>
+                      <option value="active" selected>Active (Open + In Progress)</option>
                       <option value="Open">Open</option>
                       <option value="In Progress">In Progress</option>
                       <option value="Resolved">Resolved</option>
-                      <option value="Closed">Closed</option>
+                      <option value="Closed">Archived / Closed</option>
+                      <option value="">All statuses</option>
                     </select>
                   </label>
                   <label>
@@ -348,6 +349,10 @@
                   <div class="metric">
                     <span>Open faults</span>
                     <strong id="openFaultCount">0</strong>
+                  </div>
+                  <div class="metric">
+                    <span>Archived faults</span>
+                    <strong id="archivedFaultCount">0</strong>
                   </div>
                   <div class="metric">
                     <span>Total reports</span>

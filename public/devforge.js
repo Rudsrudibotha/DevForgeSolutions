@@ -49,6 +49,7 @@ const elements = {
   faultSearchInput: document.getElementById('faultSearchInput'),
   faultStatusFilter: document.getElementById('faultStatusFilter'),
   openFaultCount: document.getElementById('openFaultCount'),
+  archivedFaultCount: document.getElementById('archivedFaultCount'),
   totalFaultCount: document.getElementById('totalFaultCount'),
   emailProvider: document.getElementById('emailProvider'),
   emailConfigured: document.getElementById('emailConfigured'),
@@ -435,10 +436,13 @@ function renderAuditTable() {
 
 function filteredFaultReports() {
   const search = String(elements.faultSearchInput?.value || '').trim().toLowerCase();
-  const status = elements.faultStatusFilter?.value || '';
+  const status = elements.faultStatusFilter?.value || 'active';
 
   return state.faultReports.filter((report) => {
-    const matchesStatus = !status || report.Status === status;
+    const reportStatus = report.Status || 'Open';
+    const matchesStatus = status === 'active'
+      ? ['Open', 'In Progress'].includes(reportStatus)
+      : (!status || reportStatus === status);
     const matchesSearch = !search || [
       report.SchoolName,
       report.Username,
@@ -476,9 +480,14 @@ function renderFaultReportsTable() {
 
   const reports = filteredFaultReports();
   const openCount = state.faultReports.filter((report) => ['Open', 'In Progress'].includes(report.Status)).length;
+  const archivedCount = state.faultReports.filter((report) => report.Status === 'Closed').length;
 
   if (elements.openFaultCount) {
     elements.openFaultCount.textContent = openCount;
+  }
+
+  if (elements.archivedFaultCount) {
+    elements.archivedFaultCount.textContent = archivedCount;
   }
 
   if (elements.totalFaultCount) {
@@ -486,7 +495,7 @@ function renderFaultReportsTable() {
   }
 
   elements.faultReportsTable.innerHTML = reports.map((report) => `
-    <tr>
+    <tr class="${report.Status === 'Closed' ? 'archived-row' : ''}">
       <td>${dateOnly(report.CreatedDate)}</td>
       <td>
         <strong>${escapeHtml(report.SchoolName || `School ${report.SchoolID}`)}</strong>
@@ -503,7 +512,7 @@ function renderFaultReportsTable() {
         ${report.UserAgent ? `<span class="table-subtext">${escapeHtml(report.UserAgent)}</span>` : ''}
       </td>
       <td>
-        <span class="${faultBadgeClass(report.Status)}">${escapeHtml(report.Status)}</span>
+        <span class="${faultBadgeClass(report.Status)}">${escapeHtml(report.Status === 'Closed' ? 'Archived / Closed' : report.Status)}</span>
         ${report.ResolvedByEmail || report.ResolvedByUsername ? `<span class="table-subtext">Resolved by ${escapeHtml(report.ResolvedByEmail || report.ResolvedByUsername)}</span>` : ''}
         <select class="thin-input fault-status-select" data-action="fault-status" data-id="${report.FaultReportID}">
           ${['Open', 'In Progress', 'Resolved', 'Closed'].map((status) => `
