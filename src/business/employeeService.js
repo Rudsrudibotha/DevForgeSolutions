@@ -65,6 +65,9 @@ class EmployeeService {
 
     if (existing.UserID) {
       await this.userRepository.setUserActive(existing.UserID, updated.IsActive !== false && updated.IsActive !== 0);
+      if (data.staffRoleId && updated.IsActive !== false && updated.IsActive !== 0) {
+        await this.replaceEmployeeRole(existing.UserID, data.staffRoleId, updated.SchoolID, currentUser);
+      }
     }
 
     return updated;
@@ -154,6 +157,26 @@ class EmployeeService {
     await this.staffRoleRepository.assignRole(user.UserID, staffRoleId, schoolId, currentUser?.UserID);
 
     return linkedEmployee || { ...employee, UserID: user.UserID };
+  }
+
+  async replaceEmployeeRole(userId, staffRoleId, schoolId, currentUser) {
+    const roleId = this.positiveInteger(staffRoleId, 'Access role');
+    const role = await this.staffRoleRepository.getById(roleId, schoolId);
+
+    if (!role || role.IsActive === false) {
+      throw new Error('Access role not found for this school');
+    }
+
+    const existingRoles = await this.staffRoleRepository.getUserRoles(userId, schoolId);
+    for (const existingRole of existingRoles) {
+      if (Number(existingRole.StaffRoleID) !== Number(roleId)) {
+        await this.staffRoleRepository.removeRole(userId, existingRole.StaffRoleID, schoolId);
+      }
+    }
+
+    if (!existingRoles.some((existingRole) => Number(existingRole.StaffRoleID) === Number(roleId))) {
+      await this.staffRoleRepository.assignRole(userId, roleId, schoolId, currentUser?.UserID);
+    }
   }
 
   resolveSchoolId(currentUser, explicitSchoolId) {

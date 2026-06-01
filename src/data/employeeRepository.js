@@ -196,6 +196,19 @@ class EmployeeRepository {
                 AND (UserID IS NULL OR UserID = @userId)`);
     return result.recordset[0];
   }
+
+  async setEmployeeActiveByUser(userId, schoolId, isActive) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('userId', sql.Int, userId)
+      .input('schoolId', sql.Int, schoolId)
+      .input('isActive', sql.Bit, Boolean(isActive))
+      .query(`UPDATE Employees
+              SET IsActive = @isActive, UpdatedDate = GETDATE()
+              OUTPUT INSERTED.*
+              WHERE UserID = @userId AND SchoolID = @schoolId`);
+    return result.recordset[0];
+  }
 }
 
 module.exports = EmployeeRepository;

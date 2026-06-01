@@ -213,54 +213,6 @@
                 <button class="primary-button compact-button" data-action="open-employee-dialog" data-permission="school.staff.manage" type="button">Add Staff</button>
               </div>
             </section>
-            <section class="table-panel page-table-panel" data-permission="school.staff.permissions.manage">
-              <div class="panel-header">
-                <div>
-                  <h3>Staff Roles and Permissions</h3>
-                  <p>Create access roles for staff, then assign them when adding a staff member.</p>
-                </div>
-              </div>
-              <form id="staffRolePermissionForm" class="module-form permission-editor-form">
-                <div class="form-grid">
-                  <label>
-                    Role
-                    <select id="permissionRoleSelect" name="staffRoleId"></select>
-                  </label>
-                  <label>
-                    Role name
-                    <input name="roleName" type="text" required>
-                  </label>
-                  <label class="wide">
-                    Description
-                    <input name="description" type="text">
-                  </label>
-                </div>
-                <div class="actions permission-template-actions">
-                  <button class="ghost-button compact-button" data-action="new-permission-role" type="button">New Role</button>
-                  <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="teacher" type="button">Teacher Template</button>
-                  <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="finance" type="button">Finance Template</button>
-                  <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="hr" type="button">HR Template</button>
-                  <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="admin" type="button">Admin Template</button>
-                </div>
-                <div id="permissionEditorList" class="permission-editor-list"></div>
-                <div class="permission-matrix-toolbar">
-                  <label>
-                    Search permissions
-                    <input id="permissionMatrixSearchInput" type="search" placeholder="Search by area or permission area name">
-                  </label>
-                  <button id="clearPermissionMatrixSearch" class="ghost-button compact-button" type="button">Clear search</button>
-                </div>
-                <div class="actions modal-actions">
-                  <button class="primary-button compact-button" type="submit">Save Permissions</button>
-                </div>
-              </form>
-              <div class="table-wrap">
-                <table class="permission-matrix-table">
-                  <thead id="permissionMatrixHead"></thead>
-                  <tbody id="permissionMatrixTable"></tbody>
-                </table>
-              </div>
-            </section>
           </section>
 
           <section id="studentsView" class="view grouped-view" data-group="school">
@@ -1892,6 +1844,7 @@
                 <button class="settings-tab active" data-settings-tab="general" type="button">General</button>
                 <button class="settings-tab" data-settings-tab="school-account" type="button">School Account</button>
                 <button class="settings-tab" data-settings-tab="users" type="button">System Users</button>
+                <button class="settings-tab" data-settings-tab="permissions" type="button">Permissions</button>
                 <button class="settings-tab" data-settings-tab="audit" type="button">Audit Activity</button>
                 <button class="settings-tab" data-settings-tab="finance" type="button">Financial Management</button>
               </aside>
@@ -1984,10 +1937,10 @@
                   <section id="schoolUsersPanel" class="settings-surface">
                     <div class="settings-page-header">
                       <h3>System Users</h3>
-                      <p>Give trusted staff access to this school account.</p>
+                      <p>All staff access is managed from Staff. This is a summary of staff access, roles, and active status.</p>
                     </div>
 
-                    <form id="schoolUserForm" class="module-form">
+                    <form id="schoolUserForm" class="module-form hidden">
                       <div class="form-grid">
                         <label>
                           Username
@@ -2021,6 +1974,55 @@
                           </tr>
                         </thead>
                         <tbody id="schoolUsersTable"></tbody>
+                      </table>
+                    </div>
+                  </section>
+                </section>
+
+                <section class="settings-panel" data-settings-panel="permissions">
+                  <section class="settings-surface" data-permission="school.staff.permissions.manage">
+                    <div class="settings-page-header">
+                      <h3>Permissions</h3>
+                      <p>Create and edit custom staff roles, then assign them from the Add/Edit Staff popup.</p>
+                    </div>
+                    <form id="staffRolePermissionForm" class="module-form permission-editor-form">
+                      <div class="form-grid">
+                        <label>
+                          Role
+                          <select id="permissionRoleSelect" name="staffRoleId"></select>
+                        </label>
+                        <label>
+                          Role name
+                          <input name="roleName" type="text" required>
+                        </label>
+                        <label class="wide">
+                          Description
+                          <input name="description" type="text">
+                        </label>
+                      </div>
+                      <div class="actions permission-template-actions">
+                        <button class="ghost-button compact-button" data-action="new-permission-role" type="button">New Role</button>
+                        <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="teacher" type="button">Teacher Template</button>
+                        <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="finance" type="button">Finance Template</button>
+                        <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="hr" type="button">HR Template</button>
+                        <button class="ghost-button compact-button" data-action="apply-permission-template" data-template="admin" type="button">Admin Template</button>
+                      </div>
+                      <div id="permissionEditorList" class="permission-editor-list"></div>
+                      <div class="permission-matrix-toolbar">
+                        <label>
+                          Search permissions
+                          <input id="permissionMatrixSearchInput" type="search" placeholder="Search by area or permission area name">
+                        </label>
+                        <button id="clearPermissionMatrixSearch" class="ghost-button compact-button" type="button">Clear search</button>
+                      </div>
+                      <div class="actions modal-actions">
+                        <button class="primary-button compact-button" type="submit">Save Permissions</button>
+                      </div>
+                    </form>
+                    <div class="table-wrap">
+                      <table class="permission-matrix-table">
+                        <thead id="permissionMatrixHead"></thead>
+                        <tbody id="permissionMatrixTable"></tbody>
                       </table>
                     </div>
                   </section>
@@ -2503,7 +2505,7 @@
                 <label>Access role
                   <select id="employeeAccessRoleSelect" name="staffRoleId"></select>
                 </label>
-                <p class="field-help wide">Manage custom roles and permissions in Staff Roles and Permissions below this staff list.</p>
+                <p class="field-help wide">Manage custom roles and permissions in Settings &gt; Permissions. The selected role is applied to this staff member when saved.</p>
               </div>
             </div>
             <div class="form-tab-panel" data-form-panel="staffSalary">

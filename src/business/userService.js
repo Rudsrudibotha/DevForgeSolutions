@@ -285,7 +285,9 @@ class UserService {
       throw new Error('You can only manage users for your own school');
     }
 
-    const updatedUser = await this.userRepository.setUserActive(parsedUserId, Boolean(isActive));
+    const active = Boolean(isActive);
+    const updatedUser = await this.userRepository.setUserActive(parsedUserId, active);
+    await this.employeeRepository.setEmployeeActiveByUser(parsedUserId, managedSchoolId, active);
     return this.sanitizeUser(updatedUser);
   }
 

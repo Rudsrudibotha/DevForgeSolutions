@@ -1811,12 +1811,16 @@ async function refreshSchoolUsers() {
     state.schoolUsers = await api(`/api/users/school-users${query}`);
     state.schoolUserRoles = {};
     if (userCan('school.staff.permissions.manage')) {
-      const roleResults = await Promise.allSettled(state.schoolUsers.map((user) => {
-        const userId = user.UserID || user.userId;
+      const roleUserIds = [...new Set([
+        ...state.schoolUsers.map((user) => user.UserID || user.userId),
+        ...state.employees.map((employee) => employee.UserID)
+      ].map(Number).filter((userId) => Number.isInteger(userId) && userId > 0))];
+
+      const roleResults = await Promise.allSettled(roleUserIds.map((userId) => {
         return api(`/api/hr/roles/user/${encodeURIComponent(userId)}`);
       }));
       roleResults.forEach((result, index) => {
-        const userId = state.schoolUsers[index]?.UserID || state.schoolUsers[index]?.userId;
+        const userId = roleUserIds[index];
         state.schoolUserRoles[userId] = result.status === 'fulfilled' ? result.value : [];
       });
     }
@@ -6008,7 +6012,7 @@ async function openEmployeeDialog(employeeId = null) {
   setFormValue(form, 'firstName', employee?.FirstName || '');
   setFormValue(form, 'lastName', employee?.LastName || '');
   setFormValue(form, 'email', employee?.Email || '');
-  setFormValue(form, 'createSystemUser', employee?.UserID ? 'false' : 'true');
+  setFormValue(form, 'createSystemUser', 'true');
   setFormValue(form, 'username', '');
   setFormValue(form, 'password', '');
   setFormValue(form, 'phone', employee?.Phone || '');
@@ -6664,10 +6668,9 @@ function renderAccount() {
 function renderSchoolUsers() {
   const school = getAccountSchool();
   const canManageUsers = userCan('school.staff.view|school.staff.manage|school.staff.permissions.manage');
-  const canGrantAccess = userCan('school.staff.permissions.manage');
 
   elements.schoolUsersPanel.classList.toggle('hidden', !school || !canManageUsers);
-  elements.schoolUserForm?.classList.toggle('hidden', !canGrantAccess);
+  elements.schoolUserForm?.classList.add('hidden');
 
   if (!school) {
     elements.schoolUsersTable.innerHTML = '<tr><td colspan="5">Select or create a school before adding users.</td></tr>';
@@ -6680,30 +6683,38 @@ function renderSchoolUsers() {
   }
 
   renderSchoolUserEmployeeOptions();
-  elements.schoolUsersTable.innerHTML = state.schoolUsers.map((user) => `
-    <tr>
-      <td>
-        <strong>${escapeHtml(user.Username || user.username)}</strong>
-        <span class="table-subtext">${escapeHtml(`${user.FirstName || ''} ${user.LastName || ''}`.trim() || 'Staff member')}</span>
-      </td>
-      <td>${escapeHtml(user.Email || user.email)}</td>
-      <td>
-        <span class="badge">${escapeHtml(user.Role || user.role || 'school')}</span>
-        <span class="table-subtext">${[false, 0].includes(user.IsActive ?? user.isActive) || [false, 0].includes(user.StaffIsActive) ? 'Inactive' : 'Active'}</span>
-      </td>
-      <td>
-        ${assignedRoleBadges(user.UserID || user.userId)}
-      </td>
-      <td>
-        ${dateOnly(user.CreatedDate || user.createdDate)}
-        <div class="actions stacked-actions">
-          ${[false, 0].includes(user.IsActive ?? user.isActive)
-            ? `<button class="ghost-button" data-action="activate-user" data-id="${user.UserID || user.userId}" type="button">Activate</button>`
-            : `<button class="danger-button" data-action="deactivate-user" data-id="${user.UserID || user.userId}" type="button">Deactivate</button>`}
-        </div>
-      </td>
-    </tr>
-  `).join('') || '<tr><td colspan="5">No additional users yet.</td></tr>';
+  elements.schoolUsersTable.innerHTML = state.employees.map((employee) => {
+    const isActive = employeeIsActive(employee);
+    const userId = employee.UserID || null;
+    const statusLabel = userId
+      ? (isActive ? 'System access active' : 'System access disabled')
+      : 'System access not linked yet';
+
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHtml(`${employee.FirstName || ''} ${employee.LastName || ''}`.trim() || 'Staff member')}</strong>
+          <span class="table-subtext">${escapeHtml(employee.EmployeeNumber || (employee.EmployeeID ? `S${String(employee.EmployeeID).padStart(3, '0')}` : '-'))}</span>
+        </td>
+        <td>${escapeHtml(employee.Email || '-')}</td>
+        <td>
+          <span class="${isActive ? 'badge' : 'badge danger'}">${escapeHtml(isActive ? 'Active staff' : 'Inactive staff')}</span>
+          <span class="table-subtext">${escapeHtml(statusLabel)}</span>
+        </td>
+        <td>
+          ${userId ? assignedRoleBadges(userId) : '<span class="badge muted">No access role</span>'}
+        </td>
+        <td>
+          ${dateOnly(employee.CreatedDate)}
+          <div class="actions stacked-actions">
+            ${isActive
+              ? `<button class="danger-button" data-action="deactivate-employee" data-id="${employee.EmployeeID}" type="button">Deactivate</button>`
+              : `<button class="ghost-button" data-action="activate-employee" data-id="${employee.EmployeeID}" type="button">Activate</button>`}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="5">No staff records found.</td></tr>';
 }
 
 function renderSchoolUserEmployeeOptions() {
@@ -7781,6 +7792,9 @@ elements.employeeForm.addEventListener('submit', async (event) => {
     requireFields(elements.employeeForm, ['firstName', 'lastName', 'startDate']);
     setFormBusy(elements.employeeForm, true, state.editingEmployeeId ? 'Saving...' : 'Adding...');
     const payload = formData(elements.employeeForm);
+    const existingEmployee = state.editingEmployeeId
+      ? state.employees.find((employee) => Number(employee.EmployeeID) === Number(state.editingEmployeeId))
+      : null;
     payload.salary = Number(payload.salary || 0);
     payload.leaveBalance = Number(payload.leaveBalance || 21);
     payload.standardAllowances = Number(payload.standardAllowances || 0);
@@ -7822,7 +7836,9 @@ elements.employeeForm.addEventListener('submit', async (event) => {
       delete payload.createSystemUser;
       delete payload.username;
       delete payload.password;
-      delete payload.staffRoleId;
+      if (!existingEmployee?.UserID || !payload.staffRoleId) {
+        delete payload.staffRoleId;
+      }
     }
 
     const path = isEditing ? `/api/employees/${state.editingEmployeeId}` : '/api/employees';
