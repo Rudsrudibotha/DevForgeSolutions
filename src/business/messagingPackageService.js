@@ -5,8 +5,8 @@ const UserRepository = require('../data/userRepository');
 
 const PACKAGE_KEY = 'messaging';
 const PACKAGE_NAME = 'Messaging';
-const AVAILABLE_PLANS = ['Basic', 'Standard', 'Pro', 'Premium'];
-const MESSAGING_INCLUDED_PLANS = ['Pro'];
+const AVAILABLE_PLANS = ['Standard', 'Pro', 'Pro+'];
+const MESSAGING_INCLUDED_PLANS = ['Pro', 'Pro+'];
 
 class MessagingPackageService {
   constructor(dependencies = {}) {
@@ -113,7 +113,7 @@ class MessagingPackageService {
   }
 
   statusForSchool(school) {
-    const plan = normalizeSubscriptionPlan(school?.SubscriptionPlan || 'Basic', 'Basic');
+    const plan = normalizeSubscriptionPlan(school?.SubscriptionPlan || 'Standard', 'Standard');
     const subscriptionStatus = school?.SubscriptionStatus || 'Active';
     const includedInPlan = MESSAGING_INCLUDED_PLANS.includes(plan);
     const active = subscriptionStatus === 'Active' && includedInPlan;
@@ -130,7 +130,7 @@ class MessagingPackageService {
       active,
       reason: active ? 'Messaging package is active'
         : subscriptionStatus !== 'Active' ? 'School subscription is not active'
-          : 'Messaging is included in the Pro plan'
+          : 'Messaging is included in the Pro and Pro+ plans'
     };
   }
 
@@ -148,11 +148,14 @@ class MessagingPackageService {
 function normalizeSubscriptionPlan(value, fallback = null) {
   const cleaned = String(value || '').trim().toLowerCase();
   const aliases = {
-    basic: 'Basic',
+    basic: 'Standard',
     standard: 'Standard',
     pro: 'Pro',
     professional: 'Pro',
-    premium: 'Premium'
+    premium: 'Pro+',
+    'pro+': 'Pro+',
+    'pro plus': 'Pro+',
+    proplus: 'Pro+'
   };
 
   if (aliases[cleaned]) {

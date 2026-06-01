@@ -174,7 +174,7 @@ class SchoolRepository {
       .input('currencySymbol', sql.NVarChar, schoolData.currencySymbol)
       .input('defaultMonthlyFee', sql.Decimal(10,2), schoolData.defaultMonthlyFee)
       .input('paymentInstructions', sql.NVarChar(sql.MAX), optionalString(schoolData.paymentInstructions))
-      .input('subscriptionPlan', sql.NVarChar, schoolData.subscriptionPlan || 'Basic')
+      .input('subscriptionPlan', sql.NVarChar, schoolData.subscriptionPlan || 'Standard')
       .input('subscriptionStatus', sql.NVarChar, schoolData.subscriptionStatus || 'Active')
       .query(`INSERT INTO Schools (SchoolName, Address, LogoUrl, ContactPerson, ContactEmail, ContactPhone, RegistrationNumber,
               BankName, BankAccountNumber, BankBranchCode, BankAccountType, FinancialYearStartDate, FinancialYearEndDate, Website,

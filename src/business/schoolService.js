@@ -186,7 +186,7 @@ class SchoolService {
     const hasSubmittedPlan = source.subscriptionPlan !== undefined
       && source.subscriptionPlan !== null
       && String(source.subscriptionPlan).trim() !== '';
-    const planSource = hasSubmittedPlan ? source.subscriptionPlan : existingSchool.SubscriptionPlan || 'Basic';
+    const planSource = hasSubmittedPlan ? source.subscriptionPlan : existingSchool.SubscriptionPlan || 'Standard';
 
     return {
       schoolName,
@@ -207,7 +207,7 @@ class SchoolService {
       currencySymbol: currency.symbol,
       defaultMonthlyFee: this.optionalDecimal(source.defaultMonthlyFee ?? existingSchool.DefaultMonthlyFee, 'Default monthly fee'),
       paymentInstructions: this.optionalString(source.paymentInstructions ?? existingSchool.PaymentInstructions, 'Payment instructions', 2000),
-      subscriptionPlan: normalizeSubscriptionPlan(planSource, hasSubmittedPlan ? null : 'Basic'),
+      subscriptionPlan: normalizeSubscriptionPlan(planSource, hasSubmittedPlan ? null : 'Standard'),
       subscriptionStatus
     };
   }

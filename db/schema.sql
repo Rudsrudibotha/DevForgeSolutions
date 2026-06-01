@@ -16,26 +16,55 @@ BEGIN
         CurrencySymbol NVARCHAR(10) NOT NULL DEFAULT 'R',
         DefaultMonthlyFee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
         PaymentInstructions NVARCHAR(MAX) NULL,
-        SubscriptionPlan NVARCHAR(50) NOT NULL DEFAULT 'Basic',
+        SubscriptionPlan NVARCHAR(50) NOT NULL DEFAULT 'Standard',
         SubscriptionStatus NVARCHAR(50) NOT NULL DEFAULT 'Active',
         CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
         UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
-        CONSTRAINT CK_Schools_SubscriptionPlan CHECK (SubscriptionPlan IN ('Basic', 'Standard', 'Pro', 'Premium')),
+        CONSTRAINT CK_Schools_SubscriptionPlan CHECK (SubscriptionPlan IN ('Standard', 'Pro', 'Pro+')),
         CONSTRAINT CK_Schools_SubscriptionStatus CHECK (SubscriptionStatus IN ('Active', 'Suspended', 'Cancelled'))
     );
 END;
 
 IF COL_LENGTH('dbo.Schools', 'SubscriptionPlan') IS NULL
 BEGIN
-    ALTER TABLE dbo.Schools ADD SubscriptionPlan NVARCHAR(50) NOT NULL DEFAULT 'Basic';
+    ALTER TABLE dbo.Schools ADD SubscriptionPlan NVARCHAR(50) NOT NULL DEFAULT 'Standard';
 END;
 
 IF COL_LENGTH('dbo.Schools', 'SubscriptionPlan') IS NOT NULL
 BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM sys.check_constraints
+        WHERE name = 'CK_Schools_SubscriptionPlan'
+            AND parent_object_id = OBJECT_ID('dbo.Schools')
+    )
+    BEGIN
+        ALTER TABLE dbo.Schools DROP CONSTRAINT CK_Schools_SubscriptionPlan;
+    END;
+
+    DECLARE @SchoolsSubscriptionPlanDefault NVARCHAR(128);
+    SELECT @SchoolsSubscriptionPlanDefault = dc.name
+    FROM sys.default_constraints dc
+    INNER JOIN sys.columns c ON c.default_object_id = dc.object_id
+    WHERE dc.parent_object_id = OBJECT_ID('dbo.Schools')
+      AND c.name = 'SubscriptionPlan';
+
+    IF @SchoolsSubscriptionPlanDefault IS NOT NULL
+    BEGIN
+        EXEC('ALTER TABLE dbo.Schools DROP CONSTRAINT ' + QUOTENAME(@SchoolsSubscriptionPlanDefault));
+    END;
+
+    ALTER TABLE dbo.Schools
+        ADD CONSTRAINT DF_Schools_SubscriptionPlan DEFAULT 'Standard' FOR SubscriptionPlan;
+
     EXEC('UPDATE dbo.Schools
-          SET SubscriptionPlan = ''Basic''
+          SET SubscriptionPlan = CASE
+            WHEN SubscriptionPlan IN (''Pro'', ''Pro+'') THEN SubscriptionPlan
+            WHEN SubscriptionPlan = ''Premium'' THEN ''Pro+''
+            ELSE ''Standard''
+          END
           WHERE SubscriptionPlan IS NULL
-             OR SubscriptionPlan NOT IN (''Basic'', ''Standard'', ''Pro'', ''Premium'')');
+             OR SubscriptionPlan NOT IN (''Standard'', ''Pro'', ''Pro+'')');
 END;
 
 IF NOT EXISTS (
@@ -45,7 +74,7 @@ IF NOT EXISTS (
         AND parent_object_id = OBJECT_ID('dbo.Schools')
 )
 BEGIN
-    EXEC('ALTER TABLE dbo.Schools ADD CONSTRAINT CK_Schools_SubscriptionPlan CHECK (SubscriptionPlan IN (''Basic'', ''Standard'', ''Pro'', ''Premium''))');
+    EXEC('ALTER TABLE dbo.Schools ADD CONSTRAINT CK_Schools_SubscriptionPlan CHECK (SubscriptionPlan IN (''Standard'', ''Pro'', ''Pro+''))');
 END;
 
 -- School-level toggle: allow staff to view their own payslips

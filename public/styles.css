@@ -347,6 +347,18 @@ body.marketing-site {
   padding: 26px;
 }
 
+.pricing-plan-list > div {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid rgba(16, 32, 51, 0.1);
+  padding-bottom: 12px;
+}
+
+.pricing-plan-list > div:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
 .pricing-card span {
   color: #14786f;
   font-size: 13px;

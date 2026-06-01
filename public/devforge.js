@@ -77,6 +77,12 @@ const VIEW_TITLES = {
   account: 'Account'
 };
 
+const PRICING_PLANS = [
+  { value: 'Standard', label: 'Standard - R 899 pm' },
+  { value: 'Pro', label: 'Pro - R 1 199 pm' },
+  { value: 'Pro+', label: 'Pro+ - TBA' }
+];
+
 let toastTimer = null;
 let inactivityTimer = null;
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
@@ -316,8 +322,8 @@ function renderSchoolsTable() {
   elements.schoolsTable.innerHTML = schools.map((school) => {
     const isActive = (school.SubscriptionStatus || 'Active') === 'Active';
     const statusClass = isActive ? 'badge' : 'badge danger';
-    const plan = school.SubscriptionPlan || 'Basic';
-    const messagingActive = isActive && plan === 'Pro';
+    const plan = normalizePricingPlan(school.SubscriptionPlan);
+    const messagingActive = isActive && ['Pro', 'Pro+'].includes(plan);
     const contactLines = [
       school.ContactPerson,
       school.ContactEmail,
@@ -344,15 +350,15 @@ function renderSchoolsTable() {
         </td>
         <td>
           <select class="thin-input" data-action="school-plan" data-id="${school.SchoolID}">
-            ${['Basic', 'Standard', 'Pro', 'Premium'].map((option) => `
-              <option value="${option}" ${plan === option ? 'selected' : ''}>${option}</option>
+            ${PRICING_PLANS.map((option) => `
+              <option value="${option.value}" ${plan === option.value ? 'selected' : ''}>${option.label}</option>
             `).join('')}
           </select>
           <span class="table-subtext">${escapeHtml(school.CurrencyCode || 'ZAR')} ${escapeHtml(school.CurrencySymbol || 'R')} | Fee ${money(school.DefaultMonthlyFee)}</span>
         </td>
         <td>
           <span class="${messagingActive ? 'badge' : 'badge muted'}">${messagingActive ? 'Active' : 'Off'}</span>
-          <span class="table-subtext">Pro plan</span>
+          <span class="table-subtext">Included on Pro and Pro+</span>
         </td>
         <td>
           <strong>${escapeHtml(school.UserCount || 0)}</strong>
@@ -370,6 +376,20 @@ function renderSchoolsTable() {
       </tr>
     `;
   }).join('') || '<tr><td colspan="6">No schools found.</td></tr>';
+}
+
+function normalizePricingPlan(plan) {
+  const cleaned = String(plan || '').trim().toLowerCase();
+
+  if (['pro+', 'pro plus', 'proplus', 'premium'].includes(cleaned)) {
+    return 'Pro+';
+  }
+
+  if (['pro', 'professional'].includes(cleaned)) {
+    return 'Pro';
+  }
+
+  return 'Standard';
 }
 
 function filteredUsers() {
@@ -653,7 +673,7 @@ elements.schoolsTable?.addEventListener('change', async (event) => {
       body: JSON.stringify({ subscriptionPlan: select.value })
     });
     await refreshData({ force: true });
-    showToast(status.active ? 'Messaging activated for Pro plan' : 'Messaging package is off for this plan');
+    showToast(status.active ? 'Messaging activated for this plan' : 'Messaging package is off for this plan');
   } catch (error) {
     showToast(error.message);
     await refreshData({ force: true });
