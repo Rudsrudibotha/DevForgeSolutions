@@ -34,7 +34,48 @@ class DashboardService {
       `);
     const dashboard = result.recordset[0];
     dashboard.warnings = await this.getSchoolWarnings(schoolId);
+    dashboard.overview = await this.getSchoolOverviewInsights(schoolId);
     return dashboard;
+  }
+
+  async getSchoolOverviewInsights(schoolId) {
+    const pool = await getPool();
+    const [capacityResult, attendanceResult] = await Promise.all([
+      pool.request()
+        .input('schoolId', sql.Int, schoolId)
+        .query(`SELECT c.ClassID, c.ClassName, c.Capacity,
+                   COUNT(CASE WHEN ISNULL(s.IsActive, 1) = 1 THEN 1 END) AS LearnerCount
+                 FROM Classes c
+                 LEFT JOIN Students s ON s.SchoolID = c.SchoolID AND s.ClassName = c.ClassName
+                 WHERE c.SchoolID = @schoolId
+                 GROUP BY c.ClassID, c.ClassName, c.Capacity
+                 ORDER BY c.ClassName`),
+      pool.request()
+        .input('schoolId', sql.Int, schoolId)
+        .query(`SELECT a.Status, COUNT(1) AS Count
+                FROM Attendance a
+                WHERE a.SchoolID = @schoolId
+                  AND a.AttendanceDate = CONVERT(date, GETDATE())
+                GROUP BY a.Status`)
+    ]);
+
+    const capacity = capacityResult.recordset.map((row) => ({
+      className: row.ClassName || 'No class',
+      capacity: Number(row.Capacity || 0),
+      learnerCount: Number(row.LearnerCount || 0)
+    }));
+    const totalCapacity = capacity.reduce((sum, row) => sum + Number(row.capacity || 0), 0);
+    const totalLearners = capacity.reduce((sum, row) => sum + Number(row.learnerCount || 0), 0);
+
+    return {
+      capacity,
+      totalCapacity,
+      totalLearners,
+      attendanceToday: attendanceResult.recordset.map((row) => ({
+        status: row.Status || 'Not captured',
+        count: Number(row.Count || 0)
+      }))
+    };
   }
 
   async getSchoolWarnings(schoolId) {
@@ -43,6 +84,25 @@ class DashboardService {
       .input('schoolId', sql.Int, schoolId)
       .query(`
         SELECT
+          (SELECT COUNT(1)
+             FROM Classes c
+             WHERE c.SchoolID = @schoolId
+               AND ISNULL(c.Capacity, 0) > 0
+               AND (SELECT COUNT(1)
+                    FROM Students s
+                    WHERE s.SchoolID = c.SchoolID
+                      AND s.ClassName = c.ClassName
+                      AND ISNULL(s.IsActive, 1) = 1) >= c.Capacity) AS classesAtCapacity,
+          (SELECT COUNT(1)
+             FROM Students s
+             WHERE s.SchoolID = @schoolId
+               AND ISNULL(s.IsActive, 1) = 1
+               AND NOT EXISTS (
+                 SELECT 1 FROM Attendance a
+                 WHERE a.SchoolID = s.SchoolID
+                   AND a.StudentID = s.StudentID
+                   AND a.AttendanceDate = CONVERT(date, GETDATE())
+               )) AS attendanceNotCaptured,
           (SELECT COUNT(1)
              FROM Students s
              WHERE s.SchoolID = @schoolId
@@ -84,6 +144,8 @@ class DashboardService {
       `);
     const counts = result.recordset[0] || {};
     return [
+      this.warning('class-capacity', 'Classes at capacity', counts.classesAtCapacity, 'Review class capacity before placing more learners.'),
+      this.warning('attendance-not-captured', 'Attendance not captured', counts.attendanceNotCaptured, 'Capture today\'s attendance for current learners.'),
       this.warning('missing-billing', 'Missing billing categories', counts.missingBillingCategories, 'Assign billing categories before monthly invoice generation.'),
       this.warning('missing-payer', 'Missing responsible payer', counts.missingResponsiblePayers, 'Capture the parent or guardian responsible for payment.'),
       this.warning('unallocated-bank', 'Unallocated bank payments', counts.unallocatedBankPayments, 'Review bank reconciliation and allocate payments.'),

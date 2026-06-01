@@ -61,6 +61,15 @@
                   </button>
                 </div>
               </section>
+              <section id="overviewInsightsPanel" class="table-panel overview-insights-panel">
+                <div class="panel-header">
+                  <div>
+                    <h3>Good-to-know Overview</h3>
+                    <p>Capacity and attendance insights only. No financial information is shown here.</p>
+                  </div>
+                </div>
+                <div id="overviewInsightsGrid" class="overview-insights-grid"></div>
+              </section>
               <section id="dashboardWarningsPanel" class="table-panel dashboard-warning-panel hidden">
                 <div class="panel-header">
                   <div>
@@ -189,6 +198,16 @@
                 </div>
               </section>
             </div>
+            <section id="invoiceStatementPanel" class="table-panel invoice-statement-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Statement of Account</h3>
+                  <p>Yearly movement for the selected filters, including opening balance, invoices generated, payments, advance, and closing balance.</p>
+                </div>
+              </div>
+              <div id="invoiceStatementSummary" class="metrics-grid"></div>
+              <div id="invoiceStatementTableWrap" class="table-wrap"></div>
+            </section>
             <section class="table-panel page-table-panel">
               <div class="table-wrap">
                 <table>
@@ -1860,6 +1879,7 @@
                 <button class="settings-tab" data-settings-tab="permissions" type="button">Permissions</button>
                 <button class="settings-tab" data-settings-tab="audit" type="button">Audit Activity</button>
                 <button class="settings-tab" data-settings-tab="finance" type="button">Financial Management</button>
+                <button class="settings-tab" data-settings-tab="subscription" type="button">Subscription</button>
               </aside>
 
               <div class="settings-content">
@@ -2104,6 +2124,19 @@
                       <button class="primary-button compact-button" type="submit">Save settings</button>
                     </div>
                   </form>
+                </section>
+
+                <section class="settings-panel" data-settings-panel="subscription">
+                  <section class="settings-surface">
+                    <div class="settings-page-header subscription-page-header">
+                      <div>
+                        <h3>Subscription</h3>
+                        <p>Choose the school account package. Billing and feature limits are shown per month.</p>
+                      </div>
+                      <span id="subscriptionActivePlan" class="badge">Active: Standard</span>
+                    </div>
+                    <div id="subscriptionPlanGrid" class="subscription-plan-grid"></div>
+                  </section>
                 </section>
               </div>
             </div>

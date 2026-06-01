@@ -23,6 +23,7 @@ const state = {
   auditLogs: [],
   auditLoaded: false,
   faultReports: [],
+  faultChangeMarker: null,
   emailStatus: null,
   dashboard: null
 };
@@ -85,6 +86,8 @@ const PRICING_PLANS = [
 
 let toastTimer = null;
 let inactivityTimer = null;
+let faultAutoRefreshTimer = null;
+let faultChangeWatcherRunning = false;
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
 function rememberActivity() {
@@ -201,6 +204,18 @@ function showToast(message) {
   toastTimer = window.setTimeout(() => elements.toast.classList.add('hidden'), 3200);
 }
 
+function stopFaultAutoRefresh() {
+  if (faultAutoRefreshTimer) {
+    window.clearInterval(faultAutoRefreshTimer);
+    faultAutoRefreshTimer = null;
+  }
+  faultChangeWatcherRunning = false;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 function setFormBusy(form, busy, busyLabel) {
   const submitButton = form.querySelector('[type="submit"]');
 
@@ -227,7 +242,89 @@ function clearSession() {
     window.clearInterval(inactivityTimer);
     inactivityTimer = null;
   }
+  stopFaultAutoRefresh();
   window.location.href = '/devforge-login';
+}
+
+function faultChangeMarkerFromReports(reports = []) {
+  const latestFaultReportId = reports.reduce((max, report) => Math.max(max, Number(report.FaultReportID || 0)), 0);
+  const latestChangedDate = reports.reduce((latest, report) => {
+    const changed = String(report.UpdatedDate || report.CreatedDate || '');
+    return changed && changed > latest ? changed : latest;
+  }, '');
+
+  return {
+    latestFaultReportId,
+    latestChangedDate: latestChangedDate || null
+  };
+}
+
+function setFaultReports(reports = [], marker = null) {
+  state.faultReports = Array.isArray(reports) ? reports : [];
+  state.faultChangeMarker = marker || faultChangeMarkerFromReports(state.faultReports);
+}
+
+async function refreshFaultReports(options = {}) {
+  if (!state.token || state.user?.role !== 'admin') {
+    return;
+  }
+
+  try {
+    const reports = await api('/api/faults?limit=100');
+    setFaultReports(reports);
+    renderFaultReportsTable();
+  } catch (error) {
+    if (!options.silent) {
+      showToast(error.message);
+    }
+  }
+}
+
+function faultChangeQuery() {
+  const marker = state.faultChangeMarker || faultChangeMarkerFromReports(state.faultReports);
+  const params = new URLSearchParams({
+    afterId: String(marker.latestFaultReportId || 0),
+    timeoutMs: '25000'
+  });
+  if (marker.latestChangedDate) {
+    params.set('afterChanged', marker.latestChangedDate);
+  }
+  return params.toString();
+}
+
+async function watchFaultChanges() {
+  if (faultChangeWatcherRunning) {
+    return;
+  }
+
+  faultChangeWatcherRunning = true;
+  while (faultChangeWatcherRunning && state.token && state.user?.role === 'admin') {
+    try {
+      const change = await api(`/api/faults/changes?${faultChangeQuery()}`);
+      if (change?.marker) {
+        state.faultChangeMarker = change.marker;
+      }
+      if (change?.changed) {
+        await refreshFaultReports({ silent: true });
+      }
+    } catch (error) {
+      if (faultChangeWatcherRunning) {
+        await delay(10000);
+      }
+    }
+  }
+  faultChangeWatcherRunning = false;
+}
+
+function startFaultAutoRefresh() {
+  if (faultAutoRefreshTimer) {
+    window.clearInterval(faultAutoRefreshTimer);
+  }
+
+  faultAutoRefreshTimer = window.setInterval(() => {
+    refreshFaultReports({ silent: true }).catch(() => {});
+  }, 30000);
+  watchFaultChanges().catch(() => {});
 }
 
 async function refreshData(options = {}) {
@@ -245,7 +342,7 @@ async function refreshData(options = {}) {
       state.auditLogs = snapshot.auditLogs;
       state.auditLoaded = true;
     }
-    state.faultReports = snapshot.faultReports || [];
+    setFaultReports(snapshot.faultReports || []);
     state.snapshotMeta = snapshot.meta || null;
     state.emailStatus = emailStatus;
     renderData();
@@ -282,6 +379,7 @@ function renderShell() {
   document.getElementById('profileEmail').textContent = state.user.email || '-';
   document.getElementById('profileRole').textContent = 'Kinder Care Hub admin';
   refreshData();
+  startFaultAutoRefresh();
 }
 
 function renderData() {

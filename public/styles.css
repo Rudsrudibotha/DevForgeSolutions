@@ -1630,6 +1630,71 @@ td[colspan],
   margin-top: 18px;
 }
 
+.overview-insights-panel {
+  margin-top: 18px;
+}
+
+.overview-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.overview-insight-card {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fff;
+}
+
+.overview-pie {
+  width: 104px;
+  height: 104px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.overview-pie span {
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  font-weight: 900;
+}
+
+.overview-insight-card h4 {
+  margin: 0 0 4px;
+}
+
+.overview-insight-card p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.overview-insight-card ul,
+.subscription-plan-card ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.overview-insight-card li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
 .warning-list {
   display: grid;
   gap: 10px;
@@ -1837,6 +1902,77 @@ td[colspan],
 .settings-tab.active {
   border-left-color: var(--primary);
   background: #eef3f8;
+}
+
+.subscription-page-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.subscription-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.subscription-plan-card {
+  position: relative;
+  min-height: 220px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+}
+
+.subscription-plan-card.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.14);
+}
+
+.subscription-plan-card.popular {
+  border-color: #f59e0b;
+}
+
+.subscription-plan-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.subscription-plan-top h4 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.subscription-plan-top strong {
+  font-size: 20px;
+}
+
+.subscription-popular {
+  display: inline-flex;
+  margin: 12px 0;
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #b45309;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.subscription-plan-card li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.subscription-plan-card li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #047857;
+  font-weight: 900;
 }
 
 .settings-content {

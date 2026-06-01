@@ -58,6 +58,21 @@ class FaultReportRepository {
     return result.recordset;
   }
 
+  async getChangeMarker() {
+    const pool = await getPool();
+    const result = await pool.request()
+      .query(`SELECT
+                ISNULL(MAX(FaultReportID), 0) AS LatestFaultReportID,
+                CONVERT(VARCHAR(33), ISNULL(MAX(UpdatedDate), MAX(CreatedDate)), 126) AS LatestChangedDate
+              FROM FaultReports`);
+
+    const marker = result.recordset[0] || {};
+    return {
+      latestFaultReportId: Number(marker.LatestFaultReportID || 0),
+      latestChangedDate: marker.LatestChangedDate || null
+    };
+  }
+
   async updateStatus(id, status, adminUserId) {
     const pool = await getPool();
     const result = await pool.request()

@@ -61,6 +61,10 @@ class FaultReportService {
     });
   }
 
+  async getChangeMarker() {
+    return await this.faultReportRepository.getChangeMarker();
+  }
+
   async updateFaultStatus(id, status, currentUser) {
     const faultReportId = parseInt(id, 10);
     if (!Number.isInteger(faultReportId) || faultReportId <= 0) {

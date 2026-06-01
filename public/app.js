@@ -747,6 +747,7 @@ const state = {
   auditLogs: [],
   financeAuditLogs: [],
   dashboardWarnings: [],
+  dashboardOverview: null,
   matchSuggestions: [],
   selectedAccountSchoolId: null,
   selectedSettingsSchoolId: null,
@@ -850,6 +851,7 @@ const elements = {
   settingsAuditLogsTable: document.getElementById('settingsAuditLogsTable'),
   dashboardWarningsPanel: document.getElementById('dashboardWarningsPanel'),
   dashboardWarningsList: document.getElementById('dashboardWarningsList'),
+  overviewInsightsGrid: document.getElementById('overviewInsightsGrid'),
   staffRolePermissionForm: document.getElementById('staffRolePermissionForm'),
   permissionRoleSelect: document.getElementById('permissionRoleSelect'),
   permissionEditorList: document.getElementById('permissionEditorList'),
@@ -992,6 +994,8 @@ const elements = {
   invoiceFilterYear: document.getElementById('invoiceFilterYear'),
   invoiceFilterStatus: document.getElementById('invoiceFilterStatus'),
   invoicesTable: document.getElementById('invoicesTable'),
+  invoiceStatementSummary: document.getElementById('invoiceStatementSummary'),
+  invoiceStatementTableWrap: document.getElementById('invoiceStatementTableWrap'),
   transactionsTable: document.getElementById('transactionsTable'),
   ofxUploadForm: document.getElementById('ofxUploadForm'),
   bankStatementsTable: document.getElementById('bankStatementsTable'),
@@ -1769,7 +1773,10 @@ async function refreshData(options = {}) {
     }
 
     if (schools !== SKIP_FETCH) state.schools = schools;
-    if (dashboard !== SKIP_FETCH) state.dashboardWarnings = Array.isArray(dashboard?.warnings) ? dashboard.warnings : [];
+    if (dashboard !== SKIP_FETCH) {
+      state.dashboardWarnings = Array.isArray(dashboard?.warnings) ? dashboard.warnings : [];
+      state.dashboardOverview = dashboard?.overview || null;
+    }
     if (invoices !== SKIP_FETCH) state.invoices = invoices;
     if (families !== SKIP_FETCH) state.families = families;
     if (students !== SKIP_FETCH) state.students = students;
@@ -2118,8 +2125,10 @@ function renderData() {
   renderFinanceAuditLogs();
   renderPermissionMatrix();
   renderDashboardWarnings();
+  renderOverviewInsights();
   renderMatchSuggestions();
   renderSettings();
+  renderSubscriptionPlans();
   renderAdminControls();
   installFeaturePanels();
   renderFeaturePages();
@@ -4001,8 +4010,121 @@ function filteredInvoices() {
   });
 }
 
+function selectedInvoiceStatementYear() {
+  const year = Number(elements.invoiceFilterYear?.value || currentCalendarYear());
+  return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : currentCalendarYear();
+}
+
+function invoiceMatchesStatementScope(invoice) {
+  const studentId = Number(elements.invoiceFilterStudent?.value || 0);
+  const className = elements.invoiceFilterClass?.value || '';
+  return (!studentId || Number(invoice.StudentID) === studentId)
+    && (!className || invoice.ClassName === className);
+}
+
+function invoiceStatementRows() {
+  const year = selectedInvoiceStatementYear();
+  const scopedInvoices = state.invoices
+    .filter(invoiceMatchesStatementScope)
+    .slice()
+    .sort((a, b) => new Date(a.IssueDate || a.DueDate || 0) - new Date(b.IssueDate || b.DueDate || 0));
+  const previousInvoices = scopedInvoices.filter((invoice) => {
+    const issueDate = invoice.IssueDate || invoice.DueDate;
+    return issueDate && new Date(issueDate).getFullYear() < year;
+  });
+  const openingBalance = previousInvoices.reduce((sum, invoice) => {
+    return sum + Number(invoice.Amount || 0) - Number(invoice.AmountPaid || 0);
+  }, 0);
+
+  let balance = Math.round(openingBalance * 100) / 100;
+  const rows = [{
+    date: '',
+    type: 'Opening balance',
+    reference: 'Balance brought forward',
+    description: openingBalance < 0 ? 'Advance brought forward from previous year' : 'Outstanding brought forward from previous year',
+    debit: openingBalance > 0 ? openingBalance : 0,
+    credit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
+    balance
+  }];
+
+  scopedInvoices
+    .filter((invoice) => {
+      const issueDate = invoice.IssueDate || invoice.DueDate;
+      return issueDate && new Date(issueDate).getFullYear() === year;
+    })
+    .forEach((invoice) => {
+      const amount = Number(invoice.Amount || 0);
+      const paid = Number(invoice.AmountPaid || 0);
+      balance = Math.round((balance + amount) * 100) / 100;
+      rows.push({
+        date: invoice.IssueDate || invoice.DueDate,
+        type: 'Invoice generated',
+        reference: invoice.InvoiceNumber || '-',
+        description: invoice.Description || invoice.CategoryName || 'Invoice',
+        debit: amount,
+        credit: 0,
+        balance
+      });
+
+      if (paid > 0) {
+        balance = Math.round((balance - paid) * 100) / 100;
+        rows.push({
+          date: invoice.PaidDate || invoice.DueDate,
+          type: 'Payment made',
+          reference: invoice.InvoiceNumber || '-',
+          description: `Payment allocated to ${invoice.InvoiceNumber || 'invoice'}`,
+          debit: 0,
+          credit: paid,
+          balance
+        });
+      }
+    });
+
+  return { year, rows, openingBalance, closingBalance: balance };
+}
+
+function renderInvoiceStatement() {
+  if (!elements.invoiceStatementSummary || !elements.invoiceStatementTableWrap) {
+    return;
+  }
+
+  const school = getSettingsSchool();
+  const statement = invoiceStatementRows();
+  const totalDebit = statement.rows.reduce((sum, row) => sum + Number(row.debit || 0), 0);
+  const totalCredit = statement.rows.reduce((sum, row) => sum + Number(row.credit || 0), 0);
+  const advance = statement.closingBalance < 0 ? Math.abs(statement.closingBalance) : 0;
+  const outstanding = Math.max(0, statement.closingBalance);
+
+  elements.invoiceStatementSummary.innerHTML = [
+    metricCard('Statement year', statement.year),
+    metricCard('Opening balance', money(statement.openingBalance, school)),
+    metricCard('Invoices generated', money(totalDebit - Math.max(0, statement.openingBalance), school)),
+    metricCard('Payments made', money(totalCredit - Math.max(0, -statement.openingBalance), school)),
+    metricCard('Outstanding', money(outstanding, school)),
+    metricCard('Advance', money(advance, school))
+  ].join('');
+
+  elements.invoiceStatementTableWrap.innerHTML = `
+    <table>
+      <thead><tr><th>Date</th><th>Movement</th><th>Reference</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
+      <tbody>${statement.rows.map((row) => `
+        <tr>
+          <td>${dateOnly(row.date)}</td>
+          <td>${escapeHtml(row.type)}</td>
+          <td>${escapeHtml(row.reference)}</td>
+          <td>${escapeHtml(row.description)}</td>
+          <td>${money(row.debit, school)}</td>
+          <td>${money(row.credit, school)}</td>
+          <td>${money(row.balance, school)}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>
+  `;
+}
+
 function renderInvoicesTable() {
   if (!elements.invoicesTable) return;
+  renderInvoiceStatement();
   elements.invoicesTable.innerHTML = filteredInvoices().map((invoice) => {
     const school = state.schools.find((item) => item.SchoolID === invoice.SchoolID);
     const statusClass = invoice.Status === 'Paid' ? 'badge' : invoice.Status === 'Overdue' ? 'badge danger' : 'badge warn';
@@ -7389,7 +7511,8 @@ function renderDashboardWarnings() {
     return;
   }
 
-  const warnings = state.dashboardWarnings || [];
+  const goodToKnowCodes = ['class-capacity', 'attendance-not-captured'];
+  const warnings = (state.dashboardWarnings || []).filter((warning) => goodToKnowCodes.includes(warning.code));
   elements.dashboardWarningsPanel.classList.toggle('hidden', warnings.length === 0);
   elements.dashboardWarningsList.innerHTML = warnings.map((warning) => `
     <div class="warning-item">
@@ -7398,6 +7521,65 @@ function renderDashboardWarnings() {
       <p>${escapeHtml(warning.detail || '')}</p>
     </div>
   `).join('');
+}
+
+function overviewPieStyle(value, total) {
+  const percent = total > 0 ? Math.max(0, Math.min(100, (Number(value || 0) / total) * 100)) : 0;
+  return `background: conic-gradient(var(--primary) 0 ${percent}%, #e5e7eb ${percent}% 100%);`;
+}
+
+function renderOverviewInsights() {
+  if (!elements.overviewInsightsGrid) {
+    return;
+  }
+
+  const overview = state.dashboardOverview || {};
+  const capacityRows = Array.isArray(overview.capacity) ? overview.capacity : [];
+  const attendanceRows = Array.isArray(overview.attendanceToday) ? overview.attendanceToday : [];
+  const totalCapacity = Number(overview.totalCapacity || 0);
+  const totalLearners = Number(overview.totalLearners || 0);
+  const attendanceTotal = attendanceRows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+
+  const capacityList = capacityRows.length
+    ? capacityRows.map((row) => `
+      <li>
+        <span>${escapeHtml(row.className || '-')}</span>
+        <strong>${Number(row.learnerCount || 0)} / ${Number(row.capacity || 0) || 'No cap'}</strong>
+      </li>
+    `).join('')
+    : '<li><span>No classes captured</span><strong>-</strong></li>';
+
+  const attendanceList = attendanceRows.length
+    ? attendanceRows.map((row) => `
+      <li>
+        <span>${escapeHtml(row.status || '-')}</span>
+        <strong>${Number(row.count || 0)}</strong>
+      </li>
+    `).join('')
+    : '<li><span>No attendance captured today</span><strong>-</strong></li>';
+
+  elements.overviewInsightsGrid.innerHTML = `
+    <article class="overview-insight-card">
+      <div class="overview-pie" style="${overviewPieStyle(totalLearners, totalCapacity || totalLearners)}">
+        <span>${totalCapacity ? Math.round((totalLearners / totalCapacity) * 100) : 0}%</span>
+      </div>
+      <div>
+        <h4>Class Capacity</h4>
+        <p>${totalLearners} learners${totalCapacity ? ` of ${totalCapacity} capacity` : ''}</p>
+        <ul>${capacityList}</ul>
+      </div>
+    </article>
+    <article class="overview-insight-card">
+      <div class="overview-pie attendance-pie" style="${overviewPieStyle(attendanceRows.find((row) => row.status === 'Present')?.count || 0, attendanceTotal)}">
+        <span>${attendanceTotal ? Math.round(((attendanceRows.find((row) => row.status === 'Present')?.count || 0) / attendanceTotal) * 100) : 0}%</span>
+      </div>
+      <div>
+        <h4>Today's Attendance</h4>
+        <p>${attendanceTotal ? `${attendanceTotal} records captured` : 'No attendance records captured yet'}</p>
+        <ul>${attendanceList}</ul>
+      </div>
+    </article>
+  `;
 }
 
 function renderMatchSuggestions() {
@@ -7500,6 +7682,66 @@ function renderSettings() {
   document.getElementById('settingsCurrencyLabel').textContent = currencyLabel(school.CurrencyCode || 'ZAR');
 }
 
+function subscriptionPlanDetails() {
+  return [
+    {
+      value: 'Standard',
+      price: 'R 899 pm',
+      perks: ['Core school management', 'Learner and parent records', 'Invoices and basic statements', 'Standard monthly email allowance']
+    },
+    {
+      value: 'Pro',
+      price: 'R 1 199 pm',
+      popular: true,
+      perks: ['Everything in Standard', 'Messaging package included', 'Higher monthly email allowance', 'School-to-parent communication tools']
+    },
+    {
+      value: 'Pro+',
+      price: 'TBA',
+      perks: ['Everything in Pro', 'Advanced automation space', 'Expanded email and communication limits', 'Priority rollout features']
+    }
+  ];
+}
+
+function normalizePricingPlan(value) {
+  const normalized = String(value || 'Standard').trim().toLowerCase().replace(/\s+/g, '');
+  if (normalized === 'standard' || normalized === 'basic') return 'Standard';
+  if (normalized === 'pro') return 'Pro';
+  if (normalized === 'pro+' || normalized === 'proplus' || normalized === 'premium') return 'Pro+';
+  return 'Standard';
+}
+
+function renderSubscriptionPlans() {
+  const grid = document.getElementById('subscriptionPlanGrid');
+  const activeLabel = document.getElementById('subscriptionActivePlan');
+  if (!grid || !activeLabel) {
+    return;
+  }
+
+  const school = getSettingsSchool() || getAccountSchool() || {};
+  const activePlan = normalizePricingPlan(school.SubscriptionPlan || 'Standard');
+  activeLabel.textContent = `Active: ${activePlan}`;
+
+  grid.innerHTML = subscriptionPlanDetails().map((plan) => {
+    const active = plan.value === activePlan;
+    return `
+      <article class="subscription-plan-card${active ? ' active' : ''}${plan.popular ? ' popular' : ''}">
+        <div class="subscription-plan-top">
+          <div>
+            <h4>${escapeHtml(plan.value)}</h4>
+            <strong>${escapeHtml(plan.price)}</strong>
+          </div>
+          <span class="${active ? 'badge' : 'badge muted'}">${active ? 'Active' : 'Available'}</span>
+        </div>
+        ${plan.popular ? '<span class="subscription-popular">Popular</span>' : ''}
+        <ul>
+          ${plan.perks.map((perk) => `<li>${escapeHtml(perk)}</li>`).join('')}
+        </ul>
+      </article>
+    `;
+  }).join('');
+}
+
 function renderAdminControls() {
   const canManageSchoolFinance = state.user?.role === 'school';
   elements.invoiceForm.classList.toggle('hidden', !canManageSchoolFinance);
@@ -7577,6 +7819,10 @@ function switchSettingsTab(tabName) {
   document.querySelectorAll('[data-settings-panel]').forEach((panel) => {
     panel.classList.toggle('active', panel.dataset.settingsPanel === tabName);
   });
+
+  if (tabName === 'subscription') {
+    renderSubscriptionPlans();
+  }
 }
 
 function formData(form) {
