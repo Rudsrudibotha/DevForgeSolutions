@@ -823,6 +823,8 @@ function nextCalendarYear() {
   return currentCalendarYear() + 1;
 }
 
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 const elements = {
   workspace: document.getElementById('workspace'),
   statusPill: document.getElementById('statusPill'),
@@ -882,12 +884,16 @@ const elements = {
   registerLearnerBillingSelect: document.getElementById('registerLearnerBillingSelect'),
   registerLearnerBillingAvailable: document.getElementById('registerLearnerBillingAvailable'),
   registerLearnerBillingAssigned: document.getElementById('registerLearnerBillingAssigned'),
+  registerLearnerDiscountYear: document.getElementById('registerLearnerDiscountYear'),
+  registerLearnerDiscountGrid: document.getElementById('registerLearnerDiscountGrid'),
   studentEditDialog: document.getElementById('studentEditDialog'),
   studentEditForm: document.getElementById('studentEditForm'),
   studentEditResponsiblePayerTypeSelect: document.getElementById('studentEditResponsiblePayerTypeSelect'),
   studentEditBillingSelect: document.getElementById('studentEditBillingSelect'),
   studentEditBillingAvailable: document.getElementById('studentEditBillingAvailable'),
   studentEditBillingAssigned: document.getElementById('studentEditBillingAssigned'),
+  studentEditDiscountYear: document.getElementById('studentEditDiscountYear'),
+  studentEditDiscountGrid: document.getElementById('studentEditDiscountGrid'),
   closeStudentEditDialogButton: document.getElementById('closeStudentEditDialogButton'),
   cancelStudentEditButton: document.getElementById('cancelStudentEditButton'),
   familyEditDialog: document.getElementById('familyEditDialog'),
@@ -4480,6 +4486,137 @@ function unassignStudentEditBilling(categoryId) {
   renderStudentEditBillingPicker();
 }
 
+function dateParts(value) {
+  const text = String(value || '').slice(0, 10);
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return null;
+  return { year, month };
+}
+
+function monthlyDiscountsForStudent(student) {
+  if (!student?.MonthlyDiscountsJson) return [];
+
+  try {
+    const parsed = typeof student.MonthlyDiscountsJson === 'string'
+      ? JSON.parse(student.MonthlyDiscountsJson)
+      : student.MonthlyDiscountsJson;
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((item) => ({
+        year: Number(item.DiscountYear ?? item.year),
+        month: Number(item.DiscountMonth ?? item.month),
+        amount: Math.max(0, Number(item.Amount ?? item.amount ?? 0))
+      }))
+      .filter((item) => Number.isInteger(item.year)
+        && item.year >= 2000
+        && item.year <= 2100
+        && Number.isInteger(item.month)
+        && item.month >= 1
+        && item.month <= 12
+        && Number.isFinite(item.amount));
+  } catch (error) {
+    return [];
+  }
+}
+
+function discountGridValues(grid) {
+  const values = new Map();
+  grid?.querySelectorAll('[data-discount-month]').forEach((input) => {
+    const month = Number(input.dataset.discountMonth);
+    if (Number.isInteger(month) && month >= 1 && month <= 12) {
+      values.set(month, Math.max(0, Number(input.value || 0)));
+    }
+  });
+  return values;
+}
+
+function discountYearFromForm(form, yearInput, discounts = []) {
+  const entered = Number(yearInput?.value);
+  if (Number.isInteger(entered) && entered >= 2000 && entered <= 2100) return entered;
+
+  const enrolled = dateParts(form?.elements?.enrolledDate?.value);
+  if (enrolled) return enrolled.year;
+
+  const existing = discounts.find((item) => Number.isInteger(item.year) && item.year >= 2000 && item.year <= 2100);
+  return existing?.year || currentCalendarYear();
+}
+
+function isDiscountMonthLocked(year, month, enrolledValue) {
+  const enrolled = dateParts(enrolledValue);
+  if (!enrolled) return false;
+  return year < enrolled.year || (year === enrolled.year && month < enrolled.month);
+}
+
+function renderMonthlyDiscountGrid(form, grid, yearInput, discounts = []) {
+  if (!grid || !yearInput) return;
+
+  const year = discountYearFromForm(form, yearInput, discounts);
+  yearInput.value = String(year);
+
+  const previousYear = Number(grid.dataset.discountYear || 0);
+  const currentValues = previousYear === year ? discountGridValues(grid) : new Map();
+  grid.dataset.discountYear = String(year);
+  const existing = new Map();
+  monthlyDiscountsForStudent({ MonthlyDiscountsJson: discounts }).forEach((item) => {
+    if (Number(item.year) === year) {
+      existing.set(Number(item.month), Number(item.amount || 0));
+    }
+  });
+
+  const enrolledValue = form?.elements?.enrolledDate?.value || '';
+  grid.innerHTML = MONTH_LABELS.map((label, index) => {
+    const month = index + 1;
+    const locked = isDiscountMonthLocked(year, month, enrolledValue);
+    const rawValue = locked
+      ? 0
+      : currentValues.has(month)
+        ? currentValues.get(month)
+        : existing.get(month) || 0;
+    const value = Math.max(0, Number(rawValue || 0));
+
+    return `
+      <label class="monthly-discount-cell${locked ? ' locked' : ''}">
+        <span>${escapeHtml(label)}</span>
+        <input type="number" min="0" step="0.01" value="${value.toFixed(2)}" data-discount-month="${month}" ${locked ? 'disabled readonly' : ''}>
+      </label>
+    `;
+  }).join('');
+}
+
+function collectMonthlyDiscounts(form, grid, yearInput) {
+  if (!grid || !yearInput) return [];
+
+  const year = discountYearFromForm(form, yearInput);
+  return MONTH_LABELS.map((_, index) => {
+    const month = index + 1;
+    const input = grid.querySelector(`[data-discount-month="${month}"]`);
+    const locked = input?.disabled || isDiscountMonthLocked(year, month, form?.elements?.enrolledDate?.value || '');
+    const amount = locked ? 0 : Math.max(0, Number(input?.value || 0));
+    return { year, month, amount: Math.round(amount * 100) / 100 };
+  });
+}
+
+function monthlyDiscountsJson(discounts = []) {
+  return JSON.stringify((Array.isArray(discounts) ? discounts : [])
+    .filter((item) => Number(item.amount) > 0)
+    .map((item) => ({
+      DiscountYear: Number(item.year),
+      DiscountMonth: Number(item.month),
+      Amount: Math.round(Number(item.amount || 0) * 100) / 100
+    })));
+}
+
+function currentStudentEditDiscounts() {
+  const studentId = Number(elements.studentEditForm?.elements?.studentId?.value || 0);
+  const student = state.students.find((item) => Number(item.StudentID) === studentId);
+  return monthlyDiscountsForStudent(student);
+}
+
 function selectedValues(select) {
   return Array.from(select?.selectedOptions || [])
     .map((option) => Number(option.value))
@@ -6626,6 +6763,7 @@ function openStudentEditDialog(studentId) {
   setResponsiblePayerFromStudent(form, student);
   state.studentEditBillingIds = billingCategoryIdsForStudent(student);
   renderStudentEditBillingPicker();
+  renderMonthlyDiscountGrid(form, elements.studentEditDiscountGrid, elements.studentEditDiscountYear, monthlyDiscountsForStudent(student));
   form.querySelector('[data-form-tab="editLearner"]')?.click();
   elements.studentEditDialog.classList.remove('hidden');
   document.body.classList.add('modal-open');
@@ -6636,6 +6774,8 @@ function closeStudentEditDialog() {
   elements.studentEditDialog.classList.add('hidden');
   elements.studentEditForm.reset();
   state.studentEditBillingIds = [];
+  if (elements.studentEditDiscountGrid) elements.studentEditDiscountGrid.innerHTML = '';
+  if (elements.studentEditDiscountYear) elements.studentEditDiscountYear.value = '';
   document.body.classList.remove('modal-open');
 }
 
@@ -8256,6 +8396,7 @@ elements.studentEditForm?.addEventListener('submit', async (event) => {
       throw new Error('Select at least one billing category');
     }
 
+    const monthlyDiscounts = collectMonthlyDiscounts(form, elements.studentEditDiscountGrid, elements.studentEditDiscountYear);
     const studentId = Number(form.elements.studentId.value);
     const familyId = Number(form.elements.familyId.value);
     const student = state.students.find((item) => Number(item.StudentID) === studentId) || {};
@@ -8283,6 +8424,7 @@ elements.studentEditForm?.addEventListener('submit', async (event) => {
         medicalNotes: data.medicalNotes,
         billingCategoryId: billingCategoryIds[0],
         billingCategoryIds,
+        monthlyDiscounts,
         responsiblePayerType: data.responsiblePayerType,
         responsiblePayerName: data.responsiblePayerName,
         responsiblePayerPhone: data.responsiblePayerPhone,
@@ -8303,6 +8445,24 @@ elements.studentEditForm?.addEventListener('submit', async (event) => {
 
 elements.studentEditResponsiblePayerTypeSelect?.addEventListener('change', () => {
   syncResponsiblePayerFields(elements.studentEditForm, { preserveOther: false });
+});
+
+elements.studentEditForm?.elements?.enrolledDate?.addEventListener('change', () => {
+  renderMonthlyDiscountGrid(
+    elements.studentEditForm,
+    elements.studentEditDiscountGrid,
+    elements.studentEditDiscountYear,
+    currentStudentEditDiscounts()
+  );
+});
+
+elements.studentEditDiscountYear?.addEventListener('change', () => {
+  renderMonthlyDiscountGrid(
+    elements.studentEditForm,
+    elements.studentEditDiscountGrid,
+    elements.studentEditDiscountYear,
+    currentStudentEditDiscounts()
+  );
 });
 
 ['primaryParentName', 'primaryParentPhone', 'primaryParentEmail', 'secondaryParentName', 'secondaryParentPhone', 'secondaryParentEmail'].forEach((name) => {
@@ -9193,6 +9353,23 @@ if (elements.registerLearnerForm) {
     }
   });
 
+  elements.registerLearnerForm.elements.enrolledDate?.addEventListener('change', () => {
+    renderMonthlyDiscountGrid(
+      elements.registerLearnerForm,
+      elements.registerLearnerDiscountGrid,
+      elements.registerLearnerDiscountYear
+    );
+  });
+
+  elements.registerLearnerDiscountYear?.addEventListener('change', () => {
+    renderMonthlyDiscountGrid(
+      elements.registerLearnerForm,
+      elements.registerLearnerDiscountGrid,
+      elements.registerLearnerDiscountYear
+    );
+  });
+  renderMonthlyDiscountGrid(elements.registerLearnerForm, elements.registerLearnerDiscountGrid, elements.registerLearnerDiscountYear);
+
   document.addEventListener('dragstart', (event) => {
     const card = event.target.closest('[data-billing-card]');
     if (!card) return;
@@ -9252,6 +9429,7 @@ if (elements.registerLearnerForm) {
       }
 
       const billingCategoryIds = selectedValues(elements.registerLearnerBillingSelect);
+      const monthlyDiscounts = collectMonthlyDiscounts(form, elements.registerLearnerDiscountGrid, elements.registerLearnerDiscountYear);
 
       setFormBusy(form, true, 'Registering...');
       const data = formData(form);
@@ -9289,6 +9467,7 @@ if (elements.registerLearnerForm) {
           medicalNotes: data.medicalNotes,
           billingCategoryId: billingCategoryIds[0],
           billingCategoryIds,
+          monthlyDiscounts,
           responsiblePayerType: data.responsiblePayerType,
           responsiblePayerName: data.responsiblePayerName,
           responsiblePayerPhone: data.responsiblePayerPhone,
@@ -9298,6 +9477,7 @@ if (elements.registerLearnerForm) {
 
       form.reset();
       state.registerLearnerBillingIds = [];
+      renderMonthlyDiscountGrid(form, elements.registerLearnerDiscountGrid, elements.registerLearnerDiscountYear);
       state.studentSearchType = 'Student surname';
       state.studentSearchQuery = data.lastName || createdStudent.LastName || '';
       const primaryBillingCategory = state.billingCategories.find((category) => (
@@ -9313,7 +9493,8 @@ if (elements.registerLearnerForm) {
           IsActive: createdStudent.IsActive !== false,
           PrimaryParentName: data.primaryParentName || createdStudent.PrimaryParentName,
           PrimaryParentPhone: data.primaryParentPhone || createdStudent.PrimaryParentPhone,
-          PrimaryParentEmail: data.primaryParentEmail || createdStudent.PrimaryParentEmail
+          PrimaryParentEmail: data.primaryParentEmail || createdStudent.PrimaryParentEmail,
+          MonthlyDiscountsJson: createdStudent.MonthlyDiscountsJson || monthlyDiscountsJson(monthlyDiscounts)
         },
         ...state.students.filter((student) => Number(student.StudentID) !== Number(createdStudent.StudentID))
       ];

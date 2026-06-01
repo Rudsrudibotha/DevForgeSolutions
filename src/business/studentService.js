@@ -127,6 +127,7 @@ class StudentService {
       medicalNotes: this.optionalString(studentData.medicalNotes ?? existingStudent.MedicalNotes, 'Medical notes', 1000),
       billingCategoryId,
       billingCategoryIds,
+      monthlyDiscounts: this.normalizeMonthlyDiscounts(studentData, existingStudent),
       ...this.buildResponsiblePayerPayload(studentData, existingStudent, family)
     };
   }
@@ -228,6 +229,67 @@ class StudentService {
       .filter((value) => Number.isInteger(value) && value > 0))];
   }
 
+  normalizeMonthlyDiscounts(studentData, existingStudent = {}) {
+    if (studentData.monthlyDiscounts === undefined) {
+      return undefined;
+    }
+
+    const raw = typeof studentData.monthlyDiscounts === 'string'
+      ? this.parseJsonArray(studentData.monthlyDiscounts, 'Monthly discounts')
+      : studentData.monthlyDiscounts;
+
+    if (!Array.isArray(raw)) {
+      throw new Error('Monthly discounts must be submitted as a list');
+    }
+
+    const enrolledDate = this.requiredDate(studentData.enrolledDate ?? existingStudent.EnrolledDate, 'Enrolled date');
+    const enrolled = new Date(`${enrolledDate}T00:00:00`);
+    const enrolledYear = enrolled.getFullYear();
+    const enrolledMonth = enrolled.getMonth() + 1;
+    const discounts = [];
+
+    for (const item of raw) {
+      const year = Number(item.year ?? item.DiscountYear);
+      const month = Number(item.month ?? item.DiscountMonth);
+      const amount = Math.round(Number(item.amount ?? item.Amount ?? 0) * 100) / 100;
+
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        throw new Error('Discount year must be between 2000 and 2100');
+      }
+
+      if (!Number.isInteger(month) || month < 1 || month > 12) {
+        throw new Error('Discount month must be between 1 and 12');
+      }
+
+      if (!Number.isFinite(amount) || amount < 0) {
+        throw new Error('Discount amount must be zero or more');
+      }
+
+      if (this.isBeforeEnrolmentMonth(year, month, enrolledYear, enrolledMonth) && amount > 0) {
+        throw new Error('Discount cannot be applied before the learner enrolment month');
+      }
+
+      discounts.push({ year, month, amount });
+    }
+
+    return discounts;
+  }
+
+  parseJsonArray(value, label) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (error) {
+      // Use the common validation message below.
+    }
+
+    throw new Error(`${label} must be a valid list`);
+  }
+
+  isBeforeEnrolmentMonth(year, month, enrolledYear, enrolledMonth) {
+    return year < enrolledYear || (year === enrolledYear && month < enrolledMonth);
+  }
+
   buildDeparturePayload(departureData) {
     const departureReason = String(departureData.departureReason || '').trim();
 
@@ -304,6 +366,7 @@ class StudentService {
       'BillingDate',
       'BillingCategoryID',
       'BillingCategoriesJson',
+      'MonthlyDiscountsJson',
       'CategoryName',
       'CategoryAmount',
       'CategoryFrequency',

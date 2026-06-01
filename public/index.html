@@ -781,6 +781,17 @@
                       </section>
                     </div>
                     <select id="registerLearnerBillingSelect" class="hidden" name="billingCategoryIds" multiple required></select>
+                    <section class="monthly-discount-panel">
+                      <div class="billing-assignment-header">
+                        <h4>Monthly Discounts</h4>
+                        <span>Discounts are applied to generated learner invoices for the selected year.</span>
+                      </div>
+                      <label class="discount-year-field">
+                        Discount year
+                        <input id="registerLearnerDiscountYear" type="number" min="2000" max="2100">
+                      </label>
+                      <div id="registerLearnerDiscountGrid" class="monthly-discount-grid"></div>
+                    </section>
                   </div>
 
                   <div class="form-tab-panel" data-form-panel="medical">
@@ -2786,6 +2797,17 @@
                 </section>
               </div>
               <select id="studentEditBillingSelect" class="hidden" name="billingCategoryIds" multiple required></select>
+              <section class="monthly-discount-panel">
+                <div class="billing-assignment-header">
+                  <h4>Monthly Discounts</h4>
+                  <span>Discounts are applied to generated learner invoices for the selected year.</span>
+                </div>
+                <label class="discount-year-field">
+                  Discount year
+                  <input id="studentEditDiscountYear" type="number" min="2000" max="2100">
+                </label>
+                <div id="studentEditDiscountGrid" class="monthly-discount-grid"></div>
+              </section>
             </div>
             <div class="actions modal-actions">
               <button class="secondary-button compact-button" type="button" id="cancelStudentEditButton">Cancel</button>

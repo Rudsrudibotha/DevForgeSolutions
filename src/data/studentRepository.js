@@ -25,6 +25,30 @@ class StudentRepository {
     await pool.request().query(`
       IF COL_LENGTH('dbo.BillingCategories', 'BillingYear') IS NULL
         ALTER TABLE dbo.BillingCategories ADD BillingYear INT NOT NULL CONSTRAINT DF_BillingCategories_BillingYear DEFAULT (YEAR(GETDATE())) WITH VALUES;
+
+      IF OBJECT_ID('dbo.StudentMonthlyDiscounts', 'U') IS NULL
+      BEGIN
+        CREATE TABLE dbo.StudentMonthlyDiscounts (
+          StudentMonthlyDiscountID INT IDENTITY(1,1) PRIMARY KEY,
+          SchoolID INT NOT NULL,
+          StudentID INT NOT NULL,
+          DiscountYear INT NOT NULL,
+          DiscountMonth INT NOT NULL,
+          Amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+          CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+          UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+          CONSTRAINT CK_StudentMonthlyDiscounts_Year CHECK (DiscountYear BETWEEN 2000 AND 2100),
+          CONSTRAINT CK_StudentMonthlyDiscounts_Month CHECK (DiscountMonth BETWEEN 1 AND 12),
+          CONSTRAINT CK_StudentMonthlyDiscounts_Amount CHECK (Amount >= 0),
+          CONSTRAINT UQ_StudentMonthlyDiscounts_Student_Year_Month UNIQUE (StudentID, DiscountYear, DiscountMonth),
+          CONSTRAINT FK_StudentMonthlyDiscounts_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+          CONSTRAINT FK_StudentMonthlyDiscounts_Students FOREIGN KEY (StudentID) REFERENCES dbo.Students(StudentID)
+        );
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StudentMonthlyDiscounts_School_Student_Year' AND object_id = OBJECT_ID('dbo.StudentMonthlyDiscounts'))
+        CREATE INDEX IX_StudentMonthlyDiscounts_School_Student_Year
+          ON dbo.StudentMonthlyDiscounts(SchoolID, StudentID, DiscountYear);
     `);
     this.billingColumnsEnsured = true;
   }
@@ -44,7 +68,15 @@ class StudentRepository {
                     WHERE sbc.StudentID = s.StudentID
                     ORDER BY sbc.IsPrimary DESC, bc2.CategoryName
                     FOR JSON PATH
-                  ) AS BillingCategoriesJson`;
+                  ) AS BillingCategoriesJson,
+                  (
+                    SELECT smd.DiscountYear, smd.DiscountMonth, smd.Amount
+                    FROM StudentMonthlyDiscounts smd
+                    WHERE smd.StudentID = s.StudentID
+                      AND smd.SchoolID = s.SchoolID
+                    ORDER BY smd.DiscountYear, smd.DiscountMonth
+                    FOR JSON PATH
+                  ) AS MonthlyDiscountsJson`;
   }
 
   async getStudentsBySchool(schoolId, status = 'active', teacherUserId = null) {
@@ -102,6 +134,7 @@ class StudentRepository {
   }
 
   async createStudent(studentData) {
+    await this.ensureBillingColumns();
     const pool = await getPool();
     const result = await pool.request()
       .input('schoolId', sql.Int, studentData.schoolId)
@@ -135,6 +168,9 @@ class StudentRepository {
     const student = result.recordset[0];
     if (student) {
       await this.syncBillingCategories(student.StudentID, studentData.billingCategoryIds || [studentData.billingCategoryId]);
+      if (Array.isArray(studentData.monthlyDiscounts)) {
+        await this.syncMonthlyDiscounts(student.StudentID, student.SchoolID, studentData.monthlyDiscounts);
+      }
     }
     return student;
   }
@@ -187,7 +223,63 @@ class StudentRepository {
     }
   }
 
+  async syncMonthlyDiscounts(studentId, schoolId, discounts = []) {
+    const normalized = (Array.isArray(discounts) ? discounts : [])
+      .map((item) => ({
+        year: Number(item.year ?? item.DiscountYear),
+        month: Number(item.month ?? item.DiscountMonth),
+        amount: Math.max(0, Math.round(Number(item.amount ?? item.Amount ?? 0) * 100) / 100)
+      }))
+      .filter((item) => Number.isInteger(item.year)
+        && item.year >= 2000
+        && item.year <= 2100
+        && Number.isInteger(item.month)
+        && item.month >= 1
+        && item.month <= 12);
+    const years = [...new Set(normalized.map((item) => item.year))];
+
+    if (!years.length) {
+      return;
+    }
+
+    const pool = await getPool();
+    const transaction = new sql.Transaction(pool);
+
+    await transaction.begin();
+    try {
+      const deleteRequest = new sql.Request(transaction)
+        .input('studentId', sql.Int, studentId)
+        .input('schoolId', sql.Int, schoolId);
+      const yearPlaceholders = years.map((year, index) => {
+        deleteRequest.input(`discountYear${index}`, sql.Int, year);
+        return `@discountYear${index}`;
+      });
+
+      await deleteRequest.query(`DELETE FROM StudentMonthlyDiscounts
+              WHERE StudentID = @studentId
+                AND SchoolID = @schoolId
+                AND DiscountYear IN (${yearPlaceholders.join(', ')})`);
+
+      for (const discount of normalized.filter((item) => item.amount > 0)) {
+        await new sql.Request(transaction)
+          .input('schoolId', sql.Int, schoolId)
+          .input('studentId', sql.Int, studentId)
+          .input('discountYear', sql.Int, discount.year)
+          .input('discountMonth', sql.Int, discount.month)
+          .input('amount', sql.Decimal(10, 2), discount.amount)
+          .query(`INSERT INTO StudentMonthlyDiscounts (SchoolID, StudentID, DiscountYear, DiscountMonth, Amount)
+                  VALUES (@schoolId, @studentId, @discountYear, @discountMonth, @amount)`);
+      }
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
   async updateStudent(id, studentData) {
+    await this.ensureBillingColumns();
     const pool = await getPool();
     const result = await pool.request()
       .input('id', sql.Int, id)
@@ -230,6 +322,9 @@ class StudentRepository {
     const student = result.recordset[0];
     if (student) {
       await this.syncBillingCategories(id, studentData.billingCategoryIds || [studentData.billingCategoryId]);
+      if (Array.isArray(studentData.monthlyDiscounts)) {
+        await this.syncMonthlyDiscounts(id, student.SchoolID, studentData.monthlyDiscounts);
+      }
     }
     return student;
   }

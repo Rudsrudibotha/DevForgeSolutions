@@ -1442,6 +1442,47 @@ form[aria-busy="true"] button[type="submit"] {
   font-weight: 700;
 }
 
+.monthly-discount-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 14px;
+}
+
+.discount-year-field {
+  max-width: 180px;
+}
+
+.monthly-discount-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 10px;
+}
+
+.monthly-discount-cell {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.monthly-discount-cell span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.monthly-discount-cell input {
+  width: 100%;
+}
+
+.monthly-discount-cell input:disabled {
+  background: #e5eaf1;
+  color: #64748b;
+}
+
 .drop-zone-empty {
   margin: 0;
   align-self: center;

@@ -1275,6 +1275,32 @@ BEGIN
     );
 END;
 
+IF OBJECT_ID('dbo.StudentMonthlyDiscounts', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.StudentMonthlyDiscounts (
+        StudentMonthlyDiscountID INT IDENTITY(1,1) PRIMARY KEY,
+        SchoolID INT NOT NULL,
+        StudentID INT NOT NULL,
+        DiscountYear INT NOT NULL,
+        DiscountMonth INT NOT NULL,
+        Amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT CK_StudentMonthlyDiscounts_Year CHECK (DiscountYear BETWEEN 2000 AND 2100),
+        CONSTRAINT CK_StudentMonthlyDiscounts_Month CHECK (DiscountMonth BETWEEN 1 AND 12),
+        CONSTRAINT CK_StudentMonthlyDiscounts_Amount CHECK (Amount >= 0),
+        CONSTRAINT UQ_StudentMonthlyDiscounts_Student_Year_Month UNIQUE (StudentID, DiscountYear, DiscountMonth),
+        CONSTRAINT FK_StudentMonthlyDiscounts_Schools FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_StudentMonthlyDiscounts_Students FOREIGN KEY (StudentID) REFERENCES dbo.Students(StudentID)
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StudentMonthlyDiscounts_School_Student_Year' AND object_id = OBJECT_ID('dbo.StudentMonthlyDiscounts'))
+BEGIN
+    CREATE INDEX IX_StudentMonthlyDiscounts_School_Student_Year
+        ON dbo.StudentMonthlyDiscounts(SchoolID, StudentID, DiscountYear);
+END;
+
 -- Pro-rata billing config per school
 IF COL_LENGTH('dbo.Schools', 'EnableProRataBilling') IS NULL
 BEGIN

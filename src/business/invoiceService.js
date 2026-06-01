@@ -204,12 +204,10 @@ class InvoiceService {
         continue;
       }
 
+      let remainingMonthlyDiscount = this.monthlyDiscountForStudent(student, currentYear, currentMonth + 1);
+
       for (const category of billingCategories) {
         if (!this.billingCategoryAppliesToInvoiceMonth(category, monthStart)) {
-          continue;
-        }
-
-        if (existingSet.has(`${student.StudentID}:${category.BillingCategoryID}`)) {
           continue;
         }
 
@@ -226,11 +224,22 @@ class InvoiceService {
           continue;
         }
 
-        amount = this.billingCategoryService.calculateInvoiceAmount({
+        const baseAmount = this.roundMoney(this.billingCategoryService.calculateInvoiceAmount({
           Frequency: category.Frequency,
           BaseAmount: category.BaseAmount
-        });
+        }));
+        const discountAmount = this.roundMoney(Math.min(baseAmount, remainingMonthlyDiscount));
+        remainingMonthlyDiscount = this.roundMoney(remainingMonthlyDiscount - discountAmount);
+
+        if (existingSet.has(`${student.StudentID}:${category.BillingCategoryID}`)) {
+          continue;
+        }
+
+        amount = this.roundMoney(baseAmount - discountAmount);
         description = `${student.FirstName} ${student.LastName} - ${category.CategoryName} for ${today.toLocaleString('en-ZA', { month: 'long' })} ${currentYear}`;
+        if (discountAmount > 0) {
+          description += ` (discount ${school.CurrencySymbol || 'R'}${discountAmount.toFixed(2)})`;
+        }
 
         if (!amount || amount <= 0) {
           continue;
@@ -326,6 +335,34 @@ class InvoiceService {
     }
 
     return [];
+  }
+
+  monthlyDiscountForStudent(student, year, month) {
+    const discounts = this.studentMonthlyDiscounts(student);
+    const discount = discounts.find((item) => Number(item.year) === Number(year) && Number(item.month) === Number(month));
+    return this.roundMoney(discount?.amount || 0);
+  }
+
+  studentMonthlyDiscounts(student) {
+    if (!student?.MonthlyDiscountsJson) {
+      return [];
+    }
+
+    try {
+      return JSON.parse(student.MonthlyDiscountsJson)
+        .map((item) => ({
+          year: Number(item.DiscountYear ?? item.year),
+          month: Number(item.DiscountMonth ?? item.month),
+          amount: this.roundMoney(Number(item.Amount ?? item.amount ?? 0))
+        }))
+        .filter((item) => Number.isInteger(item.year)
+          && Number.isInteger(item.month)
+          && item.month >= 1
+          && item.month <= 12
+          && item.amount > 0);
+    } catch (error) {
+      return [];
+    }
   }
 
   async issueReceipt(receiptData, currentUser) {
