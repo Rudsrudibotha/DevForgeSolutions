@@ -14,7 +14,23 @@ function optionalString(value) {
 class SchoolRepository {
   async getAllSchools() {
     const pool = await getPool();
-    const result = await pool.request().query('SELECT * FROM Schools');
+    const result = await pool.request().query(`SELECT s.*,
+              (SELECT COUNT(1) FROM Users u WHERE u.SchoolID = s.SchoolID) AS UserCount,
+              (SELECT COUNT(1) FROM Employees e WHERE e.SchoolID = s.SchoolID) AS EmployeeCount,
+              (SELECT COUNT(1) FROM Employees e WHERE e.SchoolID = s.SchoolID AND ISNULL(e.IsActive, 1) = 1) AS ActiveEmployeeCount,
+              (SELECT COUNT(1) FROM Families f WHERE f.SchoolID = s.SchoolID) AS FamilyCount,
+              (SELECT COUNT(1) FROM Students st WHERE st.SchoolID = s.SchoolID) AS StudentCount,
+              (SELECT COUNT(1) FROM Students st WHERE st.SchoolID = s.SchoolID AND ISNULL(st.IsActive, 1) = 1) AS ActiveStudentCount,
+              (SELECT COUNT(1) FROM Invoices i WHERE i.SchoolID = s.SchoolID AND ISNULL(i.IsDeleted, 0) = 0) AS InvoiceCount,
+              (SELECT COUNT(1) FROM Invoices i WHERE i.SchoolID = s.SchoolID AND ISNULL(i.IsDeleted, 0) = 0 AND i.Status <> 'Paid') AS OpenInvoiceCount,
+              (SELECT COALESCE(SUM(CASE WHEN i.Status <> 'Paid' AND ISNULL(i.IsDeleted, 0) = 0 THEN i.Amount - ISNULL(i.AmountPaid, 0) ELSE 0 END), 0)
+               FROM Invoices i
+               WHERE i.SchoolID = s.SchoolID) AS OutstandingAmount,
+              (SELECT COALESCE(SUM(CASE WHEN i.Status = 'Paid' AND ISNULL(i.IsDeleted, 0) = 0 THEN ISNULL(i.AmountPaid, i.Amount) ELSE 0 END), 0)
+               FROM Invoices i
+               WHERE i.SchoolID = s.SchoolID) AS PaidAmount
+            FROM Schools s
+            ORDER BY s.SchoolName`);
     return result.recordset;
   }
 

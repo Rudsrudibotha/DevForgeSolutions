@@ -190,40 +190,7 @@ class UserService {
       throw new Error('Kinder Care Hub admin access required');
     }
 
-    const email = this.normalizeEmail(this.requiredString(userData.email, 'Email', 255));
-    const username = this.normalizeUsername(userData.username || email);
-    const password = String(userData.password || '');
-
-    if (!this.isValidEmail(email)) {
-      throw new Error('A valid email address is required');
-    }
-
-    if (!/^[a-z0-9._-]{3,50}$/.test(username)) {
-      throw new Error('Username must be 3 to 50 characters and use only letters, numbers, dots, underscores, or hyphens');
-    }
-
-    this.validatePassword(password);
-
-    const existingEmail = await this.userRepository.getUserByEmail(email);
-    if (existingEmail) {
-      throw new Error('A user with this email already exists');
-    }
-
-    const existingUsername = await this.userRepository.getUserByUsername(username);
-    if (existingUsername) {
-      throw new Error('A user with this username already exists');
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const user = await this.userRepository.createUser({
-      email,
-      username,
-      passwordHash,
-      role: 'admin',
-      schoolId: null
-    });
-
-    return this.sanitizeUser(user);
+    throw new Error('Admin dashboard users are provisioned through Microsoft Entra ID. Add the user to the AAD app assignment and AZURE_AD_ADMIN_EMAILS/AZURE_AD_ADMIN_OBJECT_IDS, then have them sign in with AAD.');
   }
 
   async getSchoolUsers(currentUser, schoolId) {

@@ -296,26 +296,48 @@ function renderSchoolsTable() {
     const statusClass = isActive ? 'badge' : 'badge danger';
     const plan = school.SubscriptionPlan || 'Basic';
     const messagingActive = isActive && plan === 'Pro';
+    const contactLines = [
+      school.ContactPerson,
+      school.ContactEmail,
+      school.ContactPhone,
+      school.Website
+    ].filter(Boolean).map(escapeHtml);
+    const schoolLines = [
+      `School ID ${school.SchoolID}`,
+      school.RegistrationNumber ? `Reg: ${escapeHtml(school.RegistrationNumber)}` : null,
+      school.Address ? escapeHtml(school.Address) : null
+    ].filter(Boolean);
 
     return `
       <tr>
         <td>
           <strong>${escapeHtml(school.SchoolName)}</strong>
-          <span class="table-subtext">School ID ${school.SchoolID}</span>
+          <span class="table-subtext">${schoolLines.join(' | ')}</span>
+          <span class="table-subtext">${contactLines.join(' | ') || 'No contact details captured'}</span>
         </td>
-        <td><span class="${statusClass}">${escapeHtml(school.SubscriptionStatus || 'Active')}</span></td>
+        <td>
+          <span class="${statusClass}">${escapeHtml(school.SubscriptionStatus || 'Active')}</span>
+          <span class="table-subtext">Created ${dateOnly(school.CreatedDate)}</span>
+          <span class="table-subtext">Updated ${dateOnly(school.UpdatedDate)}</span>
+        </td>
         <td>
           <select class="thin-input" data-action="school-plan" data-id="${school.SchoolID}">
             ${['Basic', 'Standard', 'Pro', 'Premium'].map((option) => `
               <option value="${option}" ${plan === option ? 'selected' : ''}>${option}</option>
             `).join('')}
           </select>
+          <span class="table-subtext">${escapeHtml(school.CurrencyCode || 'ZAR')} ${escapeHtml(school.CurrencySymbol || 'R')} | Fee ${money(school.DefaultMonthlyFee)}</span>
         </td>
         <td>
           <span class="${messagingActive ? 'badge' : 'badge muted'}">${messagingActive ? 'Active' : 'Off'}</span>
           <span class="table-subtext">Pro plan</span>
         </td>
-        <td>${escapeHtml(school.UserCount || '-')}</td>
+        <td>
+          <strong>${escapeHtml(school.UserCount || 0)}</strong>
+          <span class="table-subtext">${escapeHtml(school.ActiveStudentCount || 0)} active students / ${escapeHtml(school.StudentCount || 0)} total</span>
+          <span class="table-subtext">${escapeHtml(school.FamilyCount || 0)} families | ${escapeHtml(school.ActiveEmployeeCount || 0)} active staff</span>
+          <span class="table-subtext">${escapeHtml(school.OpenInvoiceCount || 0)} open invoices | Outstanding ${money(school.OutstandingAmount)}</span>
+        </td>
         <td>
           <div class="actions">
             <button class="ghost-button" data-action="${isActive ? 'suspend-school' : 'activate-school'}" data-id="${school.SchoolID}" type="button">
@@ -529,6 +551,14 @@ function dateOnly(value) {
   return new Date(value).toLocaleDateString('en-ZA');
 }
 
+function money(value) {
+  const amount = Number(value || 0);
+  return amount.toLocaleString('en-ZA', {
+    style: 'currency',
+    currency: 'ZAR'
+  });
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -613,7 +643,7 @@ elements.schoolForm.addEventListener('submit', async (event) => {
   }
 });
 
-elements.devforgeUserForm.addEventListener('submit', async (event) => {
+elements.devforgeUserForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   try {

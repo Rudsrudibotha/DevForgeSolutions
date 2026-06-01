@@ -81,12 +81,12 @@ router.get('/devforge-users', authenticateToken, requireAdmin, async (req, res) 
   }
 });
 
-router.post('/devforge-users', authenticateToken, requireAdmin, audit('User', 'CreateDevForgeUser'), async (req, res) => {
+router.post('/devforge-users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const user = await userService.createDevForgeUser(req.body, req.user);
     res.status(201).json(user);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(405).json({ error: error.message });
   }
 });
 
