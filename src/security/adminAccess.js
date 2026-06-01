@@ -2,8 +2,6 @@ const DEFAULT_AAD_ADMIN_EMAILS = [
   'rudi@devforgesolutions.com',
   'tristan@devforgesolutions.com',
   'calvin@devforgesolutions.com',
-  'ruds.botha@gmqail.com',
-  'ruds.botha@gmail.com',
   'rudsrudibotha@gmail.com'
 ];
 
