@@ -49,6 +49,40 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
+    const requestedRole = String(decoded.role || '').toLowerCase();
+    const requestedSchoolId = Number(decoded.schoolId);
+
+    // One account can be an internal admin and school staff; keep the token's dashboard context.
+    if (
+      requestedRole === 'school'
+      && Number.isInteger(requestedSchoolId)
+      && requestedSchoolId > 0
+      && ['school', 'admin'].includes(user.Role)
+    ) {
+      let staffMembership;
+
+      try {
+        staffMembership = await userService.getActiveStaffMembership(user.UserID, requestedSchoolId);
+      } catch (error) {
+        if (isDatabaseConnectionError(error)) {
+          return res.status(503).json({ error: 'Database unavailable. Check the database connection and try again.' });
+        }
+
+        throw error;
+      }
+
+      if (!staffMembership) {
+        return res.status(403).json({ error: 'School dashboard access requires an active staff record for this school.' });
+      }
+
+      user = {
+        ...user,
+        OriginalRole: user.Role,
+        Role: 'school',
+        SchoolID: requestedSchoolId
+      };
+    }
+
     if (user.Role === 'school') {
       if (!user.SchoolID) {
         return res.status(403).json({ error: 'School dashboard access requires a linked school' });

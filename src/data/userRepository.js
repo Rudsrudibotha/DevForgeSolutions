@@ -54,6 +54,25 @@ class UserRepository {
     return result.recordset[0];
   }
 
+  async getStaffLinkedUserBySchoolAndIdentifier(schoolId, identifier) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('schoolId', sql.Int, schoolId)
+      .input('identifier', sql.NVarChar, identifier)
+      .query(`SELECT TOP 1 u.*
+              FROM Users u
+              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = @schoolId
+              WHERE u.Role IN ('school', 'admin')
+                AND ISNULL(u.IsActive, 1) = 1
+                AND ISNULL(e.IsActive, 1) = 1
+                AND (
+                  LOWER(u.Username) = LOWER(@identifier)
+                  OR LOWER(u.Email) = LOWER(@identifier)
+                )
+              ORDER BY CASE WHEN u.SchoolID = @schoolId THEN 0 ELSE 1 END, u.UserID`);
+    return result.recordset[0];
+  }
+
   async getUserRecordBySchoolAndIdentifier(schoolId, identifier) {
     const pool = await getPool();
     const result = await pool.request()
@@ -164,13 +183,14 @@ class UserRepository {
     const pool = await getPool();
     const result = await pool.request()
       .input('schoolId', sql.Int, schoolId)
-      .query(`SELECT u.UserID, u.Username, u.Email, u.Role, u.SchoolID, u.IsActive, u.CreatedDate,
+      .query(`SELECT u.UserID, u.Username, u.Email,
+                     CASE WHEN u.Role = 'admin' THEN 'school' ELSE u.Role END AS Role,
+                     e.SchoolID, u.IsActive, u.CreatedDate,
                      e.EmployeeID, e.FirstName, e.LastName, e.JobTitle, e.Department,
                      e.IsActive AS StaffIsActive
               FROM Users u
-              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
-              WHERE u.SchoolID = @schoolId
-                AND u.Role = 'school'
+              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = @schoolId
+              WHERE u.Role IN ('school', 'admin')
               ORDER BY u.CreatedDate DESC, u.Username`);
     return result.recordset;
   }

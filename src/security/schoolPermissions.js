@@ -140,9 +140,8 @@ async function isSchoolOwner(user) {
     .input('schoolId', sql.Int, schoolId)
     .query(`SELECT TOP 1 u.UserID
             FROM Users u
-            INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
-            WHERE u.SchoolID = @schoolId
-              AND u.Role = 'school'
+            INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = @schoolId
+            WHERE u.Role IN ('school', 'admin')
               AND ISNULL(u.IsActive, 1) = 1
               AND ISNULL(e.IsActive, 1) = 1
             ORDER BY u.CreatedDate, u.UserID`);
@@ -170,9 +169,8 @@ async function getSchoolPermissions(user) {
             FROM UserRoleAssignments ura
             INNER JOIN StaffRoles sr ON sr.StaffRoleID = ura.StaffRoleID
             INNER JOIN Users u ON u.UserID = ura.UserID
-            INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
+            INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = @schoolId
             WHERE ura.UserID = @userId
-              AND u.SchoolID = @schoolId
               AND sr.SchoolID = @schoolId
               AND sr.IsActive = 1
               AND ISNULL(u.IsActive, 1) = 1

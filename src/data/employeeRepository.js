@@ -106,7 +106,13 @@ class EmployeeRepository {
       .input('standardDeductions', sql.Decimal(10,2), data.standardDeductions || 0)
       .input('taxPaye', sql.Decimal(10,2), data.taxPaye || 0)
       .input('uifDeduction', sql.Decimal(10,2), data.uifDeduction || 0)
-      .query(`IF @userId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Users WHERE UserID = @userId AND SchoolID = @schoolId AND Role = 'school')
+      .query(`IF @userId IS NOT NULL AND NOT EXISTS (
+                SELECT 1
+                FROM Users
+                WHERE UserID = @userId
+                  AND Role IN ('school', 'admin')
+                  AND (SchoolID = @schoolId OR SchoolID IS NULL)
+              )
                 THROW 50000, 'Linked user must belong to the selected school', 1;
               INSERT INTO Employees (SchoolID, UserID, EmployeeNumber, PayrollNumber, FirstName, LastName, Email, Phone,
                 PhysicalAddress, JobTitle, Department, StartDate, Salary, LeaveBalance, IdNumber, PassportNumber,
@@ -174,7 +180,13 @@ class EmployeeRepository {
       .input('employeeId', sql.Int, employeeId)
       .input('schoolId', sql.Int, schoolId)
       .input('userId', sql.Int, userId)
-      .query(`IF NOT EXISTS (SELECT 1 FROM Users WHERE UserID = @userId AND SchoolID = @schoolId AND Role = 'school')
+      .query(`IF NOT EXISTS (
+                SELECT 1
+                FROM Users
+                WHERE UserID = @userId
+                  AND Role IN ('school', 'admin')
+                  AND (SchoolID = @schoolId OR SchoolID IS NULL)
+              )
                 THROW 50000, 'Linked user must belong to the selected school', 1;
               UPDATE Employees
               SET UserID = @userId, UpdatedDate = GETDATE()

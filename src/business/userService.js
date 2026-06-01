@@ -164,7 +164,7 @@ class UserService {
       throw new Error('This school account is suspended. Please contact Kinder Care Hub.');
     }
 
-    const user = await this.userRepository.getUserBySchoolAndIdentifier(parsedSchoolId, identifier);
+    const user = await this.userRepository.getStaffLinkedUserBySchoolAndIdentifier(parsedSchoolId, identifier);
 
     if (!user) {
       const schoolUser = await this.userRepository.getUserRecordBySchoolAndIdentifier(parsedSchoolId, identifier);
@@ -173,7 +173,7 @@ class UserService {
       }
     }
 
-    return user;
+    return user ? this.asSchoolDashboardUser(user, parsedSchoolId) : null;
   }
 
   // Get all users for admin workflows.
@@ -514,7 +514,12 @@ class UserService {
         throw new Error('School ID is required for school login');
       }
 
-      const existing = await this.userRepository.getUserBySchoolAndIdentifier(parsedSchoolId, normalizedEmail);
+      const school = await this.schoolService.getSchoolById(parsedSchoolId);
+      if (school.SubscriptionStatus !== 'Active') {
+        throw new Error('This school account is suspended. Please contact Kinder Care Hub.');
+      }
+
+      const existing = await this.userRepository.getStaffLinkedUserBySchoolAndIdentifier(parsedSchoolId, normalizedEmail);
 
       // Only staff-linked school users can sign in through a school provider.
       if (!existing) {
@@ -535,7 +540,7 @@ class UserService {
         throw new Error('No matching school user found for this email and school');
       }
 
-      return existing;
+      return this.asSchoolDashboardUser(existing, parsedSchoolId);
     }
 
     if (loginType === 'parent') {
@@ -593,6 +598,15 @@ class UserService {
 
   isActiveUser(user) {
     return user?.IsActive === undefined || user?.IsActive === null || Boolean(user.IsActive);
+  }
+
+  asSchoolDashboardUser(user, schoolId) {
+    return {
+      ...user,
+      OriginalRole: user.Role,
+      Role: 'school',
+      SchoolID: Number(schoolId)
+    };
   }
 
   normalizeUsername(username) {

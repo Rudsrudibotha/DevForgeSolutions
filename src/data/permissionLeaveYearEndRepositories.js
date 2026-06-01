@@ -41,10 +41,9 @@ class StaffRoleRepository {
     const result = await pool.request().input('userId', sql.Int, userId).input('schoolId', sql.Int, schoolId)
       .query(`SELECT sr.* FROM StaffRoles sr INNER JOIN UserRoleAssignments ura ON sr.StaffRoleID = ura.StaffRoleID
               INNER JOIN Users u ON u.UserID = ura.UserID
-              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
+              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = @schoolId
               WHERE ura.UserID = @userId
                 AND sr.SchoolID = @schoolId
-                AND u.SchoolID = @schoolId
                 AND sr.IsActive = 1
                 AND ISNULL(u.IsActive, 1) = 1
                 AND ISNULL(e.IsActive, 1) = 1`);
@@ -58,10 +57,9 @@ class StaffRoleRepository {
       .query(`IF NOT EXISTS (
                 SELECT 1
                 FROM Users u
-                INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
+                INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = @schoolId
                 WHERE u.UserID = @userId
-                  AND u.SchoolID = @schoolId
-                  AND u.Role = 'school'
+                  AND u.Role IN ('school', 'admin')
                   AND ISNULL(u.IsActive, 1) = 1
                   AND ISNULL(e.IsActive, 1) = 1
               )
@@ -79,8 +77,10 @@ class StaffRoleRepository {
               FROM UserRoleAssignments ura
               INNER JOIN StaffRoles sr ON sr.StaffRoleID = ura.StaffRoleID
               INNER JOIN Users u ON u.UserID = ura.UserID
+              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = @schoolId
               WHERE ura.UserID=@userId AND ura.StaffRoleID=@staffRoleId
-                AND sr.SchoolID=@schoolId AND u.SchoolID=@schoolId`);
+                AND sr.SchoolID=@schoolId
+                AND u.Role IN ('school', 'admin')`);
   }
 }
 
