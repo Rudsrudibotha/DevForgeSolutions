@@ -1619,7 +1619,7 @@ function renderShell() {
     return;
   }
 
-  if (state.user.role === 'admin' || state.user.role === 'parent') {
+  if (state.user.role === 'parent') {
     window.location.href = dashboardPath(state.user);
     return;
   }

@@ -444,7 +444,11 @@ class UserService {
       if (!existing) {
         const conflictingUser = await this.userRepository.getUserByEmail(normalizedEmail);
         if (conflictingUser?.Role === 'admin') {
-          throw new Error('This email is registered for the Admin dashboard, not this school');
+          if (!this.isActiveUser(conflictingUser)) {
+            throw new Error('This admin account is inactive');
+          }
+
+          return conflictingUser;
         }
 
         if (conflictingUser?.Role && conflictingUser.Role !== 'school') {
