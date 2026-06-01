@@ -14,7 +14,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     auditLog.log({
       userId: req.user?.UserID,
-      schoolId: req.user?.SchoolID,
+      schoolId: report.SchoolID,
       entityName: 'FaultReport',
       entityId: report.FaultReportID,
       action: 'Create',

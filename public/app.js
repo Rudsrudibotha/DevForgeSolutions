@@ -1485,9 +1485,15 @@ function currentFaultPath() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}` || '/sms';
 }
 
+function currentFaultLocation() {
+  const viewName = activeViewName();
+  const viewTitle = VIEW_TITLES[viewName] || viewName.charAt(0).toUpperCase() + viewName.slice(1);
+  return `${currentFaultPath()} | ${viewTitle} (${viewName})`;
+}
+
 function updateFaultReportPath() {
   if (elements.faultReportPath) {
-    elements.faultReportPath.value = currentFaultPath();
+    elements.faultReportPath.value = currentFaultLocation();
   }
 }
 
@@ -1525,6 +1531,7 @@ async function submitFaultReport(event) {
     await api('/api/faults', {
       method: 'POST',
       body: JSON.stringify({
+        schoolId: currentSchoolId(),
         pagePath: currentFaultPath(),
         viewName: activeViewName(),
         remarks
@@ -1536,7 +1543,7 @@ async function submitFaultReport(event) {
     showFormMessage(message, 'Fault report sent', 'success');
     showToast('Fault report sent');
   } catch (error) {
-    showFormMessage(message, error.message);
+    showFormMessage(message, `${error.message} | Location: ${currentFaultLocation()}`);
   } finally {
     setFormBusy(form, false);
   }

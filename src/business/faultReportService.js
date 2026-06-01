@@ -1,20 +1,24 @@
 const FaultReportRepository = require('../data/faultReportRepository');
+const SchoolRepository = require('../data/schoolRepository');
 
 class FaultReportService {
-  constructor() {
-    this.faultReportRepository = new FaultReportRepository();
+  constructor(dependencies = {}) {
+    this.faultReportRepository = dependencies.faultReportRepository || new FaultReportRepository();
+    this.schoolRepository = dependencies.schoolRepository || new SchoolRepository();
     this.allowedStatuses = ['Open', 'In Progress', 'Resolved', 'Closed'];
   }
 
   async createFaultReport(data, currentUser, requestMeta = {}) {
-    if (!currentUser || currentUser.Role !== 'school' || !currentUser.SchoolID) {
+    const schoolId = await this.reportSchoolId(data, currentUser);
+
+    if (!schoolId) {
       const error = new Error('School dashboard access required');
       error.statusCode = 403;
       throw error;
     }
 
     const payload = {
-      schoolId: currentUser.SchoolID,
+      schoolId,
       userId: currentUser.UserID,
       pagePath: this.requiredString(data?.pagePath || '/sms', 'Fault path', 500),
       viewName: this.optionalString(data?.viewName, 'View', 120),
@@ -23,6 +27,32 @@ class FaultReportService {
     };
 
     return await this.faultReportRepository.create(payload);
+  }
+
+  async reportSchoolId(data, currentUser) {
+    if (!currentUser) {
+      return null;
+    }
+
+    if (currentUser.Role === 'school') {
+      const schoolId = Number(currentUser.SchoolID);
+      return Number.isInteger(schoolId) && schoolId > 0 ? schoolId : null;
+    }
+
+    if (currentUser.Role !== 'admin') {
+      return null;
+    }
+
+    const schoolId = this.positiveInteger(data?.schoolId, 'School ID');
+    const school = await this.schoolRepository.getSchoolById(schoolId);
+
+    if (!school) {
+      const error = new Error('Selected school was not found for this fault report');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return schoolId;
   }
 
   async getFaultReports(query = {}) {
@@ -90,6 +120,18 @@ class FaultReportService {
     }
 
     return cleaned || null;
+  }
+
+  positiveInteger(value, label) {
+    const parsed = Number(value);
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      const error = new Error(`${label} must be a positive integer`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return parsed;
   }
 }
 
