@@ -4106,8 +4106,17 @@ function invoiceSchoolContactHtml(school) {
   `;
 }
 
+function schoolAccountForInvoice(schoolId) {
+  const id = Number(schoolId);
+  const schoolFromAccountSettings = state.schools.find((item) => Number(item.SchoolID) === id);
+
+  // Settings > School Account is backed by /api/schools. Printed invoices must always
+  // use that school account record rather than learner/invoice fallbacks.
+  return schoolFromAccountSettings || getAccountSchool() || getSettingsSchool() || {};
+}
+
 function invoiceDocumentHtml(anchorInvoice) {
-  const school = state.schools.find((item) => Number(item.SchoolID) === Number(anchorInvoice.SchoolID)) || getSettingsSchool() || {};
+  const school = schoolAccountForInvoice(anchorInvoice.SchoolID);
   const invoices = invoicePrintRows(anchorInvoice);
   const familyCode = anchorInvoice.FamilyName || anchorInvoice.FamilyID || '-';
   const grouped = invoices.reduce((groups, invoice) => {

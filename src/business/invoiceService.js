@@ -69,6 +69,8 @@ class InvoiceService {
     this.ensureSchoolAccess(student.SchoolID, currentUser);
 
     const [school, invoices, wallet, walletLedger, transactions, balanceBroughtForward] = await Promise.all([
+      // Settings > School Account is stored in Schools. Parent statements must use
+      // this account record for logo, registration number, contact, and banking details.
       this.schoolRepository.getSchoolById(student.SchoolID),
       this.invoiceRepository.getInvoicesByStudentForSchool(studentId, student.SchoolID),
       this.invoiceRepository.getStudentWallet(studentId, student.SchoolID),
