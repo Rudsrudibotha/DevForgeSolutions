@@ -4634,6 +4634,27 @@ body.platform-user .form-panel {
   border-top-color: var(--section-accent);
 }
 
+#reconciliationSummary.metrics-grid {
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 10px;
+}
+
+#reconciliationSummary .metric {
+  min-width: 0;
+  padding: 14px 12px;
+}
+
+#reconciliationSummary .metric span,
+#reconciliationSummary .metric strong {
+  overflow-wrap: anywhere;
+}
+
+#reconciliationSummary .metric strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
 @media (max-width: 980px) {
   body.school-user .sidebar {
     box-shadow: none;
@@ -4641,5 +4662,15 @@ body.platform-user .form-panel {
 
   body.school-user .nav-list {
     background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+@media (max-width: 620px) {
+  #reconciliationSummary.metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #reconciliationSummary .metric strong {
+    font-size: 18px;
   }
 }
