@@ -49,12 +49,21 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    if (user.Role === 'school' && user.SchoolID) {
+    if (user.Role === 'school') {
+      if (!user.SchoolID) {
+        return res.status(403).json({ error: 'School dashboard access requires a linked school' });
+      }
+
       try {
         const school = await schoolService.getSchoolById(user.SchoolID);
 
         if (school.SubscriptionStatus !== 'Active') {
           return res.status(403).json({ error: 'This school account is suspended. Please contact Kinder Care Hub.' });
+        }
+
+        const staffMembership = await userService.getActiveStaffMembership(user.UserID, user.SchoolID);
+        if (!staffMembership) {
+          return res.status(403).json({ error: 'School dashboard access requires an active staff record for this school.' });
         }
       } catch (error) {
         if (isDatabaseConnectionError(error)) {
@@ -93,8 +102,8 @@ const requireSchoolOrAdmin = (req, res, next) => {
 };
 
 const requireSchoolPermission = (...requiredPermissions) => async (req, res, next) => {
-  if (req.user.Role !== 'school' && req.user.Role !== 'admin') {
-    return res.status(403).json({ error: 'School or admin access required' });
+  if (req.user.Role !== 'school') {
+    return res.status(403).json({ error: 'School staff access required' });
   }
 
   try {

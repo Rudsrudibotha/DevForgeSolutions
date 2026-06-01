@@ -1938,8 +1938,8 @@
                           <input name="username" type="text" autocomplete="off" required>
                         </label>
                         <label>
-                          Email
-                          <input name="email" type="email" autocomplete="email" required>
+                          Staff member
+                          <select id="schoolUserEmployeeSelect" name="employeeId" required></select>
                         </label>
                         <label>
                           Temporary password
@@ -2451,6 +2451,17 @@
               <label>Employee number<input name="employeeNumber" type="text" placeholder="EMP001"></label>
               <label>Payroll number<input name="payrollNumber" type="text" placeholder="PAY001"></label>
               <label>Email<input name="email" type="email"></label>
+              <label>Dashboard access
+                <select name="createSystemUser">
+                  <option value="false">No dashboard access</option>
+                  <option value="true">Create dashboard access</option>
+                </select>
+              </label>
+              <label>Login username<input name="username" type="text" autocomplete="off"></label>
+              <label>Temporary password<input name="password" type="password" autocomplete="new-password" minlength="8"></label>
+              <label>Access role
+                <select id="employeeAccessRoleSelect" name="staffRoleId"></select>
+              </label>
               <label>Cell Number<input name="phone" type="tel"></label>
               <label class="wide">Physical address<textarea name="physicalAddress" rows="2"></textarea></label>
               <label>Role

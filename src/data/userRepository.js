@@ -24,8 +24,14 @@ class UserRepository {
     const result = await pool.request()
       .input('schoolId', sql.Int, schoolId)
       .input('username', sql.NVarChar, username)
-      .query(`SELECT * FROM Users
-              WHERE SchoolID = @schoolId AND LOWER(Username) = LOWER(@username) AND ISNULL(IsActive, 1) = 1`);
+      .query(`SELECT u.*
+              FROM Users u
+              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
+              WHERE u.SchoolID = @schoolId
+                AND LOWER(u.Username) = LOWER(@username)
+                AND u.Role = 'school'
+                AND ISNULL(u.IsActive, 1) = 1
+                AND ISNULL(e.IsActive, 1) = 1`);
     return result.recordset[0];
   }
 
@@ -34,10 +40,29 @@ class UserRepository {
     const result = await pool.request()
       .input('schoolId', sql.Int, schoolId)
       .input('identifier', sql.NVarChar, identifier)
-      .query(`SELECT * FROM Users
+      .query(`SELECT u.*
+              FROM Users u
+              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
+              WHERE u.SchoolID = @schoolId
+                AND u.Role = 'school'
+                AND ISNULL(u.IsActive, 1) = 1
+                AND ISNULL(e.IsActive, 1) = 1
+                AND (
+                  LOWER(u.Username) = LOWER(@identifier)
+                  OR LOWER(u.Email) = LOWER(@identifier)
+                )`);
+    return result.recordset[0];
+  }
+
+  async getUserRecordBySchoolAndIdentifier(schoolId, identifier) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('schoolId', sql.Int, schoolId)
+      .input('identifier', sql.NVarChar, identifier)
+      .query(`SELECT *
+              FROM Users
               WHERE SchoolID = @schoolId
                 AND Role = 'school'
-                AND ISNULL(IsActive, 1) = 1
                 AND (
                   LOWER(Username) = LOWER(@identifier)
                   OR LOWER(Email) = LOWER(@identifier)
@@ -139,10 +164,14 @@ class UserRepository {
     const pool = await getPool();
     const result = await pool.request()
       .input('schoolId', sql.Int, schoolId)
-      .query(`SELECT UserID, Username, Email, Role, SchoolID, IsActive, CreatedDate
-              FROM Users
-              WHERE SchoolID = @schoolId
-              ORDER BY CreatedDate DESC, Username`);
+      .query(`SELECT u.UserID, u.Username, u.Email, u.Role, u.SchoolID, u.IsActive, u.CreatedDate,
+                     e.EmployeeID, e.FirstName, e.LastName, e.JobTitle, e.Department,
+                     e.IsActive AS StaffIsActive
+              FROM Users u
+              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
+              WHERE u.SchoolID = @schoolId
+                AND u.Role = 'school'
+              ORDER BY u.CreatedDate DESC, u.Username`);
     return result.recordset;
   }
 
@@ -180,6 +209,20 @@ class UserRepository {
               SET IsActive = @isActive, UpdatedDate = GETDATE()
               OUTPUT INSERTED.UserID, INSERTED.Username, INSERTED.Email, INSERTED.Role, INSERTED.SchoolID, INSERTED.IsActive, INSERTED.CreatedDate
               WHERE UserID = @userId`);
+    return result.recordset[0];
+  }
+
+  async getActiveStaffMembership(userId, schoolId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('userId', sql.Int, userId)
+      .input('schoolId', sql.Int, schoolId)
+      .query(`SELECT TOP 1 EmployeeID, SchoolID, UserID, FirstName, LastName, Email, JobTitle, Department, IsActive
+              FROM Employees
+              WHERE UserID = @userId
+                AND SchoolID = @schoolId
+                AND ISNULL(IsActive, 1) = 1
+              ORDER BY EmployeeID`);
     return result.recordset[0];
   }
 }

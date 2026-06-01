@@ -5,6 +5,8 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const UserRepository = require('../data/userRepository');
+const EmployeeRepository = require('../data/employeeRepository');
+const { StaffRoleRepository } = require('../data/permissionLeaveYearEndRepositories');
 const SchoolService = require('./schoolService');
 const {
   isAadAdminEmailAllowed,
@@ -16,6 +18,8 @@ const { getSchoolPermissions } = require('../security/schoolPermissions');
 class UserService {
   constructor() {
     this.userRepository = new UserRepository();
+    this.employeeRepository = new EmployeeRepository();
+    this.staffRoleRepository = new StaffRoleRepository();
     this.schoolService = new SchoolService();
   }
 
@@ -81,6 +85,10 @@ class UserService {
       role,
       schoolId
     });
+
+    if (role === 'school') {
+      await this.createOwnerEmployeeRecord(newUser, userData);
+    }
 
     return await this.buildAuthResponse(newUser);
   }
@@ -156,7 +164,16 @@ class UserService {
       throw new Error('This school account is suspended. Please contact Kinder Care Hub.');
     }
 
-    return await this.userRepository.getUserBySchoolAndIdentifier(parsedSchoolId, identifier);
+    const user = await this.userRepository.getUserBySchoolAndIdentifier(parsedSchoolId, identifier);
+
+    if (!user) {
+      const schoolUser = await this.userRepository.getUserRecordBySchoolAndIdentifier(parsedSchoolId, identifier);
+      if (schoolUser) {
+        throw new Error('School dashboard access requires an active staff record for this school');
+      }
+    }
+
+    return user;
   }
 
   // Get all users for admin workflows.
@@ -216,12 +233,33 @@ class UserService {
 
   async createSchoolUser(userData, currentUser) {
     const managedSchoolId = this.resolveManagedSchoolId(currentUser, userData.schoolId);
-    const email = this.normalizeEmail(this.requiredString(userData.email, 'Email', 255));
+    const employeeId = this.positiveInteger(userData.employeeId, 'Staff member');
+    const staffRoleId = this.positiveInteger(userData.staffRoleId, 'Access role');
+    const employee = await this.employeeRepository.getEmployeeById(employeeId);
+
+    if (!employee || Number(employee.SchoolID) !== Number(managedSchoolId)) {
+      throw new Error('Staff member not found for this school');
+    }
+
+    if (employee.IsActive === false) {
+      throw new Error('Inactive staff members cannot be given dashboard access');
+    }
+
+    if (employee.UserID) {
+      throw new Error('This staff member already has dashboard access');
+    }
+
+    const email = this.normalizeEmail(this.requiredString(employee.Email, 'Staff email', 255));
     const username = this.normalizeUsername(userData.username);
     const password = String(userData.password || '');
+    const staffRole = await this.staffRoleRepository.getById(staffRoleId, managedSchoolId);
+
+    if (!staffRole || staffRole.IsActive === false) {
+      throw new Error('Access role not found for this school');
+    }
 
     if (!this.isValidEmail(email)) {
-      throw new Error('A valid email address is required');
+      throw new Error('A valid staff email address is required');
     }
 
     if (!/^[a-z0-9._-]{3,50}$/.test(username)) {
@@ -248,6 +286,9 @@ class UserService {
       role: 'school',
       schoolId: managedSchoolId
     });
+
+    await this.employeeRepository.linkEmployeeUser(employeeId, managedSchoolId, user.UserID);
+    await this.staffRoleRepository.assignRole(user.UserID, staffRoleId, managedSchoolId, currentUser.UserID);
 
     return this.sanitizeUser(user);
   }
@@ -308,6 +349,41 @@ class UserService {
   // Get user by ID.
   async getUserById(userId) {
     return await this.userRepository.getUserById(userId);
+  }
+
+  async getActiveStaffMembership(userId, schoolId) {
+    return await this.userRepository.getActiveStaffMembership(userId, schoolId);
+  }
+
+  async createOwnerEmployeeRecord(user, userData) {
+    if (!user?.SchoolID || !user?.UserID) {
+      return null;
+    }
+
+    const existing = await this.employeeRepository.getActiveEmployeeByUserAndSchool(user.UserID, user.SchoolID);
+    if (existing) {
+      return existing;
+    }
+
+    const nameParts = String(userData.contactPerson || user.Username || user.Email || 'School Owner')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    const firstName = nameParts.shift() || 'School';
+    const lastName = nameParts.join(' ') || 'Owner';
+
+    return await this.employeeRepository.createEmployee({
+      schoolId: user.SchoolID,
+      userId: user.UserID,
+      firstName,
+      lastName,
+      email: user.Email,
+      jobTitle: 'School Owner',
+      department: 'Administration',
+      startDate: new Date().toISOString().slice(0, 10),
+      salary: 0,
+      leaveBalance: 21
+    });
   }
 
   resolveManagedSchoolId(currentUser, schoolId) {
@@ -440,15 +516,16 @@ class UserService {
 
       const existing = await this.userRepository.getUserBySchoolAndIdentifier(parsedSchoolId, normalizedEmail);
 
-      // Only allow existing school users to sign in via provider
+      // Only staff-linked school users can sign in through a school provider.
       if (!existing) {
+        const schoolUser = await this.userRepository.getUserRecordBySchoolAndIdentifier(parsedSchoolId, normalizedEmail);
+        if (schoolUser) {
+          throw new Error('School dashboard access requires an active staff record for this school');
+        }
+
         const conflictingUser = await this.userRepository.getUserByEmail(normalizedEmail);
         if (conflictingUser?.Role === 'admin') {
-          if (!this.isActiveUser(conflictingUser)) {
-            throw new Error('This admin account is inactive');
-          }
-
-          return conflictingUser;
+          throw new Error('This email is registered for the Admin dashboard, not this school');
         }
 
         if (conflictingUser?.Role && conflictingUser.Role !== 'school') {
@@ -534,6 +611,16 @@ class UserService {
     }
 
     return cleaned;
+  }
+
+  positiveInteger(value, label) {
+    const parsed = Number(value);
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error(`${label} is required`);
+    }
+
+    return parsed;
   }
 
   sanitizeUser(user) {

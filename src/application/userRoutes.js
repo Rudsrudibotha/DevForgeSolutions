@@ -117,7 +117,7 @@ router.get('/school-users', authenticateToken, requireSchoolPermission('school.s
   }
 });
 
-router.post('/school-users', authenticateToken, requireSchoolPermission('school.staff.manage', 'school.staff.permissions.manage'), audit('User', 'CreateSchoolUser'), async (req, res) => {
+router.post('/school-users', authenticateToken, requireSchoolPermission('school.staff.permissions.manage'), audit('User', 'CreateSchoolUser'), async (req, res) => {
   try {
     const user = await userService.createSchoolUser(req.body, req.user);
     res.status(201).json(user);

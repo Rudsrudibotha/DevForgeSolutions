@@ -836,6 +836,7 @@ const elements = {
   accountSchoolStatus: document.getElementById('accountSchoolStatus'),
   schoolUsersPanel: document.getElementById('schoolUsersPanel'),
   schoolUserForm: document.getElementById('schoolUserForm'),
+  schoolUserEmployeeSelect: document.getElementById('schoolUserEmployeeSelect'),
   schoolUserRoleSelect: document.getElementById('schoolUserRoleSelect'),
   schoolUsersTable: document.getElementById('schoolUsersTable'),
   auditPanel: document.getElementById('auditPanel'),
@@ -942,6 +943,7 @@ const elements = {
   employeeDialog: document.getElementById('employeeDialog'),
   employeeForm: document.getElementById('employeeForm'),
   employeeRoleSelect: document.getElementById('employeeRoleSelect'),
+  employeeAccessRoleSelect: document.getElementById('employeeAccessRoleSelect'),
   employeeDepartmentSelect: document.getElementById('employeeDepartmentSelect'),
   closeEmployeeDialogButton: document.getElementById('closeEmployeeDialogButton'),
   cancelEmployeeButton: document.getElementById('cancelEmployeeButton'),
@@ -1628,6 +1630,11 @@ function renderShell() {
 
   if (state.user.role === 'parent') {
     window.location.href = SCHOOL_LOGIN_PATH;
+    return;
+  }
+
+  if (state.user.role !== 'school') {
+    redirectToLogin('School dashboard access requires a school staff account.');
     return;
   }
 
@@ -5968,6 +5975,7 @@ async function openEmployeeDialog(employeeId = null) {
     return;
   }
 
+  const assignedRole = employee?.UserID ? (state.schoolUserRoles[employee.UserID] || [])[0] : null;
   state.editingEmployeeId = employee?.EmployeeID || null;
   form.reset();
   if (!state.staffRoles.length) {
@@ -5979,9 +5987,13 @@ async function openEmployeeDialog(employeeId = null) {
   setFormValue(form, 'firstName', employee?.FirstName || '');
   setFormValue(form, 'lastName', employee?.LastName || '');
   setFormValue(form, 'email', employee?.Email || '');
+  setFormValue(form, 'createSystemUser', 'false');
+  setFormValue(form, 'username', '');
+  setFormValue(form, 'password', '');
   setFormValue(form, 'phone', employee?.Phone || '');
   setFormValue(form, 'physicalAddress', employee?.PhysicalAddress || '');
   renderEmployeeRoleOptions(employee?.JobTitle || '');
+  renderEmployeeAccessRoleOptions(assignedRole ? roleId(assignedRole) : '');
   renderEmployeeDepartmentOptions(employee?.Department || '');
   setFormValue(form, 'startDate', employee?.StartDate ? employee.StartDate.slice(0, 10) : new Date().toISOString().slice(0, 10));
   setFormValue(form, 'salary', Number(employee?.Salary || 0).toFixed(2));
@@ -6630,8 +6642,10 @@ function renderAccount() {
 function renderSchoolUsers() {
   const school = getAccountSchool();
   const canManageUsers = userCan('school.staff.view|school.staff.manage|school.staff.permissions.manage');
+  const canGrantAccess = userCan('school.staff.permissions.manage');
 
   elements.schoolUsersPanel.classList.toggle('hidden', !school || !canManageUsers);
+  elements.schoolUserForm?.classList.toggle('hidden', !canGrantAccess);
 
   if (!school) {
     elements.schoolUsersTable.innerHTML = '<tr><td colspan="5">Select or create a school before adding users.</td></tr>';
@@ -6643,13 +6657,17 @@ function renderSchoolUsers() {
     return;
   }
 
+  renderSchoolUserEmployeeOptions();
   elements.schoolUsersTable.innerHTML = state.schoolUsers.map((user) => `
     <tr>
-      <td>${escapeHtml(user.Username || user.username)}</td>
+      <td>
+        <strong>${escapeHtml(user.Username || user.username)}</strong>
+        <span class="table-subtext">${escapeHtml(`${user.FirstName || ''} ${user.LastName || ''}`.trim() || 'Staff member')}</span>
+      </td>
       <td>${escapeHtml(user.Email || user.email)}</td>
       <td>
         <span class="badge">${escapeHtml(user.Role || user.role || 'school')}</span>
-        <span class="table-subtext">${(user.IsActive ?? user.isActive) === false ? 'Inactive' : 'Active'}</span>
+        <span class="table-subtext">${(user.IsActive ?? user.isActive) === false || user.StaffIsActive === false ? 'Inactive' : 'Active'}</span>
       </td>
       <td>
         ${assignedRoleBadges(user.UserID || user.userId)}
@@ -6664,6 +6682,23 @@ function renderSchoolUsers() {
       </td>
     </tr>
   `).join('') || '<tr><td colspan="5">No additional users yet.</td></tr>';
+}
+
+function renderSchoolUserEmployeeOptions() {
+  if (!elements.schoolUserEmployeeSelect) return;
+
+  const availableStaff = state.employees.filter((employee) => (
+    employee.IsActive !== false
+    && !employee.UserID
+    && String(employee.Email || '').trim()
+  ));
+
+  elements.schoolUserEmployeeSelect.innerHTML = availableStaff.length
+    ? '<option value="">Select staff member</option>' + availableStaff.map((employee) => `
+      <option value="${employee.EmployeeID}">${escapeHtml(`${employee.FirstName || ''} ${employee.LastName || ''}`.trim())} - ${escapeHtml(employee.Email || '')}</option>
+    `).join('')
+    : '<option value="">No staff without dashboard access</option>';
+  elements.schoolUserEmployeeSelect.disabled = !availableStaff.length;
 }
 
 function assignedRoleBadges(userId) {
@@ -6813,8 +6848,19 @@ function permissionDraftPayload(role) {
 
 function renderSchoolUserRoleOptions() {
   if (!elements.schoolUserRoleSelect) return;
-  elements.schoolUserRoleSelect.innerHTML = '<option value="">No access role yet</option>'
-    + state.staffRoles.map((role) => `<option value="${roleId(role)}">${escapeHtml(role.RoleName || '-')}</option>`).join('');
+  elements.schoolUserRoleSelect.innerHTML = state.staffRoles.length
+    ? '<option value="">Select access role</option>' + state.staffRoles.map((role) => `<option value="${roleId(role)}">${escapeHtml(role.RoleName || '-')}</option>`).join('')
+    : '<option value="">No access roles configured</option>';
+  elements.schoolUserRoleSelect.disabled = !state.staffRoles.length;
+}
+
+function renderEmployeeAccessRoleOptions(selectedRoleId = '') {
+  if (!elements.employeeAccessRoleSelect) return;
+  elements.employeeAccessRoleSelect.innerHTML = state.staffRoles.length
+    ? '<option value="">Select access role</option>' + state.staffRoles.map((role) => `<option value="${roleId(role)}">${escapeHtml(role.RoleName || '-')}</option>`).join('')
+    : '<option value="">No access roles configured</option>';
+  elements.employeeAccessRoleSelect.disabled = !state.staffRoles.length;
+  elements.employeeAccessRoleSelect.value = selectedRoleId ? String(selectedRoleId) : '';
 }
 
 function renderPermissionRoleOptions() {
@@ -6878,6 +6924,7 @@ function renderPermissionMatrix() {
   }
 
   renderSchoolUserRoleOptions();
+  renderEmployeeAccessRoleOptions(elements.employeeAccessRoleSelect?.value || '');
   renderPermissionRoleOptions();
   renderPermissionEditor();
   const query = String(state.permissionMatrixSearchQuery || '').trim().toLowerCase();
@@ -7343,20 +7390,22 @@ elements.schoolUserForm.addEventListener('submit', async (event) => {
       ...formData(elements.schoolUserForm),
       schoolId: school.SchoolID
     };
-    const staffRoleId = Number(payload.staffRoleId || 0);
-    delete payload.staffRoleId;
 
-    const user = await api('/api/users/school-users', {
+    payload.employeeId = Number(payload.employeeId || 0);
+    payload.staffRoleId = Number(payload.staffRoleId || 0);
+
+    if (!payload.employeeId) {
+      throw new Error('Select a staff member');
+    }
+
+    if (!payload.staffRoleId) {
+      throw new Error('Select an access role');
+    }
+
+    await api('/api/users/school-users', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
-
-    if (staffRoleId && user.userId) {
-      await api('/api/hr/roles/assign', {
-        method: 'POST',
-        body: JSON.stringify({ userId: user.userId, staffRoleId })
-      });
-    }
 
     elements.schoolUserForm.reset();
     renderSchoolUserRoleOptions();
@@ -7717,9 +7766,42 @@ elements.employeeForm.addEventListener('submit', async (event) => {
     payload.taxPaye = Number(payload.taxPaye || 0);
     payload.uifDeduction = Number(payload.uifDeduction || 0);
     payload.isActive = payload.isActive === true || payload.isActive === 'true';
+    payload.createSystemUser = payload.createSystemUser === true || payload.createSystemUser === 'true';
+    payload.staffRoleId = Number(payload.staffRoleId || 0);
+    payload.username = String(payload.username || '').trim().toLowerCase();
+
+    if (payload.createSystemUser) {
+      if (!payload.email) {
+        throw new Error('Staff email is required for dashboard access');
+      }
+
+      if (!payload.username) {
+        throw new Error('Login username is required for dashboard access');
+      }
+
+      if (!payload.password) {
+        throw new Error('Temporary password is required for dashboard access');
+      }
+
+      if (!payload.staffRoleId) {
+        throw new Error('Access role is required for dashboard access');
+      }
+    } else {
+      delete payload.username;
+      delete payload.password;
+      delete payload.staffRoleId;
+    }
+
     delete payload.employeeId;
 
     const isEditing = Boolean(state.editingEmployeeId);
+    if (isEditing) {
+      delete payload.createSystemUser;
+      delete payload.username;
+      delete payload.password;
+      delete payload.staffRoleId;
+    }
+
     const path = isEditing ? `/api/employees/${state.editingEmployeeId}` : '/api/employees';
     const method = isEditing ? 'PUT' : 'POST';
 

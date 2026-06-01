@@ -3,6 +3,7 @@
 const express = require('express');
 const EmployeeService = require('../business/employeeService');
 const { authenticateToken, requireSchoolPermission } = require('../middleware/auth');
+const { hasSchoolPermission } = require('../security/schoolPermissions');
 
 const router = express.Router();
 const employeeService = new EmployeeService();
@@ -48,6 +49,11 @@ router.get('/:id', authenticateToken, requireSchoolPermission(...STAFF_PAYROLL_R
 
 router.post('/', authenticateToken, requireSchoolPermission('school.staff.manage'), async (req, res) => {
   try {
+    if ((req.body?.createSystemUser === true || req.body?.createSystemUser === 'true')
+      && !hasSchoolPermission(req.user, 'school.staff.permissions.manage')) {
+      return res.status(403).json({ error: 'Staff permission management access is required to create dashboard access' });
+    }
+
     const employee = await employeeService.createEmployee(req.body, req.user);
     res.status(201).json(employee);
   } catch (error) {

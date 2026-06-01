@@ -60,6 +60,20 @@ class EmployeeRepository {
     return result.recordset[0];
   }
 
+  async getActiveEmployeeByUserAndSchool(userId, schoolId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('userId', sql.Int, userId)
+      .input('schoolId', sql.Int, schoolId)
+      .query(`SELECT TOP 1 *
+              FROM Employees
+              WHERE UserID = @userId
+                AND SchoolID = @schoolId
+                AND ISNULL(IsActive, 1) = 1
+              ORDER BY EmployeeID`);
+    return result.recordset[0];
+  }
+
   async createEmployee(data) {
     const pool = await getPool();
     const result = await pool.request()
@@ -151,6 +165,23 @@ class EmployeeRepository {
                 UpdatedDate = GETDATE()
               OUTPUT INSERTED.*
               WHERE EmployeeID = @id`);
+    return result.recordset[0];
+  }
+
+  async linkEmployeeUser(employeeId, schoolId, userId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('employeeId', sql.Int, employeeId)
+      .input('schoolId', sql.Int, schoolId)
+      .input('userId', sql.Int, userId)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Users WHERE UserID = @userId AND SchoolID = @schoolId AND Role = 'school')
+                THROW 50000, 'Linked user must belong to the selected school', 1;
+              UPDATE Employees
+              SET UserID = @userId, UpdatedDate = GETDATE()
+              OUTPUT INSERTED.*
+              WHERE EmployeeID = @employeeId
+                AND SchoolID = @schoolId
+                AND (UserID IS NULL OR UserID = @userId)`);
     return result.recordset[0];
   }
 }

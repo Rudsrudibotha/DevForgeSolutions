@@ -1,10 +1,7 @@
 const FaultReportRepository = require('../data/faultReportRepository');
-const SchoolRepository = require('../data/schoolRepository');
-
 class FaultReportService {
   constructor(dependencies = {}) {
     this.faultReportRepository = dependencies.faultReportRepository || new FaultReportRepository();
-    this.schoolRepository = dependencies.schoolRepository || new SchoolRepository();
     this.allowedStatuses = ['Open', 'In Progress', 'Resolved', 'Closed'];
   }
 
@@ -39,20 +36,7 @@ class FaultReportService {
       return Number.isInteger(schoolId) && schoolId > 0 ? schoolId : null;
     }
 
-    if (currentUser.Role !== 'admin') {
-      return null;
-    }
-
-    const schoolId = this.positiveInteger(data?.schoolId, 'School ID');
-    const school = await this.schoolRepository.getSchoolById(schoolId);
-
-    if (!school) {
-      const error = new Error('Selected school was not found for this fault report');
-      error.statusCode = 404;
-      throw error;
-    }
-
-    return schoolId;
+    return null;
   }
 
   async getFaultReports(query = {}) {
@@ -122,17 +106,6 @@ class FaultReportService {
     return cleaned || null;
   }
 
-  positiveInteger(value, label) {
-    const parsed = Number(value);
-
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      const error = new Error(`${label} must be a positive integer`);
-      error.statusCode = 400;
-      throw error;
-    }
-
-    return parsed;
-  }
 }
 
 module.exports = FaultReportService;

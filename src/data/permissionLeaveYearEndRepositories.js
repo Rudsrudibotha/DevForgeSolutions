@@ -41,7 +41,13 @@ class StaffRoleRepository {
     const result = await pool.request().input('userId', sql.Int, userId).input('schoolId', sql.Int, schoolId)
       .query(`SELECT sr.* FROM StaffRoles sr INNER JOIN UserRoleAssignments ura ON sr.StaffRoleID = ura.StaffRoleID
               INNER JOIN Users u ON u.UserID = ura.UserID
-              WHERE ura.UserID = @userId AND sr.SchoolID = @schoolId AND u.SchoolID = @schoolId AND sr.IsActive = 1`);
+              INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
+              WHERE ura.UserID = @userId
+                AND sr.SchoolID = @schoolId
+                AND u.SchoolID = @schoolId
+                AND sr.IsActive = 1
+                AND ISNULL(u.IsActive, 1) = 1
+                AND ISNULL(e.IsActive, 1) = 1`);
     return result.recordset;
   }
   async assignRole(userId, staffRoleId, schoolId, assignedBy) {
@@ -49,8 +55,17 @@ class StaffRoleRepository {
     const result = await pool.request()
       .input('userId', sql.Int, userId).input('staffRoleId', sql.Int, staffRoleId).input('schoolId', sql.Int, schoolId)
       .input('assignedBy', sql.Int, assignedBy || null)
-      .query(`IF NOT EXISTS (SELECT 1 FROM Users WHERE UserID = @userId AND SchoolID = @schoolId AND Role = 'school')
-                THROW 50000, 'User must belong to the selected school', 1;
+      .query(`IF NOT EXISTS (
+                SELECT 1
+                FROM Users u
+                INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
+                WHERE u.UserID = @userId
+                  AND u.SchoolID = @schoolId
+                  AND u.Role = 'school'
+                  AND ISNULL(u.IsActive, 1) = 1
+                  AND ISNULL(e.IsActive, 1) = 1
+              )
+                THROW 50000, 'User must be an active staff member of the selected school', 1;
               IF NOT EXISTS (SELECT 1 FROM StaffRoles WHERE StaffRoleID = @staffRoleId AND SchoolID = @schoolId)
                 THROW 50000, 'Role must belong to the selected school', 1;
               IF NOT EXISTS (SELECT 1 FROM UserRoleAssignments WHERE UserID=@userId AND StaffRoleID=@staffRoleId)

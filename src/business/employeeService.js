@@ -1,10 +1,15 @@
 // Business Layer - Employee service logic
 
+const bcrypt = require('bcryptjs');
 const EmployeeRepository = require('../data/employeeRepository');
+const UserRepository = require('../data/userRepository');
+const { StaffRoleRepository } = require('../data/permissionLeaveYearEndRepositories');
 
 class EmployeeService {
-  constructor() {
-    this.employeeRepository = new EmployeeRepository();
+  constructor(dependencies = {}) {
+    this.employeeRepository = dependencies.employeeRepository || new EmployeeRepository();
+    this.userRepository = dependencies.userRepository || new UserRepository();
+    this.staffRoleRepository = dependencies.staffRoleRepository || new StaffRoleRepository();
   }
 
   async getEmployees(currentUser) {
@@ -42,7 +47,13 @@ class EmployeeService {
   async createEmployee(data, currentUser) {
     const schoolId = this.resolveSchoolId(currentUser, data.schoolId);
     const payload = this.buildPayload(data, schoolId);
-    return await this.employeeRepository.createEmployee(payload);
+    const employee = await this.employeeRepository.createEmployee(payload);
+
+    if (this.shouldCreateSystemUser(data)) {
+      return await this.createSystemUserForEmployee(employee, data, currentUser);
+    }
+
+    return employee;
   }
 
   async updateEmployee(id, data, currentUser) {
@@ -87,6 +98,57 @@ class EmployeeService {
     };
   }
 
+  shouldCreateSystemUser(data) {
+    return data?.createSystemUser === true || data?.createSystemUser === 'true';
+  }
+
+  async createSystemUserForEmployee(employee, data, currentUser) {
+    const schoolId = Number(employee.SchoolID);
+    const email = this.requiredString(employee.Email, 'Staff email', 255).toLowerCase();
+    const username = this.normalizeUsername(data.username || email);
+    const password = String(data.password || '');
+    const staffRoleId = this.positiveInteger(data.staffRoleId, 'Access role');
+
+    if (!this.isValidEmail(email)) {
+      throw new Error('A valid staff email address is required before dashboard access can be created');
+    }
+
+    if (!/^[a-z0-9._-]{3,50}$/.test(username)) {
+      throw new Error('Username must be 3 to 50 characters and use only letters, numbers, dots, underscores, or hyphens');
+    }
+
+    this.validatePassword(password);
+
+    const role = await this.staffRoleRepository.getById(staffRoleId, schoolId);
+    if (!role || role.IsActive === false) {
+      throw new Error('Access role not found for this school');
+    }
+
+    const existingEmail = await this.userRepository.getUserByEmail(email);
+    if (existingEmail) {
+      throw new Error('A user with this staff email already exists');
+    }
+
+    const existingUsername = await this.userRepository.getUserRecordBySchoolAndUsername(schoolId, username);
+    if (existingUsername) {
+      throw new Error('A user with this username already exists for this school');
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await this.userRepository.createUser({
+      email,
+      username,
+      passwordHash,
+      role: 'school',
+      schoolId
+    });
+
+    const linkedEmployee = await this.employeeRepository.linkEmployeeUser(employee.EmployeeID, schoolId, user.UserID);
+    await this.staffRoleRepository.assignRole(user.UserID, staffRoleId, schoolId, currentUser?.UserID);
+
+    return linkedEmployee || { ...employee, UserID: user.UserID };
+  }
+
   resolveSchoolId(currentUser, explicitSchoolId) {
     if (currentUser.Role !== 'admin') {
       if (!currentUser.SchoolID) {
@@ -112,6 +174,30 @@ class EmployeeService {
     if (!Number.isInteger(id) || id <= 0) {
       throw new Error(`${label} must be a positive integer`);
     }
+  }
+
+  positiveInteger(value, label) {
+    const parsed = Number(value);
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error(`${label} is required`);
+    }
+
+    return parsed;
+  }
+
+  isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+  }
+
+  validatePassword(password) {
+    if (typeof password !== 'string' || password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+      throw new Error('Password must be at least 8 characters long and include both letters and numbers');
+    }
+  }
+
+  normalizeUsername(username) {
+    return String(username || '').trim().toLowerCase();
   }
 
   requiredString(value, label, maxLength) {

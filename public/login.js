@@ -123,7 +123,7 @@ function canUseConfiguredDashboard(user, config = currentConfig()) {
   }
 
   if (config.type === 'school') {
-    return user?.role === 'school' || user?.role === 'admin';
+    return user?.role === 'school';
   }
 
   if (config.type === 'parent') {

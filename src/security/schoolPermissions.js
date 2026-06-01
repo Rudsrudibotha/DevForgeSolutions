@@ -138,10 +138,14 @@ async function isSchoolOwner(user) {
   const pool = await getPool();
   const result = await pool.request()
     .input('schoolId', sql.Int, schoolId)
-    .query(`SELECT TOP 1 UserID
-            FROM Users
-            WHERE SchoolID = @schoolId AND Role = 'school' AND ISNULL(IsActive, 1) = 1
-            ORDER BY CreatedDate, UserID`);
+    .query(`SELECT TOP 1 u.UserID
+            FROM Users u
+            INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
+            WHERE u.SchoolID = @schoolId
+              AND u.Role = 'school'
+              AND ISNULL(u.IsActive, 1) = 1
+              AND ISNULL(e.IsActive, 1) = 1
+            ORDER BY u.CreatedDate, u.UserID`);
 
   return Number(result.recordset[0]?.UserID) === userId;
 }
@@ -166,10 +170,13 @@ async function getSchoolPermissions(user) {
             FROM UserRoleAssignments ura
             INNER JOIN StaffRoles sr ON sr.StaffRoleID = ura.StaffRoleID
             INNER JOIN Users u ON u.UserID = ura.UserID
+            INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = u.SchoolID
             WHERE ura.UserID = @userId
               AND u.SchoolID = @schoolId
               AND sr.SchoolID = @schoolId
-              AND sr.IsActive = 1`);
+              AND sr.IsActive = 1
+              AND ISNULL(u.IsActive, 1) = 1
+              AND ISNULL(e.IsActive, 1) = 1`);
 
   const permissions = new Set();
   result.recordset.forEach((row) => {
