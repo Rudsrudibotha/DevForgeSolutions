@@ -362,6 +362,7 @@ class UserService {
 
     const existing = await this.employeeRepository.getActiveEmployeeByUserAndSchool(user.UserID, user.SchoolID);
     if (existing) {
+      await this.assignOwnerRole(user);
       return existing;
     }
 
@@ -372,7 +373,7 @@ class UserService {
     const firstName = nameParts.shift() || 'School';
     const lastName = nameParts.join(' ') || 'Owner';
 
-    return await this.employeeRepository.createEmployee({
+    const employee = await this.employeeRepository.createEmployee({
       schoolId: user.SchoolID,
       userId: user.UserID,
       firstName,
@@ -384,6 +385,33 @@ class UserService {
       salary: 0,
       leaveBalance: 21
     });
+
+    await this.assignOwnerRole(user);
+    return employee;
+  }
+
+  async assignOwnerRole(user) {
+    const schoolId = Number(user?.SchoolID);
+    const userId = Number(user?.UserID);
+
+    if (!Number.isInteger(schoolId) || schoolId <= 0 || !Number.isInteger(userId) || userId <= 0) {
+      return null;
+    }
+
+    const roles = await this.staffRoleRepository.getBySchool(schoolId);
+    let ownerRole = roles.find((role) => String(role.RoleName || '').trim().toLowerCase() === 'owner');
+
+    if (!ownerRole) {
+      ownerRole = await this.staffRoleRepository.create({
+        schoolId,
+        roleName: 'Owner',
+        description: 'Owner full access for the registered school administrator',
+        permissions: ['*']
+      });
+    }
+
+    await this.staffRoleRepository.assignRole(userId, ownerRole.StaffRoleID, schoolId, userId);
+    return ownerRole;
   }
 
   resolveManagedSchoolId(currentUser, schoolId) {
