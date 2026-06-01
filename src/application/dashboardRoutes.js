@@ -2,7 +2,7 @@
 
 const express = require('express');
 const DashboardService = require('../business/dashboardService');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { getSchoolPermissions, hasSchoolPermission } = require('../security/schoolPermissions');
 
 const router = express.Router();
@@ -39,6 +39,20 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     const data = await dashboardService.getSchoolDashboard(req.user.SchoolID);
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/devforge', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const data = await dashboardService.getDevForgeSnapshot({
+      force: req.query.refresh === 'true' || req.query.force === 'true',
+      auditLimit: parseInt(req.query.auditLimit, 10),
+      faultLimit: parseInt(req.query.faultLimit, 10)
+    });
+    res.set('Cache-Control', 'private, max-age=10');
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });

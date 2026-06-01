@@ -1,8 +1,21 @@
 // Business Layer - Dashboard service
 
 const { getPool, sql } = require('../data/db');
+const SchoolRepository = require('../data/schoolRepository');
+const UserRepository = require('../data/userRepository');
+const AuditLogRepository = require('../data/auditLogRepository');
+const FaultReportRepository = require('../data/faultReportRepository');
 
 class DashboardService {
+  constructor() {
+    this.schoolRepository = new SchoolRepository();
+    this.userRepository = new UserRepository();
+    this.auditLogRepository = new AuditLogRepository();
+    this.faultReportRepository = new FaultReportRepository();
+    this.devForgeSnapshotCache = null;
+    this.devForgeSnapshotTtlMs = 15000;
+  }
+
   // School admin dashboard
   async getSchoolDashboard(schoolId) {
     const pool = await getPool();
@@ -103,6 +116,77 @@ class DashboardService {
           (SELECT ISNULL(SUM(Amount - ISNULL(AmountPaid, 0)), 0) FROM Invoices WHERE Status IN ('Pending','Overdue','Partial') AND IsDeleted = 0) AS totalOutstandingAmount
       `);
     return result.recordset[0];
+  }
+
+  async getDevForgeSnapshot(options = {}) {
+    const now = Date.now();
+    const force = options.force === true;
+    const auditLimit = this.limit(options.auditLimit, 100, 200);
+    const faultLimit = this.limit(options.faultLimit, 100, 200);
+    const cacheKey = `${auditLimit}:${faultLimit}`;
+
+    if (!force
+      && this.devForgeSnapshotCache
+      && this.devForgeSnapshotCache.cacheKey === cacheKey
+      && this.devForgeSnapshotCache.expiresAt > now) {
+      return {
+        ...this.devForgeSnapshotCache.payload,
+        meta: {
+          ...this.devForgeSnapshotCache.payload.meta,
+          cached: true,
+          cacheAgeMs: now - this.devForgeSnapshotCache.createdAt
+        }
+      };
+    }
+
+    const startedAt = Date.now();
+    const [dashboard, schools, users, auditLogs, faultReports] = await Promise.all([
+      this.getAdminDashboard(),
+      this.schoolRepository.getAllSchools(),
+      this.userRepository.getDevForgeUsers(),
+      auditLimit > 0 ? this.auditLogRepository.getAll(1, auditLimit) : Promise.resolve([]),
+      this.faultReportRepository.getAll({ limit: faultLimit })
+    ]);
+
+    const payload = {
+      dashboard,
+      schools,
+      users,
+      auditLogs,
+      faultReports,
+      meta: {
+        cached: false,
+        generatedAt: new Date().toISOString(),
+        durationMs: Date.now() - startedAt,
+        auditLimit,
+        faultLimit
+      }
+    };
+
+    this.devForgeSnapshotCache = {
+      payload,
+      cacheKey,
+      createdAt: now,
+      expiresAt: Date.now() + this.devForgeSnapshotTtlMs
+    };
+
+    return payload;
+  }
+
+  invalidateDevForgeSnapshot() {
+    this.devForgeSnapshotCache = null;
+  }
+
+  limit(value, fallback, max) {
+    if (Number(value) === 0) {
+      return 0;
+    }
+
+    const parsed = Number(value || fallback);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return fallback;
+    }
+    return Math.min(parsed, max);
   }
 }
 

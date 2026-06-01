@@ -51,22 +51,58 @@ class SchoolRepository {
   async getAllSchools() {
     await this.ensureSchoolFinanceColumns();
     const pool = await getPool();
-    const result = await pool.request().query(`SELECT s.*,
-              (SELECT COUNT(1) FROM Users u WHERE u.SchoolID = s.SchoolID) AS UserCount,
-              (SELECT COUNT(1) FROM Employees e WHERE e.SchoolID = s.SchoolID) AS EmployeeCount,
-              (SELECT COUNT(1) FROM Employees e WHERE e.SchoolID = s.SchoolID AND ISNULL(e.IsActive, 1) = 1) AS ActiveEmployeeCount,
-              (SELECT COUNT(1) FROM Families f WHERE f.SchoolID = s.SchoolID) AS FamilyCount,
-              (SELECT COUNT(1) FROM Students st WHERE st.SchoolID = s.SchoolID) AS StudentCount,
-              (SELECT COUNT(1) FROM Students st WHERE st.SchoolID = s.SchoolID AND ISNULL(st.IsActive, 1) = 1) AS ActiveStudentCount,
-              (SELECT COUNT(1) FROM Invoices i WHERE i.SchoolID = s.SchoolID AND ISNULL(i.IsDeleted, 0) = 0) AS InvoiceCount,
-              (SELECT COUNT(1) FROM Invoices i WHERE i.SchoolID = s.SchoolID AND ISNULL(i.IsDeleted, 0) = 0 AND i.Status <> 'Paid') AS OpenInvoiceCount,
-              (SELECT COALESCE(SUM(CASE WHEN i.Status <> 'Paid' AND ISNULL(i.IsDeleted, 0) = 0 THEN i.Amount - ISNULL(i.AmountPaid, 0) ELSE 0 END), 0)
-               FROM Invoices i
-               WHERE i.SchoolID = s.SchoolID) AS OutstandingAmount,
-              (SELECT COALESCE(SUM(CASE WHEN i.Status = 'Paid' AND ISNULL(i.IsDeleted, 0) = 0 THEN ISNULL(i.AmountPaid, i.Amount) ELSE 0 END), 0)
-               FROM Invoices i
-               WHERE i.SchoolID = s.SchoolID) AS PaidAmount
+    const result = await pool.request().query(`WITH
+              UserCounts AS (
+                SELECT SchoolID, COUNT(1) AS UserCount
+                FROM Users
+                WHERE SchoolID IS NOT NULL
+                GROUP BY SchoolID
+              ),
+              EmployeeCounts AS (
+                SELECT SchoolID,
+                  COUNT(1) AS EmployeeCount,
+                  SUM(CASE WHEN ISNULL(IsActive, 1) = 1 THEN 1 ELSE 0 END) AS ActiveEmployeeCount
+                FROM Employees
+                GROUP BY SchoolID
+              ),
+              FamilyCounts AS (
+                SELECT SchoolID, COUNT(1) AS FamilyCount
+                FROM Families
+                GROUP BY SchoolID
+              ),
+              StudentCounts AS (
+                SELECT SchoolID,
+                  COUNT(1) AS StudentCount,
+                  SUM(CASE WHEN ISNULL(IsActive, 1) = 1 THEN 1 ELSE 0 END) AS ActiveStudentCount
+                FROM Students
+                GROUP BY SchoolID
+              ),
+              InvoiceCounts AS (
+                SELECT SchoolID,
+                  COUNT(CASE WHEN ISNULL(IsDeleted, 0) = 0 THEN 1 END) AS InvoiceCount,
+                  COUNT(CASE WHEN ISNULL(IsDeleted, 0) = 0 AND Status <> 'Paid' THEN 1 END) AS OpenInvoiceCount,
+                  COALESCE(SUM(CASE WHEN Status <> 'Paid' AND ISNULL(IsDeleted, 0) = 0 THEN Amount - ISNULL(AmountPaid, 0) ELSE 0 END), 0) AS OutstandingAmount,
+                  COALESCE(SUM(CASE WHEN Status = 'Paid' AND ISNULL(IsDeleted, 0) = 0 THEN ISNULL(AmountPaid, Amount) ELSE 0 END), 0) AS PaidAmount
+                FROM Invoices
+                GROUP BY SchoolID
+              )
+            SELECT s.*,
+              COALESCE(uc.UserCount, 0) AS UserCount,
+              COALESCE(ec.EmployeeCount, 0) AS EmployeeCount,
+              COALESCE(ec.ActiveEmployeeCount, 0) AS ActiveEmployeeCount,
+              COALESCE(fc.FamilyCount, 0) AS FamilyCount,
+              COALESCE(sc.StudentCount, 0) AS StudentCount,
+              COALESCE(sc.ActiveStudentCount, 0) AS ActiveStudentCount,
+              COALESCE(ic.InvoiceCount, 0) AS InvoiceCount,
+              COALESCE(ic.OpenInvoiceCount, 0) AS OpenInvoiceCount,
+              COALESCE(ic.OutstandingAmount, 0) AS OutstandingAmount,
+              COALESCE(ic.PaidAmount, 0) AS PaidAmount
             FROM Schools s
+            LEFT JOIN UserCounts uc ON uc.SchoolID = s.SchoolID
+            LEFT JOIN EmployeeCounts ec ON ec.SchoolID = s.SchoolID
+            LEFT JOIN FamilyCounts fc ON fc.SchoolID = s.SchoolID
+            LEFT JOIN StudentCounts sc ON sc.SchoolID = s.SchoolID
+            LEFT JOIN InvoiceCounts ic ON ic.SchoolID = s.SchoolID
             ORDER BY s.SchoolName`);
     return result.recordset;
   }

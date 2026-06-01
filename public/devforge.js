@@ -21,6 +21,7 @@ const state = {
   schools: [],
   users: [],
   auditLogs: [],
+  auditLoaded: false,
   faultReports: [],
   emailStatus: null,
   dashboard: null
@@ -223,24 +224,39 @@ function clearSession() {
   window.location.href = '/devforge-login';
 }
 
-async function refreshData() {
+async function refreshData(options = {}) {
   try {
-    const [dashboard, schools, users, auditLogs, faultReports, emailStatus] = await Promise.all([
-      api('/api/dashboard'),
-      api('/api/schools'),
-      api('/api/users/devforge-users'),
-      api('/api/audit?limit=100').catch(() => []),
-      api('/api/faults?limit=100').catch(() => []),
+    const snapshotPath = `/api/dashboard/devforge?auditLimit=0&faultLimit=100${options.force ? '&refresh=true' : ''}`;
+    const [snapshot, emailStatus] = await Promise.all([
+      api(snapshotPath),
       api('/api/email/status').catch(() => null)
     ]);
 
-    state.dashboard = dashboard;
-    state.schools = schools;
-    state.users = users;
-    state.auditLogs = auditLogs;
-    state.faultReports = faultReports;
+    state.dashboard = snapshot.dashboard || {};
+    state.schools = snapshot.schools || [];
+    state.users = snapshot.users || [];
+    if (Array.isArray(snapshot.auditLogs) && snapshot.auditLogs.length) {
+      state.auditLogs = snapshot.auditLogs;
+      state.auditLoaded = true;
+    }
+    state.faultReports = snapshot.faultReports || [];
+    state.snapshotMeta = snapshot.meta || null;
     state.emailStatus = emailStatus;
     renderData();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function refreshAuditLogs(options = {}) {
+  if (state.auditLoaded && !options.force) {
+    return;
+  }
+
+  try {
+    state.auditLogs = await api('/api/audit?limit=100');
+    state.auditLoaded = true;
+    renderAuditTable();
   } catch (error) {
     showToast(error.message);
   }
@@ -557,6 +573,10 @@ function switchView(viewName) {
 
   elements.viewTitle.textContent = VIEW_TITLES[viewName] || viewName;
   elements.viewTitle.focus({ preventScroll: true });
+
+  if (viewName === 'audit') {
+    refreshAuditLogs().catch(() => {});
+  }
 }
 
 function formData(form) {
@@ -612,11 +632,11 @@ elements.faultReportsTable?.addEventListener('change', async (event) => {
       method: 'PUT',
       body: JSON.stringify({ status: select.value })
     });
-    await refreshData();
+    await refreshData({ force: true });
     showToast('Fault status updated');
   } catch (error) {
     showToast(error.message);
-    await refreshData();
+    await refreshData({ force: true });
   }
 });
 
@@ -632,11 +652,11 @@ elements.schoolsTable?.addEventListener('change', async (event) => {
       method: 'PUT',
       body: JSON.stringify({ subscriptionPlan: select.value })
     });
-    await refreshData();
+    await refreshData({ force: true });
     showToast(status.active ? 'Messaging activated for Pro plan' : 'Messaging package is off for this plan');
   } catch (error) {
     showToast(error.message);
-    await refreshData();
+    await refreshData({ force: true });
   }
 });
 
@@ -654,7 +674,7 @@ elements.schoolForm.addEventListener('submit', async (event) => {
     });
 
     elements.schoolForm.reset();
-    await refreshData();
+    await refreshData({ force: true });
     showToast('School added');
   } catch (error) {
     showToast(error.message);
@@ -674,7 +694,7 @@ elements.devforgeUserForm?.addEventListener('submit', async (event) => {
     });
 
     elements.devforgeUserForm.reset();
-    await refreshData();
+    await refreshData({ force: true });
     showToast('Kinder Care Hub user added');
   } catch (error) {
     showToast(error.message);
@@ -693,7 +713,7 @@ elements.emailTestForm?.addEventListener('submit', async (event) => {
       body: JSON.stringify(formData(elements.emailTestForm))
     });
 
-    await refreshData();
+    await refreshData({ force: true });
     showToast(result.sent ? 'Test email sent' : result.reason || 'Email not sent');
   } catch (error) {
     showToast(error.message);
@@ -753,7 +773,7 @@ document.addEventListener('click', async (event) => {
       showToast(nextAction === 'activate' ? 'User activated' : 'User deactivated');
     }
 
-    await refreshData();
+    await refreshData({ force: true });
   } catch (error) {
     showToast(error.message);
   }

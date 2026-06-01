@@ -46,7 +46,8 @@ class AuditLogRepository {
     const where = ['SchoolID = @schoolId'];
     this.applyFilters(req, where, filters);
     const result = await req
-      .query(`SELECT al.*, u.Email, u.Username
+      .query(`SELECT al.AuditLogID, al.UserID, al.SchoolID, al.EntityName, al.EntityID,
+                al.Action, al.IpAddress, al.CreatedDate, u.Email, u.Username
               FROM AuditLogs al
               LEFT JOIN Users u ON al.UserID = u.UserID
               WHERE ${where.map((item) => item === 'SchoolID = @schoolId' ? 'al.SchoolID = @schoolId' : item).join(' AND ')}
@@ -64,7 +65,8 @@ class AuditLogRepository {
     const where = ['1 = 1'];
     this.applyFilters(req, where, filters);
     const result = await req
-      .query(`SELECT al.*, u.Email, u.Username
+      .query(`SELECT al.AuditLogID, al.UserID, al.SchoolID, al.EntityName, al.EntityID,
+                al.Action, al.IpAddress, al.CreatedDate, u.Email, u.Username
               FROM AuditLogs al
               LEFT JOIN Users u ON al.UserID = u.UserID
               WHERE ${where.join(' AND ')}
