@@ -139,6 +139,11 @@ function requirePlatformSession() {
   }
 
   if (state.user.role !== 'admin') {
+    state.token = null;
+    state.user = null;
+    localStorage.removeItem('smsToken');
+    localStorage.removeItem('smsUser');
+    localStorage.removeItem('smsLastActivity');
     window.location.href = '/devforge-login';
     return false;
   }
@@ -485,15 +490,21 @@ function renderFaultReportsTable() {
       <td>${dateOnly(report.CreatedDate)}</td>
       <td>
         <strong>${escapeHtml(report.SchoolName || `School ${report.SchoolID}`)}</strong>
-        <span class="table-subtext">${escapeHtml(report.Email || report.Username || '-')}</span>
+        <span class="table-subtext">Reported by ${escapeHtml(report.Email || report.Username || '-')}</span>
+        <span class="table-subtext">${escapeHtml(report.ContactEmail || report.ContactPerson || '')}</span>
       </td>
       <td>
         <strong>${escapeHtml(report.PagePath)}</strong>
         <span class="table-subtext">${escapeHtml(report.ViewName || '-')}</span>
+        <span class="table-subtext">Fault #${escapeHtml(report.FaultReportID)}</span>
       </td>
-      <td>${escapeHtml(report.Remarks)}</td>
+      <td>
+        ${escapeHtml(report.Remarks)}
+        ${report.UserAgent ? `<span class="table-subtext">${escapeHtml(report.UserAgent)}</span>` : ''}
+      </td>
       <td>
         <span class="${faultBadgeClass(report.Status)}">${escapeHtml(report.Status)}</span>
+        ${report.ResolvedByEmail || report.ResolvedByUsername ? `<span class="table-subtext">Resolved by ${escapeHtml(report.ResolvedByEmail || report.ResolvedByUsername)}</span>` : ''}
         <select class="thin-input fault-status-select" data-action="fault-status" data-id="${report.FaultReportID}">
           ${['Open', 'In Progress', 'Resolved', 'Closed'].map((status) => `
             <option value="${status}" ${report.Status === status ? 'selected' : ''}>${status}</option>

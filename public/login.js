@@ -2,7 +2,7 @@ const LOGIN_CONFIG = {
   '/devforge-login': {
     type: 'devforge',
     title: 'Kinder Care Hub',
-    subtitle: 'AAD Login',
+    subtitle: 'Internal Management AAD Login',
     identifierLabel: 'Email Address',
     showSchoolId: false,
     redirect: '/devforge',

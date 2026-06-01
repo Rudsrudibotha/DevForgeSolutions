@@ -167,8 +167,14 @@ app.get('/website', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'home.html'));
 });
 
+function sendInternalManagementPage(res, fileName) {
+  res.set('Cache-Control', 'no-store');
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  res.sendFile(path.join(__dirname, '..', 'public', fileName));
+}
+
 app.get('/devforge-login', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
+  sendInternalManagementPage(res, 'login.html');
 });
 
 app.get('/school-login', (req, res) => {
@@ -584,7 +590,7 @@ app.get('/school/*', (req, res) => {
 });
 
 app.get('/devforge', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'devforge.html'));
+  sendInternalManagementPage(res, 'devforge.html');
 });
 
 app.get('/parent', (req, res) => {

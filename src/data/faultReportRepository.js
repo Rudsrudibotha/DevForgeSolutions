@@ -45,7 +45,8 @@ class FaultReportRepository {
       where.push('fr.SchoolID = @schoolId');
     }
 
-    const result = await request.query(`SELECT fr.*, s.SchoolName, u.Username, u.Email, ru.Username AS ResolvedByUsername
+    const result = await request.query(`SELECT fr.*, s.SchoolName, s.ContactPerson, s.ContactEmail,
+                u.Username, u.Email, ru.Username AS ResolvedByUsername, ru.Email AS ResolvedByEmail
               FROM FaultReports fr
               LEFT JOIN Schools s ON fr.SchoolID = s.SchoolID
               LEFT JOIN Users u ON fr.UserID = u.UserID
