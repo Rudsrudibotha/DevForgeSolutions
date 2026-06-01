@@ -117,7 +117,27 @@ function setFormBusy(form, busy, busyLabel) {
   submitButton.textContent = busy ? busyLabel : submitButton.dataset.defaultText;
 }
 
-function dashboardPath(user) {
+function canUseConfiguredDashboard(user, config = currentConfig()) {
+  if (config.type === 'devforge') {
+    return user?.role === 'admin';
+  }
+
+  if (config.type === 'school') {
+    return user?.role === 'school' || user?.role === 'admin';
+  }
+
+  if (config.type === 'parent') {
+    return user?.role === 'parent';
+  }
+
+  return false;
+}
+
+function dashboardPath(user, config = currentConfig()) {
+  if (canUseConfiguredDashboard(user, config)) {
+    return config.redirect;
+  }
+
   if (user?.role === 'admin') {
     return '/devforge';
   }
@@ -130,10 +150,11 @@ function dashboardPath(user) {
 }
 
 function setSession(authPayload) {
+  const config = currentConfig();
   localStorage.setItem('smsToken', authPayload.token);
   localStorage.setItem('smsUser', JSON.stringify(authPayload.user));
   localStorage.setItem('smsLastActivity', String(Date.now()));
-  window.location.href = dashboardPath(authPayload.user);
+  window.location.href = dashboardPath(authPayload.user, config);
 }
 
 function clearSession() {
@@ -244,13 +265,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
   const token = localStorage.getItem('smsToken');
   const user = readStoredUser();
+  const config = currentConfig();
 
   if (token && user) {
     // Verify token is still valid before redirecting
     fetch('/api/users/session', { headers: { Authorization: 'Bearer ' + token } })
       .then(r => {
-        if (r.ok) window.location.href = dashboardPath(user);
-        else clearSession();
+        if (!r.ok) {
+          clearSession();
+          return;
+        }
+
+        if (canUseConfiguredDashboard(user, config)) {
+          window.location.href = config.redirect;
+        }
       })
       .catch(clearSession);
   }

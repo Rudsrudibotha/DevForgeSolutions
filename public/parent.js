@@ -121,7 +121,7 @@ function requireParentSession() {
   }
 
   if (state.user.role !== 'parent') {
-    window.location.href = dashboardPath(state.user);
+    window.location.href = '/parent-login';
     return false;
   }
 

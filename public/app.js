@@ -1620,7 +1620,7 @@ function renderShell() {
   }
 
   if (state.user.role === 'parent') {
-    window.location.href = dashboardPath(state.user);
+    window.location.href = SCHOOL_LOGIN_PATH;
     return;
   }
 

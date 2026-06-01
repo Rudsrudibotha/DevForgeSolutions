@@ -139,7 +139,7 @@ function requirePlatformSession() {
   }
 
   if (state.user.role !== 'admin') {
-    window.location.href = dashboardPath(state.user);
+    window.location.href = '/devforge-login';
     return false;
   }
 
