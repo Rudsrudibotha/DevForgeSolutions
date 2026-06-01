@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const UserRepository = require('../data/userRepository');
 const EmployeeRepository = require('../data/employeeRepository');
+const ParentRepository = require('../data/parentRepository');
 const { StaffRoleRepository } = require('../data/permissionLeaveYearEndRepositories');
 const SchoolService = require('./schoolService');
 const {
@@ -19,6 +20,7 @@ class UserService {
   constructor() {
     this.userRepository = new UserRepository();
     this.employeeRepository = new EmployeeRepository();
+    this.parentRepository = new ParentRepository();
     this.staffRoleRepository = new StaffRoleRepository();
     this.schoolService = new SchoolService();
   }
@@ -618,6 +620,43 @@ class UserService {
       email,
       passwordHash,
       role: 'admin',
+      schoolId: null
+    });
+  }
+
+  async findOrCreateParentUserByEmail(email) {
+    const normalizedEmail = this.normalizeEmail(email);
+
+    if (!normalizedEmail || !this.isValidEmail(normalizedEmail)) {
+      throw new Error('A valid parent email address is required');
+    }
+
+    const existing = await this.userRepository.getUserByEmail(normalizedEmail);
+
+    if (existing) {
+      if (existing.Role !== 'parent') {
+        throw new Error(`This email is already registered as a ${existing.Role} user and cannot be used for parent access`);
+      }
+
+      if (!this.isActiveUser(existing)) {
+        throw new Error('This parent account is inactive');
+      }
+
+      return existing;
+    }
+
+    const usernameBase = normalizedEmail.split('@')[0].replace(/[^a-z0-9._-]/g, '').slice(0, 40) || 'parent';
+    const existingUsername = await this.userRepository.getUserByUsername(usernameBase);
+    const username = existingUsername
+      ? `${usernameBase}${Date.now().toString(36)}`.slice(0, 50)
+      : usernameBase;
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+
+    return await this.userRepository.createUser({
+      username,
+      email: normalizedEmail,
+      passwordHash,
+      role: 'parent',
       schoolId: null
     });
   }

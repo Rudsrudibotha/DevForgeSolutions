@@ -241,7 +241,8 @@ function configureLoginPage() {
   }
 
   if (elements.microsoftSignIn) {
-    elements.microsoftSignIn.classList.toggle('hidden', !providerVisible);
+    const microsoftVisible = config.type === 'school';
+    elements.microsoftSignIn.classList.toggle('hidden', !microsoftVisible);
     elements.microsoftSignIn.onclick = () => startProviderSignIn('microsoft', config);
   }
 

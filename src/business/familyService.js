@@ -1,10 +1,14 @@
 // Business Layer - Family service logic
 
 const FamilyRepository = require('../data/familyRepository');
+const ParentRepository = require('../data/parentRepository');
+const UserService = require('./userService');
 
 class FamilyService {
   constructor() {
     this.familyRepository = new FamilyRepository();
+    this.parentRepository = new ParentRepository();
+    this.userService = new UserService();
   }
 
   async getFamilies(currentUser) {
@@ -35,16 +39,20 @@ class FamilyService {
 
   async createFamily(familyData, currentUser) {
     const payload = this.buildFamilyPayload(familyData, currentUser);
+    const family = await this.familyRepository.createFamily(payload);
 
-    return await this.familyRepository.createFamily(payload);
+    await this.syncParentsForFamily(family);
+    return family;
   }
 
   async updateFamily(id, familyData, currentUser) {
     this.validateId(id, 'Family ID');
     const existingFamily = await this.getFamilyById(id, currentUser);
     const payload = this.buildFamilyPayload(familyData, currentUser, existingFamily);
+    const family = await this.familyRepository.updateFamily(id, payload);
 
-    return await this.familyRepository.updateFamily(id, payload);
+    await this.syncParentsForFamily(family);
+    return family;
   }
 
   buildFamilyPayload(familyData, currentUser, existingFamily = {}) {
@@ -60,13 +68,13 @@ class FamilyService {
       ),
       primaryParentIdNumber: this.optionalString(familyData.primaryParentIdNumber ?? existingFamily.PrimaryParentIdNumber, 'Primary parent ID number', 50),
       primaryParentPhone: this.optionalString(familyData.primaryParentPhone ?? existingFamily.PrimaryParentPhone, 'Primary parent phone', 50),
-      primaryParentEmail: this.optionalString(familyData.primaryParentEmail ?? existingFamily.PrimaryParentEmail, 'Primary parent email', 255),
+      primaryParentEmail: this.optionalEmail(familyData.primaryParentEmail ?? existingFamily.PrimaryParentEmail, 'Primary parent email'),
       primaryParentOccupation: this.optionalString(familyData.primaryParentOccupation ?? existingFamily.PrimaryParentOccupation, 'Primary parent occupation', 255),
       primaryParentWorkPhone: this.optionalString(familyData.primaryParentWorkPhone ?? existingFamily.PrimaryParentWorkPhone, 'Primary parent work phone', 50),
       secondaryParentName: this.optionalString(familyData.secondaryParentName ?? existingFamily.SecondaryParentName, 'Secondary parent name', 255),
       secondaryParentIdNumber: this.optionalString(familyData.secondaryParentIdNumber ?? existingFamily.SecondaryParentIdNumber, 'Secondary parent ID number', 50),
       secondaryParentPhone: this.optionalString(familyData.secondaryParentPhone ?? existingFamily.SecondaryParentPhone, 'Secondary parent phone', 50),
-      secondaryParentEmail: this.optionalString(familyData.secondaryParentEmail ?? existingFamily.SecondaryParentEmail, 'Secondary parent email', 255),
+      secondaryParentEmail: this.optionalEmail(familyData.secondaryParentEmail ?? existingFamily.SecondaryParentEmail, 'Secondary parent email'),
       secondaryParentOccupation: this.optionalString(familyData.secondaryParentOccupation ?? existingFamily.SecondaryParentOccupation, 'Secondary parent occupation', 255),
       secondaryParentWorkPhone: this.optionalString(familyData.secondaryParentWorkPhone ?? existingFamily.SecondaryParentWorkPhone, 'Secondary parent work phone', 50),
       homeAddress: this.optionalString(familyData.homeAddress ?? existingFamily.HomeAddress, 'Home address', 500),
@@ -100,6 +108,55 @@ class FamilyService {
     if (currentUser && currentUser.Role !== 'admin' && currentUser.SchoolID !== family.SchoolID) {
       throw new Error('You can only access families for your own school');
     }
+  }
+
+  async syncParentsForFamily(family) {
+    if (!family || !Number.isInteger(Number(family.SchoolID)) || Number(family.SchoolID) <= 0) {
+      return;
+    }
+
+    const parentEmails = [...new Set([
+      family.PrimaryParentEmail,
+      family.SecondaryParentEmail
+    ].filter(Boolean).map((email) => String(email).trim().toLowerCase()))];
+
+    for (const email of parentEmails) {
+      if (!this.isValidEmail(email)) {
+        throw new Error(`Invalid parent email address: ${email}`);
+      }
+
+      const parentUser = await this.userService.findOrCreateParentUserByEmail(email);
+      const existingLink = await this.parentRepository.getParentLinkByUserAndFamily(parentUser.UserID, family.FamilyID);
+
+      if (!existingLink) {
+        await this.parentRepository.createParentLink(parentUser.UserID, family.FamilyID, family.SchoolID);
+      }
+    }
+  }
+
+  isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+  }
+
+  optionalEmail(value, label) {
+    if (value === undefined || value === null) {
+      return null;
+    }
+
+    const cleaned = String(value).trim();
+    if (!cleaned) {
+      return null;
+    }
+
+    if (!this.isValidEmail(cleaned)) {
+      throw new Error(`${label} must be a valid email address`);
+    }
+
+    if (cleaned.length > 255) {
+      throw new Error(`${label} must be 255 characters or less`);
+    }
+
+    return cleaned.toLowerCase();
   }
 
   validateId(id, label) {
