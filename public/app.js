@@ -1545,7 +1545,7 @@ async function submitFaultReport(event) {
     showFormMessage(message, 'Fault report sent', 'success');
     showToast('Fault report sent');
   } catch (error) {
-    showFormMessage(message, `${error.message} | Location: ${currentFaultLocation()}`);
+    showFormMessage(message, error.message);
   } finally {
     setFormBusy(form, false);
   }
