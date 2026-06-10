@@ -180,6 +180,9 @@ app.set('layout', 'layouts/app');
 app.set('layout extractScripts', true);
 app.set('layout extractStyles', true);
 app.use(registerLocals);
+// loadUser must run before portalLocals: the nav-visibility filter needs
+// req.user, otherwise every sidebar renders empty.
+app.use(require('./middleware/portalAuth').loadUser);
 app.use(require('./middleware/portalLocals').portalLocals);
 app.use('/', portalRoutes);
 

@@ -40,8 +40,15 @@ async function loadUser(req, _res, next) {
       let schoolId = auth.user.schoolId;
 
       if (process.env.NODE_ENV !== 'production') {
-        const overrideRole = String(req.get('x-test-role') || '').toLowerCase();
+        // Tests use the X-Test-Role header; browsers can use ?testRole=admin
+        // (persisted in a cookie) to preview the other dashboards locally.
+        const queryRole = String((req.query && req.query.testRole) || '').toLowerCase();
+        const cookieRole = String((req.cookies && req.cookies.kch_test_role) || '').toLowerCase();
+        const overrideRole = String(req.get('x-test-role') || '').toLowerCase() || queryRole || cookieRole;
         if (['parent', 'school', 'admin'].includes(overrideRole)) role = overrideRole;
+        if (['parent', 'school', 'admin'].includes(queryRole) && _res && _res.cookie) {
+          _res.cookie('kch_test_role', queryRole, { httpOnly: true, sameSite: 'lax' });
+        }
         const overrideSchool = Number(req.get('x-test-school-id'));
         if (Number.isInteger(overrideSchool) && overrideSchool > 0) schoolId = overrideSchool;
       }

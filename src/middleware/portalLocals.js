@@ -39,6 +39,7 @@ async function portalLocals(req, res, next) {
   try {
     const visibleSet = await (require('../security/permissionResolver').getEffectivePermissions(req.user));
     res.locals.visibleGroups = applyNavVisibility(nav, visibleSet);
+    if (process.env.DEBUG_NAV) console.log('[portalLocals]', req.path, 'user=', JSON.stringify(req.user && { role: req.user.role, perms: req.user.permissions }), 'set=', visibleSet.size, 'groups=', res.locals.visibleGroups.length);
   } catch (_) {
     // DB unavailable (test mode): fall back to the full nav so the
     // user can still navigate.
