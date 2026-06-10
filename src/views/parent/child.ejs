@@ -23,8 +23,8 @@
       <div class="grid grid-cols-2 gap-4 sm:gap-6">
         <div>
           <p class="kpi-label">Outstanding</p>
-          <p class="kpi-value <%= Number(child.OutstandingAmount) > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400' %>">
-            R <%= Number(child.OutstandingAmount || 0).toFixed(2) %>
+          <p class="kpi-value text-money <%= Number(child.OutstandingAmount) > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400' %>">
+            <%= formatMoney(child.OutstandingAmount || 0) %>
           </p>
         </div>
         <div>
@@ -38,10 +38,10 @@
   </div>
 
   <div x-data="{ tab: 'invoices' }">
-    <div class="tabs mb-4">
-      <button class="tab" :class="{ 'active': tab === 'invoices' }" @click="tab = 'invoices'">Invoices</button>
-      <button class="tab" :class="{ 'active': tab === 'attendance' }" @click="tab = 'attendance'">Attendance</button>
-      <button class="tab" :class="{ 'active': tab === 'consents' }" @click="tab = 'consents'">Consents</button>
+    <div class="tabs mb-4" role="tablist" aria-label="Child details">
+      <button class="tab" role="tab" :class="{ 'active': tab === 'invoices' }" :aria-selected="tab === 'invoices'" @click="tab = 'invoices'">Invoices</button>
+      <button class="tab" role="tab" :class="{ 'active': tab === 'attendance' }" :aria-selected="tab === 'attendance'" @click="tab = 'attendance'">Attendance</button>
+      <button class="tab" role="tab" :class="{ 'active': tab === 'consents' }" :aria-selected="tab === 'consents'" @click="tab = 'consents'">Consents</button>
     </div>
 
     <div x-show="tab === 'invoices'">
@@ -65,9 +65,9 @@
                 <tr>
                   <td class="font-medium">#<%= inv.InvoiceNumber %></td>
                   <td class="text-muted"><%= inv.Description || '—' %></td>
-                  <td><%= inv.DueDate ? new Date(inv.DueDate).toLocaleDateString('en-ZA') : '—' %></td>
-                  <td class="text-right text-money">R <%= Number(inv.Amount).toFixed(2) %></td>
-                  <td class="text-right text-money">R <%= Number(inv.AmountPaid || 0).toFixed(2) %></td>
+                  <td><%= inv.DueDate ? formatDate(inv.DueDate) : '—' %></td>
+                  <td class="text-right text-money"><%= formatMoney(inv.Amount) %></td>
+                  <td class="text-right text-money"><%= formatMoney(inv.AmountPaid || 0) %></td>
                   <td>
                     <% if (inv.Status === 'Paid') { %><span class="badge-success">Paid</span>
                     <% } else if (inv.Status === 'Overdue' || (inv.DueDate && new Date(inv.DueDate) < new Date() && inv.Status !== 'Paid')) { %><span class="badge-danger">Overdue</span>

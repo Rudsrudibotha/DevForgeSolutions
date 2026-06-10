@@ -19,8 +19,8 @@
       <div class="grid grid-cols-2 gap-2 pt-3 border-t" style="border-color: rgb(var(--color-border))">
         <div>
           <p class="kpi-label">Outstanding</p>
-          <p class="text-sm font-semibold <%= Number(child.OutstandingAmount) > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400' %>">
-            R <%= Number(child.OutstandingAmount || 0).toFixed(2) %>
+          <p class="text-sm font-semibold text-money <%= Number(child.OutstandingAmount) > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400' %>">
+            <%= formatMoney(child.OutstandingAmount || 0) %>
           </p>
         </div>
         <div>

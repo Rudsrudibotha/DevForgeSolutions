@@ -9,9 +9,9 @@
   <td class="font-medium">#<%= inv.InvoiceNumber %></td>
   <td><%= inv.StudentName %></td>
   <td class="text-muted"><%= inv.SchoolName %></td>
-  <td><%= inv.DueDate ? new Date(inv.DueDate).toLocaleDateString('en-ZA') : '—' %></td>
-  <td class="text-right text-money">R <%= Number(inv.Amount).toFixed(2) %></td>
-  <td class="text-right text-money">R <%= Number(inv.AmountPaid || 0).toFixed(2) %></td>
+  <td><%= inv.DueDate ? formatDate(inv.DueDate) : '—' %></td>
+  <td class="text-right text-money"><%= formatMoney(inv.Amount) %></td>
+  <td class="text-right text-money"><%= formatMoney(inv.AmountPaid || 0) %></td>
   <td>
     <% if (isPaid) { %><span class="badge-success">Paid</span>
     <% } else if (isPendingPayment) { %><span class="badge-warning">Awaiting school</span>
@@ -19,14 +19,15 @@
     <% } else if (isCancelled) { %><span class="badge-neutral">Cancelled</span>
     <% } else { %><span class="badge-warning"><%= inv.Status %></span><% } %>
   </td>
-  <td class="text-right">
+  <td class="text-right whitespace-nowrap">
     <% if (isPaid) { %>
-      <a href="/parent/invoices/<%= inv.InvoiceID %>" class="btn-ghost btn-sm">View</a>
+      <a href="/parent/invoices/<%= inv.InvoiceID %>/pdf" class="btn-ghost btn-sm">View PDF</a>
     <% } else if (isPendingPayment) { %>
       <span class="text-xs text-muted">Awaiting confirmation</span>
     <% } else if (isCancelled) { %>
       <span class="text-xs text-muted">—</span>
     <% } else { %>
+      <a href="/parent/invoices/<%= inv.InvoiceID %>/pdf" class="btn-ghost btn-sm">PDF</a>
       <button class="btn-primary btn-sm"
               hx-post="/parent/invoices/<%= inv.InvoiceID %>/pay"
               hx-target="#invoice-<%= inv.InvoiceID %>"

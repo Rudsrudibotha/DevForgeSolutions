@@ -1,7 +1,7 @@
 <% layout = 'layouts/app' %>
 <% sidebar = 'parent' %>
 
-<div class="container-page" x-data="{ tab: 'overview' }">
+<div class="container-page">
   <div class="flex flex-col gap-1 mb-6">
     <h1 class="text-2xl font-semibold">Welcome back<% if (user && user.firstName) { %>, <%= user.firstName %><% } %></h1>
     <p class="text-muted text-sm">A quick view of your children across all schools.</p>
@@ -11,13 +11,13 @@
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     <div class="kpi-card">
       <p class="kpi-label">Outstanding balance</p>
-      <p class="kpi-value">R <%= (summary.totalOwed || 0).toFixed(2) %></p>
-      <p class="kpi-delta text-muted"><%= summary.outstandingCount || 0 %> invoice(s) pending</p>
+      <p class="kpi-value text-money"><%= formatMoney(summary.totalOwed || 0) %></p>
+      <p class="kpi-delta text-muted"><%= summary.outstandingCount || 0 %> invoice<%= (summary.outstandingCount || 0) === 1 ? '' : 's' %> pending</p>
     </div>
     <div class="kpi-card">
       <p class="kpi-label">Overdue</p>
-      <p class="kpi-value text-red-600 dark:text-red-400">R <%= (summary.overdueAmount || 0).toFixed(2) %></p>
-      <p class="kpi-delta text-muted"><%= summary.overdueCount || 0 %> invoice(s)</p>
+      <p class="kpi-value text-money <%= (summary.overdueAmount || 0) > 0 ? 'text-red-600 dark:text-red-400' : '' %>"><%= formatMoney(summary.overdueAmount || 0) %></p>
+      <p class="kpi-delta text-muted"><%= summary.overdueCount || 0 %> invoice<%= (summary.overdueCount || 0) === 1 ? '' : 's' %></p>
     </div>
     <div class="kpi-card">
       <p class="kpi-label">Children</p>
@@ -35,10 +35,10 @@
     <div class="alert-warning mb-6">
       <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z"/></svg>
       <div class="flex-1">
-        <p class="font-medium">You have <%= summary.overdueCount %> overdue invoice(s).</p>
-        <p class="text-sm opacity-90">Total overdue: R <%= (summary.overdueAmount || 0).toFixed(2) %></p>
+        <p class="font-medium">You have <%= summary.overdueCount %> overdue invoice<%= summary.overdueCount === 1 ? '' : 's' %>.</p>
+        <p class="text-sm opacity-90">Total overdue: <%= formatMoney(summary.overdueAmount || 0) %></p>
       </div>
-      <a href="/parent/invoices?status=Overdue" class="btn-secondary btn-sm">View</a>
+      <a href="/parent/invoices?status=Overdue" class="btn-primary btn-sm">View &amp; pay</a>
     </div>
   <% } %>
 
