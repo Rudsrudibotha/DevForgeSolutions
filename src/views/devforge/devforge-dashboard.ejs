@@ -1,0 +1,75 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'devforge' %>
+
+<div class="container-page">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">Platform overview</h1>
+    <p class="text-muted text-sm">All schools across the platform. Every action is audit-logged.</p>
+  </div>
+
+  <% if (kpis && Object.keys(kpis).length > 0) { %>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="kpi-card">
+        <p class="kpi-label">Active schools</p>
+        <p class="kpi-value text-emerald-600 dark:text-emerald-400"><%= kpis.ActiveSchools || 0 %></p>
+        <p class="kpi-delta text-muted"><%= kpis.TotalSchools || 0 %> total</p>
+      </div>
+      <div class="kpi-card">
+        <p class="kpi-label">Suspended</p>
+        <p class="kpi-value text-amber-600 dark:text-amber-400"><%= kpis.SuspendedSchools || 0 %></p>
+      </div>
+      <div class="kpi-card">
+        <p class="kpi-label">Active students</p>
+        <p class="kpi-value"><%= kpis.ActiveStudents || 0 %></p>
+        <p class="kpi-delta text-muted"><%= kpis.ActiveUsers || 0 %> users</p>
+      </div>
+      <div class="kpi-card">
+        <p class="kpi-label">Outstanding (all schools)</p>
+        <p class="kpi-value text-money">R <%= Number(kpis.TotalOutstanding || 0).toFixed(2) %></p>
+        <p class="kpi-delta text-emerald-600 dark:text-emerald-400">R <%= Number(kpis.CollectionsLast30Days || 0).toFixed(2) %> last 30d</p>
+      </div>
+    </div>
+  <% } %>
+
+  <div class="card">
+    <div class="card-header flex items-center justify-between">
+      <h2 class="font-semibold">Recent schools</h2>
+      <a href="/devforge/schools" class="text-sm text-brand-600 dark:text-brand-300 hover:underline">All schools &rarr;</a>
+    </div>
+    <% if (!recentSchools || recentSchools.length === 0) { %>
+      <div class="card-body empty-state"><p class="empty-state-desc">No schools yet.</p></div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>School</th>
+              <th>Plan</th>
+              <th>Status</th>
+              <th class="text-right">Users</th>
+              <th class="text-right">Students</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% recentSchools.forEach(function(s) { %>
+              <tr>
+                <td>
+                  <a href="/devforge/schools/<%= s.SchoolID %>" class="font-medium hover:underline"><%= s.SchoolName %></a>
+                  <% if (s.ContactEmail) { %><p class="text-xs text-muted"><%= s.ContactEmail %></p><% } %>
+                </td>
+                <td><span class="badge-neutral"><%= s.SubscriptionPlan %></span></td>
+                <td>
+                  <% if (s.SubscriptionStatus === 'Active') { %><span class="badge-success">Active</span>
+                  <% } else if (s.SubscriptionStatus === 'Suspended') { %><span class="badge-warning">Suspended</span>
+                  <% } else { %><span class="badge-neutral"><%= s.SubscriptionStatus %></span><% } %>
+                </td>
+                <td class="text-right"><%= s.ActiveUserCount || 0 %></td>
+                <td class="text-right"><%= s.ActiveStudentCount || 0 %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>

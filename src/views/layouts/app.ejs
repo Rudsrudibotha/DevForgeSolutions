@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en-ZA" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+  <title><%= typeof title !== 'undefined' ? title : 'Kinder Care Hub' %></title>
+  <link rel="icon" type="image/png" href="/assets/kinder-care-hub-logo.png" />
+  <link rel="stylesheet" href="/styles/app.css" />
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/app.js" defer></script>
+  <script src="/app-init.js" defer></script>
+</head>
+<body class="h-full" data-portal="<%= typeof portal !== 'undefined' ? portal : 'system' %>" hx-headers='{"X-CSRF-Token": "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"}'>
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-brand focus:text-white focus:rounded">Skip to main content</a>
+  <%- include('../partials/header', {
+       user: typeof user !== 'undefined' ? user : null,
+       portal: typeof portal !== 'undefined' ? portal : 'system',
+       currentSchool: typeof currentSchool !== 'undefined' ? currentSchool : null
+     }) %>
+
+  <% if (typeof sidebar !== 'undefined' && sidebar) { %>
+    <%- include('../partials/' + sidebar + '-sidebar', { user, currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
+    <main id="main-content" role="main" tabindex="-1" class="<%= (typeof currentPath !== 'undefined' && currentPath === '/login') ? '' : 'md:pl-64' %> min-h-[calc(100vh-4rem)] flex flex-col">
+      <%- body %>
+      <%- include('../partials/footer') %>
+    </main>
+  <% } else { %>
+    <main id="main-content" role="main" tabindex="-1" class="flex flex-col min-h-[calc(100vh-4rem)]">
+      <%- body %>
+      <%- include('../partials/footer') %>
+    </main>
+  <% } %>
+
+  <%- include('../partials/toast-container') %>
+  <%- include('../partials/modal-root') %>
+  <%- include('../partials/palette/command') %>
+  <div x-data="kchShortcuts()" x-cloak></div>
+  <script src="/palette-registry.js" defer></script>
+  <script src="/palette.js" defer></script>
+  <script src="/shortcuts.js" defer></script>
+</body>
+</html>

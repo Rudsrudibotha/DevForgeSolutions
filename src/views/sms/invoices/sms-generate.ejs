@@ -1,0 +1,83 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">Generate invoices</h1>
+    <p class="text-muted text-sm">Pick a class, set the amount and due date, then choose the students to bill. Students who already have a pending invoice for the same month are skipped automatically.</p>
+  </div>
+
+  <form method="post" action="/sms/invoices/generate"
+        hx-post="/sms/invoices/generate"
+        hx-target="this"
+        hx-swap="outerHTML"
+        class="card">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="card-body space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label" for="classId">Class (optional)</label>
+          <select id="classId" name="classId" class="select"
+                  hx-get="/sms/invoices/new/students"
+                  hx-trigger="change"
+                  hx-target="#students-list"
+                  hx-swap="innerHTML"
+                  hx-push-url="true">
+            <option value="">All classes</option>
+            <% classes.forEach(function(c) { %>
+              <option value="<%= c.ClassID %>" <%= String(defaults.classId) === String(c.ClassID) ? 'selected' : '' %>>
+                <%= c.ClassName %><% if (c.Grade) { %> (Grade <%= c.Grade %>)<% } %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="label" for="billingCategoryId">Billing category (optional)</label>
+          <select id="billingCategoryId" name="billingCategoryId" class="select">
+            <option value="">None</option>
+            <% categories.forEach(function(c) { %>
+              <option value="<%= c.BillingCategoryID %>" data-amount="<%= c.BaseAmount %>">
+                <%= c.CategoryName %><% if (c.BaseAmount) { %> (R <%= Number(c.BaseAmount).toFixed(2) %>)<% } %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label label-required" for="amount">Amount (ZAR)</label>
+          <input id="amount" name="amount" type="number" min="1" step="0.01" required
+                 value="<%= defaults.amount %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label label-required" for="dueDate">Due date</label>
+          <input id="dueDate" name="dueDate" type="date" required
+                 value="<%= defaults.dueDate %>" class="input" />
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label class="label" for="description">Description</label>
+        <input id="description" name="description" type="text" maxlength="500"
+               value="<%= defaults.description %>" class="input"
+               placeholder="e.g. June 2026 tuition" />
+      </div>
+
+      <div>
+        <label class="label">Students</label>
+        <div id="students-list" class="border rounded-md p-3 max-h-80 overflow-y-auto" style="border-color: rgb(var(--color-border))">
+          <% if (students.length === 0) { %>
+            <p class="text-sm text-muted">No students in scope. Pick a class above to load students, or all students will be listed.</p>
+          <% } else { %>
+            <%- include('partials/student-checklist', { students, layout: false }) %>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer flex items-center justify-end gap-2">
+      <a href="/sms/invoices" class="btn-ghost">Cancel</a>
+      <button type="submit" class="btn-primary">Generate invoices</button>
+    </div>
+  </form>
+</div>

@@ -318,9 +318,91 @@ class RefundRepository {
   }
   async complete(id, schoolId) {
     const pool = await getPool();
-    const result = await pool.request().input('id', sql.Int, id).input('schoolId', sql.Int, schoolId)
-      .query(`UPDATE Refunds SET Status='Completed' OUTPUT INSERTED.* WHERE RefundID=@id AND SchoolID=@schoolId AND Status='Approved'`);
-    return result.recordset[0];
+    const transaction = new (require('mssql').Transaction)(pool);
+    try {
+      await transaction.begin();
+      const req = transaction.request();
+      req.input('id', sql.Int, id);
+      req.input('schoolId', sql.Int, schoolId);
+      // Lock the refund row and re-read its current state inside the
+      // transaction so two concurrent completions can't both pass.
+      const refundRow = await req.query(`
+        SELECT RefundID, SchoolID, FamilyID, StudentID, Amount, Status
+        FROM Refunds WITH (UPDLOCK, HOLDLOCK)
+        WHERE RefundID = @id AND SchoolID = @schoolId
+      `);
+      const row = refundRow.recordset[0];
+      if (!row) {
+        await transaction.rollback();
+        return { ok: false, error: 'refund-not-found' };
+      }
+      if (row.Status === 'Completed') {
+        await transaction.rollback();
+        return { ok: false, error: 'already-completed' };
+      }
+      if (row.Status !== 'Approved') {
+        await transaction.rollback();
+        return { ok: false, error: 'refund-not-approved' };
+      }
+      // Compute the family-level running balance at the moment of
+      // completion, excluding this refund and all other completed
+      // refunds, and including all pending + approved refunds against
+      // the family except this one. The refund amount must not exceed
+      // the available balance, otherwise the family would be refunded
+      // more than they have ever paid.
+      const balanceReq = transaction.request();
+      balanceReq.input('schoolId', sql.Int, schoolId);
+      balanceReq.input('familyId', sql.Int, row.FamilyID);
+      balanceReq.input('refundId', sql.Int, id);
+      const bal = await balanceReq.query(`
+        DECLARE @invoiced DECIMAL(18,2) = (
+          SELECT ISNULL(SUM(Amount), 0) FROM dbo.Invoices
+          WHERE SchoolID = @schoolId AND FamilyID = @familyId AND IsDeleted = 0
+        );
+        DECLARE @received DECIMAL(18,2) = (
+          SELECT ISNULL(SUM(t.Amount), 0)
+          FROM dbo.Transactions t
+          INNER JOIN dbo.Students s ON s.StudentID = t.StudentID
+          WHERE t.SchoolID = @schoolId AND s.FamilyID = @familyId AND t.IsDeleted = 0
+        );
+        DECLARE @adjustments DECIMAL(18,2) = (
+          SELECT ISNULL(SUM(
+            CASE
+              WHEN AdjustmentType IN ('Write-off','Debit Correction') THEN -Amount
+              WHEN AdjustmentType IN ('Reversal','Credit Correction','Fee Correction') THEN Amount
+              ELSE 0
+            END
+          ), 0) FROM dbo.FinancialAdjustments
+          WHERE SchoolID = @schoolId AND FamilyID = @familyId
+        );
+        DECLARE @otherRefunds DECIMAL(18,2) = (
+          SELECT ISNULL(SUM(Amount), 0) FROM dbo.Refunds
+          WHERE SchoolID = @schoolId AND FamilyID = @familyId
+            AND RefundID <> @refundId AND Status = 'Completed'
+        );
+        SELECT @received + @adjustments - @otherRefunds - @invoiced AS availableBalance;
+      `);
+      const available = Number(bal.recordset[0].availableBalance);
+      if (Number(row.Amount) > available) {
+        await transaction.rollback();
+        return {
+          ok: false,
+          error: 'refund-exceeds-available-balance',
+          availableBalance: available,
+          requestedAmount: Number(row.Amount)
+        };
+      }
+      const upd = await req.query(`
+        UPDATE Refunds SET Status='Completed'
+        OUTPUT INSERTED.*
+        WHERE RefundID = @id AND SchoolID = @schoolId
+      `);
+      await transaction.commit();
+      return { ok: true, refund: upd.recordset[0] };
+    } catch (err) {
+      try { await transaction.rollback(); } catch (_) { /* ignore */ }
+      return { ok: false, error: err.message };
+    }
   }
 }
 

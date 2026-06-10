@@ -1,0 +1,66 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">Audit log</h1>
+    <p class="text-muted text-sm">Tenant-scoped activity for this school.</p>
+  </div>
+
+  <form method="get" action="/sms/audit" class="card mb-4">
+    <div class="card-body flex flex-col sm:flex-row sm:items-end gap-3">
+      <div>
+        <label class="label">From</label>
+        <input type="date" name="from" class="input" value="<%= filters.from || '' %>" />
+      </div>
+      <div>
+        <label class="label">To</label>
+        <input type="date" name="to" class="input" value="<%= filters.to || '' %>" />
+      </div>
+      <div>
+        <label class="label">Entity</label>
+        <input type="text" name="entityName" class="input" placeholder="e.g. Invoice" value="<%= filters.entityName || '' %>" />
+      </div>
+      <div>
+        <label class="label">Action</label>
+        <input type="text" name="action" class="input" placeholder="e.g. Create" value="<%= filters.action || '' %>" />
+      </div>
+      <div>
+        <button class="btn-primary" type="submit">Filter</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>User</th>
+              <th>Entity</th>
+              <th>Action</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!(rows || []).length) { %>
+              <tr><td colspan="5" class="text-center text-muted py-6">No audit log entries.</td></tr>
+            <% } else { %>
+              <% rows.forEach(function (r) { %>
+                <tr>
+                  <td><%= r.CreatedAt ? new Date(r.CreatedAt).toLocaleString('en-ZA') : '-' %></td>
+                  <td><%= r.Username || r.UserID || '-' %></td>
+                  <td><%= r.EntityName || '-' %></td>
+                  <td><%= r.Action || '-' %></td>
+                  <td><%= r.Description || '-' %></td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,60 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Re-enrolment / year rollover</h1>
+      <p class="text-muted text-sm">Promote, retain, or mark students as left for the next academic year.</p>
+    </div>
+  </div>
+
+  <form method="get" action="/sms/reenrolment" class="card mb-4">
+    <div class="card-body flex items-center gap-3">
+      <label class="text-sm text-muted">Academic year</label>
+      <select name="year" class="input" onchange="this.form.submit()">
+        <% const yr = new Date().getFullYear(); %>
+        <% for (let y = yr; y <= yr + 2; y++) { %>
+          <option value="<%= y %>" <%= y === Number(year) ? 'selected' : '' %>><%= y %></option>
+        <% } %>
+      </select>
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Current class</th>
+              <th>Next class</th>
+              <th>Status</th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!(pending || []).length) { %>
+              <tr><td colspan="5" class="text-center text-muted py-6">No pending re-enrolments for <%= year %>.</td></tr>
+            <% } else { %>
+              <% pending.forEach(function (p) { %>
+                <tr>
+                  <td><%= p.FirstName %> <%= p.LastName %></td>
+                  <td><%= p.CurrentClass || '-' %></td>
+                  <td><%= p.NextClass || '-' %></td>
+                  <td><span class="badge"><%= p.Status || 'Pending' %></span></td>
+                  <td class="text-right">
+                    <button class="btn-primary btn-sm" hx-post="/api/platform/re-enrolment" hx-vals='{"studentId":"<%= p.StudentID %>","year":"<%= year %>","action":"Promoted","nextClassId":"<%= p.NextClassID %>"}'>Promote</button>
+                    <button class="btn-secondary btn-sm" hx-post="/api/platform/re-enrolment" hx-vals='{"studentId":"<%= p.StudentID %>","year":"<%= year %>","action":"Retained"}'>Retain</button>
+                    <button class="btn-secondary btn-sm" hx-post="/api/platform/re-enrolment" hx-vals='{"studentId":"<%= p.StudentID %>","year":"<%= year %>","action":"Left"}'>Mark left</button>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

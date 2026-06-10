@@ -1,0 +1,113 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Payments</h1>
+      <p class="text-muted text-sm"><%= total %> transaction<%= total === 1 ? '' : 's' %></p>
+    </div>
+    <a href="/sms/payments/new" class="btn-primary">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Record payment
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="kpi-card">
+      <p class="kpi-label">Allocated</p>
+      <p class="kpi-value text-money text-emerald-600 dark:text-emerald-400">R <%= (kpis.totalAllocated || 0).toFixed(2) %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Unallocated</p>
+      <p class="kpi-value text-money text-amber-600 dark:text-amber-400">R <%= (kpis.totalUnallocated || 0).toFixed(2) %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Awaiting parent</p>
+      <p class="kpi-value text-money text-sky-600 dark:text-sky-400">R <%= (kpis.totalPending || 0).toFixed(2) %></p>
+    </div>
+  </div>
+
+  <form method="get" action="/sms/payments"
+        hx-get="/sms/payments/partials/table"
+        hx-trigger="keyup changed delay:250ms from:input[name=q], change from:select, change from:input[type=date]"
+        hx-target="#payments-table"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="card mb-4">
+    <div class="card-body grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="form-field">
+        <label class="label">Search</label>
+        <input type="search" name="q" value="<%= filters.search %>" placeholder="Receipt #, payee, reference..." class="input" />
+      </div>
+      <div class="form-field">
+        <label class="label">Allocation</label>
+        <select name="allocationStatus" class="select">
+          <option value="">All</option>
+          <option value="Allocated"      <%= filters.allocationStatus === 'Allocated' ? 'selected' : '' %>>Allocated</option>
+          <option value="Unallocated"    <%= filters.allocationStatus === 'Unallocated' ? 'selected' : '' %>>Unallocated</option>
+          <option value="PendingPayment" <%= filters.allocationStatus === 'PendingPayment' ? 'selected' : '' %>>Pending parent</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="label">Method</label>
+        <select name="paymentMethod" class="select">
+          <option value="">All</option>
+          <% ['EFT','Cash','Card','Cheque','DebitOrder','Mobile','ParentInitiated','Other'].forEach(function(m) { %>
+            <option value="<%= m %>" <%= filters.paymentMethod === m ? 'selected' : '' %>><%= m %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="label">From</label>
+        <input type="date" name="from" value="<%= filters.from %>" class="input" />
+      </div>
+      <div class="form-field">
+        <label class="label">To</label>
+        <input type="date" name="to" value="<%= filters.to %>" class="input" />
+      </div>
+    </div>
+  </form>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Receipt #</th>
+          <th>Date</th>
+          <th>Payee</th>
+          <th>Method</th>
+          <th>Invoice</th>
+          <th class="text-right">Amount</th>
+          <th>Status</th>
+          <th class="text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="payments-table"
+             hx-get="/sms/payments/partials/table"
+             hx-trigger="refresh-payments from:body"
+             hx-swap="innerHTML">
+        <%- include('partials/table', { rows, total, page, pageSize, hasMore, filters, kpis, layout: false }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (total > pageSize) { %>
+    <div class="mt-4 flex items-center justify-between text-sm">
+      <p class="text-muted">Page <%= page %> of <%= Math.ceil(total / pageSize) %></p>
+      <div class="flex gap-2">
+        <% var qs = Object.entries(filters).filter(function(e){ return e[1]; }).map(function(e){ return e[0]+'='+encodeURIComponent(e[1]); }).join('&'); %>
+        <% if (page > 1) { %>
+          <a href="/sms/payments?page=<%= page - 1 %><%= qs ? '&' + qs : '' %>" class="btn-secondary btn-sm"
+             hx-get="/sms/payments/partials/table?page=<%= page - 1 %><%= qs ? '&' + qs : '' %>"
+             hx-target="#payments-table" hx-swap="innerHTML" hx-push-url="true">Previous</a>
+        <% } %>
+        <% if (hasMore) { %>
+          <a href="/sms/payments?page=<%= page + 1 %><%= qs ? '&' + qs : '' %>" class="btn-secondary btn-sm"
+             hx-get="/sms/payments/partials/table?page=<%= page + 1 %><%= qs ? '&' + qs : '' %>"
+             hx-target="#payments-table" hx-swap="innerHTML" hx-push-url="true">Next</a>
+        <% } %>
+      </div>
+    </div>
+  <% } %>
+</div>

@@ -1,0 +1,27 @@
+<% if (!rows || rows.length === 0) { %>
+  <%- include('../../../partials/empty/default', { title: filters && filters.search ? 'No schools match your search' : 'No schools yet', desc: filters && filters.search ? 'Try a different search term or clear the filters.' : 'Schools will appear here once they sign up.', colspan: 7 }) %>
+<% } else { %>
+  <% rows.forEach(function(s) { %>
+    <tr>
+      <td>
+        <a href="/devforge/schools/<%= s.SchoolID %>" class="font-medium hover:underline"><%= s.SchoolName %></a>
+        <p class="text-xs text-muted">#<%= s.SchoolID %></p>
+      </td>
+      <td><span class="badge-neutral"><%= s.SubscriptionPlan %></span></td>
+      <td>
+        <% if (s.SubscriptionStatus === 'Active') { %><span class="badge-success">Active</span>
+        <% } else if (s.SubscriptionStatus === 'Suspended') { %><span class="badge-warning">Suspended</span>
+        <% } else { %><span class="badge-neutral"><%= s.SubscriptionStatus %></span><% } %>
+      </td>
+      <td class="text-sm">
+        <% if (s.ContactPerson) { %><p><%= s.ContactPerson %></p><% } %>
+        <% if (s.ContactEmail) { %><p class="text-xs text-muted"><%= s.ContactEmail %></p><% } %>
+      </td>
+      <td class="text-right"><%= s.ActiveUserCount || 0 %></td>
+      <td class="text-right"><%= s.ActiveStudentCount || 0 %></td>
+      <td class="text-right">
+        <a href="/devforge/schools/<%= s.SchoolID %>" class="btn-ghost btn-sm">View</a>
+      </td>
+    </tr>
+  <% }) %>
+<% } %>

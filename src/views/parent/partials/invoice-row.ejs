@@ -1,0 +1,39 @@
+<%
+  var inv = invoice;
+  var isPaid = inv.Status === 'Paid';
+  var isPendingPayment = inv.Status === 'PendingPayment';
+  var isOverdue = inv.Status === 'Overdue' || (inv.DueDate && new Date(inv.DueDate) < new Date() && !isPaid && !isPendingPayment);
+  var isCancelled = inv.Status === 'Cancelled';
+%>
+<tr id="invoice-<%= inv.InvoiceID %>">
+  <td class="font-medium">#<%= inv.InvoiceNumber %></td>
+  <td><%= inv.StudentName %></td>
+  <td class="text-muted"><%= inv.SchoolName %></td>
+  <td><%= inv.DueDate ? new Date(inv.DueDate).toLocaleDateString('en-ZA') : '—' %></td>
+  <td class="text-right text-money">R <%= Number(inv.Amount).toFixed(2) %></td>
+  <td class="text-right text-money">R <%= Number(inv.AmountPaid || 0).toFixed(2) %></td>
+  <td>
+    <% if (isPaid) { %><span class="badge-success">Paid</span>
+    <% } else if (isPendingPayment) { %><span class="badge-warning">Awaiting school</span>
+    <% } else if (isOverdue) { %><span class="badge-danger">Overdue</span>
+    <% } else if (isCancelled) { %><span class="badge-neutral">Cancelled</span>
+    <% } else { %><span class="badge-warning"><%= inv.Status %></span><% } %>
+  </td>
+  <td class="text-right">
+    <% if (isPaid) { %>
+      <a href="/parent/invoices/<%= inv.InvoiceID %>" class="btn-ghost btn-sm">View</a>
+    <% } else if (isPendingPayment) { %>
+      <span class="text-xs text-muted">Awaiting confirmation</span>
+    <% } else if (isCancelled) { %>
+      <span class="text-xs text-muted">—</span>
+    <% } else { %>
+      <button class="btn-primary btn-sm"
+              hx-post="/parent/invoices/<%= inv.InvoiceID %>/pay"
+              hx-target="#invoice-<%= inv.InvoiceID %>"
+              hx-swap="outerHTML"
+              hx-confirm="Mark invoice #<%= inv.InvoiceNumber %> as paid? The school will confirm receipt once your payment clears.">
+        Pay
+      </button>
+    <% } %>
+  </td>
+</tr>

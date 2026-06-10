@@ -213,6 +213,7 @@ function safeJson(value) {
 
 function sendAuthCompletion(res, authResponse, redirectTo) {
   const nonce = crypto.randomBytes(16).toString('base64');
+  const isProd = process.env.NODE_ENV === 'production';
 
   res.set('Content-Security-Policy', [
     "default-src 'none'",
@@ -221,6 +222,15 @@ function sendAuthCompletion(res, authResponse, redirectTo) {
     "form-action 'none'",
     "frame-ancestors 'none'"
   ].join('; '));
+
+  // SECURITY (H10): also set the JWT in an HttpOnly + SameSite=Lax cookie
+  // so the new SSR portal (cookie-based) can read it. The legacy SPA
+  // still uses localStorage for backward compatibility. The cookie is the
+  // authoritative source; the localStorage copy is a convenience for the
+  // legacy /school/* pages which are themselves deprecated.
+  res.setHeader('Set-Cookie',
+    `kch_token=${encodeURIComponent(authResponse.token)}; HttpOnly; Path=/; ` +
+    `SameSite=Lax; Max-Age=86400${isProd ? '; Secure' : ''}`);
 
   res.send(`<!doctype html>
 <html lang="en">
@@ -233,9 +243,10 @@ function sendAuthCompletion(res, authResponse, redirectTo) {
       (() => {
         const token = ${safeJson(authResponse.token)};
         const user = ${safeJson(authResponse.user)};
-        localStorage.setItem('smsToken', token);
-        localStorage.setItem('smsUser', JSON.stringify(user));
-        localStorage.setItem('smsLastActivity', String(Date.now()));
+        // Legacy SPA fallback only. The cookie above is authoritative.
+        try { localStorage.setItem('smsToken', token); } catch (_) {}
+        try { localStorage.setItem('smsUser', JSON.stringify(user)); } catch (_) {}
+        try { localStorage.setItem('smsLastActivity', String(Date.now())); } catch (_) {}
         window.location.replace(${safeJson(redirectTo)});
       })();
     </script>

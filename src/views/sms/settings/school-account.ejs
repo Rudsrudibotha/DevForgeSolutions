@@ -1,0 +1,70 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">School account</h1>
+    <p class="text-muted text-sm">School profile, banking details, financial year, and logo.</p>
+  </div>
+
+  <form method="post" action="/sms/settings/school-account" class="card max-w-3xl">
+    <div class="card-body space-y-4">
+      <div>
+        <label class="label">School name</label>
+        <input type="text" name="schoolName" required class="input" value="<%= school.SchoolName || '' %>" />
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="label">Contact person</label><input type="text" name="contactPerson" class="input" value="<%= school.ContactPerson || '' %>" /></div>
+        <div><label class="label">Contact email</label><input type="email" name="contactEmail" class="input" value="<%= school.ContactEmail || '' %>" /></div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="label">Contact phone</label><input type="text" name="contactPhone" class="input" value="<%= school.ContactPhone || '' %>" /></div>
+        <div><label class="label">Website</label><input type="text" name="website" class="input" value="<%= school.Website || '' %>" /></div>
+      </div>
+      <div><label class="label">Address</label><textarea name="address" class="input" rows="2"><%= school.Address || '' %></textarea></div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div><label class="label">Registration number</label><input type="text" name="registrationNumber" class="input" value="<%= school.RegistrationNumber || '' %>" /></div>
+        <div><label class="label">VAT number</label><input type="text" name="vatNumber" class="input" value="<%= school.VATNumber || '' %>" /></div>
+        <div><label class="label">Currency</label>
+          <select name="currencyCode" class="input">
+            <% ['ZAR','USD','EUR','GBP','BWP','NAD','KES','NGN'].forEach(function (c) { %>
+              <option value="<%= c %>" <%= school.CurrencyCode === c ? 'selected' : '' %>><%= c %></option>
+            <% }); %>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="label">Default monthly fee</label><input type="number" name="defaultMonthlyFee" class="input" step="0.01" value="<%= school.DefaultMonthlyFee || 0 %>" /></div>
+        <div><label class="label">Payment instructions</label><textarea name="paymentInstructions" class="input" rows="2"><%= school.PaymentInstructions || '' %></textarea></div>
+      </div>
+
+      <h2 class="text-lg font-semibold pt-4">Banking details</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="label">Bank name</label><input type="text" name="bankName" class="input" value="<%= school.BankName || '' %>" /></div>
+        <div><label class="label">Account holder</label><input type="text" name="bankAccountHolder" class="input" value="<%= school.BankAccountHolder || '' %>" /></div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div><label class="label">Account number</label><input type="text" name="bankAccountNumber" class="input" value="<%= school.BankAccountNumber || '' %>" /></div>
+        <div><label class="label">Branch code</label><input type="text" name="bankBranchCode" class="input" value="<%= school.BankBranchCode || '' %>" /></div>
+        <div><label class="label">Account type</label>
+          <select name="bankAccountType" class="input">
+            <option value="">Select</option>
+            <% ['Cheque','Savings','Transmission','Business'].forEach(function (t) { %>
+              <option value="<%= t %>" <%= school.BankAccountType === t ? 'selected' : '' %>><%= t %></option>
+            <% }); %>
+          </select>
+        </div>
+      </div>
+
+      <h2 class="text-lg font-semibold pt-4">Financial year</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="label">Start</label><input type="date" name="financialYearStart" class="input" value="<%= school.FinancialYearStart || '' %>" /></div>
+        <div><label class="label">End</label><input type="date" name="financialYearEnd" class="input" value="<%= school.FinancialYearEnd || '' %>" /></div>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button class="btn-primary" type="submit">Save school account</button>
+      </div>
+    </div>
+  </form>
+</div>

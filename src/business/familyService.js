@@ -3,6 +3,7 @@
 const FamilyRepository = require('../data/familyRepository');
 const ParentRepository = require('../data/parentRepository');
 const UserService = require('./userService');
+const { hasSchoolPermission } = require('../security/schoolPermissions');
 
 class FamilyService {
   constructor() {
@@ -17,10 +18,12 @@ class FamilyService {
         return [];
       }
 
-      return await this.familyRepository.getFamiliesBySchool(currentUser.SchoolID);
+      const families = await this.familyRepository.getFamiliesBySchool(currentUser.SchoolID);
+      return families.map((family) => this.sanitizeFamilyForUser(family, currentUser));
     }
 
-    return await this.familyRepository.getAllFamilies();
+    const families = await this.familyRepository.getAllFamilies();
+    return families.map((family) => this.sanitizeFamilyForUser(family, currentUser));
   }
 
   async getFamilyById(id, currentUser) {
@@ -34,7 +37,7 @@ class FamilyService {
 
     this.ensureFamilyAccess(family, currentUser);
 
-    return family;
+    return this.sanitizeFamilyForUser(family, currentUser);
   }
 
   async createFamily(familyData, currentUser) {
@@ -110,6 +113,47 @@ class FamilyService {
     }
   }
 
+  sanitizeFamilyForUser(family, currentUser) {
+    const clone = { ...family };
+
+    if (!this.canViewFamilyMedical(currentUser)) {
+      [
+        'FamilyDoctor',
+        'MedicalAidName',
+        'MedicalAidNumber'
+      ].forEach((field) => {
+        delete clone[field];
+      });
+    }
+
+    if (!this.canViewIdDocuments(currentUser)) {
+      [
+        'PrimaryParentIdNumber',
+        'SecondaryParentIdNumber'
+      ].forEach((field) => {
+        delete clone[field];
+      });
+    }
+
+    return clone;
+  }
+
+  canViewFamilyMedical(currentUser) {
+    if (!currentUser || currentUser.Role === 'admin') return true;
+    return hasSchoolPermission(currentUser, [
+      'school.parents.manage',
+      'sensitive.student_medical.view'
+    ]);
+  }
+
+  canViewIdDocuments(currentUser) {
+    if (!currentUser || currentUser.Role === 'admin') return true;
+    return hasSchoolPermission(currentUser, [
+      'school.parents.manage',
+      'sensitive.id_documents.view'
+    ]);
+  }
+
   async syncParentsForFamily(family) {
     if (!family || !Number.isInteger(Number(family.SchoolID)) || Number(family.SchoolID) <= 0) {
       return;
@@ -125,11 +169,27 @@ class FamilyService {
         throw new Error(`Invalid parent email address: ${email}`);
       }
 
-      const parentUser = await this.userService.findOrCreateParentUserByEmail(email);
-      const existingLink = await this.parentRepository.getParentLinkByUserAndFamily(parentUser.UserID, family.FamilyID);
+      // Only link parents that already exist as verified parent users.
+      // Auto-creating an unverified user here is no longer allowed - the
+      // student-creation gate (/sms/students) rejects families where no
+      // parent user has completed email + cellphone verification.
+      //
+      // To onboard a new parent, the school operator must use
+      // /sms/families/:id/invite-parent which sends a proper invite.
+      const existingUser = await this.userRepository.getUserByEmail(email);
+      if (!existingUser) {
+        continue;
+      }
+      if (existingUser.Role !== 'parent') {
+        continue;
+      }
+      if (!existingUser.IsActive) {
+        continue;
+      }
 
+      const existingLink = await this.parentRepository.getParentLinkByUserAndFamily(existingUser.UserID, family.FamilyID);
       if (!existingLink) {
-        await this.parentRepository.createParentLink(parentUser.UserID, family.FamilyID, family.SchoolID);
+        await this.parentRepository.createParentLink(existingUser.UserID, family.FamilyID, family.SchoolID);
       }
     }
   }

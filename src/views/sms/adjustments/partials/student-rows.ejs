@@ -1,0 +1,37 @@
+<% if (!students || students.length === 0) { %>
+  <p class="text-sm text-muted">No active students in this family.</p>
+<% } else { %>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>Class</th>
+        <th>Type</th>
+        <th class="text-right">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% students.forEach(function(s, i) { %>
+        <tr>
+          <td>
+            <input type="hidden" name="students[<%= i %>][id]" value="<%= s.StudentID %>" />
+            <%= s.FirstName %> <%= s.LastName %>
+          </td>
+          <td><%= s.ClassName || 'Unassigned' %></td>
+          <td>
+            <select name="students[<%= i %>][type]" class="select">
+              <option value="Fee Correction">Fee Correction</option>
+              <option value="Write-off">Write-off</option>
+              <option value="Reversal">Reversal</option>
+              <option value="Credit Correction">Credit Correction</option>
+              <option value="Debit Correction">Debit Correction</option>
+            </select>
+          </td>
+          <td class="text-right">
+            <input type="number" name="students[<%= i %>][amount]" min="0" step="0.01" placeholder="0.00" class="input text-right" />
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>

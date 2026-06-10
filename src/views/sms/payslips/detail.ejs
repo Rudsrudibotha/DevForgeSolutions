@@ -1,0 +1,88 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/payslips" class="text-muted hover:underline">Payslips</a>
+    <span class="text-muted mx-1">/</span>
+    <span>Payslip #<%= payslip.PayslipID %></span>
+  </nav>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-semibold mb-1">Payslip #<%= payslip.PayslipID %></h1>
+          <p class="text-muted text-sm">
+            <%= (payslip.FirstName || '') + ' ' + (payslip.LastName || '') %>
+            <% if (payslip.PayPeriod) { %> &middot; <%= payslip.PayPeriod %> <% } %>
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <% if (payslip.Status === 'Finalized') { %>
+            <span class="badge-emerald">Finalized</span>
+          <% } else if (payslip.Status === 'Draft') { %>
+            <span class="badge-amber">Draft</span>
+          <% } else { %>
+            <span class="badge"><%= payslip.Status || 'Draft' %></span>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+    <div class="lg:col-span-7 card">
+      <div class="card-body">
+        <h2 class="text-lg font-semibold mb-3">Earnings &amp; deductions</h2>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Basic salary</td><td class="text-right"><%= formatMoney(payslip.BasicSalary) %></td></tr>
+              <tr><td>Allowances</td><td class="text-right"><%= formatMoney(payslip.Allowances) %></td></tr>
+              <tr><td>Overtime</td><td class="text-right"><%= formatMoney(payslip.Overtime) %></td></tr>
+              <tr><td>Bonus</td><td class="text-right"><%= formatMoney(payslip.Bonus) %></td></tr>
+              <tr><td>Leave deduction</td><td class="text-right text-rose-600">(<%= formatMoney(payslip.LeaveDeduction) %>)</td></tr>
+              <tr><td>PAYE</td><td class="text-right text-rose-600">(<%= formatMoney(payslip.PAYE) %>)</td></tr>
+              <tr><td>UIF</td><td class="text-right text-rose-600">(<%= formatMoney(payslip.UIF) %>)</td></tr>
+              <tr><td>Other deductions</td><td class="text-right text-rose-600">(<%= formatMoney(payslip.OtherDeductions) %>)</td></tr>
+            </tbody>
+            <tfoot>
+              <tr class="font-semibold">
+                <td>Net pay</td>
+                <td class="text-right"><%= formatMoney(payslip.NetPay) %></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="lg:col-span-5 card">
+      <div class="card-body">
+        <h2 class="text-lg font-semibold mb-3">Details</h2>
+        <dl class="grid grid-cols-2 gap-y-2 text-sm">
+          <dt class="text-muted">Pay period</dt>
+          <dd><%= payslip.PayPeriod || '-' %></dd>
+          <dt class="text-muted">Payment date</dt>
+          <dd><%= payslip.PaymentDate ? new Date(payslip.PaymentDate).toLocaleDateString('en-ZA') : '-' %></dd>
+          <dt class="text-muted">Status</dt>
+          <dd><%= payslip.Status || 'Draft' %></dd>
+          <dt class="text-muted">Notes</dt>
+          <dd><%= payslip.Notes || '-' %></dd>
+        </dl>
+        <% if (payslip.Status !== 'Finalized') { %>
+          <form method="post" action="/sms/payslips/<%= payslip.PayslipID %>/finalize" class="mt-4">
+            <button class="btn-primary w-full" type="submit" onclick="return confirm('Mark this payslip as finalized? It cannot be edited.');">Finalize payslip</button>
+          </form>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>

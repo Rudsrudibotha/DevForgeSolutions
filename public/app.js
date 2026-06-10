@@ -1081,6 +1081,10 @@ function rememberActivity() {
 }
 
 function redirectToLogin(message) {
+  if (window.isAuthDisabled?.()) {
+    return;
+  }
+
   state.token = null;
   state.user = null;
   localStorage.removeItem('smsToken');
@@ -1093,6 +1097,10 @@ function redirectToLogin(message) {
 }
 
 function enforceInactivityTimeout() {
+  if (window.isAuthDisabled?.()) {
+    return false;
+  }
+
   if (!state.token) {
     return false;
   }
@@ -1636,10 +1644,21 @@ function clearSession() {
   renderShell();
 }
 
+function syncSessionFromStorage() {
+  state.token = localStorage.getItem('smsToken');
+  state.user = readStoredUser();
+}
+
 function renderShell() {
+  syncSessionFromStorage();
   const signedIn = Boolean(state.token && state.user);
 
   if (!signedIn) {
+    if (window.isAuthDisabled?.()) {
+      window.bootPortal?.(renderShell);
+      return;
+    }
+
     window.location.href = '/school-login';
     return;
   }
@@ -9929,4 +9948,7 @@ window.addEventListener('error', (event) => {
 
 wireStudentSearch();
 wireParentSearch();
-renderShell();
+window.bootPortal?.(() => {
+  syncSessionFromStorage();
+  renderShell();
+}) ?? renderShell();

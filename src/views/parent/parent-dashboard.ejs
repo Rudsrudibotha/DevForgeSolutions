@@ -1,0 +1,100 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'parent' %>
+
+<div class="container-page" x-data="{ tab: 'overview' }">
+  <div class="flex flex-col gap-1 mb-6">
+    <h1 class="text-2xl font-semibold">Welcome back<% if (user && user.firstName) { %>, <%= user.firstName %><% } %></h1>
+    <p class="text-muted text-sm">A quick view of your children across all schools.</p>
+  </div>
+
+  <!-- KPI strip -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="kpi-card">
+      <p class="kpi-label">Outstanding balance</p>
+      <p class="kpi-value">R <%= (summary.totalOwed || 0).toFixed(2) %></p>
+      <p class="kpi-delta text-muted"><%= summary.outstandingCount || 0 %> invoice(s) pending</p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Overdue</p>
+      <p class="kpi-value text-red-600 dark:text-red-400">R <%= (summary.overdueAmount || 0).toFixed(2) %></p>
+      <p class="kpi-delta text-muted"><%= summary.overdueCount || 0 %> invoice(s)</p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Children</p>
+      <p class="kpi-value"><%= children.length %></p>
+      <p class="kpi-delta text-muted">across all schools</p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Unread messages</p>
+      <p class="kpi-value"><%= messages.filter(m => !m.IsRead).length %></p>
+      <p class="kpi-delta text-muted">last 30 days</p>
+    </div>
+  </div>
+
+  <% if (summary.overdueCount > 0) { %>
+    <div class="alert-warning mb-6">
+      <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z"/></svg>
+      <div class="flex-1">
+        <p class="font-medium">You have <%= summary.overdueCount %> overdue invoice(s).</p>
+        <p class="text-sm opacity-90">Total overdue: R <%= (summary.overdueAmount || 0).toFixed(2) %></p>
+      </div>
+      <a href="/parent/invoices?status=Overdue" class="btn-secondary btn-sm">View</a>
+    </div>
+  <% } %>
+
+  <!-- My children -->
+  <div class="card mb-6">
+    <div class="card-header flex items-center justify-between">
+      <h2 class="font-semibold">My children</h2>
+      <a href="/parent/invoices" class="text-sm text-brand-600 dark:text-brand-300 hover:underline">View all invoices &rarr;</a>
+    </div>
+    <div class="card-body">
+      <% if (!children || children.length === 0) { %>
+        <%- include('../partials/empty/default', {
+          icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+          title: 'No children linked yet',
+          desc: 'Once a school links your account to a child, they will appear here.'
+        }) %>
+      <% } else { %>
+        <div id="children-grid"
+             hx-get="/parent/partials/children-grid" hx-trigger="refresh-children from:body" hx-swap="innerHTML">
+          <%- include('partials/child-grid', { children, layout: false }) %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Recent messages -->
+  <div class="card">
+    <div class="card-header flex items-center justify-between">
+      <h2 class="font-semibold">Recent messages</h2>
+      <a href="/parent/messages" class="text-sm text-brand-600 dark:text-brand-300 hover:underline">All messages &rarr;</a>
+    </div>
+    <div class="card-body p-0">
+      <% if (!messages || messages.length === 0) { %>
+        <%- include('../partials/empty/default', { title: 'No messages yet', desc: 'No messages from your schools.' }) %>
+      <% } else { %>
+        <ul class="divide-y" style="border-color: rgb(var(--color-border))">
+          <% messages.forEach(function(m) { %>
+            <li class="p-4 hover:bg-slate-50 dark:hover:bg-slate-900/40">
+              <div class="flex items-start gap-3">
+                <div class="h-9 w-9 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
+                     style="background-color: rgb(var(--color-brand))">
+                  <%= (m.SchoolName || 'S').charAt(0) %>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="font-medium text-sm truncate"><%= m.Subject || '(no subject)' %></p>
+                    <% if (!m.IsRead) { %><span class="badge-brand">New</span><% } %>
+                  </div>
+                  <p class="text-xs text-muted mt-0.5"><%= m.SchoolName %><% if (m.StudentName) { %> &middot; re: <%= m.StudentName %><% } %></p>
+                  <p class="text-sm text-muted mt-1 line-clamp-2"><%= (m.Body || '').replace(/<[^>]*>/g, '').slice(0, 160) %></p>
+                </div>
+              </div>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </div>
+  </div>
+</div>

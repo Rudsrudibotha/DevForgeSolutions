@@ -1,0 +1,48 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Finance period locks</h1>
+      <p class="text-muted text-sm">Lock financial periods to prevent late edits.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Period</th>
+              <th>Reason</th>
+              <th>Locked at</th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!(list || []).length) { %>
+              <tr><td colspan="6" class="text-center text-muted py-6">No period locks set.</td></tr>
+            <% } else { %>
+              <% list.forEach(function (p) { %>
+                <tr>
+                  <td><%= p.FinancePeriodLockID || p.financePeriodLockId %></td>
+                  <td><%= p.LockType || '-' %></td>
+                  <td><%= p.PeriodStart ? new Date(p.PeriodStart).toLocaleDateString('en-ZA') : '-' %> - <%= p.PeriodEnd ? new Date(p.PeriodEnd).toLocaleDateString('en-ZA') : '' %></td>
+                  <td><%= p.Reason || '-' %></td>
+                  <td><%= p.LockedAt ? new Date(p.LockedAt).toLocaleString('en-ZA') : '-' %></td>
+                  <td class="text-right">
+                    <button class="btn-secondary btn-sm" hx-put="/api/school-features/finance-period-locks/<%= p.FinancePeriodLockID %>/reopen" onclick="return confirm('Reopen this period? Existing invoices remain but new edits will be allowed.');">Reopen</button>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

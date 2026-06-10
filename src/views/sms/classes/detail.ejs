@@ -1,0 +1,116 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page" x-data="{ tab: 'roster' }">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/classes" class="text-muted hover:underline">Classes</a>
+    <span class="text-muted mx-1">/</span>
+    <span><%= klass.ClassName %></span>
+  </nav>
+
+  <div class="card mb-6">
+    <div class="card-body flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <h1 class="text-2xl font-semibold"><%= klass.ClassName %></h1>
+          <% if (!klass.IsActive) { %><span class="badge-neutral">Inactive</span><% } %>
+        </div>
+        <p class="text-muted text-sm mt-1">
+          <% if (klass.Grade) { %>Grade <%= klass.Grade %><% } %>
+          <% if (klass.Room) { %> &middot; Room <%= klass.Room %><% } %>
+          &middot; Academic year <%= klass.ActiveYear %>
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="/sms/classes/<%= klass.ClassID %>/edit" class="btn-secondary btn-sm">Edit</a>
+        <button class="btn-danger btn-sm"
+                hx-delete="/sms/classes/<%= klass.ClassID %>"
+                hx-confirm="Remove the <%= klass.ClassName %> class? All enrolled students will be unassigned (not deleted).">
+          Remove
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+    <div class="kpi-card">
+      <p class="kpi-label">Students</p>
+      <p class="kpi-value"><%= roster.length %><% if (klass.Capacity) { %> <span class="text-sm font-normal text-muted">/ <%= klass.Capacity %></span><% } %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Teacher</p>
+      <p class="kpi-value text-base"><%= klass.TeacherName || '—' %></p>
+      <% if (klass.TeacherEmail) { %><p class="text-xs text-muted"><%= klass.TeacherEmail %></p><% } %>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Room</p>
+      <p class="kpi-value text-base"><%= klass.Room || '—' %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Outstanding</p>
+      <p class="kpi-value text-money">
+        R <%= Number(roster.reduce((s, r) => s + Number(r.OutstandingAmount || 0), 0)).toFixed(2) %>
+      </p>
+    </div>
+  </div>
+
+  <div class="tabs mb-4">
+    <button class="tab" :class="{ 'active': tab === 'roster' }" @click="tab = 'roster'">Roster (<%= roster.length %>)</button>
+  </div>
+
+  <div x-show="tab === 'roster'">
+    <% if (!roster || roster.length === 0) { %>
+      <div class="card">
+        <div class="card-body empty-state">
+          <p class="empty-state-desc">No students are enrolled in this class yet.</p>
+          <a href="/sms/students/new?classId=<%= klass.ClassID %>" class="btn-primary btn-sm mt-3">Add a student</a>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Family</th>
+              <th>Enrolled</th>
+              <th class="text-right">Outstanding</th>
+              <th>Status</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% roster.forEach(function(s) { %>
+              <tr>
+                <td>
+                  <a href="/sms/students/<%= s.StudentID %>" class="font-medium hover:underline">
+                    <%= s.FirstName %> <%= s.LastName %>
+                  </a>
+                  <% if (s.DateOfBirth) { %>
+                    <p class="text-xs text-muted">DOB <%= new Date(s.DateOfBirth).toLocaleDateString('en-ZA') %></p>
+                  <% } %>
+                </td>
+                <td class="text-muted"><%= s.FamilyName %></td>
+                <td class="text-muted text-sm"><%= s.EnrolledDate ? new Date(s.EnrolledDate).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short' }) : '—' %></td>
+                <td class="text-right text-money">
+                  <% if (Number(s.OutstandingAmount) > 0) { %>
+                    <span class="text-red-600 dark:text-red-400 font-medium">R <%= Number(s.OutstandingAmount).toFixed(2) %></span>
+                  <% } else { %>
+                    <span class="text-emerald-600 dark:text-emerald-400">R 0.00</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (s.IsActive) { %><span class="badge-success">Active</span>
+                  <% } else { %><span class="badge-neutral">Inactive</span><% } %>
+                </td>
+                <td class="text-right">
+                  <a href="/sms/students/<%= s.StudentID %>" class="btn-ghost btn-sm">View</a>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>

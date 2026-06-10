@@ -1,0 +1,153 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-narrow">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/families" class="text-muted hover:underline">Families</a>
+    <% if (mode === 'edit') { %>
+      <span class="text-muted mx-1">/</span>
+      <a href="/sms/families/<%= family.FamilyID %>" class="text-muted hover:underline"><%= family.FamilyName %></a>
+      <span class="text-muted mx-1">/</span>
+      <span>Edit</span>
+    <% } else { %>
+      <span class="text-muted mx-1">/</span>
+      <span>New</span>
+    <% } %>
+  </nav>
+
+  <form method="post" action="<%= mode === 'edit' ? '/sms/families/' + family.FamilyID : '/sms/families' %>"
+        hx-post="<%= mode === 'edit' ? '/sms/families/' + family.FamilyID : '/sms/families' %>"
+        hx-target="this"
+        hx-swap="outerHTML"
+        class="space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+    <div class="card">
+      <div class="card-header">
+        <h1 class="text-xl font-semibold"><%= mode === 'edit' ? 'Edit family' : 'Add family' %></h1>
+        <p class="text-muted text-sm mt-0.5">A family record keeps household contact details in one place.</p>
+      </div>
+      <div class="card-body space-y-4">
+        <div class="form-field">
+          <label class="label label-required" for="familyName">Family name</label>
+          <input id="familyName" name="familyName" type="text" required maxlength="255"
+                 value="<%= family && family.FamilyName ? family.FamilyName : '' %>"
+                 class="input <%= errors.familyName ? 'input-error' : '' %>" />
+          <% if (errors.familyName) { %><p class="error-text"><%= errors.familyName %></p><% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="font-semibold">Primary parent</h2>
+        <p class="text-xs text-muted">Required - the main contact for this family.</p>
+      </div>
+      <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field sm:col-span-2">
+          <label class="label label-required" for="primaryParentName">Full name</label>
+          <input id="primaryParentName" name="primaryParentName" type="text" required maxlength="255"
+                 value="<%= family && family.PrimaryParentName ? family.PrimaryParentName : '' %>"
+                 class="input <%= errors.primaryParentName ? 'input-error' : '' %>" />
+          <% if (errors.primaryParentName) { %><p class="error-text"><%= errors.primaryParentName %></p><% } %>
+        </div>
+        <div class="form-field">
+          <label class="label" for="primaryParentPhone">Phone</label>
+          <input id="primaryParentPhone" name="primaryParentPhone" type="tel" maxlength="50"
+                 value="<%= family && family.PrimaryParentPhone ? family.PrimaryParentPhone : '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="primaryParentEmail">Email</label>
+          <input id="primaryParentEmail" name="primaryParentEmail" type="email" maxlength="255"
+                 value="<%= family && family.PrimaryParentEmail ? family.PrimaryParentEmail : '' %>"
+                 class="input <%= errors.primaryParentEmail ? 'input-error' : '' %>" />
+          <% if (errors.primaryParentEmail) { %><p class="error-text"><%= errors.primaryParentEmail %></p><% } %>
+        </div>
+        <div class="form-field">
+          <label class="label" for="primaryParentIdNumber">ID number</label>
+          <input id="primaryParentIdNumber" name="primaryParentIdNumber" type="text" maxlength="50"
+                 value="<%= family && family.PrimaryParentIdNumber ? family.PrimaryParentIdNumber : '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="primaryParentOccupation">Occupation</label>
+          <input id="primaryParentOccupation" name="primaryParentOccupation" type="text" maxlength="255"
+                 value="<%= family && family.PrimaryParentOccupation ? family.PrimaryParentOccupation : '' %>" class="input" />
+        </div>
+        <div class="form-field sm:col-span-2">
+          <label class="label" for="primaryParentWorkPhone">Work phone</label>
+          <input id="primaryParentWorkPhone" name="primaryParentWorkPhone" type="tel" maxlength="50"
+                 value="<%= family && family.PrimaryParentWorkPhone ? family.PrimaryParentWorkPhone : '' %>" class="input" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="font-semibold">Secondary parent <span class="text-xs text-muted font-normal">(optional)</span></h2>
+      </div>
+      <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field sm:col-span-2">
+          <label class="label" for="secondaryParentName">Full name</label>
+          <input id="secondaryParentName" name="secondaryParentName" type="text" maxlength="255"
+                 value="<%= family && family.SecondaryParentName ? family.SecondaryParentName : '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="secondaryParentPhone">Phone</label>
+          <input id="secondaryParentPhone" name="secondaryParentPhone" type="tel" maxlength="50"
+                 value="<%= family && family.SecondaryParentPhone ? family.SecondaryParentPhone : '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="secondaryParentEmail">Email</label>
+          <input id="secondaryParentEmail" name="secondaryParentEmail" type="email" maxlength="255"
+                 value="<%= family && family.SecondaryParentEmail ? family.SecondaryParentEmail : '' %>"
+                 class="input <%= errors.secondaryParentEmail ? 'input-error' : '' %>" />
+          <% if (errors.secondaryParentEmail) { %><p class="error-text"><%= errors.secondaryParentEmail %></p><% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="font-semibold">Address, emergency contact &amp; medical</h2>
+      </div>
+      <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field sm:col-span-2">
+          <label class="label" for="homeAddress">Home address</label>
+          <textarea id="homeAddress" name="homeAddress" rows="2" maxlength="500" class="textarea"><%= family && family.HomeAddress ? family.HomeAddress : '' %></textarea>
+        </div>
+        <div class="form-field">
+          <label class="label" for="emergencyContactName">Emergency contact</label>
+          <input id="emergencyContactName" name="emergencyContactName" type="text" maxlength="255"
+                 value="<%= family && family.EmergencyContactName ? family.EmergencyContactName : '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="emergencyContactPhone">Emergency phone</label>
+          <input id="emergencyContactPhone" name="emergencyContactPhone" type="tel" maxlength="50"
+                 value="<%= family && family.EmergencyContactPhone ? family.EmergencyContactPhone : '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="familyDoctor">Family doctor</label>
+          <input id="familyDoctor" name="familyDoctor" type="text" maxlength="255"
+                 value="<%= family && family.FamilyDoctor ? family.FamilyDoctor : '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="medicalAidName">Medical aid</label>
+          <input id="medicalAidName" name="medicalAidName" type="text" maxlength="255"
+                 value="<%= family && family.MedicalAidName ? family.MedicalAidName : '' %>" class="input" />
+        </div>
+        <div class="form-field sm:col-span-2">
+          <label class="label" for="medicalAidNumber">Medical aid number</label>
+          <input id="medicalAidNumber" name="medicalAidNumber" type="text" maxlength="100"
+                 value="<%= family && family.MedicalAidNumber ? family.MedicalAidNumber : '' %>" class="input" />
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-2">
+      <a href="<%= mode === 'edit' ? '/sms/families/' + family.FamilyID : '/sms/families' %>" class="btn-ghost">Cancel</a>
+      <button type="submit" class="btn-primary">
+        <%= mode === 'edit' ? 'Save changes' : 'Add family' %>
+      </button>
+    </div>
+  </form>
+</div>

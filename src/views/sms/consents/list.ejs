@@ -1,0 +1,49 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Consent &amp; permissions</h1>
+      <p class="text-muted text-sm">Issue permission slips and track responses.</p>
+    </div>
+    <button class="btn-primary" hx-get="/sms/consents/compose" hx-target="#composeDialog" hx-swap="innerHTML">+ New permission slip</button>
+  </div>
+
+  <div id="composeDialog"></div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>Audience</th>
+              <th>Sent</th>
+              <th>Responses</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!(list || []).length) { %>
+              <tr><td colspan="6" class="text-center text-muted py-6">No permission slips yet.</td></tr>
+            <% } else { %>
+              <% list.forEach(function (c) { %>
+                <tr>
+                  <td><%= c.ConsentRequestID || c.consentRequestId %></td>
+                  <td><%= c.Title || '-' %></td>
+                  <td><%= c.Audience || 'All parents' %></td>
+                  <td><%= c.SentAt ? new Date(c.SentAt).toLocaleDateString('en-ZA') : '-' %></td>
+                  <td><%= c.ResponseCount || 0 %></td>
+                  <td><span class="badge"><%= c.Status || 'Open' %></span></td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

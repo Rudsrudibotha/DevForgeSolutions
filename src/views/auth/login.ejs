@@ -1,0 +1,77 @@
+<% layout = 'layouts/app' %>
+<% hideChrome = true %>
+
+<div class="min-h-screen flex items-center justify-center p-4 bg-mesh">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-6">
+      <img src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub" class="h-12 w-12 mx-auto rounded-lg mb-3" />
+      <h1 class="text-2xl font-semibold">Sign in</h1>
+      <p class="text-muted text-sm mt-1">Access your school, family, or admin dashboard.</p>
+    </div>
+
+    <div class="card p-6">
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert-danger mb-4">
+          <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14"/></svg>
+          <span class="text-sm"><%= error %></span>
+        </div>
+      <% } %>
+
+      <form method="post" action="/auth/portal-login" class="space-y-4">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <input type="hidden" name="next" value="<%= typeof next !== 'undefined' ? next : '' %>" />
+        <input type="hidden" name="portal" value="<%= typeof portal !== 'undefined' ? portal : 'school' %>" />
+
+        <div class="form-field">
+          <label class="label">Email or username</label>
+          <input type="text" name="identifier" required autofocus class="input" placeholder="you@school.com" />
+        </div>
+
+        <div class="form-field">
+          <div class="flex items-center justify-between">
+            <label class="label">Password</label>
+            <a href="/forgot" class="text-xs text-brand-600 dark:text-brand-300 hover:underline">Forgot password?</a>
+          </div>
+          <input type="password" name="password" required class="input" />
+        </div>
+
+        <% if (typeof portal !== 'undefined' && portal === 'school') { %>
+          <div class="form-field">
+            <label class="label">School ID</label>
+            <input type="number" name="schoolId" class="input" placeholder="e.g. 1234" />
+            <p class="help-text">Provided by your school administrator.</p>
+          </div>
+        <% } %>
+
+        <button type="submit" class="btn-primary w-full">
+          Sign in
+        </button>
+      </form>
+
+      <div class="relative my-6">
+        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+          <div class="w-full border-t" style="border-color: rgb(var(--color-border))"></div>
+        </div>
+        <div class="relative flex justify-center text-xs">
+          <span class="bg-white dark:bg-slate-900 px-2 text-muted">or continue with</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <a href="/auth/microsoft?type=<%= typeof portal !== 'undefined' ? portal : 'school' %><% if (typeof portal !== 'undefined' && portal === 'school' && typeof schoolId !== 'undefined' && schoolId) { %>&schoolId=<%= schoolId %><% } %>" class="btn-secondary">
+          <svg class="h-4 w-4" viewBox="0 0 23 23" fill="currentColor"><path d="M11.4 0H0v11.4h11.4V0zM23 0H11.6v11.4H23V0zM11.4 11.6H0V23h11.4V11.6zM23 11.6H11.6V23H23V11.6z"/></svg>
+          Microsoft
+        </a>
+        <a href="/auth/google?type=<%= typeof portal !== 'undefined' ? portal : 'school' %><% if (typeof portal !== 'undefined' && portal === 'school' && typeof schoolId !== 'undefined' && schoolId) { %>&schoolId=<%= schoolId %><% } %>" class="btn-secondary">
+          <svg class="h-4 w-4" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>
+          Google
+        </a>
+      </div>
+    </div>
+
+    <p class="text-center text-xs text-muted mt-4">
+      Don't have an account?
+      <a href="/school-register" class="text-brand-600 dark:text-brand-300 hover:underline">Register your school</a>
+    </p>
+  </div>
+</div>

@@ -1,0 +1,114 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page" x-data="{ tab: 'overview' }">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/staff" class="text-muted hover:underline">Staff</a>
+    <span class="text-muted mx-1">/</span>
+    <span><%= employee.FirstName %> <%= employee.LastName %></span>
+  </nav>
+
+  <div class="card mb-6">
+    <div class="card-body flex flex-col sm:flex-row sm:items-center gap-4">
+      <div class="h-16 w-16 rounded-full flex items-center justify-center text-white text-2xl font-semibold flex-shrink-0"
+           style="background-color: rgb(var(--color-brand))">
+        <%= (employee.FirstName || '?').charAt(0) %><%= (employee.LastName || '').charAt(0) %>
+      </div>
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <h1 class="text-2xl font-semibold"><%= employee.FirstName %> <%= employee.LastName %></h1>
+          <% if (!employee.IsActive) { %><span class="badge-neutral">Inactive</span><% } %>
+        </div>
+        <p class="text-muted text-sm mt-1">
+          <%= employee.JobTitle || 'No role' %><% if (employee.Department) { %> &middot; <%= employee.Department %><% } %>
+          <% if (employee.StartDate) { %> &middot; Started <%= new Date(employee.StartDate).toLocaleDateString('en-ZA') %><% } %>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+    <div class="kpi-card">
+      <p class="kpi-label">Email</p>
+      <p class="kpi-value text-base"><%= employee.Email || '—' %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Phone</p>
+      <p class="kpi-value text-base"><%= employee.Phone || '—' %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Salary</p>
+      <p class="kpi-value text-money">R <%= Number(employee.Salary || 0).toFixed(2) %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Leave balance</p>
+      <p class="kpi-value"><%= employee.LeaveBalance %> days</p>
+    </div>
+  </div>
+
+  <div class="tabs mb-4">
+    <button class="tab" :class="{ 'active': tab === 'overview' }" @click="tab = 'overview'">Overview</button>
+    <button class="tab" :class="{ 'active': tab === 'leave' }" @click="tab = 'leave'">Leave (<%= leaveRequests.length %>)</button>
+    <button class="tab" :class="{ 'active': tab === 'payslips' }" @click="tab = 'payslips'">Payslips (<%= payslips.length %>)</button>
+  </div>
+
+  <div x-show="tab === 'overview'">
+    <div class="card">
+      <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div>
+          <p class="kpi-label">Username</p>
+          <p class="font-medium"><%= employee.Username || '—' %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Last login</p>
+          <p class="font-medium"><%= employee.LastLoginDate ? new Date(employee.LastLoginDate).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' }) : 'Never' %></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div x-show="tab === 'leave'">
+    <% if (!leaveRequests || leaveRequests.length === 0) { %>
+      <div class="card"><div class="card-body empty-state"><p class="empty-state-desc">No leave requests recorded.</p></div></div>
+    <% } else { %>
+      <div class="card">
+        <ul class="divide-y" style="border-color: rgb(var(--color-border))">
+          <% leaveRequests.forEach(function(l) { %>
+            <li class="p-3 flex items-center justify-between">
+              <div>
+                <p class="font-medium"><%= new Date(l.StartDate).toLocaleDateString('en-ZA') %> &rarr; <%= new Date(l.EndDate).toLocaleDateString('en-ZA') %></p>
+                <p class="text-xs text-muted"><%= l.LeaveType %><% if (l.Reason) { %> &middot; <%= l.Reason %><% } %></p>
+              </div>
+              <% if (l.Status === 'Approved') { %><span class="badge-success">Approved</span>
+              <% } else if (l.Status === 'Pending') { %><span class="badge-warning">Pending</span>
+              <% } else if (l.Status === 'Rejected') { %><span class="badge-danger">Rejected</span>
+              <% } else { %><span class="badge-neutral"><%= l.Status %></span><% } %>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    <% } %>
+  </div>
+
+  <div x-show="tab === 'payslips'">
+    <% if (!payslips || payslips.length === 0) { %>
+      <div class="card"><div class="card-body empty-state"><p class="empty-state-desc">No payslips generated yet.</p></div></div>
+    <% } else { %>
+      <div class="card">
+        <ul class="divide-y" style="border-color: rgb(var(--color-border))">
+          <% payslips.forEach(function(p) { %>
+            <li class="p-3 flex items-center justify-between">
+              <div>
+                <p class="font-medium">
+                  <%= new Date(p.PayPeriodStart).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' }) %>
+                </p>
+                <p class="text-xs text-muted">Net R <%= Number(p.NetPay || 0).toFixed(2) %></p>
+              </div>
+              <span class="text-sm text-muted"><%= new Date(p.PayDate || p.PayPeriodEnd).toLocaleDateString('en-ZA') %></span>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    <% } %>
+  </div>
+</div>

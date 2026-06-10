@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page not found</title>
+  <link rel="stylesheet" href="/styles/app.css" />
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="card max-w-md w-full p-8 text-center">
+    <div class="mx-auto h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+      <svg class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </div>
+    <h1 class="text-xl font-semibold">Page not found</h1>
+    <p class="text-muted mt-2 text-sm">
+      The page you were looking for doesn't exist or has been moved.
+    </p>
+    <p class="text-xs text-muted mt-1">
+      <code class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800"><%= typeof path !== 'undefined' && path ? path : req && req.originalUrl || '' %></code>
+    </p>
+    <div class="flex gap-2 justify-center mt-6">
+      <button type="button" class="btn-secondary btn-sm" onclick="history.length > 1 ? history.back() : location.href = '/'">Go back</button>
+      <a href="/" class="btn-primary btn-sm">Home</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<%# Skeleton placeholder for list views. Renders N fake rows when used
+  standalone, or N cells inside a single row when used inside a <tr>.
+  Args:
+  - rows: number of skeleton rows (default 5)
+  - cols: number of columns (default 5)
+  - inline: when true, emit cells only (no <tr>) so it can be wrapped
+%>
+<% var rowCount = (typeof rows !== 'undefined' && rows) ? Number(rows) : 5; %>
+<% var colCount = (typeof cols !== 'undefined' && cols) ? Number(cols) : 5; %>
+<% var inline = (typeof inline !== 'undefined' && inline); %>
+<% if (inline) { %>
+  <% for (var c = 0; c < colCount; c++) { %><div class="skeleton h-3 inline-block mr-3" style="width: <%= 50 + ((c * 11) % 40) %>%"></div><% } %>
+<% } else { %>
+  <% for (var r = 0; r < rowCount; r++) { %>
+    <tr>
+      <% for (var c = 0; c < colCount; c++) { %>
+        <td>
+          <div class="skeleton h-3" style="width: <%= 50 + ((c * 11) % 40) %>%"></div>
+        </td>
+      <% } %>
+    </tr>
+  <% } %>
+<% } %>

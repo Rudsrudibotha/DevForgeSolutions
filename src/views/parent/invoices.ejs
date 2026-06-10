@@ -1,0 +1,84 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'parent' %>
+
+<div class="container-page">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Invoices</h1>
+      <p class="text-muted text-sm">All invoices across your children and schools.</p>
+    </div>
+  </div>
+
+  <!-- Summary strip -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="kpi-card">
+      <p class="kpi-label">Total outstanding</p>
+      <p class="kpi-value">R <%= (summary.totalOwed || 0).toFixed(2) %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Overdue</p>
+      <p class="kpi-value text-red-600 dark:text-red-400">R <%= (summary.overdueAmount || 0).toFixed(2) %></p>
+      <p class="kpi-delta text-muted"><%= summary.overdueCount %> invoice(s)</p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Open invoices</p>
+      <p class="kpi-value"><%= summary.outstandingCount %></p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" action="/parent/invoices" class="card mb-4">
+    <div class="card-body grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="form-field">
+        <label class="label">Child</label>
+        <select name="studentId" class="select" onchange="this.form.submit()">
+          <option value="">All children</option>
+          <% children.forEach(function(c) { %>
+            <option value="<%= c.StudentID %>" <%= String(filters.studentId) === String(c.StudentID) ? 'selected' : '' %>>
+              <%= c.FirstName %> <%= c.LastName %> <% if (c.SchoolName) { %>(<%= c.SchoolName %>)<% } %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="label">Status</label>
+        <select name="status" class="select" onchange="this.form.submit()">
+          <option value="">All statuses</option>
+          <% ['Pending','Overdue','Paid','Cancelled','PartiallyPaid'].forEach(function(s) { %>
+            <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="flex items-end">
+        <a href="/parent/invoices" class="btn-ghost btn-sm">Reset</a>
+      </div>
+    </div>
+  </form>
+
+  <!-- Invoice table -->
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Invoice</th>
+          <th>Child</th>
+          <th>School</th>
+          <th>Due</th>
+          <th class="text-right">Amount</th>
+          <th class="text-right">Paid</th>
+          <th>Status</th>
+          <th class="text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="invoice-tbody">
+        <% if (!invoices || invoices.length === 0) { %>
+          <%- include('../partials/empty/default', { title: 'No invoices found', desc: 'Try clearing your filters.', colspan: 8 }) %>
+        <% } else { %>
+          <% invoices.forEach(function(inv) { %>
+            <%- include('partials/invoice-row', { invoice: inv, layout: false }) %>
+          <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>

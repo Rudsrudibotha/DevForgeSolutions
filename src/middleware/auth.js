@@ -20,8 +20,13 @@ function isDatabaseConnectionError(error) {
 }
 
 const authenticateToken = async (req, res, next) => {
+  // SECURITY (H10): accept the JWT from the Authorization header (legacy SPA)
+  // or from the HttpOnly kch_token cookie (SSR portal). Cookie takes priority
+  // when the header is missing.
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const headerToken = authHeader && authHeader.split(' ')[1];
+  const cookieToken = req.cookies && req.cookies.kch_token ? decodeURIComponent(req.cookies.kch_token) : null;
+  const token = headerToken || cookieToken;
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
@@ -73,6 +78,20 @@ const authenticateToken = async (req, res, next) => {
 
       if (!staffMembership) {
         return res.status(403).json({ error: 'School dashboard access requires an active staff record for this school.' });
+      }
+
+      // SECURITY (H11): also enforce subscription status in the early branch
+      // so a suspended school cannot obtain a valid session through OAuth.
+      try {
+        const school = await schoolService.getSchoolById(requestedSchoolId);
+        if (!school || school.SubscriptionStatus !== 'Active') {
+          return res.status(403).json({ error: 'This school account is suspended. Please contact Kinder Care Hub.' });
+        }
+      } catch (error) {
+        if (isDatabaseConnectionError(error)) {
+          return res.status(503).json({ error: 'Database unavailable. Check the database connection and try again.' });
+        }
+        throw error;
       }
 
       user = {

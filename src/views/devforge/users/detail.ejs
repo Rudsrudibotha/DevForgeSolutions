@@ -1,0 +1,96 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'devforge' %>
+
+<div class="container-page" x-data="{ showDisable: false, showEnable: false }">
+  <nav class="mb-4 text-sm">
+    <a href="/devforge/users" class="text-muted hover:underline">Users</a>
+    <span class="text-muted mx-1">/</span>
+    <span><%= user.Username || user.Email %></span>
+  </nav>
+
+  <div class="card mb-6">
+    <div class="card-body flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div class="flex-1">
+        <h1 class="text-2xl font-semibold"><%= user.Username || '(no username)' %></h1>
+        <p class="text-muted text-sm mt-1"><%= user.Email %></p>
+      </div>
+      <div>
+        <% if (user.IsActive) { %><span class="badge-success">Active</span>
+        <% } else { %><span class="badge-neutral">Inactive</span><% } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="kpi-card">
+      <p class="kpi-label">User ID</p>
+      <p class="kpi-value text-base">#<%= user.UserID %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Role</p>
+      <p class="kpi-value text-base"><%= user.Role %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">School</p>
+      <p class="kpi-value text-base"><%= user.SchoolName || '—' %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Last login</p>
+      <p class="kpi-value text-sm"><%= user.LastLoginDate ? new Date(user.LastLoginDate).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' }) : 'Never' %></p>
+    </div>
+  </div>
+
+  <div class="card mb-6">
+    <div class="card-header">
+      <h2 class="font-semibold">Account actions</h2>
+      <p class="text-xs text-muted mt-0.5">All status changes are recorded in the audit log with the reason you provide.</p>
+    </div>
+    <div class="card-body space-y-3">
+      <div class="alert-warning text-sm">
+        <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z"/></svg>
+        <div>
+          <p class="font-medium">Impersonation notice</p>
+          <p class="text-xs opacity-90 mt-0.5">Direct impersonation (logging in as another user) is not supported in the SSR portal. Use the API endpoint <code>/auth/admin-impersonate</code> with full audit logging if you need to act on a user's behalf.</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <% if (!user.IsActive) { %>
+          <button class="btn-primary btn-sm" @click="showEnable = !showEnable">Enable account</button>
+        <% } else { %>
+          <button class="btn-warning btn-sm" @click="showDisable = !showDisable" style="background-color: rgb(var(--color-warning)); color: white">Disable account</button>
+        <% } %>
+      </div>
+
+      <form x-show="showDisable" x-cloak method="post" action="/devforge/users/<%= user.UserID %>/active"
+            hx-post="/devforge/users/<%= user.UserID %>/active"
+            hx-target="this" hx-swap="outerHTML"
+            class="border-t pt-3 space-y-2" style="border-color: rgb(var(--color-border))">
+        <div class="form-field">
+          <label class="label" for="disableReason">Reason for disabling (required, 4+ chars)</label>
+          <input id="disableReason" name="reason" type="text" required minlength="4" class="input" placeholder="e.g. Security incident response" />
+        </div>
+        <input type="hidden" name="isActive" value="false" />
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn-ghost btn-sm" @click="showDisable = false">Cancel</button>
+          <button type="submit" class="btn-warning btn-sm">Disable</button>
+        </div>
+      </form>
+
+      <form x-show="showEnable" x-cloak method="post" action="/devforge/users/<%= user.UserID %>/active"
+            hx-post="/devforge/users/<%= user.UserID %>/active"
+            hx-target="this" hx-swap="outerHTML"
+            class="border-t pt-3 space-y-2" style="border-color: rgb(var(--color-border))">
+        <div class="form-field">
+          <label class="label" for="enableReason">Reason for enabling (required, 4+ chars)</label>
+          <input id="enableReason" name="reason" type="text" required minlength="4" class="input" placeholder="e.g. Account reinstated" />
+        </div>
+        <input type="hidden" name="isActive" value="true" />
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn-ghost btn-sm" @click="showEnable = false">Cancel</button>
+          <button type="submit" class="btn-primary btn-sm">Enable</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

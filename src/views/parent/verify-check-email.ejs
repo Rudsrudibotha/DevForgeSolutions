@@ -1,0 +1,16 @@
+<% layout = 'layouts/app' %>
+<% hideChrome = true %>
+
+<div class="min-h-screen flex items-center justify-center p-4 bg-mesh">
+  <div class="w-full max-w-md">
+    <div class="card p-6 text-center">
+      <img src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub" class="h-12 w-12 mx-auto rounded-lg mb-3" />
+      <h1 class="text-xl font-semibold mb-2">Check your email</h1>
+      <p class="text-muted text-sm mb-4">We sent a secure sign-in link to <strong><%= typeof email !== 'undefined' ? email : '' %></strong>.</p>
+      <p class="text-xs text-muted">The link expires in 24 hours. If you don't see the email, check your spam folder.</p>
+      <p class="mt-6 text-xs">
+        <a href="/parent/verify" class="text-brand-600 hover:underline">Start over</a>
+      </p>
+    </div>
+  </div>
+</div>

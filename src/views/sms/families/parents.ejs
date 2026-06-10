@@ -1,0 +1,107 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-narrow">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/families" class="text-muted hover:underline">Families</a>
+    <span class="text-muted mx-1">/</span>
+    <a href="/sms/families/<%= family.FamilyID %>" class="text-muted hover:underline"><%= family.FamilyName %></a>
+    <span class="text-muted mx-1">/</span>
+    <span>Parents</span>
+  </nav>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h1 class="text-xl font-semibold">Parents</h1>
+      <p class="text-muted text-sm mt-0.5">
+        At least one <strong>verified</strong> parent is required before a student can be enrolled at this family.
+      </p>
+    </div>
+    <div class="card-body">
+      <% if (verifiedCount > 0) { %>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-success"><%= verifiedCount %> verified</span>
+          <span class="text-sm text-muted">This family is ready for new students.</span>
+        </div>
+      <% } else { %>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-warning">0 verified</span>
+          <span class="text-sm text-muted">No parent has completed verification. Invite a parent to enable student enrolment.</span>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (inviteSent) { %>
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="alert alert-success">
+          Invitation sent. The parent will be linked to this family once they verify their email and cellphone.
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h2 class="font-semibold">Linked parents</h2>
+    </div>
+    <div class="card-body">
+      <% if (parents.length === 0) { %>
+        <p class="text-sm text-muted">No parents are linked to this family yet.</p>
+      <% } else { %>
+        <ul class="divide-y">
+          <% parents.forEach(function(p) { %>
+            <li class="py-2 flex items-center justify-between">
+              <div>
+                <div class="font-medium"><%= p.Email %></div>
+                <div class="text-xs text-muted">Linked <%= new Date(p.CreatedAt).toLocaleDateString() %></div>
+              </div>
+              <% if (p.IsVerified) { %>
+                <span class="badge badge-success">Verified</span>
+              <% } else if (!p.IsActive) { %>
+                <span class="badge badge-muted">Inactive</span>
+              <% } else { %>
+                <span class="badge badge-warning">Unverified</span>
+              <% } %>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (pendingInvitations.length > 0) { %>
+    <div class="card mb-4">
+      <div class="card-header">
+        <h2 class="font-semibold">Pending invitations</h2>
+      </div>
+      <div class="card-body">
+        <ul class="divide-y">
+          <% pendingInvitations.forEach(function(inv) { %>
+            <li class="py-2 flex items-center justify-between">
+              <div>
+                <div class="font-medium"><%= inv.Email %></div>
+                <div class="text-xs text-muted">Sent <%= new Date(inv.CreatedAt).toLocaleString() %> &middot; expires <%= new Date(inv.ExpiresAt).toLocaleString() %></div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="badge badge-info">Pending</span>
+                <form hx-delete="/sms/families/<%= family.FamilyID %>/invitations/<%= inv.ParentInvitationId %>"
+                      hx-target="this"
+                      hx-swap="outerHTML"
+                      hx-confirm="Revoke this invitation?">
+                  <button type="submit" class="btn-ghost btn-sm">Revoke</button>
+                </form>
+              </div>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    </div>
+  <% } %>
+
+  <div class="flex items-center justify-end gap-2">
+    <a href="/sms/families/<%= family.FamilyID %>" class="btn-ghost">Back to family</a>
+    <a href="/sms/families/<%= family.FamilyID %>/invite-parent" class="btn-primary">Invite parent</a>
+  </div>
+</div>

@@ -1,0 +1,104 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/reports" class="text-muted hover:underline">Reports</a>
+    <span class="text-muted mx-1">/</span>
+    <span><%= def.label %></span>
+  </nav>
+
+  <div class="card mb-6">
+    <div class="card-body">
+      <h1 class="text-xl font-semibold"><%= def.label %></h1>
+      <p class="text-muted text-sm mt-0.5"><%= def.description %></p>
+    </div>
+    <form method="get" action="/sms/reports/<%= type %>" class="card-body grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t" style="border-color: rgb(var(--color-border))">
+      <input type="hidden" name="run" value="1" />
+      <% if (type === 'attendance-rate' || type === 'collections') { %>
+        <div class="form-field">
+          <label class="label">From</label>
+          <input type="date" name="from" value="<%= query.from || '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label">To</label>
+          <input type="date" name="to" value="<%= query.to || '' %>" class="input" />
+        </div>
+      <% } %>
+      <% if (type === 'class-roster' || type === 'attendance-rate') { %>
+        <div class="form-field">
+          <label class="label">Class</label>
+          <select name="classId" class="select">
+            <% if (type === 'class-roster') { %><option value="">Choose a class</option><% } %>
+            <% classes.forEach(function(c) { %>
+              <option value="<%= c.ClassID %>" <%= String(query.classId) === String(c.ClassID) ? 'selected' : '' %>>
+                <%= c.ClassName %><% if (c.Grade) { %> (G<%= c.Grade %>)<% } %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+      <% } %>
+      <div class="flex items-end gap-2">
+        <button type="submit" class="btn-primary">Run</button>
+        <% if (report) { %>
+          <a href="/sms/reports/<%= type %>/export.csv?<%= Object.entries(query).filter(function(e){ return e[0] !== 'run' && e[1]; }).map(function(e){ return e[0] + '=' + encodeURIComponent(e[1]); }).join('&') %>" class="btn-secondary">Export CSV</a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+
+  <% if (runError) { %>
+    <div class="alert-danger mb-4">
+      <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14"/></svg>
+      <span class="text-sm"><%= runError %></span>
+    </div>
+  <% } %>
+
+  <% if (report) { %>
+    <% if (report.summary && Object.keys(report.summary).length > 0) { %>
+      <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+        <% Object.entries(report.summary).forEach(function(entry) { %>
+          <% var key = entry[0]; var val = entry[1]; %>
+          <% if (typeof val === 'object' && val !== null) { %>
+            <div class="kpi-card sm:col-span-2">
+              <p class="kpi-label"><%= key %></p>
+              <div class="text-xs text-muted mt-1 space-y-0.5">
+                <% Object.entries(val).forEach(function(sub) { %>
+                  <p><span class="font-medium"><%= sub[0] %>:</span> R <%= Number(sub[1]).toFixed(2) %></p>
+                <% }) %>
+              </div>
+            </div>
+          <% } else { %>
+            <div class="kpi-card">
+              <p class="kpi-label"><%= key %></p>
+              <p class="kpi-value text-base"><%= val %></p>
+            </div>
+          <% } %>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <% if (report.rows.length === 0) { %>
+      <div class="card"><div class="card-body empty-state"><p class="empty-state-desc">No data found for this report.</p></div></div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><% report.columns.forEach(function(c) { %><th><%= c %></th><% }) %></tr>
+          </thead>
+          <tbody>
+            <% report.rows.forEach(function(row, i) { %>
+              <tr>
+                <% report.columns.forEach(function(c) { %>
+                  <td class="<%= /Amount|Outstanding|Paid|Rate/.test(c) ? 'text-money' : '' %>"><%= row[c] %></td>
+                <% }) %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  <% } else if (!runError) { %>
+    <div class="card"><div class="card-body empty-state"><p class="empty-state-desc">Set your filters above and click Run.</p></div></div>
+  <% } %>
+</div>

@@ -1,0 +1,57 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Refunds</h1>
+      <p class="text-muted text-sm">A refund is deducted from the family's available balance. It cannot exceed what the family has paid in.</p>
+    </div>
+    <a href="/sms/refunds/new" class="btn-primary">New refund</a>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Family / Student</th>
+              <th>Amount</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!(list || []).length) { %>
+              <tr><td colspan="6" class="text-center text-muted py-6">No refunds recorded.</td></tr>
+            <% } else { %>
+              <% list.forEach(function (r) { %>
+                <tr>
+                  <td><%= r.RefundID || r.refundId %></td>
+                  <td><%= r.FamilyName || r.StudentName || '-' %></td>
+                  <td><%= formatMoney(r.Amount, r.CurrencyCode) %></td>
+                  <td><%= r.Reason || '-' %></td>
+                  <td><span class="badge"><%= r.Status || 'Pending' %></span></td>
+                  <td class="text-right">
+                    <% if (r.Status === 'Pending') { %>
+                      <button class="btn-primary btn-sm"
+                              hx-post="/sms/refunds/<%= r.RefundID %>/approve">Approve</button>
+                    <% } else if (r.Status === 'Approved') { %>
+                      <button class="btn-primary btn-sm"
+                              hx-post="/sms/refunds/<%= r.RefundID %>/complete">Mark complete</button>
+                    <% } else { %>
+                      <span class="text-muted text-xs">—</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

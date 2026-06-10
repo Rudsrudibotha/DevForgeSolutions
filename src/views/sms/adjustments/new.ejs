@@ -1,0 +1,62 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/adjustments" class="text-muted hover:underline">Adjustments</a>
+    <span class="text-muted mx-1">/</span>
+    <span>New</span>
+  </nav>
+
+  <div class="card">
+    <div class="card-header">
+      <h1 class="text-xl font-semibold">New financial adjustment</h1>
+      <p class="text-muted text-sm mt-0.5">Adjustments are linked to a student. The header (family) and the line items (per student) are both recorded.</p>
+    </div>
+    <form method="post" action="/sms/adjustments"
+          hx-post="/sms/adjustments"
+          hx-target="this"
+          hx-swap="outerHTML"
+          class="card-body space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <% if (errors._form) { %>
+        <div class="alert alert-error"><%= errors._form %></div>
+      <% } %>
+
+      <div class="form-field">
+        <label class="label label-required" for="familyId">Family</label>
+        <select id="familyId" name="familyId" required class="select"
+                hx-get="/sms/adjustments/students/<%= selectedFamilyId || '' %>"
+                hx-trigger="change"
+                hx-target="#student-rows"
+                hx-swap="outerHTML">
+          <option value="">Select a family...</option>
+          <% families.forEach(function(f) { %>
+            <option value="<%= f.FamilyID %>" <%= String(selectedFamilyId) === String(f.FamilyID) ? 'selected' : '' %>>
+              <%= f.FamilyName %> &middot; <%= f.PrimaryParentName || '' %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div>
+        <h2 class="font-semibold mb-2">Per-student line items</h2>
+        <p class="text-sm text-muted mb-2">Set an amount (and type) for each student you want to adjust. Leave the amount empty to skip a student.</p>
+        <div id="student-rows">
+          <%- include('partials/student-rows', { students, form }) %>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label class="label" for="reason">Reason (applies to all line items)</label>
+        <textarea id="reason" name="reason" rows="2" class="textarea" placeholder="Why is this adjustment being made?"><%= form.reason || '' %></textarea>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <a href="/sms/adjustments" class="btn-ghost">Cancel</a>
+        <button type="submit" class="btn-primary">Create adjustment(s)</button>
+      </div>
+    </form>
+  </div>
+</div>

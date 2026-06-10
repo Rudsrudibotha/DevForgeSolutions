@@ -1,4 +1,6 @@
 // Application Layer - Billing category routes
+// SECURITY (C3): clamp ?schoolId to the caller's own school for non-admin
+// roles. School staff may never read another school's billing categories.
 
 const express = require('express');
 const BillingCategoryService = require('../business/billingCategoryService');
@@ -7,9 +9,21 @@ const { authenticateToken, requireSchoolPermission } = require('../middleware/au
 const router = express.Router();
 const billingCategoryService = new BillingCategoryService();
 
+function safeSchoolIdForRequest(req, requestedSchoolId) {
+  if (!req.user) return null;
+  if (req.user.Role === 'admin') return requestedSchoolId ? parseInt(requestedSchoolId, 10) : null;
+  if (requestedSchoolId && parseInt(requestedSchoolId, 10) !== Number(req.user.SchoolID)) {
+    return null;
+  }
+  return Number(req.user.SchoolID) || null;
+}
+
 router.get('/', authenticateToken, requireSchoolPermission('finance.billing_categories.manage', 'finance.invoices.view', 'finance.invoices.create'), async (req, res) => {
   try {
-    const schoolId = req.query.schoolId ? parseInt(req.query.schoolId, 10) : null;
+    const schoolId = safeSchoolIdForRequest(req, req.query.schoolId);
+    if (!schoolId && req.user.Role === 'school') {
+      return res.status(403).json({ error: 'school-mismatch' });
+    }
     const categories = await billingCategoryService.getCategories(req.user, { schoolId });
     res.json(categories);
   } catch (error) {

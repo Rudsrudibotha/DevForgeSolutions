@@ -18,20 +18,12 @@ class ParentService {
 
   async getMyInvoices(currentUser) {
     this.requireParent(currentUser);
-    const students = await this.parentRepository.getStudentsByParentUserId(currentUser.UserID);
-    const invoices = [];
-
-    for (const student of students) {
-      const studentInvoices = await this.invoiceRepository.getInvoicesByStudent(student.StudentID);
-      invoices.push(...studentInvoices);
-    }
-
-    return invoices.sort((a, b) => new Date(b.IssueDate) - new Date(a.IssueDate));
+    return await this.invoiceRepository.getInvoicesByParentUserId(currentUser.UserID);
   }
 
   async getMyBalance(currentUser) {
     this.requireParent(currentUser);
-    const invoices = await this.getMyInvoices(currentUser);
+    const invoices = await this.invoiceRepository.getInvoicesByParentUserId(currentUser.UserID);
 
     const totalOwed = invoices
       .filter((inv) => inv.Status !== 'Paid' && inv.Status !== 'Cancelled')

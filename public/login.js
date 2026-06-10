@@ -255,6 +255,15 @@ function configureLoginPage() {
   }
 }
 
+function disableLoginUi(message) {
+  elements.loginForm?.classList.add('hidden');
+  elements.azureSignIn?.classList.add('hidden');
+  elements.googleSignIn?.classList.add('hidden');
+  elements.microsoftSignIn?.classList.add('hidden');
+  elements.passwordSignIn?.classList.add('hidden');
+  showFormMessage(elements.loginMessage, message, 'info');
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   configureLoginPage();
   const notice = sessionStorage.getItem('loginNotice');
@@ -264,25 +273,48 @@ window.addEventListener('DOMContentLoaded', () => {
     showFormMessage(elements.loginMessage, notice, 'info');
   }
 
-  const token = localStorage.getItem('smsToken');
-  const user = readStoredUser();
-  const config = currentConfig();
+  const finishLoginBootstrap = () => {
+    const token = localStorage.getItem('smsToken');
+    const user = readStoredUser();
+    const config = currentConfig();
 
-  if (token && user) {
-    // Verify token is still valid before redirecting
-    fetch('/api/users/session', { headers: { Authorization: 'Bearer ' + token } })
-      .then(r => {
-        if (!r.ok) {
-          clearSession();
-          return;
-        }
+    if (window.isAuthDisabled?.()) {
+      disableLoginUi('Login is disabled for local testing. Redirecting to the test dashboard...');
 
-        if (canUseConfiguredDashboard(user, config)) {
-          window.location.href = config.redirect;
-        }
-      })
-      .catch(clearSession);
+      if (token && user && canUseConfiguredDashboard(user, config)) {
+        window.location.href = config.redirect;
+        return;
+      }
+
+      if (user) {
+        window.location.href = dashboardPath(user);
+      }
+
+      return;
+    }
+
+    if (token && user) {
+      fetch('/api/users/session', { headers: { Authorization: 'Bearer ' + token } })
+        .then((response) => {
+          if (!response.ok) {
+            clearSession();
+            return;
+          }
+
+          if (canUseConfiguredDashboard(user, config)) {
+            window.location.href = config.redirect;
+          }
+        })
+        .catch(clearSession);
+    }
+  };
+
+  if (window.__testAuthReady) {
+    window.__testAuthReady.then(finishLoginBootstrap).catch(finishLoginBootstrap);
+    return;
   }
+
+  finishLoginBootstrap();
 });
 
 elements.loginForm.addEventListener('submit', async (event) => {

@@ -1,0 +1,55 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Payslips</h1>
+      <p class="text-muted text-sm">Generate, edit, and finalize staff payslips.</p>
+    </div>
+    <a href="/sms/payslips/new" class="btn-primary">+ New payslip</a>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Employee</th>
+              <th>Pay period</th>
+              <th>Net pay</th>
+              <th>Status</th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!(list || []).length) { %>
+              <tr><td colspan="6" class="text-center text-muted py-6">No payslips yet.</td></tr>
+            <% } else { %>
+              <% list.forEach(function (p) { %>
+                <tr>
+                  <td><%= p.PayslipID %></td>
+                  <td><%= (p.FirstName || '') + ' ' + (p.LastName || '') %></td>
+                  <td><%= p.PayPeriod || '-' %></td>
+                  <td class="text-right"><%= formatMoney(p.NetPay) %></td>
+                  <td>
+                    <% if (p.Status === 'Finalized') { %>
+                      <span class="badge-emerald">Finalized</span>
+                    <% } else { %>
+                      <span class="badge-amber"><%= p.Status || 'Draft' %></span>
+                    <% } %>
+                  </td>
+                  <td class="text-right">
+                    <a class="btn-secondary btn-sm" href="/sms/payslips/<%= p.PayslipID %>">Open</a>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

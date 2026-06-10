@@ -187,6 +187,7 @@ class TransactionRepository {
       .input('allocationType', sql.NVarChar, transactionData.allocationType || null)
       .input('allocatedBy', sql.Int, transactionData.allocatedBy || null)
       .input('bankTransactionKey', sql.NVarChar, transactionData.bankTransactionKey || null)
+      .input('bankTransactionId', sql.BigInt, transactionData.bankTransactionId || null)
       .input('familyId', sql.Int, transactionData.familyId || null)
       .input('studentId', sql.Int, transactionData.studentId || null)
       .query(`IF @invoiceId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Invoices WHERE InvoiceID = @invoiceId AND SchoolID = @schoolId)
@@ -201,7 +202,7 @@ class TransactionRepository {
                 SchoolID, InvoiceID, BankStatementID, ReceiptNumber, PaymentMethod,
                 PayeeType, PayeeName, PayeePhone, PayeeEmail, Reference, Description,
                 TransactionType, Amount, TransactionDate, AllocationStatus, AllocationType, AllocatedBy, AllocatedDate,
-                BankTransactionKey, FamilyID, StudentID
+                BankTransactionKey, BankTransactionId, FamilyID, StudentID
               )
               OUTPUT INSERTED.*
               VALUES (
@@ -209,7 +210,7 @@ class TransactionRepository {
                 @payeeType, @payeeName, @payeePhone, @payeeEmail, @reference, @description,
                 @transactionType, @amount, @transactionDate, @allocationStatus, @allocationType, @allocatedBy,
                 CASE WHEN @allocatedBy IS NULL THEN NULL ELSE GETDATE() END,
-                @bankTransactionKey, @familyId, @studentId
+                @bankTransactionKey, @bankTransactionId, @familyId, @studentId
               )`);
     return result.recordset[0];
   }
@@ -221,6 +222,19 @@ class TransactionRepository {
       .input('key', sql.NVarChar, bankTransactionKey)
       .query('SELECT 1 FROM Transactions WHERE SchoolID = @schoolId AND BankTransactionKey = @key');
     return result.recordset.length > 0;
+  }
+
+  async findByBankTransactionId(schoolId, bankTransactionId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('schoolId', sql.Int, schoolId)
+      .input('bankTransactionId', sql.BigInt, bankTransactionId)
+      .query(`
+        SELECT TOP 1 *
+        FROM Transactions
+        WHERE SchoolID = @schoolId AND BankTransactionId = @bankTransactionId
+      `);
+    return result.recordset[0] || null;
   }
 
   async getTransactionById(transactionId) {

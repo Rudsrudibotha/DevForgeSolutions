@@ -1,0 +1,11 @@
+<footer class="border-t mt-auto" style="border-color: rgb(var(--color-border))">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 text-xs text-muted flex flex-col sm:flex-row gap-2 items-center justify-between">
+    <p>&copy; <%= new Date().getFullYear() %> Kinder Care Hub. All rights reserved.</p>
+    <p class="flex items-center gap-3">
+      <a href="/privacy" class="hover:underline">Privacy</a>
+      <a href="/terms" class="hover:underline">Terms</a>
+      <a href="/status" class="hover:underline">Status</a>
+      <a href="#" class="hover:underline" onclick="event.preventDefault(); window.dispatchEvent(new Event('kch:open-palette'));">Press <kbd class="kbd">?</kbd> for shortcuts</a>
+    </p>
+  </div>
+</footer>

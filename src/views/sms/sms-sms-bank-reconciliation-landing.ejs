@@ -1,0 +1,30 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="mb-4">
+    <h1 class="text-2xl font-semibold">Reconciliation</h1>
+    <p class="text-muted text-sm">Pick a bank account to view its monthly statements.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="get" action="/sms/bank-reconciliation" class="flex flex-col sm:flex-row sm:items-end gap-3">
+        <div class="flex-1">
+          <label class="label" for="bankAccountId">Bank account</label>
+          <select id="bankAccountId" name="bankAccountId" class="input" required>
+            <option value="">Select an account</option>
+            <% (bankAccounts || []).forEach(function (acc) { %>
+              <option value="<%= acc.BankAccountID %>" <%= String(acc.BankAccountID) === String(selectedBankAccountId) ? 'selected' : '' %>>
+                <%= acc.AccountName || acc.AccountNumber %> (<%= acc.AccountNumber %>)
+              </option>
+            <% }); %>
+          </select>
+        </div>
+        <div>
+          <button class="btn-primary" type="submit">Continue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

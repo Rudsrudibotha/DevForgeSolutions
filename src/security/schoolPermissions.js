@@ -45,6 +45,16 @@ const PERMISSION_ALIASES = {
     'payroll.finalize',
     'payroll.view_previous',
     'sensitive.payroll.view'
+  ],
+  'school.messaging.send': [
+    'school.messaging.view',
+    'school.consent.manage',
+    'school.parents.manage'
+  ],
+  'school.messaging.view': [
+    'school.messaging.send',
+    'school.consent.view',
+    'school.parents.view'
   ]
 };
 

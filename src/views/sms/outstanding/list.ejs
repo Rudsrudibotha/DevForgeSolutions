@@ -1,0 +1,110 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm flex items-center justify-between">
+    <div>
+      <a href="/sms" class="text-muted hover:underline">School</a>
+      <span class="text-muted mx-1">/</span>
+      <span>Outstanding fees</span>
+    </div>
+    <a href="/sms/outstanding/export.csv" class="btn-secondary btn-sm">Export CSV</a>
+  </nav>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h1 class="text-xl font-semibold">Outstanding fees</h1>
+      <p class="text-muted text-sm mt-0.5">
+        Excel-style pivot. Each row is a student, grouped by family. Columns: per-year per-month outstanding, per-year total, and grand total.
+        Previous years are listed first.
+      </p>
+    </div>
+  </div>
+
+  <% if (!pivot.years || pivot.years.length === 0) { %>
+    <div class="card">
+      <div class="card-body empty-state">
+        <p class="empty-state-desc">No outstanding fees. All families are settled.</p>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="card overflow-x-auto">
+      <table class="table table-sticky" style="min-width: 1200px;">
+        <thead>
+          <tr>
+            <th rowspan="2" class="text-left">Family</th>
+            <th rowspan="2" class="text-left">Parent</th>
+            <th rowspan="2" class="text-left">Parent contact</th>
+            <th rowspan="2" class="text-left">Student</th>
+            <th rowspan="2" class="text-left">Class</th>
+            <% pivot.years.forEach(function(y) { %>
+              <th colspan="13" class="text-center bg-gray-50 dark:bg-gray-800"><%= y %></th>
+            <% }) %>
+            <th rowspan="2" class="text-right bg-gray-100 dark:bg-gray-700">Grand total</th>
+          </tr>
+          <tr>
+            <% pivot.years.forEach(function(y) { %>
+              <% pivot.months.forEach(function(m) { %>
+                <th class="text-right text-xs"><%= m %></th>
+              <% }) %>
+              <th class="text-right text-xs bg-gray-100 dark:bg-gray-700"><%= y %> total</th>
+            <% }) %>
+          </tr>
+        </thead>
+        <tbody>
+          <% pivot.families.forEach(function(f) { %>
+            <% f.students.forEach(function(s, idx) { %>
+              <tr>
+                <% if (idx === 0) { %>
+                  <td rowspan="<%= f.students.length %>" class="font-medium align-top"><%= f.familyName %></td>
+                  <td rowspan="<%= f.students.length %>" class="align-top"><%= f.primaryParentName || '' %></td>
+                  <td rowspan="<%= f.students.length %>" class="align-top text-xs">
+                    <% if (f.primaryParentPhone) { %>📞 <%= f.primaryParentPhone %><br /><% } %>
+                    <% if (f.primaryParentEmail) { %>✉ <%= f.primaryParentEmail %><% } %>
+                  </td>
+                <% } %>
+                <td>
+                  <a href="/sms/students/<%= s.studentId %>" class="hover:underline">
+                    <%= s.firstName %> <%= s.lastName %>
+                  </a>
+                </td>
+                <td class="text-xs">
+                  <%= s.className %><% if (s.grade) { %> (G<%= s.grade %>)<% } %>
+                </td>
+                <% pivot.years.forEach(function(y) { %>
+                  <% for (let i = 0; i < 12; i++) { %>
+                    <td class="text-right text-xs <%= s.cells[y][i] ? 'text-red-600 dark:text-red-400 font-medium' : 'text-muted' %>">
+                      <%= s.cells[y][i] != null ? s.cells[y][i].toFixed(2) : '' %>
+                    </td>
+                  <% } %>
+                  <td class="text-right text-xs font-semibold bg-gray-50 dark:bg-gray-800">
+                    <%= s.yearTotals[y] ? s.yearTotals[y].toFixed(2) : '' %>
+                  </td>
+                <% }) %>
+                <td class="text-right font-semibold bg-gray-100 dark:bg-gray-700">
+                  <%= s.grandTotal ? s.grandTotal.toFixed(2) : '' %>
+                </td>
+              </tr>
+            <% }) %>
+          <% }) %>
+        </tbody>
+        <tfoot>
+          <tr class="font-semibold">
+            <td colspan="5" class="text-right">Totals</td>
+            <% pivot.years.forEach(function(y) { %>
+              <% for (let i = 0; i < 12; i++) { %>
+                <td class="text-right text-xs"></td>
+              <% } %>
+              <td class="text-right text-xs bg-gray-50 dark:bg-gray-800">
+                <%= pivot.grandYearTotals[y] ? pivot.grandYearTotals[y].toFixed(2) : '' %>
+              </td>
+            <% }) %>
+            <td class="text-right bg-gray-100 dark:bg-gray-700">
+              <%= pivot.grandTotal ? pivot.grandTotal.toFixed(2) : '' %>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  <% } %>
+</div>

@@ -201,12 +201,19 @@ class InvoiceService {
         continue;
       }
 
+      // Auto-invoicing: a student is billable from the month they enrolled
+      // (not after it). Students who have left are filtered out by
+      // getStudentsBySchool(..., 'active') above so we don't bill them.
       const enrolledDate = student.EnrolledDate ? new Date(student.EnrolledDate) : null;
       const currentMonthEnd = new Date(currentYear, currentMonth + 1, 0);
-
-      if (!enrolledDate || enrolledDate > currentMonthEnd) {
+      if (!enrolledDate) {
+        // No enrolment date is recorded: skip to be safe.
         continue;
       }
+      // If the enrolment month is in the future relative to the invoice
+      // month being generated, skip the student.
+      if (enrolledDate.getFullYear() > currentYear) continue;
+      if (enrolledDate.getFullYear() === currentYear && (enrolledDate.getMonth()) > currentMonth) continue;
 
       let remainingMonthlyDiscount = this.monthlyDiscountForStudent(student, currentYear, currentMonth + 1);
 
@@ -277,7 +284,14 @@ class InvoiceService {
     if (Number.isInteger(billingYear) && billingYear !== monthStart.getFullYear()) {
       return false;
     }
-
+    // Per-category ApplicableMonths (CSV of 1-12). Empty = all months.
+    const raw = String(category.ApplicableMonths || '').trim();
+    if (raw) {
+      const allowed = raw.split(',').map(s => Number(String(s).trim())).filter(n => Number.isInteger(n) && n >= 1 && n <= 12);
+      if (allowed.length && !allowed.includes(monthStart.getMonth() + 1)) {
+        return false;
+      }
+    }
     return monthStart.getMonth() + 1 <= this.billingCategoryService.termEndMonth(category.Frequency || '12 months');
   }
 

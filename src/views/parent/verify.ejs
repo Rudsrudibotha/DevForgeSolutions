@@ -1,0 +1,140 @@
+<% layout = 'layouts/app' %>
+<% hideChrome = true %>
+
+<div class="min-h-screen flex items-center justify-center p-4 bg-mesh">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-6">
+      <img src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub" class="h-12 w-12 mx-auto rounded-lg mb-3" />
+      <h1 class="text-2xl font-semibold">Parent sign in</h1>
+      <p class="text-muted text-sm mt-1">Verify your email and cellphone to access your family dashboard.</p>
+    </div>
+
+    <div class="card p-6">
+      <div id="status" class="hidden mb-4"></div>
+
+      <!-- Step 1: email + cellphone -->
+      <form id="startForm" class="space-y-3">
+        <div class="form-field">
+          <label class="label">Email</label>
+          <input type="email" name="email" required class="input" autocomplete="email" />
+        </div>
+        <div class="form-field">
+          <label class="label">Cellphone</label>
+          <input type="tel" name="cellphone" required class="input" placeholder="+27 ..." autocomplete="tel" />
+        </div>
+        <button type="submit" class="btn-primary w-full">Send verification link</button>
+      </form>
+
+      <!-- Step 2: SMS code (after email link clicked) -->
+      <form id="smsForm" class="space-y-3 hidden">
+        <p class="text-sm">A 6-digit code was sent to your cellphone.</p>
+        <div class="form-field">
+          <label class="label">SMS code</label>
+          <input type="text" name="smsCode" required class="input" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" />
+        </div>
+        <button type="submit" class="btn-primary w-full">Verify and sign in</button>
+      </form>
+
+      <p class="text-center text-xs text-muted mt-4">
+        Already have an account?
+        <a href="/parent-login" class="text-brand-600 hover:underline">Sign in</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+  const status = document.getElementById('status');
+  const startForm = document.getElementById('startForm');
+  const smsForm = document.getElementById('smsForm');
+  let emailToken = null;
+  let emailAddress = null;
+
+  function showStatus(kind, message) {
+    status.className = 'mb-4 alert-' + kind;
+    status.textContent = message;
+    status.classList.remove('hidden');
+  }
+
+  startForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    showStatus('info', 'Sending verification link...');
+    const data = Object.fromEntries(new FormData(startForm).entries());
+    try {
+      const r = await fetch('/api/parent-verification/start', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify(data)
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        showStatus('danger', body.error || 'Could not start verification');
+        return;
+      }
+      showStatus('success', 'Verification link sent to your email. After clicking, you will receive a 6-digit code on your cellphone.');
+      if (body.devSmsCode) {
+        showStatus('success', 'DEV MODE: SMS code is ' + body.devSmsCode);
+      }
+      // After sending, the page will be reloaded by the email link click.
+      // For dev, accept ?token= to pre-fill sms code.
+    } catch (err) {
+      showStatus('danger', err.message);
+    }
+  });
+
+  // If we land here with ?token=&email= (after the email link was clicked)
+  const url = new URL(window.location.href);
+  const tk = url.searchParams.get('token');
+  const em = url.searchParams.get('email');
+  if (tk && em) {
+    emailToken = tk;
+    emailAddress = em;
+    startForm.classList.add('hidden');
+    smsForm.classList.remove('hidden');
+    showStatus('info', 'Confirming email and requesting SMS code...');
+    fetch('/api/parent-verification/complete-email', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      body: JSON.stringify({ token: tk, email: em })
+    })
+      .then(r => r.json())
+      .then(body => {
+        if (body.error) {
+          showStatus('danger', body.error);
+        } else {
+          showStatus('success', 'Email confirmed. SMS code sent to ' + body.cellphone + (body.devSmsCode ? ' (dev: ' + body.devSmsCode + ')' : '') + '.');
+        }
+      })
+      .catch(err => showStatus('danger', err.message));
+  }
+
+  smsForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!emailToken) return;
+    showStatus('info', 'Verifying...');
+    const data = Object.fromEntries(new FormData(smsForm).entries());
+    try {
+      const r = await fetch('/api/parent-verification/complete-sms', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify({ token: emailToken, email: emailAddress, smsCode: data.smsCode })
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        showStatus('danger', body.error || 'Verification failed');
+        return;
+      }
+      showStatus('success', 'Account verified. Sending magic link to your email...');
+      // The server has emailed a magic link. Redirect to a "check your email" page.
+      setTimeout(() => { window.location.href = '/parent/verify/check-email?email=' + encodeURIComponent(emailAddress); }, 1500);
+    } catch (err) {
+      showStatus('danger', err.message);
+    }
+  });
+})();
+</script>

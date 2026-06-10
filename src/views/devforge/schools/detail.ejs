@@ -1,0 +1,127 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'devforge' %>
+
+<div class="container-page" x-data="{ showSuspend: false }">
+  <nav class="mb-4 text-sm">
+    <a href="/devforge/schools" class="text-muted hover:underline">Schools</a>
+    <span class="text-muted mx-1">/</span>
+    <span><%= school.SchoolName %></span>
+  </nav>
+
+  <div class="card mb-6">
+    <div class="card-body flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-semibold"><%= school.SchoolName %></h1>
+        <p class="text-muted text-sm mt-1">School #<%= school.SchoolID %> &middot; Created <%= new Date(school.CreatedDate).toLocaleDateString('en-ZA') %></p>
+      </div>
+      <div>
+        <% if (school.SubscriptionStatus === 'Active') { %><span class="badge-success">Active</span>
+        <% } else if (school.SubscriptionStatus === 'Suspended') { %><span class="badge-warning">Suspended</span>
+        <% } else { %><span class="badge-neutral"><%= school.SubscriptionStatus %></span><% } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+    <div class="kpi-card">
+      <p class="kpi-label">Plan</p>
+      <p class="kpi-value text-base"><%= school.SubscriptionPlan %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Active users</p>
+      <p class="kpi-value"><%= school.ActiveUserCount || 0 %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Active students</p>
+      <p class="kpi-value"><%= school.ActiveStudentCount || 0 %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Outstanding</p>
+      <p class="kpi-value text-money">R <%= Number(school.Outstanding || 0).toFixed(2) %></p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+    <div class="card">
+      <div class="card-header"><h2 class="font-semibold">Contact</h2></div>
+      <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        <div>
+          <p class="kpi-label">Contact person</p>
+          <p class="font-medium"><%= school.ContactPerson || '—' %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Email</p>
+          <p class="font-medium"><%= school.ContactEmail || '—' %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Phone</p>
+          <p class="font-medium"><%= school.ContactPhone || '—' %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Website</p>
+          <p class="font-medium"><%= school.Website || '—' %></p>
+        </div>
+        <div class="sm:col-span-2">
+          <p class="kpi-label">Address</p>
+          <p class="font-medium whitespace-pre-line"><%= school.Address || '—' %></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2 class="font-semibold">Billing</h2></div>
+      <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        <div>
+          <p class="kpi-label">Default monthly fee</p>
+          <p class="font-medium text-money">R <%= Number(school.DefaultMonthlyFee || 0).toFixed(2) %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Currency</p>
+          <p class="font-medium"><%= school.CurrencyCode %> (<%= school.CurrencySymbol %>)</p>
+        </div>
+        <div class="sm:col-span-2">
+          <p class="kpi-label">Families</p>
+          <p class="font-medium"><%= school.FamilyCount || 0 %></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="font-semibold">Subscription actions</h2>
+      <p class="text-xs text-muted mt-0.5">Status changes are recorded in the audit log with the reason you provide.</p>
+    </div>
+    <div class="card-body space-y-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <% if (school.SubscriptionStatus !== 'Active') { %>
+          <button class="btn-primary btn-sm" hx-post="/devforge/schools/<%= school.SchoolID %>/status" hx-vals='{"status":"Active","reason":"Reactivation by admin"}'>
+            Activate
+          </button>
+        <% } %>
+        <% if (school.SubscriptionStatus !== 'Suspended') { %>
+          <button class="btn-warning btn-sm" @click="showSuspend = !showSuspend" style="background-color: rgb(var(--color-warning)); color: white">Suspend</button>
+        <% } %>
+        <% if (school.SubscriptionStatus !== 'Cancelled') { %>
+          <button class="btn-danger btn-sm" hx-post="/devforge/schools/<%= school.SchoolID %>/status" hx-vals='{"status":"Cancelled","reason":"Cancellation by admin"}'>
+            Cancel
+          </button>
+        <% } %>
+      </div>
+      <form x-show="showSuspend" x-cloak method="post" action="/devforge/schools/<%= school.SchoolID %>/status"
+            hx-post="/devforge/schools/<%= school.SchoolID %>/status"
+            hx-target="this" hx-swap="outerHTML"
+            class="border-t pt-3 space-y-2" style="border-color: rgb(var(--color-border))">
+        <div class="form-field">
+          <label class="label" for="reason">Reason for suspension (required, 4+ chars)</label>
+          <input id="reason" name="reason" type="text" required minlength="4" class="input" placeholder="e.g. Non-payment of subscription" />
+        </div>
+        <input type="hidden" name="status" value="Suspended" />
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn-ghost btn-sm" @click="showSuspend = false">Cancel</button>
+          <button type="submit" class="btn-warning btn-sm">Suspend school</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

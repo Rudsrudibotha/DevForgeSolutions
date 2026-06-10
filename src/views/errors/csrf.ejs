@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Session expired</title>
+  <link rel="stylesheet" href="/styles/app.css" />
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="card max-w-md w-full p-8 text-center">
+    <h1 class="text-xl font-semibold">Session expired</h1>
+    <p class="text-muted mt-2 text-sm"><%= typeof message !== 'undefined' && message ? message : 'Please refresh the page and try again.' %></p>
+    <a href="/login" class="btn-primary btn-sm mt-6 inline-flex">Sign in again</a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Leave management</h1>
+      <p class="text-muted text-sm">Approve staff leave and view leave balances.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="kpi-card">
+      <p class="kpi-label">Pending requests</p>
+      <p class="kpi-value text-amber-600"><%= (pending || []).length %></p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Approved this year</p>
+      <p class="kpi-value text-emerald-600">
+        <%= (recent || []).filter(function(r){ return r.Status === 'Approved'; }).length %>
+      </p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Leave types</p>
+      <p class="kpi-value"><%= (types || []).length %></p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h2 class="text-lg font-semibold mb-3">Pending approval</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Type</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Days</th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!(pending || []).length) { %>
+              <tr><td colspan="6" class="text-center text-muted py-6">No pending leave.</td></tr>
+            <% } else { %>
+              <% pending.forEach(function (lv) { %>
+                <tr>
+                  <td><%= (lv.FirstName || '') + ' ' + (lv.LastName || '') %></td>
+                  <td><%= lv.LeaveType || '-' %></td>
+                  <td><%= lv.StartDate ? new Date(lv.StartDate).toLocaleDateString('en-ZA') : '' %></td>
+                  <td><%= lv.EndDate ? new Date(lv.EndDate).toLocaleDateString('en-ZA') : '' %></td>
+                  <td><%= lv.Days || 0 %></td>
+                  <td class="text-right">
+                    <button class="btn-primary btn-sm" hx-post="/sms/leave/<%= lv.LeaveRequestID %>/review" hx-vals='{"status":"Approved"}'>Approve</button>
+                    <button class="btn-secondary btn-sm" hx-post="/sms/leave/<%= lv.LeaveRequestID %>/review" hx-vals='{"status":"Declined"}'>Decline</button>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h2 class="text-lg font-semibold mb-3">Recent leave</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Type</th>
+              <th>Period</th>
+              <th>Days</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!(recent || []).length) { %>
+              <tr><td colspan="5" class="text-center text-muted py-6">No leave recorded.</td></tr>
+            <% } else { %>
+              <% recent.forEach(function (lv) { %>
+                <tr>
+                  <td><%= (lv.FirstName || '') + ' ' + (lv.LastName || '') %></td>
+                  <td><%= lv.LeaveType || '-' %></td>
+                  <td>
+                    <%= lv.StartDate ? new Date(lv.StartDate).toLocaleDateString('en-ZA') : '' %>
+                    -
+                    <%= lv.EndDate ? new Date(lv.EndDate).toLocaleDateString('en-ZA') : '' %>
+                  </td>
+                  <td><%= lv.Days || 0 %></td>
+                  <td><span class="badge <%= lv.Status === 'Approved' ? 'badge-emerald' : (lv.Status === 'Declined' ? 'badge-rose' : 'badge-amber') %>"><%= lv.Status || 'Pending' %></span></td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

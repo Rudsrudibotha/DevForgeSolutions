@@ -5,8 +5,16 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
+const compression = require('compression');
 const path = require('path');
+const ejsLayouts = require('express-ejs-layouts');
 require('dotenv').config();
+
+// Start Application Insights as early as possible so the SDK can hook
+// require() patches and capture startup-time exceptions.
+const { setupAppInsights } = require('./observability/appInsights');
+setupAppInsights();
 
 // Core data and route modules used by the API.
 const { connectDB, getDbState } = require('./data/db');
@@ -36,7 +44,19 @@ const permissionLeaveYearEndRoutes = require('./application/permissionLeaveYearE
 const registrationRoutes = require('./application/registrationRoutes');
 const faultRoutes = require('./application/faultRoutes');
 const emailRoutes = require('./application/emailRoutes');
-const messagingRoutes = require('./application/messagingRoutes');
+// Route file naming convention (Task: file naming clarity):
+//   - devforge-* : DevForge Admin Dashboard only
+//   - sms-*      : School Management Dashboard only
+//   - parent-*   : Parent Management Dashboard only
+//   - all-dashboards-* : shared across all 3 dashboards
+// The original (un-prefixed) filenames remain for backwards compatibility.
+const messagingRoutes = require('./application/sms-messaging-routes');
+const aiRoutes = require('./application/devforge-sms-ai-routes');
+const bankReconciliationRoutes = require('./application/sms-bank-reconciliation-routes');
+const kinderCareHubRoutes = require('./application/all-dashboards-kch-messaging-routes');
+const devforgeSubscriptionRoutes = require('./application/devforge-devforge-subscription-routes');
+const pdfRoutes = require('./application/pdfRoutes');
+const parentVerificationRoutes = require('./application/parentVerificationRoutes');
 const InvoiceService = require('./business/invoiceService');
 
 // Express application instance shared by the server and local tests.
@@ -47,6 +67,8 @@ app.disable('x-powered-by');
 app.set('trust proxy', Number(process.env.TRUST_PROXY || 0));
 
 // Security headers: CSP blocks unknown scripts/frames, Helmet adds safe defaults.
+// Inline theme-init script is allowed via a per-request nonce; style-src stays
+// strict because Tailwind is built ahead of time and shipped as a single file.
 app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
@@ -110,9 +132,75 @@ app.use('/api/', apiLimiter);
 app.use('/api/users/login', authLimiter);
 app.use('/api/users/register', authLimiter);
 
-// JSON body parsing for API calls and static file serving for the browser app.
-app.use(express.json({ limit: '3mb' }));
-app.use(express.static(path.join(__dirname, '..', 'public'), { index: false }));
+// SECURITY (M8): keep the global JSON body limit low. Most endpoints send
+// < 64 KB; the OFX upload is handled by multer with its own limit. This
+// caps the resource-exhaustion surface from runaway clients.
+app.use(express.json({ limit: '256kb' }));
+app.use(express.urlencoded({ extended: false, limit: '256kb' }));
+app.use(cookieParser());
+app.use(compression());
+
+// Cache headers for /assets, /styles, /vendor, /app.js, etc. Public,
+// fingerprinted-feeling static assets get a 1-hour cache + 24h SWR.
+// express.static already sets ETag + Last-Modified by default.
+const STATIC_ASSET_PREFIX = /^\/(assets|styles|vendor|app\.js|app-init\.js|palette\.js|palette-registry\.js|shortcuts\.js|favicon\.ico|robots\.txt)\b/;
+function staticCacheControl(maxAgeSeconds, staleWhileRevalidateSeconds) {
+  return function (req, res, next) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    if (!STATIC_ASSET_PREFIX.test(req.path)) return next();
+    res.setHeader('Cache-Control', 'public, max-age=' + maxAgeSeconds + ', stale-while-revalidate=' + staleWhileRevalidateSeconds);
+    next();
+  };
+}
+app.use(staticCacheControl(3600, 86400));
+app.use(express.static(path.join(__dirname, '..', 'public'), { index: false, etag: true, lastModified: true }));
+
+// Authenticated SSR pages and API responses must never be cached by
+// intermediaries. Browsers will revalidate via the ETag we set on render.
+app.use(function noStoreForDynamic(req, res, next) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  // Only mark responses Cache-Control: no-store when nothing else has set it.
+  if (!res.getHeader && res.getHeader('Cache-Control')) return next();
+  // API + portal pages are always no-store; static + marketing pages are not.
+  if (req.path.startsWith('/api/') || req.path.startsWith('/sms') || req.path.startsWith('/parent') || req.path.startsWith('/devforge') || req.path.startsWith('/auth/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+  }
+  next();
+});
+
+// ============================================================
+// Server-rendered portal layer (new UI)
+// ============================================================
+const { setupViewEngine, registerLocals } = require('./application/portal/render');
+const portalRoutes = require('./application/portal');
+
+setupViewEngine(app);
+app.use(ejsLayouts);
+app.set('layout', 'layouts/app');
+app.set('layout extractScripts', true);
+app.set('layout extractStyles', true);
+app.use(registerLocals);
+app.use(require('./middleware/portalLocals').portalLocals);
+app.use('/', portalRoutes);
+
+const { buildTestAuthResponse, isAuthDisabled } = require('./security/testAuth');
+
+app.get('/api/config', (req, res) => {
+  const payload = { authDisabled: isAuthDisabled() };
+
+  if (payload.authDisabled) {
+    try {
+      payload.testSession = buildTestAuthResponse();
+      payload.message = 'Login is disabled for local testing. A test session is provided automatically.';
+    } catch (error) {
+      payload.authDisabled = false;
+      payload.error = error.message;
+    }
+  }
+
+  res.json(payload);
+});
 
 // API route map. Each module owns the business endpoints for that feature area.
 app.use('/api/users', userRoutes);
@@ -142,55 +230,123 @@ app.use('/api/registrations', registrationRoutes);
 app.use('/api/faults', faultRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/messaging', messagingRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/bank-reconciliation', bankReconciliationRoutes);
+app.use('/api/messages', kinderCareHubRoutes);
+app.use('/api/devforge-subscriptions', devforgeSubscriptionRoutes);
+app.use('/api/pdf', pdfRoutes);
+app.use('/api/parent-verification', parentVerificationRoutes);
 
-// Health endpoint used by Azure/GitHub deployment checks.
-app.get('/health', (req, res) => {
+// Health endpoints used by Azure / GitHub deployment checks.
+//   /health        - liveness:  always 200 while the process is running
+//   /health/ready  - readiness: 200 when the database is reachable, 503 otherwise
+// Both are unauthenticated and never expose sensitive data (lastError only in dev).
+const startedAt = new Date();
+
+// SECURITY (M14): strip Authorization, Cookie, and OAuth ?code= from any
+// URL that may be logged. Also strip them from header dumps.
+function sanitizeUrlForLog(rawUrl) {
+  if (!rawUrl) return '';
+  try {
+    const u = new URL(rawUrl, 'http://placeholder.local');
+    const dropParams = ['code', 'access_token', 'id_token', 'token', 'jwt', 'authorization', 'state'];
+    for (const p of dropParams) {
+      if (u.searchParams.has(p)) u.searchParams.set(p, '***');
+    }
+    return u.pathname + (u.search ? '?' + u.searchParams.toString() : '');
+  } catch (_) {
+    return String(rawUrl).replace(/([?&])(code|access_token|id_token|token|jwt|authorization|state)=[^&]*/g, '$1$2=***');
+  }
+}
+function sanitizeHeadersForLog(headers) {
+  if (!headers) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(headers)) {
+    const lk = String(k).toLowerCase();
+    if (lk === 'authorization' || lk === 'cookie') out[k] = '***';
+    else out[k] = v;
+  }
+  return out;
+}
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+function healthPayload() {
   const database = getDbState();
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  res.json({
+  return {
     status: 'OK',
-    message: 'School Finance and Management System is running',
+    service: 'kinder-care-hub',
+    version: (() => { try { return require('../package.json').version; } catch (_) { return 'unknown'; } })(),
+    node: process.version,
+    env: process.env.NODE_ENV || 'development',
+    uptimeSeconds: Math.round(process.uptime()),
+    startedAt: startedAt.toISOString(),
     database: {
       connected: database.connected,
       lastError: isProduction ? null : database.lastError
     }
-  });
-});
-
-// Public marketing/login/register pages.
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'home.html'));
-});
-
-app.get('/website', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'home.html'));
-});
-
-function sendInternalManagementPage(res, fileName) {
-  res.set('Cache-Control', 'no-store');
-  res.set('X-Robots-Tag', 'noindex, nofollow');
-  res.sendFile(path.join(__dirname, '..', 'public', fileName));
+  };
 }
 
-app.get('/devforge-login', (req, res) => {
-  sendInternalManagementPage(res, 'login.html');
+app.get('/health', (req, res) => {
+  res.json(healthPayload());
 });
 
-app.get('/school-login', (req, res) => {
+app.get('/health/ready', (req, res) => {
+  const database = getDbState();
+  if (database.connected) {
+    return res.json(Object.assign(healthPayload(), { ready: true }));
+  }
+  // 503 lets Azure mark the instance unhealthy and stop routing traffic
+  // to it while the DB is unreachable. Once the DB comes back, the
+  // startDatabaseConnectionLoop's success path resets dbState.connected.
+  return res.status(503).json(Object.assign(healthPayload(), { ready: false, reason: 'database-unreachable' }));
+});
+
+// Public marketing/login/register pages. These serve the new EJS views;
+// the new portal routes (mounted above) already handle /sms, /devforge, /parent.
+app.get('/', (req, res) => res.render('home', { title: 'Kinder Care Hub' }));
+app.get('/website', (req, res) => res.render('home', { title: 'Kinder Care Hub' }));
+
+// Each dashboard has its own independent login page so users cannot accidentally
+// sign into the wrong shell. The same public/login.html is reused with a
+// per-URL configuration (devforge-login / school-login / parent-login) and
+// the in-page JS rejects wrong-role credentials and bounces to the correct
+// dashboard. The /login unified entry still exists for marketing flows.
+function serveDashboardLogin(req, res) {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
-});
+}
+app.get('/devforge-login', serveDashboardLogin);
+app.get('/school-login',   serveDashboardLogin);
+app.get('/parent-login',   serveDashboardLogin);
 
-app.get('/parent-login', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
-});
-
+// Public registration pages (school and parent) so the new tenants on
+// SaaS can self-serve. Each registration form posts to the existing
+// /api/users/register endpoint with the matching role.
 app.get('/school-register', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.sendFile(path.join(__dirname, '..', 'public', 'register.html'));
+});
+app.get('/parent-register', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.sendFile(path.join(__dirname, '..', 'public', 'register.html'));
+});
+app.get('/devforge-register', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.sendFile(path.join(__dirname, '..', 'public', 'register.html'));
 });
 
-app.get('/parent-register', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'register.html'));
+// Parent verification pages - public (no auth required) so first-time
+// parents can confirm their email + cellphone before being granted any
+// access to the parent portal.
+app.get('/parent-verify', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.render('parent/verify', { title: 'Verify | Kinder Care Hub' });
+});
+app.get('/parent-verify/check-email', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.render('parent/verify-check-email', { title: 'Check your email | Kinder Care Hub', email: req.query.email || '' });
 });
 
 // OAuth dependencies are loaded after the basic public routes to keep the file
@@ -285,8 +441,28 @@ function readRequiredOAuthState(req, res) {
   }
 }
 
+function oauthDisabledRedirect(res, fallbackPath = '/sms') {
+  if (!isAuthDisabled()) {
+    return false;
+  }
+
+  const authResponse = buildTestAuthResponse();
+  const redirectTo = authResponse.user.role === 'admin'
+    ? '/devforge'
+    : authResponse.user.role === 'parent'
+      ? '/parent'
+      : fallbackPath;
+
+  sendAuthCompletion(res, authResponse, redirectTo);
+  return true;
+}
+
 // Azure AD sign-in route for the Admin dashboard only.
 app.get('/auth/azure', (req, res) => {
+  if (oauthDisabledRedirect(res, '/devforge')) {
+    return undefined;
+  }
+
   const tenant = process.env.AZURE_AD_TENANT_ID;
   const clientId = process.env.AZURE_AD_CLIENT_ID;
   const callbackUri = redirectUri(req, 'AZURE_AD_REDIRECT_URI', '/auth/azure/callback');
@@ -397,10 +573,14 @@ app.get('/auth/azure/callback', async (req, res) => {
 
 // Microsoft OAuth for school/parent. AAD is reserved for the Admin dashboard route above.
 app.get('/auth/microsoft', (req, res) => {
+  const type = normalizePortalType(req.query.type);
+  if (oauthDisabledRedirect(res, oauthRedirectForType(type))) {
+    return undefined;
+  }
+
   const tenant = microsoftTenant();
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   const callbackUri = redirectUri(req, 'MICROSOFT_REDIRECT_URI', '/auth/microsoft/callback');
-  const type = normalizePortalType(req.query.type);
   const schoolId = type === 'school' ? String(req.query.schoolId || '').trim() : '';
 
   if (!clientId) {
@@ -411,7 +591,6 @@ app.get('/auth/microsoft', (req, res) => {
     return res.status(400).send('School ID is required for school login');
   }
 
-  // The signed state carries whether this is a parent or school login.
   const state = createOAuthState({ type, schoolId, provider: 'microsoft' });
   const authorizeUrl = buildAuthorizeUrl(`https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/authorize`, {
     client_id: clientId,
@@ -489,9 +668,13 @@ app.get('/auth/microsoft/callback', async (req, res) => {
 
 // Google OAuth for school/parent
 app.get('/auth/google', (req, res) => {
+  const type = normalizePortalType(req.query.type);
+  if (oauthDisabledRedirect(res, oauthRedirectForType(type))) {
+    return undefined;
+  }
+
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const callbackUri = redirectUri(req, 'GOOGLE_REDIRECT_URI', '/auth/google/callback');
-  const type = normalizePortalType(req.query.type);
   const schoolId = type === 'school' ? String(req.query.schoolId || '').trim() : '';
 
   if (!clientId) {
@@ -502,7 +685,6 @@ app.get('/auth/google', (req, res) => {
     return res.status(400).send('School ID is required for school login');
   }
 
-  // Google receives signed state so callbacks cannot switch portal type.
   const state = createOAuthState({ type, schoolId, provider: 'google' });
   const authorizeUrl = buildAuthorizeUrl('https://accounts.google.com/o/oauth2/v2/auth', {
     client_id: clientId,
@@ -576,26 +758,15 @@ app.get('/auth/google/callback', async (req, res) => {
   }
 });
 
-// Dashboard shells. The frontend JavaScript checks tokens before loading data.
-app.get('/sms', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
-
-app.get('/school', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
-
-app.get('/school/*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
-
-app.get('/devforge', (req, res) => {
-  sendInternalManagementPage(res, 'devforge.html');
-});
-
-app.get('/parent', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'parent.html'));
-});
+// Dashboard shells are now handled by the new SSR portal routes mounted above.
+// /sms, /devforge, /parent all render EJS views through src/application/portal.
+// The legacy /school/* wildcard remains for backwards compatibility with
+// the existing JS frontend — it still serves public/index.html.
+// SECURITY (H6): the legacy unauthenticated /school/* SPA shell has been
+// retired. Any hit is now a hard 301 to the new SMS portal. The legacy
+// front-end can no longer be used as a CSRF/SSRF pivot.
+app.get('/school', (req, res) => res.redirect(301, '/sms'));
+app.get('/school/*', (req, res) => res.redirect(301, '/sms'));
 
 // Monthly invoices run only for the first-day billing cycle.
 const MAX_SCHEDULER_TIMEOUT_MS = 24 * 60 * 60 * 1000;
@@ -712,6 +883,49 @@ function startDatabaseConnectionLoop({ skipDatabase }) {
 
   tryConnect();
 }
+
+// 404 catch-all for non-API routes. Must be after all routes, before the
+// global error handler, so it doesn't shadow legitimate routes.
+app.use(function notFound(req, res, next) {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Not found', path: req.originalUrl });
+  }
+  res.status(404).render('errors/404', { path: req.originalUrl });
+});
+
+// ============================================================
+// Global error handler - render nice pages, log details in dev
+// ============================================================
+// Distinguishes 404 (not found), 403 (forbidden), 500 (server error).
+// API endpoints always get JSON regardless of status code.
+app.use(function (err, req, res, next) {
+  const status = err.status || 500;
+  // Promote common not-found signals to a proper 404
+  if (!err.status && (err.code === 'ENOENT' || /not found/i.test(err.message || ''))) {
+    err.status = 404;
+  }
+  // SECURITY (M14): sanitized logger. Strip Authorization / Cookie /
+  // OAuth ?code= from the URL before writing to logs.
+  const safeUrl = sanitizeUrlForLog(req.originalUrl);
+  const safeHeaders = sanitizeHeadersForLog(req.headers);
+  console.error('[Error]', status, req.method, safeUrl,
+    'headers=' + JSON.stringify(safeHeaders),
+    'stack=' + (err && err.stack ? err.stack : String(err)));
+
+  if (req.path.startsWith('/api/')) {
+    return res.status(status).json({ error: err.message || 'Server error' });
+  }
+
+  if (res.headersSent) return next(err);
+
+  if (status === 404) {
+    return res.status(404).render('errors/404', { path: req.originalUrl });
+  }
+  if (status === 403) {
+    return res.status(403).render('errors/forbidden', { message: err.message });
+  }
+  res.status(status).render('errors/offline', { message: err.message || 'Something went wrong.' });
+});
 
 // Application startup: bind a port, connect DB, and optionally start schedulers.
 async function start() {

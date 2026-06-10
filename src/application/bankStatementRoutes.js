@@ -1,15 +1,36 @@
 // Application Layer - Bank statement routes
+// SECURITY (C1): every route that accepts schoolId from the URL must be
+// clamped to the authenticated user's tenant. School staff may never pass
+// another school's id to read cross-tenant data.
 
 const express = require('express');
 const BankStatementService = require('../business/bankStatementService');
 const { authenticateToken, requireSchoolPermission } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
+const { perSchoolRateLimit } = require('../middleware/perSchoolRateLimit');
 
 const router = express.Router();
 const bankStatementService = new BankStatementService();
 
-router.post('/upload', authenticateToken, requireSchoolPermission('finance.bank_reconciliation.correct', 'finance.payments.allocate'), audit('BankStatement', 'Upload'), async (req, res) => {
+// SECURITY: clamp any inbound schoolId to the caller's own school for
+// non-admin roles. Admins can pass any schoolId.
+function safeSchoolId(req, requestedSchoolId) {
+  if (!req.user) return null;
+  if (req.user.Role === 'admin') return Number(requestedSchoolId) || null;
+  if (requestedSchoolId && Number(requestedSchoolId) !== Number(req.user.SchoolID)) {
+    return null; // mismatch -> service will deny
+  }
+  return Number(req.user.SchoolID);
+}
+
+const schoolScoping = perSchoolRateLimit({ windowMs: 60_000, max: 600 });
+
+router.use(authenticateToken);
+router.use(schoolScoping);
+
+router.post('/upload', requireSchoolPermission('finance.bank_reconciliation.correct', 'finance.payments.allocate'), audit('BankStatement', 'Upload'), async (req, res) => {
   try {
+    req.body.schoolId = safeSchoolId(req, req.body.schoolId);
     const result = await bankStatementService.uploadStatement(req.body, req.user);
     res.json(result);
   } catch (error) {
@@ -17,10 +38,10 @@ router.post('/upload', authenticateToken, requireSchoolPermission('finance.bank_
   }
 });
 
-router.get('/', authenticateToken, requireSchoolPermission('finance.bank_reconciliation.view'), async (req, res) => {
+router.get('/', requireSchoolPermission('finance.bank_reconciliation.view'), async (req, res) => {
   try {
     const statements = await bankStatementService.getStatements(req.user, {
-      schoolId: req.query.schoolId || null,
+      schoolId: safeSchoolId(req, req.query.schoolId),
       month: req.query.month || null,
       year: req.query.year || null,
       fromDate: req.query.fromDate || null,

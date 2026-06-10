@@ -1,0 +1,53 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/attendance" class="text-muted hover:underline">Attendance</a>
+    <span class="text-muted mx-1">/</span>
+    <a href="/sms/attendance/<%= klass.ClassID %>" class="text-muted hover:underline"><%= klass.ClassName %></a>
+    <span class="text-muted mx-1">/</span>
+    <span>History</span>
+  </nav>
+
+  <div class="card mb-6">
+    <div class="card-body flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-semibold">Attendance history</h1>
+        <p class="text-muted text-sm"><%= klass.ClassName %> &middot; last <%= days %> days</p>
+      </div>
+      <a href="/sms/attendance/<%= klass.ClassID %>" class="btn-primary btn-sm">Take attendance</a>
+    </div>
+  </div>
+
+  <% if (summary && summary.total > 0) { %>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div class="kpi-card">
+        <p class="kpi-label">Present</p>
+        <p class="kpi-value text-emerald-600 dark:text-emerald-400"><%= summary.totals.Present %></p>
+        <p class="kpi-delta text-muted"><%= Math.round(summary.totals.Present / summary.total * 100) %>%</p>
+      </div>
+      <div class="kpi-card">
+        <p class="kpi-label">Absent</p>
+        <p class="kpi-value text-red-600 dark:text-red-400"><%= summary.totals.Absent %></p>
+        <p class="kpi-delta text-muted"><%= Math.round(summary.totals.Absent / summary.total * 100) %>%</p>
+      </div>
+      <div class="kpi-card">
+        <p class="kpi-label">Late</p>
+        <p class="kpi-value text-amber-600 dark:text-amber-400"><%= summary.totals.Late %></p>
+        <p class="kpi-delta text-muted"><%= Math.round(summary.totals.Late / summary.total * 100) %>%</p>
+      </div>
+      <div class="kpi-card">
+        <p class="kpi-label">Excused</p>
+        <p class="kpi-value text-slate-600 dark:text-slate-400"><%= summary.totals.Excused %></p>
+        <p class="kpi-delta text-muted"><%= Math.round(summary.totals.Excused / summary.total * 100) %>%</p>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="card">
+      <div class="card-body empty-state">
+        <p class="empty-state-desc">No attendance recorded for this class in the last <%= days %> days.</p>
+      </div>
+    </div>
+  <% } %>
+</div>

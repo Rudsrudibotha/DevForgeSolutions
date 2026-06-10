@@ -1,0 +1,22 @@
+<% if (!rows || rows.length === 0) { %>
+  <%- include('../../../partials/empty/default', { title: 'No staff members', desc: 'Add a teacher or staff member to assign to classes.', colspan: 6 }) %>
+<% } else { %>
+  <% rows.forEach(function(s) { %>
+    <tr>
+      <td>
+        <a href="/sms/staff/<%= s.EmployeeID %>" class="font-medium hover:underline">
+          <%= s.FirstName %> <%= s.LastName %>
+        </a>
+        <% if (s.Username) { %><p class="text-xs text-muted">@<%= s.Username %></p><% } %>
+      </td>
+      <td class="text-sm"><%= s.JobTitle || '—' %></td>
+      <td class="text-sm text-muted"><%= s.Department || '—' %></td>
+      <td class="text-sm text-muted"><%= s.Email || '—' %></td>
+      <td class="text-sm text-muted"><%= s.StartDate ? new Date(s.StartDate).toLocaleDateString('en-ZA') : '—' %></td>
+      <td>
+        <% if (s.IsActive) { %><span class="badge-success">Active</span>
+        <% } else { %><span class="badge-neutral">Inactive</span><% } %>
+      </td>
+    </tr>
+  <% }) %>
+<% } %>

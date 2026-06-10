@@ -1,0 +1,37 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'parent' %>
+
+<div class="container-page">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">Re-enrolment</h1>
+    <p class="text-muted text-sm">Confirm your child's place for the next academic year.</p>
+  </div>
+
+  <% if (!(list || []).length) { %>
+    <div class="card">
+      <div class="card-body text-center text-muted py-6">
+        No re-enrolment requests yet. Your school will send one when the next academic year opens.
+      </div>
+    </div>
+  <% } else { %>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <% list.forEach(function (r) { %>
+        <div class="card">
+          <div class="card-body">
+            <h2 class="text-lg font-semibold"><%= r.AcademicYear %></h2>
+            <p class="text-sm text-muted mt-1">Student: <%= r.StudentName %></p>
+            <p class="text-sm">Current class: <%= r.CurrentClass %></p>
+            <p class="text-sm">Next class: <%= r.NextClass %></p>
+            <p class="mt-2 text-xs">Status: <span class="badge"><%= r.Status || 'Pending' %></span></p>
+            <% if (r.Status === 'Pending') { %>
+              <div class="mt-3 flex gap-2">
+                <button class="btn-primary btn-sm" hx-post="/api/reenrolment/parent/respond" hx-vals='{"reenrolmentId":"<%= r.ReEnrolmentID %>","response":"Confirmed"}'>Confirm</button>
+                <button class="btn-secondary btn-sm" hx-post="/api/reenrolment/parent/respond" hx-vals='{"reenrolmentId":"<%= r.ReEnrolmentID %>","response":"Declined"}'>Decline</button>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+</div>

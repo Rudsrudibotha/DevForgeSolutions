@@ -1,0 +1,12 @@
+<%# Skeleton for KPI cards. Renders N fake cards.
+  Args:
+  - count: number of cards (default 4)
+%>
+<% var n = (typeof count !== 'undefined' && count) ? Number(count) : 4; %>
+<% for (var i = 0; i < n; i++) { %>
+  <div class="kpi-card">
+    <div class="skeleton h-3 w-20"></div>
+    <div class="skeleton h-6 w-32 mt-3"></div>
+    <div class="skeleton h-3 w-24 mt-3"></div>
+  </div>
+<% } %>

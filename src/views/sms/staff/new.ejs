@@ -1,0 +1,48 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/staff" class="text-muted hover:underline">Staff</a>
+    <span class="text-muted mx-1">/</span>
+    <span>New staff member</span>
+  </nav>
+
+  <form method="post" action="/api/employees" class="card max-w-3xl">
+    <div class="card-body space-y-4">
+      <h2 class="text-lg font-semibold">Staff details</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="label">First name</label><input type="text" name="firstName" required class="input" /></div>
+        <div><label class="label">Last name</label><input type="text" name="lastName" required class="input" /></div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="label">Email</label><input type="email" name="email" required class="input" /></div>
+        <div><label class="label">Phone</label><input type="text" name="phone" class="input" /></div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="label">Staff number</label><input type="text" name="staffNumber" class="input" /></div>
+        <div><label class="label">ID number</label><input type="text" name="idNumber" class="input" /></div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="label">Role</label><input type="text" name="role" class="input" placeholder="e.g. Teacher" /></div>
+        <div><label class="label">Department</label><input type="text" name="department" class="input" /></div>
+      </div>
+      <div><label class="label">Hire date</label><input type="date" name="hireDate" class="input" /></div>
+      <h2 class="text-lg font-semibold pt-4">Salary (SARS / UIF)</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div><label class="label">Basic salary</label><input type="number" name="basicSalary" class="input" step="0.01" /></div>
+        <div><label class="label">Tax number</label><input type="text" name="taxNumber" class="input" /></div>
+        <div><label class="label">UIF number</label><input type="text" name="uifNumber" class="input" /></div>
+      </div>
+      <h2 class="text-lg font-semibold pt-4">Access</h2>
+      <label class="flex items-center gap-2">
+        <input type="checkbox" name="createSystemUser" value="1" />
+        <span class="text-sm">Also create a dashboard login for this staff member</span>
+      </label>
+      <div class="flex justify-end gap-2">
+        <a href="/sms/staff" class="btn-secondary">Cancel</a>
+        <button type="submit" class="btn-primary">Create staff</button>
+      </div>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,114 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page" x-data="{ tab: 'profile' }">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/students" class="text-muted hover:underline">Students</a>
+    <span class="text-muted mx-1">/</span>
+    <span><%= student.FirstName %> <%= student.LastName %></span>
+  </nav>
+
+  <div class="card mb-6">
+    <div class="card-body flex flex-col sm:flex-row sm:items-center gap-4">
+      <div class="child-avatar !h-16 !w-16 !text-2xl">
+        <%= (student.FirstName || '?').charAt(0) %><%= (student.LastName || '').charAt(0) %>
+      </div>
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <h1 class="text-2xl font-semibold"><%= student.FirstName %> <%= student.LastName %></h1>
+          <% if (!student.IsActive) { %><span class="badge-neutral">Inactive</span><% } %>
+        </div>
+        <p class="text-muted text-sm">
+          <%= student.ClassName || 'No class' %><% if (student.Grade) { %> &middot; Grade <%= student.Grade %><% } %>
+          <% if (student.DateOfBirth) { %> &middot; DOB <%= new Date(student.DateOfBirth).toLocaleDateString('en-ZA') %><% } %>
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="/sms/students/<%= student.StudentID %>/edit" class="btn-secondary btn-sm">Edit</a>
+        <button class="btn-danger btn-sm"
+                hx-delete="/sms/students/<%= student.StudentID %>"
+                hx-confirm="Remove <%= student.FirstName %> <%= student.LastName %>? This will soft-delete the record. The student can be restored by an admin within 30 days.">
+          Remove
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs mb-4">
+    <button class="tab" :class="{ 'active': tab === 'profile' }" @click="tab = 'profile'">Profile</button>
+    <button class="tab" :class="{ 'active': tab === 'family' }" @click="tab = 'family'">Family</button>
+    <button class="tab" :class="{ 'active': tab === 'medical' }" @click="tab = 'medical'">Medical</button>
+  </div>
+
+  <div x-show="tab === 'profile'">
+    <div class="card">
+      <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div>
+          <p class="kpi-label">First name</p>
+          <p class="font-medium"><%= student.FirstName %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Last name</p>
+          <p class="font-medium"><%= student.LastName %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Date of birth</p>
+          <p class="font-medium"><%= student.DateOfBirth ? new Date(student.DateOfBirth).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' }) : '—' %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Enrolled</p>
+          <p class="font-medium"><%= student.EnrolledDate ? new Date(student.EnrolledDate).toLocaleDateString('en-ZA') : '—' %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Class</p>
+          <p class="font-medium"><%= student.ClassName || 'Unassigned' %><% if (student.Grade) { %> (Grade <%= student.Grade %>)<% } %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Academic year</p>
+          <p class="font-medium"><%= student.CurrentAcademicYear %></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div x-show="tab === 'family'">
+    <div class="card">
+      <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div>
+          <p class="kpi-label">Family</p>
+          <a href="/sms/families/<%= student.FamilyID %>" class="font-medium hover:underline">
+            <%= student.FamilyName %>
+          </a>
+        </div>
+        <div>
+          <p class="kpi-label">Address</p>
+          <p class="font-medium whitespace-pre-line"><%= student.HomeAddress || '—' %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Primary parent</p>
+          <p class="font-medium"><%= student.PrimaryParentName || '—' %></p>
+          <% if (student.PrimaryParentPhone) { %><p class="text-xs text-muted"><%= student.PrimaryParentPhone %></p><% } %>
+          <% if (student.PrimaryParentEmail) { %><p class="text-xs text-muted"><%= student.PrimaryParentEmail %></p><% } %>
+        </div>
+        <div>
+          <p class="kpi-label">Secondary parent</p>
+          <p class="font-medium"><%= student.SecondaryParentName || '—' %></p>
+          <% if (student.SecondaryParentPhone) { %><p class="text-xs text-muted"><%= student.SecondaryParentPhone %></p><% } %>
+          <% if (student.SecondaryParentEmail) { %><p class="text-xs text-muted"><%= student.SecondaryParentEmail %></p><% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div x-show="tab === 'medical'">
+    <div class="card">
+      <div class="card-body">
+        <% if (student.MedicalNotes) { %>
+          <p class="text-sm whitespace-pre-line"><%= student.MedicalNotes %></p>
+        <% } else { %>
+          <p class="text-sm text-muted">No medical notes recorded.</p>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>

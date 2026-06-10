@@ -1,0 +1,93 @@
+<header class="app-header" x-data="{ menuOpen: false, userMenu: false, themeSwitch() { const d = document.documentElement.classList.toggle('dark'); try { localStorage.setItem('kch-theme', d ? 'dark' : 'light'); } catch(_) {} } }">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="flex h-16 items-center justify-between">
+      <div class="flex items-center gap-3">
+        <button type="button" class="md:hidden btn-ghost btn-icon" @click="menuOpen = !menuOpen" :aria-expanded="menuOpen" aria-controls="mobile-nav" aria-label="Toggle navigation">
+          <svg x-show="!menuOpen" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <svg x-show="menuOpen" x-cloak class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <a href="<%= portalHome(portal) %>" class="flex items-center gap-2">
+          <img src="/assets/kinder-care-hub-logo.png" alt="" class="h-8 w-8 rounded-md" />
+          <span class="font-semibold text-base sm:text-lg hidden sm:inline">Kinder Care Hub</span>
+        </a>
+        <% if (currentSchool && portal === 'school') { %>
+          <span class="hidden md:inline-flex badge-brand ml-2" title="Active school context">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5 8.62V13a1 1 0 00.293.707l3 3a1 1 0 001.414 0l3-3A1 1 0 0013 13V8.62l2.394-1.7a1 1 0 000-1.84l-7-3z"/></svg>
+            <%= currentSchool.name %>
+          </span>
+        <% } %>
+      </div>
+
+      <div class="hidden md:flex flex-1 max-w-md mx-6">
+        <% if (user) { %>
+          <div class="relative w-full" x-data="{ open: false }">
+            <input type="search" placeholder="<%= portal === 'devforge' ? 'Search schools, users, payments…' : 'Search…' %>"
+                   class="input pl-9"
+                   @focus="open = true"
+                   @blur="setTimeout(() => open = false, 200)"
+                   hx-get="/search" hx-trigger="keyup changed delay:250ms" hx-target="#search-results" hx-swap="innerHTML" />
+            <svg class="absolute left-3 top-2.5 h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+            <div id="search-results" x-show="open" x-cloak class="absolute mt-1 w-full card p-2 max-h-96 overflow-auto z-40"></div>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button type="button" class="btn-ghost btn-icon" @click="themeSwitch()" aria-label="Toggle theme" title="Toggle dark mode">
+          <svg class="h-5 w-5 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646A9 9 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg class="h-5 w-5 hidden dark:inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </button>
+
+        <% if (user) { %>
+          <div class="relative" x-data="{ open: false }">
+            <button type="button" class="flex items-center gap-2 btn-ghost" @click="open = !open" @click.outside="open = false" :aria-expanded="open" aria-haspopup="true">
+              <span class="h-8 w-8 rounded-full bg-brand text-white flex items-center justify-center text-sm font-semibold" style="background-color: rgb(var(--color-brand))">
+                <%= (user.firstName || user.email || '?').charAt(0).toUpperCase() %>
+              </span>
+              <span class="hidden sm:inline text-sm font-medium"><%= user.firstName || user.email %></span>
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-cloak x-transition class="absolute right-0 mt-2 w-56 card py-1 z-40">
+              <div class="px-3 py-2 border-b" style="border-color: rgb(var(--color-border))">
+                <p class="text-sm font-medium"><%= user.firstName %> <%= user.lastName %></p>
+                <p class="text-xs text-muted truncate"><%= user.email %></p>
+                <p class="mt-1"><span class="badge-neutral"><%= user.role %></span></p>
+              </div>
+              <a href="/account" class="nav-item">Account settings</a>
+              <a href="/help" class="nav-item">Help &amp; shortcuts</a>
+              <form method="post" action="/auth/logout" class="border-t mt-1 pt-1" style="border-color: rgb(var(--color-border))">
+                <button type="submit" class="nav-item w-full text-left text-red-600 dark:text-red-400">Sign out</button>
+              </form>
+            </div>
+          </div>
+        <% } else { %>
+          <a href="/login" class="btn-secondary btn-sm">Sign in</a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile nav drawer (slides from left, only visible < md) -->
+  <div x-show="menuOpen" x-cloak class="md:hidden fixed inset-0 z-40" @keydown.escape.window="menuOpen = false">
+    <div class="absolute inset-0 bg-black/50" @click="menuOpen = false" aria-hidden="true"></div>
+    <nav id="mobile-nav"
+         class="absolute top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white dark:bg-slate-900 shadow-xl overflow-y-auto pt-4 px-2"
+         x-transition:enter="transform transition-transform"
+         x-transition:enter-start="-translate-x-full"
+         x-transition:enter-end="translate-x-0"
+         x-transition:leave="transform transition-transform"
+         x-transition:leave-start="translate-x-0"
+         x-transition:leave-end="-translate-x-full"
+         aria-label="Mobile navigation">
+      <div class="flex items-center justify-between px-2 mb-2">
+        <span class="font-semibold">Menu</span>
+        <button type="button" class="btn-ghost btn-icon" @click="menuOpen = false" aria-label="Close menu">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <% if (typeof sidebar !== 'undefined' && sidebar) { %>
+        <%- include('../partials/' + sidebar + '-sidebar', { user, currentPath: typeof currentPath !== 'undefined' ? currentPath : '', visibleGroups: typeof visibleGroups !== 'undefined' ? visibleGroups : null }) %>
+      <% } %>
+    </nav>
+  </div>
+</header>

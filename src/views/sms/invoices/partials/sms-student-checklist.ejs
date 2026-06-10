@@ -1,0 +1,18 @@
+<div class="flex items-center justify-between mb-2 pb-2 border-b" style="border-color: rgb(var(--color-border))">
+  <span class="text-xs text-muted"><%= students.length %> student<%= students.length === 1 ? '' : 's' %></span>
+  <label class="flex items-center gap-1.5 text-xs cursor-pointer">
+    <input type="checkbox" class="checkbox" x-data x-on:change="document.querySelectorAll('#students-list input[type=checkbox][name=studentIds]').forEach(function(cb){ cb.checked = $event.target.checked; })" />
+    Select all
+  </label>
+</div>
+<ul class="space-y-1">
+  <% students.forEach(function(s) { %>
+    <li>
+      <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 py-1 rounded">
+        <input type="checkbox" name="studentIds" value="<%= s.StudentID %>" class="checkbox" />
+        <span class="flex-1"><%= s.Name %></span>
+        <% if (s.ClassID) { %><span class="text-xs text-muted">Class <%= s.ClassID %></span><% } %>
+      </label>
+    </li>
+  <% }) %>
+</ul>

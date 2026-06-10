@@ -1,0 +1,51 @@
+<% if (!rows || rows.length === 0) { %>
+  <%- include('../../../partials/empty/default', {
+    icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+    title: 'No students found',
+    desc: (filters && (filters.search || filters.classId)) ? 'Try clearing your filters.' : 'Add your first student to get started.',
+    action: (filters && (filters.search || filters.classId)) ? null : { label: 'Add student', href: '/sms/students/new' },
+    colspan: 7
+  }) %>
+<% } else { %>
+  <% rows.forEach(function(s) { %>
+    <tr id="student-row-<%= s.StudentID %>">
+      <td>
+        <a href="/sms/students/<%= s.StudentID %>" class="font-medium hover:underline">
+          <%= s.FirstName %> <%= s.LastName %>
+        </a>
+        <% if (s.DateOfBirth) { %>
+          <p class="text-xs text-muted"><%= new Date(s.DateOfBirth).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric' }) %></p>
+        <% } %>
+      </td>
+      <td class="text-muted"><%= s.FamilyName || '—' %></td>
+      <td>
+        <% if (s.ClassName) { %>
+          <%= s.ClassName %><% if (s.Grade) { %> <span class="text-xs text-muted">(G<%= s.Grade %>)</span><% } %>
+        <% } else { %>
+          <span class="text-muted">Unassigned</span>
+        <% } %>
+      </td>
+      <td class="text-muted text-sm">
+        <%= s.EnrolledDate ? new Date(s.EnrolledDate).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short' }) : '—' %>
+      </td>
+      <td class="text-right text-money">
+        <% if (Number(s.OutstandingAmount) > 0) { %>
+          <span class="text-red-600 dark:text-red-400 font-medium">R <%= Number(s.OutstandingAmount).toFixed(2) %></span>
+        <% } else { %>
+          <span class="text-emerald-600 dark:text-emerald-400">R 0.00</span>
+        <% } %>
+      </td>
+      <td>
+        <% if (s.IsActive) { %>
+          <span class="badge-success">Active</span>
+        <% } else { %>
+          <span class="badge-neutral">Inactive</span>
+        <% } %>
+      </td>
+      <td class="text-right">
+        <a href="/sms/students/<%= s.StudentID %>" class="btn-ghost btn-sm">View</a>
+        <a href="/sms/students/<%= s.StudentID %>/edit" class="btn-ghost btn-sm">Edit</a>
+      </td>
+    </tr>
+  <% }) %>
+<% } %>

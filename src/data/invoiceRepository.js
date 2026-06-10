@@ -134,6 +134,22 @@ class InvoiceRepository {
     return result.recordset;
   }
 
+  async getInvoicesByParentUserId(userId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('userId', sql.Int, userId)
+      .query(`SELECT i.*
+              FROM Invoices i
+              INNER JOIN Students s ON i.StudentID = s.StudentID
+              INNER JOIN ParentLinks pl ON pl.FamilyID = s.FamilyID AND pl.SchoolID = i.SchoolID
+              INNER JOIN Schools sch ON sch.SchoolID = pl.SchoolID
+              WHERE pl.UserID = @userId
+                AND i.IsDeleted = 0
+                AND sch.SubscriptionStatus = 'Active'
+              ORDER BY i.IssueDate DESC`);
+    return result.recordset;
+  }
+
   async getInvoicesByStudentForSchool(studentId, schoolId) {
     const pool = await getPool();
     const result = await pool.request()

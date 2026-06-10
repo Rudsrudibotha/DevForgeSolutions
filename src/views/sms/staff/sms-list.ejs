@@ -1,0 +1,60 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Staff</h1>
+      <p class="text-muted text-sm"><%= data.total || rows.length || 0 %> staff member<%= data.total === 1 ? '' : 's' %></p>
+    </div>
+    <a href="/sms/staff/new" class="btn-primary">+ New staff</a>
+  </div>
+  </div>
+
+  <form method="get" action="/sms/staff"
+        hx-get="/sms/staff/partials/table"
+        hx-trigger="keyup changed delay:250ms from:input[name=q], change from:select"
+        hx-target="#staff-table"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="card mb-4">
+    <div class="card-body py-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div class="flex-1 relative">
+        <input type="search" name="q" value="<%= filters.search %>" placeholder="Search by name, email, or role..." class="input pl-9" />
+        <svg class="absolute left-3 top-2.5 h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+      </div>
+      <select name="department" class="select">
+        <option value="">All departments</option>
+        <% departments.forEach(function(d) { %>
+          <option value="<%= d %>" <%= filters.department === d ? 'selected' : '' %>><%= d %></option>
+        <% }) %>
+      </select>
+      <select name="status" class="select">
+        <option value="active"   <%= filters.status === 'active'   ? 'selected' : '' %>>Active</option>
+        <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+        <option value="all"      <%= filters.status === 'all'      ? 'selected' : '' %>>All</option>
+      </select>
+    </div>
+  </form>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Role</th>
+          <th>Department</th>
+          <th>Email</th>
+          <th>Start date</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="staff-table"
+             hx-get="/sms/staff/partials/table"
+             hx-trigger="refresh-staff from:body"
+             hx-swap="innerHTML">
+        <%- include('partials/table', { rows, total, page, pageSize, hasMore, filters, layout: false }) %>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -215,8 +215,27 @@ router.put('/refunds/:id/complete', authenticateToken, requireSchoolPermission('
   try {
     await financePeriodLockRepo.assertOpenForDate(schoolId(req.user), new Date(), 'Completing a refund');
     const result = await refundRepo.complete(parseInt(req.params.id, 10), schoolId(req.user));
-    if (!result) return res.status(400).json({ error: 'Refund not found or not approved' });
-    res.json(result);
+    if (!result || !result.ok) {
+      if (result && result.error === 'refund-exceeds-available-balance') {
+        return res.status(409).json({
+          error: 'refund-exceeds-available-balance',
+          availableBalance: result.availableBalance,
+          requestedAmount: result.requestedAmount,
+          message: 'This refund is larger than the family\'s available balance. The school cannot refund more than the family has ever paid.'
+        });
+      }
+      if (result && result.error === 'refund-not-approved') {
+        return res.status(400).json({ error: 'Refund must be approved before it can be completed.' });
+      }
+      if (result && result.error === 'already-completed') {
+        return res.status(400).json({ error: 'Refund is already completed.' });
+      }
+      if (result && result.error === 'refund-not-found') {
+        return res.status(404).json({ error: 'Refund not found.' });
+      }
+      return res.status(400).json({ error: (result && result.error) || 'Refund could not be completed' });
+    }
+    res.json(result.refund);
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 

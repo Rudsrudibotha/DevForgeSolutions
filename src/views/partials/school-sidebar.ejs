@@ -1,0 +1,30 @@
+<aside class="sidebar" aria-label="School management navigation">
+  <nav class="sidebar-inner" x-data="{ openSchool: true, openFinance: true, openKch: true, openSettings: false }">
+    <div class="nav-group">
+      <a href="/sms" class="nav-item <%= currentPath === '/sms' ? 'active' : '' %>"<%- currentPath === '/sms' ? ' aria-current="page"' : '' %>>
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3"/></svg>
+        Dashboard
+      </a>
+    </div>
+
+    <% if (visibleGroups && visibleGroups.length) { %>
+      <% visibleGroups.forEach(function(group, gi) { %>
+        <% var openState = ['openSchool', 'openFinance', 'openKch', 'openSettings'][gi] || 'openSchool'; %>
+        <div class="nav-group">
+          <button type="button" class="nav-group-toggle" :aria-expanded="<%= openState %>" @click="<%= openState %> = !<%= openState %>">
+            <span class="nav-group-title"><%= group.label %></span>
+            <svg class="nav-chevron" :class="<%= openState %> ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+          <div x-show="<%= openState %>" x-cloak class="space-y-0.5">
+            <% group.items.forEach(function(item) { %>
+              <a href="<%= item.href %>" class="nav-item <%= activeClass(currentPath, item.href) %>"<%- activeClass(currentPath, item.href) ? ' aria-current="page"' : '' %>>
+                <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<%= item.icon %>"/></svg>
+                <%= item.label %>
+              </a>
+            <% }); %>
+          </div>
+        </div>
+      <% }); %>
+    <% } %>
+  </nav>
+</aside>

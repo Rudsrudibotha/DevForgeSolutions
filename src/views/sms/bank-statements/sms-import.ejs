@@ -1,0 +1,112 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/bank-statements" class="text-muted hover:underline">Bank statements</a>
+    <span class="text-muted mx-1">/</span>
+    <span>Import</span>
+  </nav>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h1 class="text-2xl font-semibold mb-1">Import Bank Statement</h1>
+      <p class="text-muted text-sm">Upload an OFX file. Only transactions dated inside the selected month are imported.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form id="importForm" enctype="multipart/form-data" class="space-y-4">
+        <div>
+          <label class="label" for="bankAccountId">Bank account</label>
+          <select id="bankAccountId" name="bankAccountId" class="input" required>
+            <option value="">Select an account</option>
+            <% (bankAccounts || []).forEach(function (acc) { %>
+              <option value="<%= acc.BankAccountID %>" data-last="<%= acc.LastImportedDate || '' %>">
+                <%= acc.AccountName || acc.AccountNumber %> (<%= acc.AccountNumber %>)
+              </option>
+            <% }); %>
+          </select>
+          <p class="help-text" id="lastImportInfo">Pick an account to see when its last import ran.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label" for="importYear">Year</label>
+            <select id="importYear" name="importYear" class="input" required>
+              <% const yr = new Date().getFullYear(); %>
+              <% for (let y = yr - 2; y <= yr + 1; y++) { %>
+                <option value="<%= y %>" <%= y === yr ? 'selected' : '' %>><%= y %></option>
+              <% } %>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="importMonth">Month</label>
+            <select id="importMonth" name="importMonth" class="input" required>
+              <% const months = ['January','February','March','April','May','June','July','August','September','October','November','December']; %>
+              <% months.forEach(function (m, i) { %>
+                <option value="<%= i + 1 %>" <%= (i + 1) === (new Date().getMonth() + 1) ? 'selected' : '' %>><%= m %></option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="label" for="ofxFile">OFX file</label>
+          <input type="file" id="ofxFile" name="ofxFile" accept=".ofx,.qfx,application/x-ofx,text/plain" class="input" required />
+          <p class="help-text">Maximum 5 MB. The same OFX file may be re-used for a different month; duplicates for the same account and month are blocked.</p>
+        </div>
+
+        <div class="flex justify-end gap-2">
+          <a href="/sms/bank-statements" class="btn-secondary">Cancel</a>
+          <button class="btn-primary" type="submit">Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="importResult" class="mt-4 hidden"></div>
+</div>
+
+<script>
+  (function () {
+    var form = document.getElementById('importForm');
+    var info = document.getElementById('lastImportInfo');
+    var sel = document.getElementById('bankAccountId');
+    sel.addEventListener('change', function () {
+      var opt = sel.options[sel.selectedIndex];
+      var last = opt ? opt.getAttribute('data-last') : '';
+      if (last) info.textContent = 'Last imported transaction date for this account: ' + last;
+      else info.textContent = 'No previous import recorded for this account.';
+    });
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var result = document.getElementById('importResult');
+      result.classList.remove('hidden');
+      result.innerHTML = '<p class="text-muted text-sm">Importing...</p>';
+      var fd = new FormData(form);
+      try {
+        var res = await fetch('/api/bank-reconciliation/imports', {
+          method: 'POST',
+          body: fd,
+          credentials: 'same-origin',
+          headers: { 'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') || {}).content || '' }
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+        result.innerHTML = '<div class="alert-success">'
+          + '<p class="text-sm font-semibold">Import complete.</p>'
+          + '<p class="text-sm">Transactions in file: ' + data.totalInFile + '</p>'
+          + '<p class="text-sm">Imported (selected month): ' + data.imported + '</p>'
+          + '<p class="text-sm">Skipped (outside month): ' + data.skippedOutside + '</p>'
+          + '<p class="text-sm">Duplicates skipped: ' + data.duplicates + '</p>'
+          + '<p class="text-sm">Payments created: ' + data.paymentsCreated + '</p>'
+          + '<p class="text-sm mt-2"><a class="text-brand-600 hover:underline" href="/sms/bank-reconciliation?bankAccountId=' + fd.get('bankAccountId') + '">Open reconciliation →</a></p>'
+          + '</div>';
+      } catch (err) {
+        result.innerHTML = '<div class="alert-danger"><p class="text-sm">Import failed: ' + err.message + '</p></div>';
+      }
+    });
+  })();
+</script>

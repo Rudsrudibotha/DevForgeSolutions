@@ -1,0 +1,36 @@
+<% if (!rows || rows.length === 0) { %>
+  <%- include('../../../partials/empty/default', {
+    icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
+    title: 'No classes found',
+    desc: (filters && (filters.search || filters.grade)) ? 'Try clearing your filters.' : 'Create your first class to organise students.',
+    action: (filters && (filters.search || filters.grade)) ? null : { label: 'Create class', href: '/sms/classes/new' },
+    colspan: 7
+  }) %>
+<% } else { %>
+  <% rows.forEach(function(c) { %>
+    <tr id="class-row-<%= c.ClassID %>">
+      <td>
+        <a href="/sms/classes/<%= c.ClassID %>" class="font-medium hover:underline">
+          <%= c.ClassName %>
+        </a>
+      </td>
+      <td><%= c.Grade || '—' %></td>
+      <td class="text-muted"><%= c.TeacherName || '—' %></td>
+      <td class="text-muted"><%= c.Room || '—' %></td>
+      <td class="text-right">
+        <span class="badge-neutral"><%= c.StudentCount || 0 %><% if (c.Capacity) { %> / <%= c.Capacity %><% } %></span>
+      </td>
+      <td>
+        <% if (c.IsActive) { %>
+          <span class="badge-success">Active</span>
+        <% } else { %>
+          <span class="badge-neutral">Inactive</span>
+        <% } %>
+      </td>
+      <td class="text-right">
+        <a href="/sms/classes/<%= c.ClassID %>" class="btn-ghost btn-sm">View</a>
+        <a href="/sms/classes/<%= c.ClassID %>/edit" class="btn-ghost btn-sm">Edit</a>
+      </td>
+    </tr>
+  <% }) %>
+<% } %>

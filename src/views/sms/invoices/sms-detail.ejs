@@ -1,0 +1,126 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page" x-data="{ tab: 'overview' }">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/invoices" class="text-muted hover:underline">Invoices</a>
+    <span class="text-muted mx-1">/</span>
+    <span>#<%= invoice.InvoiceNumber %></span>
+  </nav>
+
+  <div class="card mb-6">
+    <div class="card-body flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <h1 class="text-2xl font-semibold">Invoice #<%= invoice.InvoiceNumber %></h1>
+          <% if (invoice.Status === 'Paid') { %><span class="badge-success">Paid</span>
+          <% } else if (invoice.Status === 'Overdue' || (invoice.Status !== 'Paid' && invoice.Status !== 'Cancelled' && invoice.DueDate && new Date(invoice.DueDate) < new Date())) { %><span class="badge-danger">Overdue</span>
+          <% } else if (invoice.Status === 'PendingPayment') { %><span class="badge-warning">Awaiting parent</span>
+          <% } else if (invoice.Status === 'Partial') { %><span class="badge-warning">Partial</span>
+          <% } else if (invoice.Status === 'Cancelled') { %><span class="badge-neutral">Cancelled</span>
+          <% } else { %><span class="badge-neutral"><%= invoice.Status %></span><% } %>
+        </div>
+        <p class="text-muted text-sm mt-1">
+          <a href="/sms/students/<%= invoice.StudentID %>" class="hover:underline"><%= invoice.StudentName %></a>
+          &middot; <%= invoice.FamilyName %>
+          &middot; Due <%= invoice.DueDate ? new Date(invoice.DueDate).toLocaleDateString('en-ZA') : '—' %>
+        </p>
+      </div>
+      <div class="text-right">
+        <p class="kpi-label">Amount</p>
+        <p class="kpi-value text-money">R <%= Number(invoice.Amount).toFixed(2) %></p>
+        <p class="text-sm text-muted">Paid: R <%= Number(invoice.AmountPaid || 0).toFixed(2) %></p>
+        <p class="text-sm font-medium">Outstanding: R <%= (Number(invoice.Amount) - Number(invoice.AmountPaid || 0)).toFixed(2) %></p>
+      </div>
+    </div>
+  </div>
+
+  <% if (invoice.Description) { %>
+    <div class="card mb-4">
+      <div class="card-body">
+        <p class="kpi-label">Description</p>
+        <p class="text-sm"><%= invoice.Description %></p>
+      </div>
+    </div>
+  <% } %>
+
+  <div class="tabs mb-4">
+    <button class="tab" :class="{ 'active': tab === 'overview' }" @click="tab = 'overview'">Overview</button>
+    <button class="tab" :class="{ 'active': tab === 'payments' }" @click="tab = 'payments'">Payments (<%= payments.length %>)</button>
+  </div>
+
+  <div x-show="tab === 'overview'">
+    <div class="card">
+      <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div>
+          <p class="kpi-label">Student</p>
+          <p class="font-medium"><a href="/sms/students/<%= invoice.StudentID %>" class="hover:underline"><%= invoice.StudentName %></a></p>
+        </div>
+        <div>
+          <p class="kpi-label">Family</p>
+          <p class="font-medium"><a href="/sms/families/<%= invoice.FamilyID %>" class="hover:underline"><%= invoice.FamilyName %></a></p>
+          <% if (invoice.PrimaryParentName) { %><p class="text-xs text-muted">Primary: <%= invoice.PrimaryParentName %></p><% } %>
+          <% if (invoice.PrimaryParentPhone) { %><p class="text-xs text-muted"><%= invoice.PrimaryParentPhone %></p><% } %>
+          <% if (invoice.PrimaryParentEmail) { %><p class="text-xs text-muted"><%= invoice.PrimaryParentEmail %></p><% } %>
+        </div>
+        <div>
+          <p class="kpi-label">Issue date</p>
+          <p class="font-medium"><%= invoice.IssueDate ? new Date(invoice.IssueDate).toLocaleDateString('en-ZA') : '—' %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Due date</p>
+          <p class="font-medium <%= invoice.Status !== 'Paid' && invoice.Status !== 'Cancelled' && invoice.DueDate && new Date(invoice.DueDate) < new Date() ? 'text-red-600 dark:text-red-400' : '' %>">
+            <%= invoice.DueDate ? new Date(invoice.DueDate).toLocaleDateString('en-ZA') : '—' %>
+          </p>
+        </div>
+        <% if (invoice.PaidDate) { %>
+          <div>
+            <p class="kpi-label">Paid date</p>
+            <p class="font-medium"><%= new Date(invoice.PaidDate).toLocaleDateString('en-ZA') %></p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <div x-show="tab === 'payments'">
+    <% if (!payments || payments.length === 0) { %>
+      <div class="card">
+        <div class="card-body empty-state">
+          <p class="empty-state-desc">No payments recorded for this invoice yet.</p>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Receipt #</th>
+              <th>Method</th>
+              <th>Payee</th>
+              <th>Date</th>
+              <th class="text-right">Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% payments.forEach(function(p) { %>
+              <tr>
+                <td class="font-medium"><%= p.ReceiptNumber || '—' %></td>
+                <td><%= p.PaymentMethod || '—' %></td>
+                <td class="text-muted"><%= p.PayeeName || '—' %></td>
+                <td class="text-muted text-sm"><%= p.TransactionDate ? new Date(p.TransactionDate).toLocaleDateString('en-ZA') : '—' %></td>
+                <td class="text-right text-money">R <%= Number(p.Amount).toFixed(2) %></td>
+                <td>
+                  <% if (p.AllocationStatus === 'Allocated') { %><span class="badge-success">Allocated</span>
+                  <% } else if (p.AllocationStatus === 'PendingPayment') { %><span class="badge-warning">Awaiting confirmation</span>
+                  <% } else { %><span class="badge-neutral"><%= p.AllocationStatus %></span><% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>

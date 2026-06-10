@@ -104,6 +104,10 @@ function rememberActivity() {
 }
 
 function redirectToDevForgeLogin() {
+  if (window.isAuthDisabled?.()) {
+    return;
+  }
+
   state.token = null;
   state.user = null;
   localStorage.removeItem('smsToken');
@@ -113,6 +117,10 @@ function redirectToDevForgeLogin() {
 }
 
 function enforceInactivityTimeout() {
+  if (window.isAuthDisabled?.()) {
+    return false;
+  }
+
   if (!state.token) return false;
   const lastActivity = Number(localStorage.getItem('smsLastActivity') || Date.now());
   if (Date.now() - lastActivity >= SESSION_TIMEOUT_MS) {
@@ -146,8 +154,19 @@ function dashboardPath(user) {
   return '/sms';
 }
 
+function syncSessionFromStorage() {
+  state.token = localStorage.getItem('smsToken');
+  state.user = readStoredUser();
+}
+
 function requirePlatformSession() {
+  syncSessionFromStorage();
+
   if (!state.token || !state.user) {
+    if (window.isAuthDisabled?.()) {
+      return false;
+    }
+
     window.location.href = '/devforge-login';
     return false;
   }
@@ -1048,4 +1067,7 @@ document.addEventListener('click', async (event) => {
 
 elements.logoutButton.addEventListener('click', clearSession);
 
-renderShell();
+window.bootPortal?.(() => {
+  syncSessionFromStorage();
+  renderShell();
+}) ?? renderShell();

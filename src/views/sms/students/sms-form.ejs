@@ -1,0 +1,111 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-narrow">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/students" class="text-muted hover:underline">Students</a>
+    <% if (mode === 'edit') { %>
+      <span class="text-muted mx-1">/</span>
+      <a href="/sms/students/<%= student.StudentID %>" class="text-muted hover:underline"><%= student.FirstName %> <%= student.LastName %></a>
+      <span class="text-muted mx-1">/</span>
+      <span>Edit</span>
+    <% } else { %>
+      <span class="text-muted mx-1">/</span>
+      <span>New</span>
+    <% } %>
+  </nav>
+
+  <div class="card">
+    <div class="card-header">
+      <h1 class="text-xl font-semibold"><%= mode === 'edit' ? 'Edit student' : 'Add student' %></h1>
+      <p class="text-muted text-sm mt-0.5"><%= mode === 'edit' ? 'Update this student\'s details.' : 'Enrol a new student into your school.' %></p>
+    </div>
+    <form method="post" action="<%= mode === 'edit' ? '/sms/students/' + student.StudentID : '/sms/students' %>"
+          hx-post="<%= mode === 'edit' ? '/sms/students/' + student.StudentID : '/sms/students' %>"
+          hx-target="this"
+          hx-swap="outerHTML"
+          class="card-body space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label label-required" for="firstName">First name</label>
+          <input id="firstName" name="firstName" type="text" required maxlength="255"
+                 value="<%= student && student.FirstName ? student.FirstName : '' %>"
+                 class="input <%= errors.firstName ? 'input-error' : '' %>" />
+          <% if (errors.firstName) { %><p class="error-text"><%= errors.firstName %></p><% } %>
+        </div>
+        <div class="form-field">
+          <label class="label label-required" for="lastName">Last name</label>
+          <input id="lastName" name="lastName" type="text" required maxlength="255"
+                 value="<%= student && student.LastName ? student.LastName : '' %>"
+                 class="input <%= errors.lastName ? 'input-error' : '' %>" />
+          <% if (errors.lastName) { %><p class="error-text"><%= errors.lastName %></p><% } %>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label" for="dateOfBirth">Date of birth</label>
+          <input id="dateOfBirth" name="dateOfBirth" type="date"
+                 value="<%= student && student.DateOfBirth ? new Date(student.DateOfBirth).toISOString().slice(0,10) : '' %>"
+                 class="input <%= errors.dateOfBirth ? 'input-error' : '' %>" />
+          <% if (errors.dateOfBirth) { %><p class="error-text"><%= errors.dateOfBirth %></p><% } %>
+        </div>
+        <div class="form-field">
+          <label class="label" for="classId">Class</label>
+          <select id="classId" name="classId" class="select">
+            <option value="">Unassigned</option>
+            <% classes.forEach(function(c) { %>
+              <option value="<%= c.ClassID %>" <%= student && String(student.ClassID) === String(c.ClassID) ? 'selected' : '' %>>
+                <%= c.ClassName %><% if (c.Grade) { %> (Grade <%= c.Grade %>)<% } %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label class="label label-required" for="familyId">Family</label>
+        <select id="familyId" name="familyId" required class="select <%= errors.familyId ? 'input-error' : '' %>">
+          <option value="">Select a family...</option>
+          <% families.forEach(function(f) { %>
+            <option value="<%= f.FamilyID %>" <%= student && String(student.FamilyID) === String(f.FamilyID) ? 'selected' : '' %>>
+              <%= f.FamilyName %><% if (f.PrimaryParentName) { %> &middot; <%= f.PrimaryParentName %><% } %>
+            </option>
+          <% }) %>
+        </select>
+        <p class="help-text">
+          Don't see the family?
+          <a href="/sms/families/new?familyName=" class="text-brand-600 dark:text-brand-300 hover:underline">Create one first</a>.
+        </p>
+        <% if (errors.familyId) { %><p class="error-text"><%= errors.familyId %></p><% } %>
+      </div>
+
+      <div class="form-field">
+        <label class="label" for="medicalNotes">Medical notes</label>
+        <textarea id="medicalNotes" name="medicalNotes" rows="3" maxlength="1000"
+                  class="textarea"
+                  placeholder="Allergies, conditions, medication..."><%= student && student.MedicalNotes ? student.MedicalNotes : '' %></textarea>
+        <p class="help-text">Only visible to school staff. Not shown on invoices or to parents.</p>
+      </div>
+
+      <% if (mode === 'edit') { %>
+        <div class="form-field">
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="isActive" <%= student && student.IsActive ? 'checked' : '' %> class="checkbox" />
+            <span class="text-sm font-medium">Active student</span>
+          </label>
+          <p class="help-text">Untick to mark as inactive (e.g. graduated, transferred). The record is preserved.</p>
+        </div>
+      <% } %>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <a href="<%= mode === 'edit' ? '/sms/students/' + student.StudentID : '/sms/students' %>" class="btn-ghost">Cancel</a>
+        <button type="submit" class="btn-primary">
+          <%= mode === 'edit' ? 'Save changes' : 'Add student' %>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -357,28 +357,76 @@ class StudentService {
   }
 
   sanitizeStudentForUser(student, currentUser) {
-    if (this.canViewStudentBilling(currentUser)) {
-      return student;
+    const clone = { ...student };
+
+    if (!this.canViewStudentBilling(currentUser)) {
+      [
+        'BillingDate',
+        'BillingCategoryID',
+        'BillingCategoriesJson',
+        'MonthlyDiscountsJson',
+        'CategoryName',
+        'CategoryAmount',
+        'CategoryFrequency',
+        'CategoryIsActive',
+        'ResponsiblePayerType',
+        'ResponsiblePayerName',
+        'ResponsiblePayerPhone',
+        'ResponsiblePayerEmail'
+      ].forEach((field) => {
+        delete clone[field];
+      });
     }
 
-    const clone = { ...student };
-    [
-      'BillingDate',
-      'BillingCategoryID',
-      'BillingCategoriesJson',
-      'MonthlyDiscountsJson',
-      'CategoryName',
-      'CategoryAmount',
-      'CategoryFrequency',
-      'CategoryIsActive',
-      'ResponsiblePayerType',
-      'ResponsiblePayerName',
-      'ResponsiblePayerPhone',
-      'ResponsiblePayerEmail'
-    ].forEach((field) => {
-      delete clone[field];
-    });
+    if (!this.canViewStudentMedical(currentUser)) {
+      [
+        'MedicalNotes',
+        'FamilyDoctor',
+        'MedicalAidName',
+        'MedicalAidNumber'
+      ].forEach((field) => {
+        delete clone[field];
+      });
+    }
+
+    if (!this.canViewIdDocuments(currentUser)) {
+      [
+        'PrimaryParentIdNumber',
+        'SecondaryParentIdNumber'
+      ].forEach((field) => {
+        delete clone[field];
+      });
+    }
+
+    if (!this.canViewEthnicity(currentUser)) {
+      delete clone.Ethnicity;
+    }
+
     return clone;
+  }
+
+  canViewStudentMedical(currentUser) {
+    if (!currentUser || currentUser.Role === 'admin') return true;
+    return hasSchoolPermission(currentUser, [
+      'school.students.manage',
+      'sensitive.student_medical.view'
+    ]);
+  }
+
+  canViewIdDocuments(currentUser) {
+    if (!currentUser || currentUser.Role === 'admin') return true;
+    return hasSchoolPermission(currentUser, [
+      'school.parents.manage',
+      'sensitive.id_documents.view'
+    ]);
+  }
+
+  canViewEthnicity(currentUser) {
+    if (!currentUser || currentUser.Role === 'admin') return true;
+    return hasSchoolPermission(currentUser, [
+      'school.students.manage',
+      'sensitive.ethnicity.view'
+    ]);
   }
 
   canViewStudentBilling(currentUser) {

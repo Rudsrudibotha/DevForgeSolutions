@@ -1,0 +1,54 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Registration / deposit fees</h1>
+      <p class="text-muted text-sm">Track and collect registration deposits.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Student / Family</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Refundable</th>
+              <th>Status</th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!(list || []).length) { %>
+              <tr><td colspan="7" class="text-center text-muted py-6">No registration fees recorded.</td></tr>
+            <% } else { %>
+              <% list.forEach(function (r) { %>
+                <tr>
+                  <td><%= r.RegistrationFeeID || r.registrationFeeId %></td>
+                  <td><%= r.StudentName || r.FamilyName || '-' %></td>
+                  <td><%= r.FeeType || '-' %></td>
+                  <td><%= formatMoney(r.Amount, r.CurrencyCode) %></td>
+                  <td><%= r.Refundable ? 'Yes' : 'No' %></td>
+                  <td><span class="badge"><%= r.Status || 'Pending' %></span></td>
+                  <td class="text-right">
+                    <% if (r.Status !== 'Paid') { %>
+                      <button class="btn-primary btn-sm" hx-put="/api/school-features/registration-fees/<%= r.RegistrationFeeID %>/pay">Mark paid</button>
+                    <% } else { %>
+                      <span class="text-emerald-600 text-xs">✓ Paid</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

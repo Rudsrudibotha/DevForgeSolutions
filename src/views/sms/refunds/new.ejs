@@ -1,0 +1,57 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-narrow">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/refunds" class="text-muted hover:underline">Refunds</a>
+    <span class="text-muted mx-1">/</span>
+    <span>New</span>
+  </nav>
+
+  <div class="card">
+    <div class="card-header">
+      <h1 class="text-xl font-semibold">New refund</h1>
+      <p class="text-muted text-sm mt-0.5">A refund is deducted from the family's available balance. The refund cannot exceed what the family has paid in.</p>
+    </div>
+    <form method="post" action="/sms/refunds"
+          hx-post="/sms/refunds"
+          hx-target="this"
+          hx-swap="outerHTML"
+          class="card-body space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <% if (errors._form) { %>
+        <div class="alert alert-error"><%= errors._form %></div>
+      <% } %>
+
+      <div class="form-field">
+        <label class="label label-required" for="familyId">Family</label>
+        <select id="familyId" name="familyId" required class="select">
+          <option value="">Select a family...</option>
+          <% families.forEach(function(f) { %>
+            <option value="<%= f.FamilyID %>" <%= String(form.familyId) === String(f.FamilyID) ? 'selected' : '' %>>
+              <%= f.FamilyName %> &middot; available <%= (Number(f.availableForRefund) || 0).toFixed(2) %>
+            </option>
+          <% }) %>
+        </select>
+        <p class="help-text">Only families with a positive running balance are shown.</p>
+      </div>
+
+      <div class="form-field">
+        <label class="label label-required" for="amount">Amount</label>
+        <input id="amount" name="amount" type="number" min="0.01" step="0.01" required
+               value="<%= form.amount || '' %>" class="input" />
+      </div>
+
+      <div class="form-field">
+        <label class="label" for="reason">Reason</label>
+        <textarea id="reason" name="reason" rows="2" class="textarea" placeholder="Why is this refund being issued?"><%= form.reason || '' %></textarea>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <a href="/sms/refunds" class="btn-ghost">Cancel</a>
+        <button type="submit" class="btn-primary">Create refund</button>
+      </div>
+    </form>
+  </div>
+</div>

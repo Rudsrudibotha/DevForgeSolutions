@@ -1,0 +1,49 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-semibold">New payslip</h1>
+    <a href="/sms/payslips" class="btn-secondary">Back</a>
+  </div>
+
+  <form method="post" action="/api/payslips" class="card max-w-3xl">
+    <div class="card-body space-y-4">
+      <div>
+        <label class="label">Employee</label>
+        <select name="employeeId" required class="input">
+          <option value="">Select employee</option>
+          <% (employees || []).forEach(function (e) { %>
+            <option value="<%= e.EmployeeID %>"><%= e.FirstName %> <%= e.LastName %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label class="label">Pay period</label><input type="month" name="payPeriod" required class="input" /></div>
+        <div><label class="label">Payment date</label><input type="date" name="paymentDate" class="input" /></div>
+      </div>
+      <h2 class="text-lg font-semibold pt-2">Earnings</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div><label class="label">Basic</label><input type="number" name="basicSalary" step="0.01" class="input" /></div>
+        <div><label class="label">Allowances</label><input type="number" name="allowances" step="0.01" class="input" /></div>
+        <div><label class="label">Overtime</label><input type="number" name="overtime" step="0.01" class="input" /></div>
+        <div><label class="label">Bonus</label><input type="number" name="bonus" step="0.01" class="input" /></div>
+      </div>
+      <h2 class="text-lg font-semibold pt-2">Deductions</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div><label class="label">Leave</label><input type="number" name="leaveDeduction" step="0.01" class="input" /></div>
+        <div><label class="label">PAYE</label><input type="number" name="paye" step="0.01" class="input" /></div>
+        <div><label class="label">UIF</label><input type="number" name="uif" step="0.01" class="input" /></div>
+        <div><label class="label">Other</label><input type="number" name="otherDeductions" step="0.01" class="input" /></div>
+      </div>
+      <div>
+        <label class="label">Notes</label>
+        <textarea name="notes" class="input" rows="2"></textarea>
+      </div>
+      <div class="flex justify-end gap-2">
+        <a href="/sms/payslips" class="btn-secondary">Cancel</a>
+        <button type="submit" class="btn-primary">Create payslip</button>
+      </div>
+    </div>
+  </form>
+</div>

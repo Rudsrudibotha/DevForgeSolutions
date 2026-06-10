@@ -4,11 +4,16 @@ const express = require('express');
 const UserService = require('../business/userService');
 const { authenticateToken, requireAdmin, requireSchoolPermission } = require('../middleware/auth');
 const { audit, auditLog } = require('../middleware/audit');
+const { authDisabledResponse, isAuthDisabled } = require('../security/testAuth');
 
 const router = express.Router();
 const userService = new UserService();
 
 router.post('/register', async (req, res) => {
+  if (isAuthDisabled()) {
+    return res.status(503).json(authDisabledResponse());
+  }
+
   try {
     const { email, username, password, role, schoolName, contactEmail } = req.body;
 
@@ -32,6 +37,10 @@ router.post('/register', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
+  if (isAuthDisabled()) {
+    return res.status(503).json(authDisabledResponse());
+  }
+
   try {
     const { schoolId, username, identifier, email, password, loginType } = req.body;
     const loginIdentifier = identifier || email || username;
@@ -108,9 +117,26 @@ router.put('/devforge-users/:id/deactivate', authenticateToken, requireAdmin, au
   }
 });
 
+// SECURITY (C2): a school staff user may never pass ?schoolId= to read
+// another school's users. Clamp the requested school to the caller's
+// own school for non-admin roles.
+
+function safeSchoolIdForRequest(req, requestedSchoolId) {
+  if (!req.user) return null;
+  if (req.user.Role === 'admin') return Number(requestedSchoolId) || null;
+  if (requestedSchoolId && Number(requestedSchoolId) !== Number(req.user.SchoolID)) {
+    return null;
+  }
+  return Number(req.user.SchoolID) || null;
+}
+
 router.get('/school-users', authenticateToken, requireSchoolPermission('school.staff.view', 'school.staff.manage', 'school.staff.permissions.manage'), async (req, res) => {
   try {
-    const users = await userService.getSchoolUsers(req.user, req.query.schoolId);
+    const safeSchoolId = safeSchoolIdForRequest(req, req.query.schoolId);
+    if (!safeSchoolId && req.user.Role === 'school') {
+      return res.status(403).json({ error: 'school-mismatch' });
+    }
+    const users = await userService.getSchoolUsers(req.user, safeSchoolId);
     res.json(users);
   } catch (error) {
     res.status(400).json({ error: error.message });

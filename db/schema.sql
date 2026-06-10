@@ -211,6 +211,69 @@ BEGIN
     ALTER TABLE dbo.Users ADD HasHrPermission BIT NOT NULL DEFAULT 0;
 END;
 
+-- IsVerified: set to 1 by parentVerificationService.completeSms once
+-- the user has completed both email and cellphone verification. Used
+-- by the student-creation gate in /sms/students (a family must have at
+-- least one verified parent before a student can be enrolled).
+IF COL_LENGTH('dbo.Users', 'IsVerified') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD IsVerified BIT NOT NULL CONSTRAINT DF_Users_IsVerified DEFAULT 0;
+END;
+IF COL_LENGTH('dbo.Users', 'VerifiedAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD VerifiedAt DATETIME2 NULL;
+END;
+
+-- ParentInvitations: school-initiated invite flow. The school operator
+-- enters the parent email + cellphone on /sms/families/:id/invite-parent;
+-- we insert a row and email a magic link to /parent/verify?invite=...
+-- On verification, the user is created (or upgraded) and a ParentLink
+-- row is created against the family.
+IF OBJECT_ID('dbo.ParentInvitations', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ParentInvitations (
+        ParentInvitationId  INT IDENTITY(1,1) PRIMARY KEY,
+        TenantId            INT NULL,
+        SchoolId            INT NOT NULL,
+        FamilyId            INT NOT NULL,
+        Email               NVARCHAR(255) NOT NULL,
+        Cellphone           NVARCHAR(50)  NOT NULL,
+        InvitedByUserId     INT NOT NULL,
+        TokenHash           NVARCHAR(128) NOT NULL,
+        Status              NVARCHAR(20)  NOT NULL DEFAULT 'Pending',  -- Pending, Accepted, Revoked, Expired
+        ExpiresAt           DATETIME2     NOT NULL,
+        AcceptedAt          DATETIME2     NULL,
+        AcceptedByUserId    INT           NULL,
+        CreatedAt           DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_ParentInvitations_Schools FOREIGN KEY (SchoolId) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_ParentInvitations_Families FOREIGN KEY (FamilyId) REFERENCES dbo.Families(FamilyID),
+        CONSTRAINT FK_ParentInvitations_Users FOREIGN KEY (InvitedByUserId) REFERENCES dbo.Users(UserID)
+    );
+    CREATE INDEX IX_ParentInvitations_Token ON dbo.ParentInvitations(TokenHash);
+    CREATE INDEX IX_ParentInvitations_Family ON dbo.ParentInvitations(FamilyId, Status);
+END;
+
+-- RolePermissionOverrides: per-role Allow/Deny/Inherit for every
+-- permission key. Drives the feature matrix UI at /sms/permissions.
+-- Inherit = use the role's normal set (RolePermission join).
+-- Allow  = force this role to have this key, regardless of the
+--          default plan/subscription.
+-- Deny   = force this role to NOT have this key, even if the default
+--          plan/subscription grants it. Deny always wins.
+IF OBJECT_ID('dbo.RolePermissionOverrides', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.RolePermissionOverrides (
+        RolePermissionOverrideId INT IDENTITY(1,1) PRIMARY KEY,
+        RoleId  INT NOT NULL,
+        PermissionKey NVARCHAR(100) NOT NULL,
+        Decision NVARCHAR(10) NOT NULL DEFAULT 'Inherit',  -- Inherit, Allow, Deny
+        UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_RPO_Roles FOREIGN KEY (RoleId) REFERENCES dbo.Roles(RoleID),
+        CONSTRAINT UQ_RPO UNIQUE (RoleId, PermissionKey)
+    );
+    CREATE INDEX IX_RPO_Role ON dbo.RolePermissionOverrides(RoleId);
+END;
+
 EXEC sp_executesql N'
 ;WITH CandidateUsernames AS (
     SELECT
@@ -303,7 +366,7 @@ END;
 IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Invoices_Status')
 BEGIN
     ALTER TABLE dbo.Invoices DROP CONSTRAINT CK_Invoices_Status;
-    ALTER TABLE dbo.Invoices ADD CONSTRAINT CK_Invoices_Status CHECK (Status IN ('Pending', 'Paid', 'Cancelled', 'Overdue', 'Partial'));
+    ALTER TABLE dbo.Invoices ADD CONSTRAINT CK_Invoices_Status CHECK (Status IN ('Pending', 'Paid', 'Cancelled', 'Overdue', 'Partial', 'PendingPayment'));
 END;
 
 -- Update role constraint to include parent
@@ -2293,3 +2356,1041 @@ UPDATE dbo.Users SET HasHrPermission = 1 WHERE Role IN ('admin', 'school') AND H
 
 -- Enable staff payslip view for test schools
 UPDATE dbo.Schools SET AllowStaffPayslipView = 1 WHERE AllowStaffPayslipView = 0;
+
+-- =============================================
+-- Audit log: every admin read/write of a school
+-- =============================================
+IF OBJECT_ID('dbo.AuditLog', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AuditLog (
+        AuditID        BIGINT IDENTITY(1,1) PRIMARY KEY,
+        ActorUserID     INT NULL,
+        ActorRole       NVARCHAR(50) NOT NULL,
+        ActorEmail      NVARCHAR(255) NULL,
+        SchoolID        INT NOT NULL,
+        Action          NVARCHAR(20) NOT NULL,        -- READ | CREATE | UPDATE | DELETE | LOGIN | SUSPEND | OVERRIDE
+        ResourceType    NVARCHAR(50) NOT NULL,        -- student | invoice | payment | school | user | ...
+        ResourceID      NVARCHAR(64) NULL,
+        Payload         NVARCHAR(MAX) NULL,           -- JSON: before/after/meta
+        RequestID       NVARCHAR(64) NULL,
+        IPAddress       NVARCHAR(64) NULL,
+        UserAgent       NVARCHAR(512) NULL,
+        OccurredAt      DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AuditLog_School_OccurredAt' AND object_id = OBJECT_ID('dbo.AuditLog'))
+BEGIN
+    CREATE INDEX IX_AuditLog_School_OccurredAt ON dbo.AuditLog(SchoolID, OccurredAt DESC);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AuditLog_Actor_OccurredAt' AND object_id = OBJECT_ID('dbo.AuditLog'))
+BEGIN
+    CREATE INDEX IX_AuditLog_Actor_OccurredAt ON dbo.AuditLog(ActorUserID, OccurredAt DESC) WHERE ActorUserID IS NOT NULL;
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AuditLog_Resource' AND object_id = OBJECT_ID('dbo.AuditLog'))
+BEGIN
+    CREATE INDEX IX_AuditLog_Resource ON dbo.AuditLog(ResourceType, ResourceID, OccurredAt DESC) WHERE ResourceID IS NOT NULL;
+END;
+
+-- =============================================
+-- Families.IsDeleted for soft delete
+-- =============================================
+IF COL_LENGTH('dbo.Families', 'IsDeleted') IS NULL
+BEGIN
+    ALTER TABLE dbo.Families ADD IsDeleted BIT NOT NULL DEFAULT 0;
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Families_School_IsDeleted' AND object_id = OBJECT_ID('dbo.Families'))
+BEGIN
+    CREATE INDEX IX_Families_School_IsDeleted ON dbo.Families(SchoolID, IsDeleted) INCLUDE (FamilyName, PrimaryParentName);
+END;
+
+-- =============================================
+-- Classes.IsDeleted for soft delete
+-- =============================================
+IF COL_LENGTH('dbo.Classes', 'IsDeleted') IS NULL
+BEGIN
+    ALTER TABLE dbo.Classes ADD IsDeleted BIT NOT NULL DEFAULT 0;
+END;
+
+IF COL_LENGTH('dbo.Classes', 'Grade') IS NULL
+BEGIN
+    ALTER TABLE dbo.Classes ADD Grade NVARCHAR(20) NULL;
+END;
+
+IF COL_LENGTH('dbo.Classes', 'Room') IS NULL
+BEGIN
+    ALTER TABLE dbo.Classes ADD Room NVARCHAR(50) NULL;
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Classes_School_IsDeleted' AND object_id = OBJECT_ID('dbo.Classes'))
+BEGIN
+    CREATE INDEX IX_Classes_School_IsDeleted ON dbo.Classes(SchoolID, IsDeleted, ActiveYear) INCLUDE (ClassName, Grade, TeacherID, Capacity);
+END;
+
+-- =============================================
+-- Attendance: covering index for the hot class+date path
+-- =============================================
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Attendance_ClassID_Date' AND object_id = OBJECT_ID('dbo.Attendance'))
+BEGIN
+    CREATE INDEX IX_Attendance_ClassID_Date
+        ON dbo.Attendance(SchoolID, ClassID, AttendanceDate)
+        INCLUDE (Status, ArrivalTime, Notes);
+END;
+
+-- =============================================
+-- PlatformSettings: key-value platform toggles (DevForge admin)
+-- Used for maintenance mode, feature toggles, etc. Edited only by
+-- DevForge admins; all writes are audit-logged.
+-- =============================================
+IF OBJECT_ID('dbo.PlatformSettings', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.PlatformSettings (
+        SettingKey   NVARCHAR(64) NOT NULL PRIMARY KEY,
+        SettingValue NVARCHAR(MAX) NULL,
+        Description  NVARCHAR(255) NULL,
+        UpdatedAt    DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedBy    NVARCHAR(255) NULL
+    );
+END;
+
+-- Seed defaults
+IF NOT EXISTS (SELECT 1 FROM dbo.PlatformSettings WHERE SettingKey = 'maintenanceMode')
+    INSERT INTO dbo.PlatformSettings (SettingKey, SettingValue, Description) VALUES ('maintenanceMode', 'off', 'When on, all non-admin requests are rejected with a maintenance page.');
+IF NOT EXISTS (SELECT 1 FROM dbo.PlatformSettings WHERE SettingKey = 'allowNewSignups')
+    INSERT INTO dbo.PlatformSettings (SettingKey, SettingValue, Description) VALUES ('allowNewSignups', 'on', 'When off, public signups are disabled.');
+IF NOT EXISTS (SELECT 1 FROM dbo.PlatformSettings WHERE SettingKey = 'parentPayEnabled')
+    INSERT INTO dbo.PlatformSettings (SettingKey, SettingValue, Description) VALUES ('parentPayEnabled', 'on', 'When off, parents can no longer initiate payments.');
+IF NOT EXISTS (SELECT 1 FROM dbo.PlatformSettings WHERE SettingKey = 'maxSchoolsPerUser')
+    INSERT INTO dbo.PlatformSettings (SettingKey, SettingValue, Description) VALUES ('maxSchoolsPerUser', '5', 'Soft cap on how many schools a single user account can be linked to.');
+
+-- =============================================
+-- Covering indexes for hot query paths
+-- Each index INCLUDEs columns that the SELECT list reads, so the
+-- query can be satisfied entirely from the index without a key lookup.
+-- =============================================
+
+-- Students: list view filters by SchoolID + IsDeleted + IsActive + ClassID
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Students_School_Active_Class' AND object_id = OBJECT_ID('dbo.Students'))
+BEGIN
+    CREATE INDEX IX_Students_School_Active_Class
+        ON dbo.Students(SchoolID, IsDeleted, IsActive, ClassID)
+        INCLUDE (StudentID, FirstName, LastName, FamilyID, BillingCategoryID);
+END;
+
+-- Students: search by name within a school
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Students_School_LastName' AND object_id = OBJECT_ID('dbo.Students'))
+BEGIN
+    CREATE INDEX IX_Students_School_LastName
+        ON dbo.Students(SchoolID, LastName, FirstName)
+        INCLUDE (StudentID, FamilyID, ClassID, IsActive);
+END;
+
+-- Invoices: list view filters by SchoolID + Status, ordered by DueDate DESC
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Invoices_School_Status_Due' AND object_id = OBJECT_ID('dbo.Invoices'))
+BEGIN
+    CREATE INDEX IX_Invoices_School_Status_Due
+        ON dbo.Invoices(SchoolID, Status, DueDate DESC)
+        INCLUDE (InvoiceID, InvoiceNumber, StudentID, Amount, AmountPaid, CreatedDate);
+END;
+
+-- Invoices: outstanding balance query (per school, per student, per status)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Invoices_School_Student_Status' AND object_id = OBJECT_ID('dbo.Invoices'))
+BEGIN
+    CREATE INDEX IX_Invoices_School_Student_Status
+        ON dbo.Invoices(SchoolID, StudentID, Status)
+        INCLUDE (InvoiceID, Amount, AmountPaid, DueDate);
+END;
+
+-- Transactions: payment list per school
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_School_Date' AND object_id = OBJECT_ID('dbo.Transactions'))
+BEGIN
+    CREATE INDEX IX_Transactions_School_Date
+        ON dbo.Transactions(SchoolID, TransactionDate DESC, CreatedDate DESC)
+        INCLUDE (TransactionID, ReceiptNumber, PayeeName, PaymentMethod, Amount, AllocationStatus, InvoiceID, BankStatementID);
+END;
+
+-- Transactions: unallocated payments (DevForge KPI)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_Allocation_School' AND object_id = OBJECT_ID('dbo.Transactions'))
+BEGIN
+    CREATE INDEX IX_Transactions_Allocation_School
+        ON dbo.Transactions(AllocationStatus, SchoolID)
+        INCLUDE (TransactionID, Amount, TransactionDate)
+        WHERE AllocationStatus IN ('Unallocated', 'PendingPayment');
+END;
+
+-- AuditLog: scoped queries by school/actor (covering: includes payload + actor fields)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AuditLog_School_OccurredAt_Covering' AND object_id = OBJECT_ID('dbo.AuditLog'))
+    AND OBJECT_ID('dbo.AuditLog') IS NOT NULL
+BEGIN
+    CREATE INDEX IX_AuditLog_School_OccurredAt_Covering
+        ON dbo.AuditLog(SchoolID, OccurredAt DESC)
+        INCLUDE (AuditID, Action, ResourceType, ResourceID, ActorUserID, ActorRole, ActorEmail, Payload);
+END;
+
+-- Users: lookup by email (login, OAuth callback)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_Email' AND object_id = OBJECT_ID('dbo.Users'))
+    AND OBJECT_ID('dbo.Users') IS NOT NULL
+BEGIN
+    CREATE INDEX IX_Users_Email
+        ON dbo.Users(Email)
+        INCLUDE (UserID, Username, FirstName, LastName, Role, IsActive);
+END;
+
+-- ParentLinks: parent-to-children lookup (parent portal tenancy)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ParentLinks_User' AND object_id = OBJECT_ID('dbo.ParentLinks'))
+    AND OBJECT_ID('dbo.ParentLinks') IS NOT NULL
+BEGIN
+    CREATE INDEX IX_ParentLinks_User
+        ON dbo.ParentLinks(UserID)
+        INCLUDE (ParentLinkID, SchoolID, FamilyID, StudentID);
+END;
+
+-- BankStatements: per school, ordered by statement date
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BankStatements_School_Date' AND object_id = OBJECT_ID('dbo.BankStatements'))
+    AND OBJECT_ID('dbo.BankStatements') IS NOT NULL
+BEGIN
+    CREATE INDEX IX_BankStatements_School_Date
+        ON dbo.BankStatements(SchoolID, StatementDate DESC)
+        INCLUDE (BankStatementID, FileName, Status);
+END;
+
+-- BankStatementTransactions: reconciliation query
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BankStmts_School_Match' AND object_id = OBJECT_ID('dbo.BankStatementTransactions'))
+    AND OBJECT_ID('dbo.BankStatementTransactions') IS NOT NULL
+BEGIN
+    CREATE INDEX IX_BankStmts_School_Match
+        ON dbo.BankStatementTransactions(SchoolID, IsMatched)
+        INCLUDE (BankStatementTransactionID, BankStatementID, Amount, TransactionDate, MatchedTransactionID);
+END;
+
+-- Staff: list per school, ordered by active first then name
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Employees_School_Active' AND object_id = OBJECT_ID('dbo.Employees'))
+    AND OBJECT_ID('dbo.Employees') IS NOT NULL
+BEGIN
+    CREATE INDEX IX_Employees_School_Active
+        ON dbo.Employees(SchoolID, IsActive, LastName, FirstName)
+        INCLUDE (EmployeeID, JobTitle, Department, Email, StartDate);
+END;
+
+-- Messaging: per school, per parent
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Conversations_School' AND object_id = OBJECT_ID('dbo.Conversations'))
+    AND OBJECT_ID('dbo.Conversations') IS NOT NULL
+BEGIN
+    CREATE INDEX IX_Conversations_School
+        ON dbo.Conversations(SchoolID, LastMessageAt DESC)
+        INCLUDE (ConversationID, Subject, FamilyID, ConversationType);
+END;
+
+-- =============================================
+-- SaaS Tenant Model (Task 1)
+-- Tenant is the SaaS root of multi-tenant isolation. SchoolId remains
+-- for granular per-school data; TenantId is the SaaS isolation key.
+-- =============================================
+IF OBJECT_ID('dbo.Tenants', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Tenants (
+        TenantId              INT IDENTITY(1,1) PRIMARY KEY,
+        TenantName            NVARCHAR(255) NOT NULL,
+        TenantType            NVARCHAR(50) NOT NULL DEFAULT 'School',  -- School | Business | Other
+        PrimaryContactUserId  INT NULL,
+        Status                NVARCHAR(20) NOT NULL DEFAULT 'Active',  -- Active | Suspended | Cancelled
+        CreatedAt             DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt             DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        IsActive              BIT NOT NULL DEFAULT 1
+    );
+    CREATE INDEX IX_Tenants_Status ON dbo.Tenants(Status, IsActive);
+END;
+
+-- =============================================
+-- UserTenantMembership (Task 2) - the source of truth for which users
+-- belong to which tenants. A user can have many memberships.
+-- =============================================
+IF OBJECT_ID('dbo.UserTenantMemberships', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.UserTenantMemberships (
+        UserTenantMembershipId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        UserId                  INT NOT NULL,
+        TenantId                INT NOT NULL,
+        SchoolId                INT NULL,
+        RoleId                  INT NULL,
+        Status                  NVARCHAR(20) NOT NULL DEFAULT 'Active',
+        JoinedAt                DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        DeactivatedAt           DATETIME2 NULL,
+        IsActive                BIT NOT NULL DEFAULT 1,
+        CONSTRAINT FK_UTM_User FOREIGN KEY (UserId) REFERENCES dbo.Users(UserID),
+        CONSTRAINT FK_UTM_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId)
+    );
+    CREATE INDEX IX_UTM_User_Active ON dbo.UserTenantMemberships(UserId, IsActive, Status);
+    CREATE INDEX IX_UTM_Tenant_Active ON dbo.UserTenantMemberships(TenantId, IsActive, Status);
+END;
+
+-- =============================================
+-- Roles + Permissions + RolePermissions (Task 4)
+-- =============================================
+IF OBJECT_ID('dbo.Roles', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Roles (
+        RoleId          INT IDENTITY(1,1) PRIMARY KEY,
+        RoleName        NVARCHAR(100) NOT NULL,
+        RoleCode        NVARCHAR(100) NOT NULL,
+        TenantId        INT NULL,  -- null for platform-level roles
+        IsPlatformRole  BIT NOT NULL DEFAULT 0,
+        Description     NVARCHAR(500) NULL,
+        CreatedAt       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        IsActive        BIT NOT NULL DEFAULT 1
+    );
+    CREATE INDEX IX_Roles_Tenant ON dbo.Roles(TenantId, IsActive);
+END;
+
+IF OBJECT_ID('dbo.Permissions', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Permissions (
+        PermissionId   INT IDENTITY(1,1) PRIMARY KEY,
+        PermissionKey  NVARCHAR(100) NOT NULL UNIQUE,  -- e.g. KINDER_CARE_HUB_MESSAGING
+        PermissionName NVARCHAR(150) NOT NULL,
+        Description    NVARCHAR(500) NULL,
+        CreatedAt      DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt      DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        IsActive       BIT NOT NULL DEFAULT 1
+    );
+END;
+
+IF OBJECT_ID('dbo.RolePermissions', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.RolePermissions (
+        RolePermissionId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        RoleId           INT NOT NULL,
+        PermissionId     INT NOT NULL,
+        CreatedAt        DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_RP_Role FOREIGN KEY (RoleId) REFERENCES dbo.Roles(RoleId),
+        CONSTRAINT FK_RP_Perm FOREIGN KEY (PermissionId) REFERENCES dbo.Permissions(PermissionId),
+        CONSTRAINT UQ_RolePermission UNIQUE (RoleId, PermissionId)
+    );
+END;
+
+-- =============================================
+-- SaaS Subscription Model (Tasks 5-9)
+-- SubscriptionPlan, SaaSFeature, SubscriptionPlanFeature, TenantSubscription,
+-- TenantFeatureOverride, TenantFeatureUsage.
+-- The model is key-based: check feature keys, not plan names.
+-- =============================================
+IF OBJECT_ID('dbo.SubscriptionPlans', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SubscriptionPlans (
+        SubscriptionPlanId INT IDENTITY(1,1) PRIMARY KEY,
+        PlanCode           NVARCHAR(50) NOT NULL UNIQUE,  -- STANDARD, ADVANCED, ...
+        PlanName           NVARCHAR(150) NOT NULL,
+        Description        NVARCHAR(1000) NULL,
+        Status             NVARCHAR(20) NOT NULL DEFAULT 'Active',
+        IsDefault          BIT NOT NULL DEFAULT 0,
+        CreatedAt          DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt          DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        IsActive           BIT NOT NULL DEFAULT 1
+    );
+END;
+
+IF OBJECT_ID('dbo.SaaSFeatures', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SaaSFeatures (
+        SaaSFeatureId   INT IDENTITY(1,1) PRIMARY KEY,
+        FeatureKey      NVARCHAR(100) NOT NULL UNIQUE,  -- stable, do not rename
+        FeatureName     NVARCHAR(150) NOT NULL,
+        FeatureCategory NVARCHAR(100) NULL,
+        Description     NVARCHAR(1000) NULL,
+        IsActive        BIT NOT NULL DEFAULT 1,
+        CreatedAt       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END;
+
+IF OBJECT_ID('dbo.SubscriptionPlanFeatures', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SubscriptionPlanFeatures (
+        SubscriptionPlanFeatureId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        SubscriptionPlanId           INT NOT NULL,
+        SaaSFeatureId                INT NOT NULL,
+        IsEnabled                     BIT NOT NULL DEFAULT 1,
+        LimitType                     NVARCHAR(50) NULL,    -- e.g. count, storage_bytes
+        LimitValue                    INT NULL,             -- null = unlimited
+        CreatedAt                     DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt                     DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_SPF_Plan FOREIGN KEY (SubscriptionPlanId) REFERENCES dbo.SubscriptionPlans(SubscriptionPlanId),
+        CONSTRAINT FK_SPF_Feat FOREIGN KEY (SaaSFeatureId) REFERENCES dbo.SaaSFeatures(SaaSFeatureId),
+        CONSTRAINT UQ_SPF_PlanFeature UNIQUE (SubscriptionPlanId, SaaSFeatureId)
+    );
+END;
+
+IF OBJECT_ID('dbo.TenantSubscriptions', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.TenantSubscriptions (
+        TenantSubscriptionId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId              INT NOT NULL,
+        SubscriptionPlanId    INT NOT NULL,
+        Status                NVARCHAR(20) NOT NULL DEFAULT 'Active',  -- Active, Suspended, Cancelled, Expired
+        StartDate             DATE NOT NULL,
+        EndDate               DATE NULL,
+        CreatedAt             DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt             DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        IsActive              BIT NOT NULL DEFAULT 1,
+        CONSTRAINT FK_TS_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId),
+        CONSTRAINT FK_TS_Plan FOREIGN KEY (SubscriptionPlanId) REFERENCES dbo.SubscriptionPlans(SubscriptionPlanId)
+    );
+    CREATE INDEX IX_TS_Tenant_Active ON dbo.TenantSubscriptions(TenantId, IsActive, Status);
+END;
+
+IF OBJECT_ID('dbo.TenantFeatureOverrides', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.TenantFeatureOverrides (
+        TenantFeatureOverrideId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId                 INT NOT NULL,
+        SaaSFeatureId            INT NOT NULL,
+        IsEnabled                BIT NOT NULL,
+        LimitValueOverride       INT NULL,
+        Reason                   NVARCHAR(500) NULL,
+        StartDate                DATE NULL,
+        EndDate                  DATE NULL,
+        CreatedByUserId          INT NULL,
+        CreatedAt                DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        IsActive                 BIT NOT NULL DEFAULT 1,
+        CONSTRAINT FK_TFO_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId),
+        CONSTRAINT FK_TFO_Feature FOREIGN KEY (SaaSFeatureId) REFERENCES dbo.SaaSFeatures(SaaSFeatureId)
+    );
+    CREATE INDEX IX_TFO_Tenant_Active ON dbo.TenantFeatureOverrides(TenantId, IsActive);
+END;
+
+IF OBJECT_ID('dbo.TenantFeatureUsage', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.TenantFeatureUsage (
+        TenantFeatureUsageId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId              INT NOT NULL,
+        SaaSFeatureId         INT NOT NULL,
+        UsagePeriodStart      DATETIME2 NOT NULL,
+        UsagePeriodEnd        DATETIME2 NOT NULL,
+        UsageCount            INT NOT NULL DEFAULT 0,
+        StorageBytesUsed      BIGINT NOT NULL DEFAULT 0,
+        CreatedAt             DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt             DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_TFU_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId),
+        CONSTRAINT FK_TFU_Feature FOREIGN KEY (SaaSFeatureId) REFERENCES dbo.SaaSFeatures(SaaSFeatureId)
+    );
+    CREATE INDEX IX_TFU_Tenant_Period ON dbo.TenantFeatureUsage(TenantId, UsagePeriodStart DESC);
+END;
+
+-- =============================================
+-- KinderCareHub Messaging Schema (Tasks 22-26)
+-- Conversation, ConversationParticipant, Message, MessageAttachment,
+-- MessageNotificationEvent, ConversationAuditLogs.
+-- Every entity is tenant-scoped. SchoolId is set when school-specific.
+-- =============================================
+IF OBJECT_ID('dbo.Conversations', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Conversations (
+        ConversationId      BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId            INT NOT NULL,
+        SchoolId            INT NULL,
+        ConversationType    NVARCHAR(40) NOT NULL,  -- DevForgeToSchool, DevForgeToParent, SchoolInternal, SchoolToDevForge, SchoolToParent, ParentToSchool, SupportConversation, BroadcastAnnouncement
+        ConversationName    NVARCHAR(255) NULL,
+        CreatedByUserId     INT NOT NULL,
+        IsBroadcast         BIT NOT NULL DEFAULT 0,
+        LastMessageId       BIGINT NULL,
+        LastMessageAt       DATETIME2 NULL,
+        LastMessagePreview  NVARCHAR(500) NULL,
+        CreatedAt           DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt           DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        IsActive            BIT NOT NULL DEFAULT 1,
+        CONSTRAINT FK_Conv_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId)
+    );
+    CREATE INDEX IX_Conversations_Tenant ON dbo.Conversations(TenantId, SchoolId, LastMessageAt DESC) INCLUDE (ConversationId, ConversationName, ConversationType, IsActive);
+END;
+
+IF OBJECT_ID('dbo.ConversationParticipants', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ConversationParticipants (
+        ConversationParticipantId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        ConversationId             BIGINT NOT NULL,
+        TenantId                   INT NOT NULL,
+        SchoolId                   INT NULL,
+        UserId                     INT NOT NULL,
+        RoleAtTime                 NVARCHAR(40) NULL,
+        CanRead                    BIT NOT NULL DEFAULT 1,
+        CanSend                    BIT NOT NULL DEFAULT 1,
+        CanReply                   BIT NOT NULL DEFAULT 1,
+        CanUploadImage             BIT NOT NULL DEFAULT 1,
+        JoinedAt                   DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        RemovedAt                  DATETIME2 NULL,
+        IsActive                   BIT NOT NULL DEFAULT 1,
+        LastReadMessageId          BIGINT NULL,
+        LastReadAt                 DATETIME2 NULL,
+        UnreadCount                INT NOT NULL DEFAULT 0,
+        CONSTRAINT FK_CP_Conv FOREIGN KEY (ConversationId) REFERENCES dbo.Conversations(ConversationId),
+        CONSTRAINT FK_CP_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId),
+        CONSTRAINT UQ_CP_ConvUser UNIQUE (ConversationId, UserId)
+    );
+    CREATE INDEX IX_CP_Tenant_User ON dbo.ConversationParticipants(TenantId, UserId, IsActive, LastReadAt DESC);
+END;
+
+IF OBJECT_ID('dbo.Messages', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Messages (
+        MessageId         BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId          INT NOT NULL,
+        SchoolId          INT NULL,
+        ConversationId    BIGINT NOT NULL,
+        SenderUserId      INT NOT NULL,
+        MessageType       NVARCHAR(20) NOT NULL DEFAULT 'Text',  -- Text, Image, TextWithImage, System, FaultReport
+        MessageBody       NVARCHAR(MAX) NOT NULL,
+        CreatedAt         DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        EditedAt          DATETIME2 NULL,
+        DeletedAt         DATETIME2 NULL,
+        IsDeleted         BIT NOT NULL DEFAULT 0,
+        IsSystemMessage   BIT NOT NULL DEFAULT 0,
+        ReplyToMessageId  BIGINT NULL,
+        CONSTRAINT FK_Msg_Conv FOREIGN KEY (ConversationId) REFERENCES dbo.Conversations(ConversationId),
+        CONSTRAINT FK_Msg_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId)
+    );
+    CREATE INDEX IX_Messages_Tenant_Conv_Created ON dbo.Messages(TenantId, ConversationId, CreatedAt DESC) INCLUDE (MessageId, SenderUserId, MessageType, MessageBody);
+END;
+
+IF OBJECT_ID('dbo.MessageAttachments', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.MessageAttachments (
+        MessageAttachmentId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId            INT NOT NULL,
+        SchoolId            INT NULL,
+        ConversationId      BIGINT NOT NULL,
+        MessageId           BIGINT NOT NULL,
+        UploadedByUserId    INT NOT NULL,
+        OriginalFileName    NVARCHAR(255) NULL,
+        StoredFileName      NVARCHAR(255) NOT NULL,
+        FileExtension       NVARCHAR(20) NOT NULL,
+        MimeType            NVARCHAR(100) NOT NULL,
+        FileSizeBytes       BIGINT NOT NULL,
+        StoragePath         NVARCHAR(1000) NOT NULL,
+        ThumbnailPath       NVARCHAR(1000) NULL,
+        UploadedAt          DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        IsImage             BIT NOT NULL DEFAULT 1,
+        IsScanned           BIT NOT NULL DEFAULT 0,
+        ScanStatus          NVARCHAR(20) NOT NULL DEFAULT 'Pending',  -- Pending, Clean, Infected, Failed
+        IsDeleted           BIT NOT NULL DEFAULT 0,
+        DeletedAt           DATETIME2 NULL,
+        CONSTRAINT FK_MA_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId)
+    );
+    CREATE INDEX IX_MA_Tenant_Conv_Msg_User ON dbo.MessageAttachments(TenantId, ConversationId, MessageId, UploadedByUserId) INCLUDE (FileExtension, FileSizeBytes);
+END;
+
+IF OBJECT_ID('dbo.MessageNotificationEvents', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.MessageNotificationEvents (
+        MessageNotificationEventId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId                    INT NOT NULL,
+        SchoolId                    INT NULL,
+        ConversationId              BIGINT NOT NULL,
+        MessageId                   BIGINT NOT NULL,
+        TargetUserId                INT NOT NULL,
+        EventType                   NVARCHAR(30) NOT NULL DEFAULT 'NewMessage',
+        Status                      NVARCHAR(20) NOT NULL DEFAULT 'Pending',  -- Pending, Delivered, Read, Failed
+        CreatedAt                   DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        DeliveredAt                 DATETIME2 NULL,
+        ReadAt                      DATETIME2 NULL,
+        CONSTRAINT FK_MNE_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId)
+    );
+    CREATE INDEX IX_MNE_TargetUser_Status_Created ON dbo.MessageNotificationEvents(TenantId, TargetUserId, Status, CreatedAt DESC) INCLUDE (MessageNotificationEventId, ConversationId, MessageId, EventType);
+END;
+
+IF OBJECT_ID('dbo.ConversationAuditLogs', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ConversationAuditLogs (
+        ConversationAuditLogId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId              INT NOT NULL,
+        SchoolId              INT NULL,
+        UserId                INT NULL,
+        ActionType            NVARCHAR(60) NOT NULL,
+        EntityType            NVARCHAR(60) NOT NULL,
+        EntityId              BIGINT NULL,
+        Description           NVARCHAR(2000) NULL,
+        IPAddress             NVARCHAR(64) NULL,
+        UserAgent             NVARCHAR(500) NULL,
+        WasBlocked            BIT NOT NULL DEFAULT 0,
+        CreatedAt             DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+    CREATE INDEX IX_CAL_Tenant_User_Action_Created ON dbo.ConversationAuditLogs(TenantId, UserId, ActionType, CreatedAt DESC) INCLUDE (ConversationAuditLogId, EntityType, EntityId, WasBlocked);
+END;
+
+-- =============================================
+-- Broadcast announcements + fault reports + AI request log + background jobs
+-- (Tasks 45-47, 57, 63, 77)
+-- =============================================
+IF OBJECT_ID('dbo.BroadcastAnnouncements', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.BroadcastAnnouncements (
+        BroadcastAnnouncementId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId                 INT NOT NULL,
+        CreatedByUserId          INT NOT NULL,
+        BroadcastType            NVARCHAR(40) NOT NULL,  -- DevForgeToSchool, DevForgeToParent, SchoolToParents, etc.
+        MessageBody              NVARCHAR(MAX) NOT NULL,
+        Status                   NVARCHAR(20) NOT NULL DEFAULT 'Pending',  -- Pending, Processing, Completed, Failed
+        TotalRecipients          INT NOT NULL DEFAULT 0,
+        TotalDelivered           INT NOT NULL DEFAULT 0,
+        TotalFailed              INT NOT NULL DEFAULT 0,
+        CreatedAt                DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CompletedAt              DATETIME2 NULL,
+        CONSTRAINT FK_BA_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId)
+    );
+END;
+
+IF OBJECT_ID('dbo.BroadcastDeliveries', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.BroadcastDeliveries (
+        BroadcastDeliveryId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        BroadcastAnnouncementId BIGINT NOT NULL,
+        TenantId                INT NOT NULL,
+        RecipientUserId         INT NOT NULL,
+        RecipientTenantId       INT NOT NULL,
+        ConversationId          BIGINT NULL,
+        DeliveryStatus          NVARCHAR(20) NOT NULL DEFAULT 'Pending',  -- Pending, Delivered, Failed
+        AttemptCount            INT NOT NULL DEFAULT 0,
+        LastAttemptAt           DATETIME2 NULL,
+        DeliveredAt             DATETIME2 NULL,
+        FailedAt                DATETIME2 NULL,
+        ErrorMessage            NVARCHAR(2000) NULL,
+        CONSTRAINT FK_BD_BA FOREIGN KEY (BroadcastAnnouncementId) REFERENCES dbo.BroadcastAnnouncements(BroadcastAnnouncementId)
+    );
+    CREATE INDEX IX_BD_BA_Status ON dbo.BroadcastDeliveries(BroadcastAnnouncementId, DeliveryStatus, AttemptCount);
+END;
+
+IF OBJECT_ID('dbo.FaultReports', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.FaultReports (
+        FaultReportId        BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId             INT NOT NULL,
+        SchoolId             INT NULL,
+        ReportedByUserId     INT NOT NULL,
+        DashboardType        NVARCHAR(40) NOT NULL,  -- DevForge, SchoolManagement, ParentManagement
+        ScreenName           NVARCHAR(200) NULL,
+        Description          NVARCHAR(MAX) NOT NULL,
+        Priority             NVARCHAR(10) NOT NULL DEFAULT 'Normal',  -- Low, Normal, High, Urgent
+        PrimaryAttachmentId  BIGINT NULL,
+        Status               NVARCHAR(20) NOT NULL DEFAULT 'Open',  -- Open, InProgress, Resolved, Closed
+        AssignedToUserId     INT NULL,
+        CreatedAt            DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt            DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_FR_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId)
+    );
+    CREATE INDEX IX_FR_Tenant_Status ON dbo.FaultReports(TenantId, Status, CreatedAt DESC);
+END;
+
+IF OBJECT_ID('dbo.AIRequestLogs', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AIRequestLogs (
+        AIRequestLogId    BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId          INT NULL,
+        SchoolId          INT NULL,
+        UserId            INT NULL,
+        DashboardType     NVARCHAR(40) NULL,
+        AIRequestType     NVARCHAR(40) NOT NULL DEFAULT 'Chat',  -- Chat, Reconciliation, Fault
+        QuestionSummary   NVARCHAR(500) NULL,
+        ResponseSummary   NVARCHAR(500) NULL,
+        ModelUsed         NVARCHAR(100) NULL,
+        Provider          NVARCHAR(100) NULL,
+        RequestStatus     NVARCHAR(20) NOT NULL DEFAULT 'OK',
+        ResponseTimeMs    INT NULL,
+        BlockedBySecurity BIT NOT NULL DEFAULT 0,
+        CreatedAt         DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+    CREATE INDEX IX_AIRL_Tenant_Dashboard_Created ON dbo.AIRequestLogs(TenantId, DashboardType, CreatedAt DESC) INCLUDE (AIRequestLogId, UserId, AIRequestType, BlockedBySecurity);
+END;
+
+IF OBJECT_ID('dbo.BackgroundJobs', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.BackgroundJobs (
+        BackgroundJobId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId       INT NULL,
+        SchoolId       INT NULL,
+        Period         NVARCHAR(16) NULL,
+        JobType        NVARCHAR(50) NOT NULL,
+        Payload        NVARCHAR(MAX) NULL,
+        Status         NVARCHAR(20) NOT NULL DEFAULT 'Pending',  -- Pending, Running, Done, Failed
+        LockedBy       NVARCHAR(128) NULL,
+        LockedUntil    DATETIME2 NULL,
+        Attempts       INT NOT NULL DEFAULT 0,
+        MaxAttempts    INT NOT NULL DEFAULT 5,
+        LastError      NVARCHAR(MAX) NULL,
+        ScheduledAt    DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        RunAt          DATETIME2 NULL,
+        StartedAt      DATETIME2 NULL,
+        FinishedAt     DATETIME2 NULL,
+        CreatedAt      DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+    CREATE INDEX IX_BJ_Status_JobType ON dbo.BackgroundJobs(Status, JobType, CreatedAt);
+    CREATE INDEX IX_BJ_LockedUntil ON dbo.BackgroundJobs(Status, LockedUntil) WHERE Status = 'Running';
+END;
+
+-- Migration 0008: add columns for distributed-lock worker if missing
+IF COL_LENGTH('dbo.BackgroundJobs', 'SchoolId') IS NULL ALTER TABLE dbo.BackgroundJobs ADD SchoolId INT NULL;
+IF COL_LENGTH('dbo.BackgroundJobs', 'Period') IS NULL ALTER TABLE dbo.BackgroundJobs ADD Period NVARCHAR(16) NULL;
+IF COL_LENGTH('dbo.BackgroundJobs', 'LockedBy') IS NULL ALTER TABLE dbo.BackgroundJobs ADD LockedBy NVARCHAR(128) NULL;
+IF COL_LENGTH('dbo.BackgroundJobs', 'LockedUntil') IS NULL ALTER TABLE dbo.BackgroundJobs ADD LockedUntil DATETIME2 NULL;
+IF COL_LENGTH('dbo.BackgroundJobs', 'Attempts') IS NULL ALTER TABLE dbo.BackgroundJobs ADD Attempts INT NOT NULL DEFAULT 0;
+IF COL_LENGTH('dbo.BackgroundJobs', 'MaxAttempts') IS NULL ALTER TABLE dbo.BackgroundJobs ADD MaxAttempts INT NOT NULL DEFAULT 5;
+IF COL_LENGTH('dbo.BackgroundJobs', 'LastError') IS NULL ALTER TABLE dbo.BackgroundJobs ADD LastError NVARCHAR(MAX) NULL;
+IF COL_LENGTH('dbo.BackgroundJobs', 'RunAt') IS NULL ALTER TABLE dbo.BackgroundJobs ADD RunAt DATETIME2 NULL;
+IF COL_LENGTH('dbo.BackgroundJobs', 'StartedAt') IS NULL ALTER TABLE dbo.BackgroundJobs ADD StartedAt DATETIME2 NULL;
+IF COL_LENGTH('dbo.BackgroundJobs', 'FinishedAt') IS NULL ALTER TABLE dbo.BackgroundJobs ADD FinishedAt DATETIME2 NULL;
+
+-- Migration 0008: SchemaMigrations table
+IF OBJECT_ID('dbo.SchemaMigrations', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SchemaMigrations (
+        Version NVARCHAR(20) NOT NULL PRIMARY KEY,
+        AppliedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END;
+IF NOT EXISTS (SELECT 1 FROM dbo.SchemaMigrations WHERE Version = '0008') INSERT INTO dbo.SchemaMigrations(Version) VALUES('0008');
+
+-- Migration 0008 backfill: ensure every existing StaffRole has the
+-- default feature-grants applied. Inherit = no override row.
+-- School + Finance default to Allow; KCH, Settings, AI default to
+-- Inherit (i.e. no override).
+IF OBJECT_ID('tempdb..#defaultKeys') IS NOT NULL DROP TABLE #defaultKeys;
+CREATE TABLE #defaultKeys (PermissionKey NVARCHAR(100) PRIMARY KEY, Decision NVARCHAR(10) NOT NULL);
+INSERT INTO #defaultKeys (PermissionKey, Decision) VALUES
+  ('feature-group.school', 'Allow'),
+  ('school.students.view', 'Allow'),
+  ('school.families.view', 'Allow'),
+  ('school.classes.view', 'Allow'),
+  ('attendance.view_all', 'Allow'),
+  ('school.staff.view', 'Allow'),
+  ('leave.view', 'Allow'),
+  ('payslips.view', 'Allow'),
+  ('feature-group.finance', 'Allow'),
+  ('finance.invoices.view', 'Allow'),
+  ('finance.payments.view', 'Allow'),
+  ('finance.outstanding_fees.view', 'Allow'),
+  ('finance.bank_reconciliation.view', 'Allow'),
+  ('finance.bank_reconciliation.approve_match', 'Allow'),
+  ('finance.refunds.create', 'Allow'),
+  ('finance.adjustments.create', 'Allow'),
+  ('finance.period_lock.manage', 'Allow'),
+  ('finance.year_end_close', 'Allow'),
+  ('finance.rollover.manage', 'Allow'),
+  ('school.consent.view', 'Allow'),
+  ('reports.view', 'Allow');
+
+IF OBJECT_ID('dbo.StaffRoles', 'U') IS NOT NULL
+BEGIN
+  INSERT INTO dbo.RolePermissionOverrides (RoleId, PermissionKey, Decision, UpdatedAt)
+  SELECT r.RoleID, k.PermissionKey, k.Decision, SYSUTCDATETIME()
+  FROM dbo.StaffRoles r
+  CROSS JOIN #defaultKeys k
+  WHERE NOT EXISTS (
+    SELECT 1 FROM dbo.RolePermissionOverrides o
+    WHERE o.RoleId = r.RoleID AND o.PermissionKey = k.PermissionKey
+  );
+END;
+DROP TABLE #defaultKeys;
+
+-- =============================================
+-- Bank reconciliation: statements + imports + transactions (Task 92)
+-- One statement per (TenantId, SchoolId, BankAccountId, Year, Month).
+-- Transactions dedupe on FITID, falling back to a SHA-256 hash of
+-- (tenant, school, account, date, amount, direction, ref, desc).
+-- Imports dedupe on (TenantId, SchoolId, BankAccountId, FileHash, Year, Month).
+-- =============================================
+IF OBJECT_ID('dbo.BankReconciliationStatements', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.BankReconciliationStatements (
+        BankReconciliationStatementId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId                       INT NOT NULL,
+        SchoolId                       INT NULL,
+        BankAccountId                  INT NOT NULL,
+        StatementNumber                INT NOT NULL,
+        StatementYear                  INT NOT NULL,
+        StatementMonth                 INT NOT NULL,  -- 1-12
+        StatementMonthName             NVARCHAR(20) NULL,
+        Status                         NVARCHAR(20) NOT NULL DEFAULT 'Open',  -- Open, InProgress, Reconciled
+        ImportedByUserId               INT NULL,
+        ReconciledByUserId             INT NULL,
+        ReconciledAt                   DATETIME2 NULL,
+        CreatedAt                      DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt                      DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_BRS_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId),
+        CONSTRAINT UQ_BRS_Account_Month UNIQUE (TenantId, SchoolId, BankAccountId, StatementYear, StatementMonth)
+    );
+    CREATE INDEX IX_BRS_Tenant_Account_Year_Month ON dbo.BankReconciliationStatements(TenantId, BankAccountId, StatementYear DESC, StatementMonth DESC);
+END;
+
+IF OBJECT_ID('dbo.BankStatementImports', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.BankStatementImports (
+        BankStatementImportId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId              INT NOT NULL,
+        SchoolId              INT NULL,
+        BankAccountId         INT NOT NULL,
+        BankReconciliationStatementId BIGINT NULL,
+        ImportYear            INT NOT NULL,
+        ImportMonth           INT NOT NULL,
+        OriginalFileName      NVARCHAR(500) NULL,
+        FileHash              NVARCHAR(128) NOT NULL,
+        ImportedByUserId      INT NOT NULL,
+        ImportedAt            DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        Status                NVARCHAR(20) NOT NULL DEFAULT 'Completed',  -- Pending, Completed, Failed
+        TotalTransactionsInFile INT NOT NULL DEFAULT 0,
+        TotalTransactionsImported INT NOT NULL DEFAULT 0,
+        TotalTransactionsSkippedOutsideMonth INT NOT NULL DEFAULT 0,
+        TotalDuplicatesSkipped INT NOT NULL DEFAULT 0,
+        TotalPaymentsCreated INT NOT NULL DEFAULT 0,
+        ErrorMessage          NVARCHAR(2000) NULL,
+        CONSTRAINT FK_BSI_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId),
+        CONSTRAINT UQ_BSI_Duplicate UNIQUE (TenantId, SchoolId, BankAccountId, FileHash, ImportYear, ImportMonth)
+    );
+    CREATE INDEX IX_BSI_BRS_ImportedAt ON dbo.BankStatementImports(BankReconciliationStatementId, ImportedAt DESC);
+END;
+
+IF OBJECT_ID('dbo.BankTransactions', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.BankTransactions (
+        BankTransactionId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId          INT NOT NULL,
+        SchoolId          INT NULL,
+        BankAccountId     INT NOT NULL,
+        BankReconciliationStatementId BIGINT NOT NULL,
+        BankStatementImportId BIGINT NULL,
+        TransactionDate   DATE NOT NULL,
+        PostedDate         DATE NULL,
+        BankEffectiveDate  DATE NOT NULL,
+        Amount             DECIMAL(18, 2) NOT NULL,
+        Direction          NVARCHAR(10) NOT NULL,  -- Credit, Debit
+        Reference          NVARCHAR(500) NULL,
+        Description        NVARCHAR(500) NULL,
+        FITID              NVARCHAR(128) NULL,
+        TransactionHash    NVARCHAR(128) NOT NULL,
+        Status             NVARCHAR(20) NOT NULL DEFAULT 'Imported',  -- Imported, Matched, Reconciled, Ignored, DuplicateSkipped
+        CreatedAt          DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt          DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_BT_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId),
+        CONSTRAINT FK_BT_BRS FOREIGN KEY (BankReconciliationStatementId) REFERENCES dbo.BankReconciliationStatements(BankReconciliationStatementId)
+    );
+    CREATE INDEX IX_BT_Tenant_BRS_Date ON dbo.BankTransactions(TenantId, BankReconciliationStatementId, BankEffectiveDate ASC);
+    CREATE INDEX IX_BT_FITID_Dedup ON dbo.BankTransactions(TenantId, SchoolId, BankAccountId, FITID) WHERE FITID IS NOT NULL;
+    CREATE INDEX IX_BT_Hash_Dedup ON dbo.BankTransactions(TenantId, SchoolId, BankAccountId, TransactionHash);
+END;
+
+-- =============================================
+-- Bank accounts (per school) for OFX import / reconciliation
+-- =============================================
+IF OBJECT_ID('dbo.BankAccounts', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.BankAccounts (
+        BankAccountID INT IDENTITY(1,1) PRIMARY KEY,
+        TenantId      INT NOT NULL,
+        SchoolID      INT NOT NULL,
+        AccountName   NVARCHAR(200) NOT NULL,
+        AccountNumber NVARCHAR(50) NOT NULL,
+        BankName      NVARCHAR(200) NULL,
+        IsActive      BIT NOT NULL DEFAULT 1,
+        CreatedAt     DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_BankAccounts_School FOREIGN KEY (SchoolID) REFERENCES dbo.Schools(SchoolID),
+        CONSTRAINT FK_BankAccounts_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId)
+    );
+    CREATE INDEX IX_BankAccounts_School_Active ON dbo.BankAccounts(SchoolID, IsActive) INCLUDE (AccountName, AccountNumber, BankName);
+END;
+
+IF COL_LENGTH('dbo.Transactions', 'BankTransactionId') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transactions ADD BankTransactionId BIGINT NULL;
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Transactions_School_BankTransactionId' AND object_id = OBJECT_ID('dbo.Transactions'))
+BEGIN
+    CREATE UNIQUE INDEX UX_Transactions_School_BankTransactionId
+        ON dbo.Transactions(SchoolID, BankTransactionId)
+        WHERE BankTransactionId IS NOT NULL;
+END;
+
+-- =============================================
+-- School-level BillingCategories already exist. Add per-student
+-- billing category assignments with effective months.
+-- (User final ask: custom billing categories per school, applicable
+-- months selection, automatic invoice generation.)
+-- =============================================
+IF OBJECT_ID('dbo.StudentBillingCategoryAssignments', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.StudentBillingCategoryAssignments (
+        AssignmentId           BIGINT IDENTITY(1,1) PRIMARY KEY,
+        TenantId               INT NOT NULL,
+        SchoolId               INT NULL,
+        StudentId              INT NOT NULL,
+        BillingCategoryId      INT NOT NULL,
+        ApplicableFromYear     INT NOT NULL,
+        ApplicableFromMonth    INT NOT NULL,  -- 1-12
+        ApplicableToYear       INT NULL,
+        ApplicableToMonth      INT NULL,  -- 1-12; null = open-ended
+        IsActive               BIT NOT NULL DEFAULT 1,
+        CreatedAt              DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt              DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_SBCA_Stu FOREIGN KEY (StudentId) REFERENCES dbo.Students(StudentID),
+        CONSTRAINT FK_SBCA_BC FOREIGN KEY (BillingCategoryId) REFERENCES dbo.BillingCategories(BillingCategoryID)
+    );
+    CREATE INDEX IX_SBCA_Stu_Period ON dbo.StudentBillingCategoryAssignments(TenantId, StudentId, IsActive, ApplicableFromYear, ApplicableFromMonth);
+END;
+
+-- =============================================
+-- Link existing Schools to Tenants (idempotent backfill)
+-- For version 1, every school is wrapped in its own tenant. This adds a
+-- TenantId column to dbo.Schools if missing, creates a tenant for each
+-- existing school (if one does not already exist for that school), and
+-- populates dbo.Schools.TenantId.
+-- =============================================
+IF COL_LENGTH('dbo.Schools', 'TenantId') IS NULL
+BEGIN
+    ALTER TABLE dbo.Schools ADD TenantId INT NULL;
+END;
+
+-- Create one tenant per school that does not already have one
+IF COL_LENGTH('dbo.Schools', 'TenantId') IS NOT NULL
+BEGIN
+    -- For schools with no tenant, create a default tenant (one-shot backfill)
+    DECLARE @newTenantId INT;
+    DECLARE @schoolId INT;
+    DECLARE @schoolName NVARCHAR(255);
+    DECLARE schoolCur CURSOR LOCAL FORWARD_ONLY FOR
+        SELECT SchoolID, SchoolName FROM dbo.Schools WHERE TenantId IS NULL OR TenantId = 0;
+    OPEN schoolCur;
+    FETCH NEXT FROM schoolCur INTO @schoolId, @schoolName;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        INSERT INTO dbo.Tenants (TenantName, TenantType, Status, IsActive)
+        VALUES (@schoolName, 'School', 'Active', 1);
+        SET @newTenantId = SCOPE_IDENTITY();
+        UPDATE dbo.Schools SET TenantId = @newTenantId WHERE SchoolID = @schoolId;
+        FETCH NEXT FROM schoolCur INTO @schoolId, @schoolName;
+    END
+    CLOSE schoolCur;
+    DEALLOCATE schoolCur;
+
+    -- For schools with no rows above (already had tenants) but TenantId was
+    -- never set on the School itself, leave the existing tenant creation alone.
+END;
+
+IF COL_LENGTH('dbo.Schools', 'TenantId') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Schools_Tenant')
+BEGIN
+    ALTER TABLE dbo.Schools
+        ADD CONSTRAINT FK_Schools_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId);
+END;
+
+-- =============================================
+-- Seed: STANDARD subscription plan (Tasks 14-15)
+-- =============================================
+IF NOT EXISTS (SELECT 1 FROM dbo.SubscriptionPlans WHERE PlanCode = 'STANDARD')
+BEGIN
+    INSERT INTO dbo.SubscriptionPlans (PlanCode, PlanName, Description, IsDefault, Status, IsActive)
+    VALUES ('STANDARD', 'Standard', 'Default plan for launch � all Kinder Care Hub features enabled.', 1, 'Active', 1);
+END;
+
+-- Seed: 9 Kinder Care Hub feature keys
+IF NOT EXISTS (SELECT 1 FROM dbo.SaaSFeatures WHERE FeatureKey = 'KINDER_CARE_HUB_MESSAGING')
+    INSERT INTO dbo.SaaSFeatures (FeatureKey, FeatureName, FeatureCategory) VALUES ('KINDER_CARE_HUB_MESSAGING', 'Kinder Care Hub messaging', 'Messaging');
+IF NOT EXISTS (SELECT 1 FROM dbo.SaaSFeatures WHERE FeatureKey = 'KINDER_CARE_HUB_IMAGE_MESSAGING')
+    INSERT INTO dbo.SaaSFeatures (FeatureKey, FeatureName, FeatureCategory) VALUES ('KINDER_CARE_HUB_IMAGE_MESSAGING', 'Kinder Care Hub image messaging', 'Messaging');
+IF NOT EXISTS (SELECT 1 FROM dbo.SaaSFeatures WHERE FeatureKey = 'KINDER_CARE_HUB_PARENT_MESSAGING')
+    INSERT INTO dbo.SaaSFeatures (FeatureKey, FeatureName, FeatureCategory) VALUES ('KINDER_CARE_HUB_PARENT_MESSAGING', 'Kinder Care Hub parent messaging', 'Messaging');
+IF NOT EXISTS (SELECT 1 FROM dbo.SaaSFeatures WHERE FeatureKey = 'KINDER_CARE_HUB_STAFF_MESSAGING')
+    INSERT INTO dbo.SaaSFeatures (FeatureKey, FeatureName, FeatureCategory) VALUES ('KINDER_CARE_HUB_STAFF_MESSAGING', 'Kinder Care Hub staff messaging', 'Messaging');
+IF NOT EXISTS (SELECT 1 FROM dbo.SaaSFeatures WHERE FeatureKey = 'KINDER_CARE_HUB_DEVFORGE_MESSAGING')
+    INSERT INTO dbo.SaaSFeatures (FeatureKey, FeatureName, FeatureCategory) VALUES ('KINDER_CARE_HUB_DEVFORGE_MESSAGING', 'Kinder Care Hub DevForge messaging', 'Messaging');
+IF NOT EXISTS (SELECT 1 FROM dbo.SaaSFeatures WHERE FeatureKey = 'KINDER_CARE_HUB_BROADCASTS')
+    INSERT INTO dbo.SaaSFeatures (FeatureKey, FeatureName, FeatureCategory) VALUES ('KINDER_CARE_HUB_BROADCASTS', 'Kinder Care Hub broadcasts', 'Broadcasts');
+IF NOT EXISTS (SELECT 1 FROM dbo.SaaSFeatures WHERE FeatureKey = 'KINDER_CARE_HUB_AI_CHATBOT')
+    INSERT INTO dbo.SaaSFeatures (FeatureKey, FeatureName, FeatureCategory) VALUES ('KINDER_CARE_HUB_AI_CHATBOT', 'Kinder Care Hub AI chatbot', 'AI');
+IF NOT EXISTS (SELECT 1 FROM dbo.SaaSFeatures WHERE FeatureKey = 'KINDER_CARE_HUB_AI_RECONCILIATION')
+    INSERT INTO dbo.SaaSFeatures (FeatureKey, FeatureName, FeatureCategory) VALUES ('KINDER_CARE_HUB_AI_RECONCILIATION', 'Kinder Care Hub AI reconciliation', 'AI');
+IF NOT EXISTS (SELECT 1 FROM dbo.SaaSFeatures WHERE FeatureKey = 'KINDER_CARE_HUB_REPORT_FAULT')
+    INSERT INTO dbo.SaaSFeatures (FeatureKey, FeatureName, FeatureCategory) VALUES ('KINDER_CARE_HUB_REPORT_FAULT', 'Kinder Care Hub Report a Fault', 'Support');
+
+-- Seed: link all 9 to STANDARD (enabled)
+DECLARE @stdPlanId INT;
+SELECT @stdPlanId = SubscriptionPlanId FROM dbo.SubscriptionPlans WHERE PlanCode = 'STANDARD';
+DECLARE featCur CURSOR LOCAL FORWARD_ONLY FOR SELECT SaaSFeatureId FROM dbo.SaaSFeatures;
+DECLARE @featId INT;
+OPEN featCur;
+FETCH NEXT FROM featCur INTO @featId;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM dbo.SubscriptionPlanFeatures WHERE SubscriptionPlanId = @stdPlanId AND SaaSFeatureId = @featId)
+        INSERT INTO dbo.SubscriptionPlanFeatures (SubscriptionPlanId, SaaSFeatureId, IsEnabled) VALUES (@stdPlanId, @featId, 1);
+    FETCH NEXT FROM featCur INTO @featId;
+END
+CLOSE featCur;
+DEALLOCATE featCur;
+
+-- Seed: assign every active tenant to STANDARD
+DECLARE tenantCur CURSOR LOCAL FORWARD_ONLY FOR SELECT TenantId FROM dbo.Tenants WHERE IsActive = 1;
+DECLARE @tId INT;
+OPEN tenantCur;
+FETCH NEXT FROM tenantCur INTO @tId;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM dbo.TenantSubscriptions WHERE TenantId = @tId AND Status = 'Active' AND IsActive = 1)
+        INSERT INTO dbo.TenantSubscriptions (TenantId, SubscriptionPlanId, Status, StartDate, IsActive)
+        VALUES (@tId, @stdPlanId, 'Active', CAST(GETDATE() AS DATE), 1);
+    FETCH NEXT FROM tenantCur INTO @tId;
+END
+CLOSE tenantCur;
+DEALLOCATE tenantCur;
+-- =============================================
+-- BillingCategories.ApplicableMonths: per-category allowed months
+-- Comma-separated list of month numbers (1-12). Empty = all months.
+-- =============================================
+IF COL_LENGTH('dbo.BillingCategories', 'ApplicableMonths') IS NULL
+BEGIN
+    ALTER TABLE dbo.BillingCategories ADD ApplicableMonths NVARCHAR(50) NULL;
+END;
+
+-- =============================================
+-- Seed dev convenience rows: SaaS admin user
+-- (only if the Schools table is empty)
+-- =============================================
+IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Role = 'admin' AND Email = 'admin@kinder-care-hub.local')
+    INSERT INTO dbo.Users (Username, Email, PasswordHash, Role, IsActive, CreatedDate)
+    VALUES ('admin', 'admin@kinder-care-hub.local', '$2a$10$.6Y7H8e8G0pZJ3Xw0p7tO.H8C4n3M2k7h6G3m1N4o5P6q7R8s9T0u1V', 'admin', 1, GETDATE());
+-- =============================================
+-- Parent verification flow (email + cellphone confirmation)
+-- =============================================
+IF OBJECT_ID('dbo.ParentVerificationChallenges', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ParentVerificationChallenges (
+        ParentVerificationChallengeId   BIGINT IDENTITY(1,1) PRIMARY KEY,
+        Email                           NVARCHAR(255) NOT NULL,
+        Cellphone                       NVARCHAR(50) NOT NULL,
+        EmailTokenHash                   NVARCHAR(255) NULL,
+        SmsCodeHash                     NVARCHAR(255) NULL,
+        EmailVerified                    BIT NOT NULL DEFAULT 0,
+        SmsVerified                      BIT NOT NULL DEFAULT 0,
+        EmailTokenExpiresAt              DATETIME2 NULL,
+        SmsCodeExpiresAt                 DATETIME2 NULL,
+        SchoolId                        INT NULL,
+        Attempts                        INT NOT NULL DEFAULT 0,
+        CompletedAt                     DATETIME2 NULL,
+        CreatedAt                       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+    CREATE INDEX IX_PVC_Email ON dbo.ParentVerificationChallenges(Email, EmailTokenHash);
+END;
+
+IF OBJECT_ID('dbo.ParentMagicLinks', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ParentMagicLinks (
+        ParentMagicLinkId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        UserID            INT NOT NULL,
+        TokenHash         NVARCHAR(255) NOT NULL,
+        ExpiresAt         DATETIME2 NOT NULL,
+        UsedAt            DATETIME2 NULL,
+        CreatedAt         DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_PML_User FOREIGN KEY (UserID) REFERENCES dbo.Users(UserID)
+    );
+    CREATE INDEX IX_PML_Token ON dbo.ParentMagicLinks(TokenHash);
+END;

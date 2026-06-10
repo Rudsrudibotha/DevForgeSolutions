@@ -1,0 +1,89 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm">
+    <a href="/sms" class="text-muted hover:underline">School</a>
+    <span class="text-muted mx-1">/</span>
+    <span>Permissions</span>
+  </nav>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h1 class="text-xl font-semibold">Permissions matrix</h1>
+      <p class="text-muted text-sm mt-0.5">
+        Each role is a set of access points (feature groups and the features inside them). The defaults below apply to a freshly created role. Use the matrix to Allow or Deny individual features.
+      </p>
+    </div>
+  </div>
+
+  <% if (!(roles || []).length) { %>
+    <div class="card">
+      <div class="card-body empty-state">
+        <p class="empty-state-desc">No roles yet. Create one from the <a href="/sms/staff" class="text-brand-600 hover:underline">Staff</a> page.</p>
+      </div>
+    </div>
+  <% } else { %>
+    <% roles.forEach(function(role) { %>
+      <% var selectedRole = String(req.query.role || '') === String(role.StaffRoleID); %>
+      <div class="card mb-4" id="role-<%= role.StaffRoleID %>">
+        <div class="card-header">
+          <h2 class="font-semibold"><%= role.RoleName %></h2>
+          <% if (role.Description) { %><p class="text-xs text-muted"><%= role.Description %></p><% } %>
+        </div>
+        <form method="post" action="/sms/permissions/<%= role.StaffRoleID %>"
+              hx-post="/sms/permissions/<%= role.StaffRoleID %>"
+              hx-target="this"
+              hx-swap="outerHTML"
+              class="card-body space-y-4">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <% catalog.forEach(function(group) { %>
+            <div class="border rounded p-3" style="border-color: rgb(var(--color-border))">
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <p class="font-semibold"><%= group.label %></p>
+                  <% if (group.description) { %><p class="text-xs text-muted"><%= group.description %></p><% } %>
+                </div>
+                <div class="flex items-center gap-1">
+                  <% var current = (overridesByRole[role.StaffRoleID] && overridesByRole[role.StaffRoleID][group.key]) || 'Inherit'; %>
+                  <% ['Inherit', 'Allow', 'Deny'].forEach(function(opt) { %>
+                    <label class="text-xs flex items-center gap-1">
+                      <input type="radio" name="decision[<%= group.key %>]" value="<%= opt %>" <%= current === opt ? 'checked' : '' %> />
+                      <span><%= opt %></span>
+                    </label>
+                  <% }); %>
+                </div>
+              </div>
+              <table class="table text-sm">
+                <thead>
+                  <tr>
+                    <th class="text-left">Feature</th>
+                    <% ['Inherit', 'Allow', 'Deny'].forEach(function(opt) { %>
+                      <th class="text-center text-xs"><%= opt %></th>
+                    <% }); %>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% group.leaves.forEach(function(leaf) { %>
+                    <% var leafCurrent = (overridesByRole[role.StaffRoleID] && overridesByRole[role.StaffRoleID][leaf.key]) || 'Inherit'; %>
+                    <tr>
+                      <td><%= leaf.label %><br /><code class="text-xs text-muted"><%= leaf.key %></code></td>
+                      <% ['Inherit', 'Allow', 'Deny'].forEach(function(opt) { %>
+                        <td class="text-center">
+                          <input type="radio" name="decision[<%= leaf.key %>]" value="<%= opt %>" <%= leafCurrent === opt ? 'checked' : '' %> />
+                        </td>
+                      <% }); %>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          <% }); %>
+          <div class="flex items-center justify-end gap-2">
+            <button type="submit" class="btn-primary">Save matrix for <%= role.RoleName %></button>
+          </div>
+        </form>
+      </div>
+    <% }); %>
+  <% } %>
+</div>

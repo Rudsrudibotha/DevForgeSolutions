@@ -176,7 +176,9 @@ class UserRepository {
     const pool = await getPool();
     const result = await pool.request()
       .input('userId', sql.Int, userId)
-      .query('SELECT * FROM Users WHERE UserID = @userId AND ISNULL(IsActive, 1) = 1');
+      .query(`SELECT UserID, Username, Email, Role, SchoolID, IsActive, HasHrPermission, CreatedDate
+              FROM Users
+              WHERE UserID = @userId AND ISNULL(IsActive, 1) = 1`);
     return result.recordset[0];
   }
 

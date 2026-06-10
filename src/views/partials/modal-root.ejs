@@ -1,0 +1,21 @@
+<div id="modal-root" x-data="kchModal()" x-cloak>
+  <template x-teleport="body">
+    <div x-show="open" x-transition.opacity class="modal-backdrop" @click.self="close()" style="display:none">
+      <div class="modal-panel">
+        <div class="modal-content" @click.stop>
+          <div class="card-header flex items-center justify-between">
+            <h3 class="font-semibold" x-text="title"></h3>
+            <button type="button" class="btn-ghost btn-icon" @click="close()" aria-label="Close">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="card-body" x-html="body"></div>
+          <div class="card-footer flex justify-end gap-2" x-show="showFooter">
+            <button type="button" class="btn-secondary btn-sm" @click="close()" x-text="cancelLabel"></button>
+            <button type="button" class="btn-primary btn-sm" @click="confirm()" x-text="confirmLabel"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+</div>

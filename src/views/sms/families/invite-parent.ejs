@@ -1,0 +1,67 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-narrow">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/families" class="text-muted hover:underline">Families</a>
+    <span class="text-muted mx-1">/</span>
+    <a href="/sms/families/<%= family.FamilyID %>" class="text-muted hover:underline"><%= family.FamilyName %></a>
+    <span class="text-muted mx-1">/</span>
+    <a href="/sms/families/<%= family.FamilyID %>/parents" class="text-muted hover:underline">Parents</a>
+    <span class="text-muted mx-1">/</span>
+    <span>Invite</span>
+  </nav>
+
+  <div class="card">
+    <div class="card-header">
+      <h1 class="text-xl font-semibold">Invite parent</h1>
+      <p class="text-muted text-sm mt-0.5">
+        The parent will receive an email with a secure link. They must verify their email and cellphone before they are linked to this family.
+      </p>
+    </div>
+    <form method="post"
+          action="/sms/families/<%= family.FamilyID %>/invite-parent"
+          hx-post="/sms/families/<%= family.FamilyID %>/invite-parent"
+          hx-target="this"
+          hx-swap="outerHTML"
+          class="card-body space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <% if (errors._form) { %>
+        <div class="alert alert-error">
+          <% if (errors._form === 'invitation-already-pending') { %>
+            An invitation is already pending for this email.
+          <% } else if (errors._form === 'parent-already-verified') { %>
+            This parent is already a verified member of this family.
+          <% } else if (errors._form === 'valid-email-required') { %>
+            A valid email is required.
+          <% } else if (errors._form === 'valid-cellphone-required') { %>
+            A valid cellphone number is required.
+          <% } else { %>
+            Could not send invitation: <%= errors._form %>
+          <% } %>
+        </div>
+      <% } %>
+
+      <div class="form-field">
+        <label class="label label-required" for="email">Parent email</label>
+        <input id="email" name="email" type="email" required maxlength="255"
+               value="<%= form && form.email ? form.email : '' %>"
+               class="input" />
+      </div>
+
+      <div class="form-field">
+        <label class="label label-required" for="cellphone">Parent cellphone</label>
+        <input id="cellphone" name="cellphone" type="tel" required maxlength="50"
+               value="<%= form && form.cellphone ? form.cellphone : '' %>"
+               class="input" placeholder="+27..." />
+        <p class="help-text">The parent will receive a 6-digit code by SMS to confirm.</p>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <a href="/sms/families/<%= family.FamilyID %>/parents" class="btn-ghost">Cancel</a>
+        <button type="submit" class="btn-primary">Send invitation</button>
+      </div>
+    </form>
+  </div>
+</div>
