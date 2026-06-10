@@ -1,35 +1,114 @@
 <% layout = 'layouts/app' %>
 <% sidebar = 'school' %>
 
-<div class="container-narrow">
-  <div class="mb-6">
-    <h1 class="text-2xl font-semibold">Attendance</h1>
-    <p class="text-muted text-sm">Pick a class to take attendance for. History is per-class.</p>
+<div class="container-page">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Attendance</h1>
+      <p class="text-muted text-sm">Whole-school register for <%= formatDate(register.date) %>.</p>
+    </div>
+    <% if (filters.classId) { %>
+      <a href="/sms/attendance/<%= filters.classId %>?date=<%= register.date %>" class="btn-primary">Capture this class</a>
+    <% } %>
   </div>
 
-  <form method="get" action="/sms/attendance" class="card">
-    <div class="card-body space-y-4">
+  <!-- Summary chips -->
+  <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+    <div class="kpi-card !p-4">
+      <p class="kpi-label">Learners</p>
+      <p class="kpi-value !text-2xl"><%= register.counts.total %></p>
+    </div>
+    <div class="kpi-card !p-4">
+      <p class="kpi-label">Present</p>
+      <p class="kpi-value !text-2xl text-emerald-600 dark:text-emerald-400"><%= register.counts.Present %></p>
+    </div>
+    <div class="kpi-card !p-4">
+      <p class="kpi-label">Absent</p>
+      <p class="kpi-value !text-2xl <%= register.counts.Absent > 0 ? 'text-red-600 dark:text-red-400' : '' %>"><%= register.counts.Absent %></p>
+    </div>
+    <div class="kpi-card !p-4">
+      <p class="kpi-label">Late</p>
+      <p class="kpi-value !text-2xl <%= register.counts.Late > 0 ? 'text-amber-600 dark:text-amber-400' : '' %>"><%= register.counts.Late %></p>
+    </div>
+    <div class="kpi-card !p-4">
+      <p class="kpi-label">Not captured</p>
+      <p class="kpi-value !text-2xl <%= register.counts.NotCaptured > 0 ? 'text-amber-600 dark:text-amber-400' : '' %>"><%= register.counts.NotCaptured %></p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" action="/sms/attendance" class="card mb-4">
+    <div class="card-body py-3 grid grid-cols-1 sm:grid-cols-4 gap-2">
       <div class="form-field">
-        <label class="label" for="classId">Class</label>
-        <select id="classId" name="classId" class="select" required>
-          <option value="">Select a class...</option>
+        <label class="label" for="filter-date">Date</label>
+        <input id="filter-date" name="date" type="date" value="<%= filters.date %>" class="input" onchange="this.form.submit()" />
+      </div>
+      <div class="form-field">
+        <label class="label" for="filter-class">Class</label>
+        <select id="filter-class" name="classId" class="select" onchange="this.form.submit()">
+          <option value="">All classes</option>
           <% classes.forEach(function(c) { %>
-            <option value="<%= c.ClassID %>">
-              <%= c.ClassName %><% if (c.Grade) { %> (Grade <%= c.Grade %>)<% } %>
-            </option>
+            <option value="<%= c.ClassID %>" <%= String(filters.classId) === String(c.ClassID) ? 'selected' : '' %>><%= c.ClassName %></option>
           <% }) %>
         </select>
       </div>
-
       <div class="form-field">
-        <label class="label" for="date">Date</label>
-        <input id="date" name="date" type="date" value="<%= defaultDate %>" class="input" />
+        <label class="label" for="filter-status">Status</label>
+        <select id="filter-status" name="status" class="select" onchange="this.form.submit()">
+          <option value="">All statuses</option>
+          <% [['Present','Present'],['Absent','Absent'],['Late','Late'],['Excused','Excused'],['NotCaptured','Not captured']].forEach(function(s) { %>
+            <option value="<%= s[0] %>" <%= filters.status === s[0] ? 'selected' : '' %>><%= s[1] %></option>
+          <% }) %>
+        </select>
       </div>
-
-      <div class="flex items-center justify-end gap-2">
-        <a href="/sms/classes" class="btn-ghost">Cancel</a>
-        <button type="submit" class="btn-primary">Take attendance</button>
+      <div class="flex items-end">
+        <a href="/sms/attendance" class="btn-ghost btn-sm">Reset</a>
       </div>
     </div>
   </form>
+
+  <!-- Register -->
+  <% if (!register.rows || register.rows.length === 0) { %>
+    <%- include('../../partials/empty/default', {
+      title: 'No learners match these filters',
+      desc: 'Try a different class, status, or date.'
+    }) %>
+  <% } else { %>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Learner</th>
+            <th>Class</th>
+            <th>Status</th>
+            <th>Arrival</th>
+            <th>Notes</th>
+            <th class="text-right">Capture</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% register.rows.forEach(function(r) { %>
+            <tr>
+              <td class="font-medium"><%= r.FirstName %> <%= r.LastName %></td>
+              <td class="text-muted"><%= r.ClassName || 'No class' %></td>
+              <td>
+                <% if (r.Status === 'Present') { %><span class="badge-success">Present</span>
+                <% } else if (r.Status === 'Absent') { %><span class="badge-danger">Absent</span>
+                <% } else if (r.Status === 'Late') { %><span class="badge-warning">Late</span>
+                <% } else if (r.Status === 'Excused') { %><span class="badge-neutral">Excused</span>
+                <% } else { %><span class="badge-neutral">Not captured</span><% } %>
+              </td>
+              <td class="text-muted tabular-nums"><%= r.ArrivalTime || '—' %></td>
+              <td class="text-muted text-sm"><%= r.Notes || '' %></td>
+              <td class="text-right">
+                <% if (r.ClassID) { %>
+                  <a href="/sms/attendance/<%= r.ClassID %>?date=<%= register.date %>" class="btn-ghost btn-sm">Open sheet</a>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
 </div>

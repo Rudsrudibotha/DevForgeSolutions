@@ -85,6 +85,27 @@ const FIXTURES = {
     filters: { status: '', studentId: '', familyId: '', overdueOnly: false, from: '', to: '', search: '' }
   }),
 
+  // /sms/attendance whole-school register
+  smsRegister: () => {
+    const statuses = ['Present', 'Present', 'Present', 'Absent', 'Late', null];
+    const rows = STUDENTS.map((s, i) => ({
+      StudentID: s.StudentID, FirstName: s.FirstName, LastName: s.LastName,
+      ClassID: i % 3 + 1, ClassName: s.ClassName,
+      AttendanceID: statuses[i] ? 900 + i : null, Status: statuses[i],
+      ArrivalTime: statuses[i] === 'Late' ? '08:25' : null,
+      Notes: statuses[i] === 'Absent' ? 'Parent called - flu' : null
+    }));
+    return {
+      date: new Date().toISOString().slice(0, 10),
+      rows,
+      counts: { Present: 3, Absent: 1, Late: 1, Excused: 0, NotCaptured: 1, total: rows.length }
+    };
+  },
+  smsRegisterClasses: () => ({ rows: [
+    { ClassID: 1, ClassName: 'Busy Bees' }, { ClassID: 2, ClassName: 'Sunflowers' },
+    { ClassID: 3, ClassName: 'Little Lions' }, { ClassID: 4, ClassName: 'Rainbow Room' }
+  ] }),
+
   // /devforge dashboard
   devforgeKpis: () => ({
     ActiveSchools: 12, TotalSchools: 14, SuspendedSchools: 1,

@@ -683,14 +683,26 @@ function validateClass(body, { partial = false } = {}) {
 // ========================================================
 // Attendance
 // ========================================================
-// Landing: pick a class and a date
+// Whole-school register for a date, filterable by class and status.
+// Per-class capture stays on /sms/attendance/:classId.
 router.get('/attendance', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Attendance | School Management';
     res.locals.portal = 'sms';
     res.locals.activeNav = 'attendance';
-    const classes = await safeCall(classService.list({ schoolDb: req.schoolDb, status: 'active', pageSize: 100 }), { rows: [] });
-    res.render('sms/attendance/landing', { classes: classes.rows, defaultDate: new Date().toISOString().slice(0, 10) });
+    const date = req.query.date || new Date().toISOString().slice(0, 10);
+    const filters = {
+      date,
+      classId: req.query.classId || '',
+      status: req.query.status || ''
+    };
+    const [register, classes] = await Promise.all([
+      safeCall(attendanceService.getSchoolRegister({
+        schoolDb: req.schoolDb, date, classId: req.query.classId, status: req.query.status
+      }), demoOr('smsRegister', { date, rows: [], counts: { Present: 0, Absent: 0, Late: 0, Excused: 0, NotCaptured: 0, total: 0 } })),
+      safeCall(classService.list({ schoolDb: req.schoolDb, status: 'active', pageSize: 100 }), demoOr('smsRegisterClasses', { rows: [] }))
+    ]);
+    res.render('sms/attendance/landing', { register, classes: classes.rows, filters });
   } catch (err) { next(err); }
 });
 

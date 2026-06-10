@@ -43,6 +43,58 @@ class AttendancePortalService {
     return { date: safeDate, rows: result.recordset };
   }
 
+  // Whole-school register for one date: every active learner with their
+  // attendance status (null = not captured), filterable by class and
+  // status. Powers the /sms/attendance overview.
+  async getSchoolRegister({ schoolDb, date, classId, status }) {
+    if (!schoolDb) throw new Error('schoolDb is required');
+    const sid = schoolDb.schoolId;
+    if (sid == null) throw new Error('attendancePortalService requires a scoped schoolId');
+    const safeDate = parseDate(date) || new Date().toISOString().slice(0, 10);
+
+    const request = await schoolDb.request();
+    request.input('schoolId', sql.Int, sid);
+    request.input('date', sql.Date, safeDate);
+    let classFilter = '';
+    if (Number.isInteger(Number(classId)) && Number(classId) > 0) {
+      request.input('classId', sql.Int, Number(classId));
+      classFilter = 'AND s.ClassID = @classId';
+    }
+    const text = `
+      SELECT
+        s.StudentID, s.FirstName, s.LastName, s.ClassID,
+        c.ClassName,
+        a.AttendanceID, a.Status, a.ArrivalTime, a.Notes
+      FROM Students s
+      LEFT JOIN Classes c
+        ON c.ClassID = s.ClassID
+        AND c.SchoolID = @schoolId
+      LEFT JOIN Attendance a
+        ON a.StudentID = s.StudentID
+        AND a.AttendanceDate = @date
+        AND a.SchoolID = @schoolId
+      WHERE s.SchoolID = @schoolId
+        AND s.IsDeleted = 0
+        AND ISNULL(s.IsActive, 1) = 1
+        ${classFilter}
+      ORDER BY c.ClassName, s.LastName, s.FirstName
+    `;
+    schoolDb.guardTableScope(text);
+    const result = await request.query(text);
+
+    let rows = result.recordset;
+    const wanted = String(status || '').trim();
+    if (wanted === 'NotCaptured') rows = rows.filter(r => !r.Status);
+    else if (ALLOWED_STATUSES.includes(wanted)) rows = rows.filter(r => r.Status === wanted);
+
+    const counts = { Present: 0, Absent: 0, Late: 0, Excused: 0, NotCaptured: 0, total: result.recordset.length };
+    for (const r of result.recordset) {
+      if (!r.Status) counts.NotCaptured++;
+      else if (counts[r.Status] !== undefined) counts[r.Status]++;
+    }
+    return { date: safeDate, rows, counts };
+  }
+
   // Record attendance for many students in a single transaction.
   // data: [{ studentId, status, notes?, arrivalTime? }, ...]
   // existing rows for the same (student, date) are updated; new rows are

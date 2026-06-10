@@ -39,8 +39,8 @@
         </button>
 
         <% if (user) { %>
-          <div class="relative" x-data="{ open: false }">
-            <button type="button" class="flex items-center gap-2 btn-ghost" @click="open = !open" @click.outside="open = false" :aria-expanded="open" aria-haspopup="true">
+          <div class="relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape.window="open = false">
+            <button type="button" class="flex items-center gap-2 btn-ghost" @click="open = !open" :aria-expanded="open" aria-haspopup="true">
               <span class="h-8 w-8 rounded-full bg-brand text-white flex items-center justify-center text-sm font-semibold" style="background-color: rgb(var(--color-brand))">
                 <%= (user.firstName || user.email || '?').charAt(0).toUpperCase() %>
               </span>

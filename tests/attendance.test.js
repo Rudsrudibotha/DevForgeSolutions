@@ -52,11 +52,12 @@ async function run() {
     assert.strictEqual(r.status, 200, `expected 200, got ${r.status}`);
   });
 
-  await test('GET /sms/attendance shows class picker', async () => {
+  await test('GET /sms/attendance shows register with class/date/status filters', async () => {
     const r = await request('GET', '/sms/attendance', school);
     assert.ok(r.body.includes('name="classId"'));
     assert.ok(r.body.includes('name="date"'));
-    assert.ok(r.body.includes('Take attendance'));
+    assert.ok(r.body.includes('name="status"'));
+    assert.ok(r.body.includes('Not captured'));
   });
 
   await test('GET /sms/attendance/123 is 200 or 404 (sheet)', async () => {
