@@ -72,8 +72,9 @@
   }
   .app-header {
     @apply sticky top-0 z-30 border-b backdrop-blur;
-    background-color: rgb(var(--color-surface) / 0.85);
+    background-color: rgb(var(--color-surface) / 0.8);
     border-color: rgb(var(--color-border));
+    box-shadow: 0 1px 3px rgb(15 23 42 / 0.04);
   }
   .app-main { @apply flex-1; }
   .container-page { @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6; }
@@ -97,10 +98,17 @@
   }
   .btn:focus-visible { --tw-ring-color: rgb(var(--color-brand) / 0.5); }
   .btn-primary {
-    @apply btn text-white shadow-elev1;
-    background-color: rgb(var(--color-brand));
+    @apply btn text-white;
+    background: linear-gradient(135deg, rgb(var(--color-brand)) 0%, rgb(var(--color-brand) / 0.82) 100%);
+    box-shadow: 0 1px 2px rgb(var(--color-brand) / 0.4), 0 4px 12px rgb(var(--color-brand) / 0.25);
+    transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
   }
-  .btn-primary:hover { filter: brightness(1.05); }
+  .btn-primary:hover {
+    filter: brightness(1.07);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgb(var(--color-brand) / 0.4), 0 8px 20px rgb(var(--color-brand) / 0.3);
+  }
+  .btn-primary:active { transform: translateY(0); }
   .btn-secondary {
     @apply btn border;
     background-color: rgb(var(--color-surface));
@@ -158,16 +166,17 @@
   }
   .table thead {
     background-color: rgb(var(--color-bg));
+    border-bottom: 1px solid rgb(var(--color-border));
   }
   .table th {
-    @apply px-4 py-3 font-medium text-xs uppercase tracking-wider;
+    @apply px-4 py-3 font-semibold text-xs uppercase tracking-wider;
     color: rgb(var(--color-text-muted));
   }
   .table tbody tr {
     @apply border-t;
     border-color: rgb(var(--color-border));
   }
-  .table tbody tr:hover { background-color: rgb(var(--color-bg) / 0.5); }
+  .table tbody tr:hover { background-color: rgb(var(--color-brand) / 0.04); }
   .table td { @apply px-4 py-3; }
 
   /* ========== Badges ========== */
@@ -189,43 +198,63 @@
   .alert-warning { @apply alert bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-200; }
   .alert-danger { @apply alert bg-red-50 border-red-200 text-red-900 dark:bg-red-900/20 dark:border-red-800 dark:text-red-200; }
 
-  /* ========== Sidebar / Nav ========== */
+  /* ========== Sidebar / Nav ==========
+     Premium dark sidebar in both light and dark mode; content area stays
+     light. The same partial renders inside the mobile drawer (#mobile-nav),
+     where the fixed/hidden desktop layout must be neutralised. */
   .sidebar {
     @apply hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:pt-16;
-    background-color: rgb(var(--color-surface));
-    border-right: 1px solid rgb(var(--color-border));
+    background: linear-gradient(180deg, #0f172a 0%, #111c33 100%);
+    border-right: 1px solid rgb(30 41 59);
+  }
+  #mobile-nav .sidebar {
+    @apply flex w-full flex-col static pt-0;
+    min-height: 100%;
   }
   .sidebar-inner { @apply flex-1 overflow-y-auto px-3 py-4; }
   .nav-group { @apply mb-6; }
   .nav-group-title {
     @apply px-3 mb-1 text-xs font-semibold uppercase tracking-wider;
-    color: rgb(var(--color-text-muted));
+    color: rgb(100 116 139);
   }
+  .sidebar .nav-group-toggle { color: rgb(100 116 139); }
+  .sidebar .nav-group-toggle:hover { color: rgb(226 232 240); }
   .nav-item {
     @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors;
-    color: rgb(var(--color-text-muted));
+    color: rgb(148 163 184);
   }
   .nav-item:hover {
-    background-color: rgb(var(--color-bg));
-    color: rgb(var(--color-text));
+    background-color: rgb(255 255 255 / 0.06);
+    color: rgb(241 245 249);
   }
   .nav-item.active {
-    background-color: rgb(var(--color-brand) / 0.1);
-    color: rgb(var(--color-brand));
+    background: linear-gradient(90deg, rgb(var(--color-brand) / 0.35) 0%, rgb(var(--color-brand) / 0.12) 100%);
+    color: #ffffff;
+    box-shadow: inset 2px 0 0 rgb(var(--color-brand));
   }
-  .nav-item.active .nav-icon { color: rgb(var(--color-brand)); }
+  .nav-item.active .nav-icon { color: #ffffff; }
   .nav-icon { @apply h-5 w-5 flex-shrink-0; }
+  /* Header dropdown reuses .nav-item on a light surface - restore colours there. */
+  .app-header .nav-item { color: rgb(var(--color-text)); }
+  .app-header .nav-item:hover { background-color: rgb(var(--color-bg)); color: rgb(var(--color-text)); }
 
   /* ========== KPI / Stat cards ========== */
   .kpi-card {
-    @apply card p-5;
+    @apply card p-5 relative overflow-hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: linear-gradient(90deg, rgb(var(--color-brand)) 0%, rgb(var(--color-brand) / 0.25) 100%);
   }
   .kpi-label {
     @apply text-xs font-medium uppercase tracking-wider;
     color: rgb(var(--color-text-muted));
   }
   .kpi-value {
-    @apply mt-2 text-2xl font-semibold tabular-nums;
+    @apply mt-2 text-3xl font-bold tabular-nums tracking-tight;
   }
   .kpi-delta {
     @apply mt-2 text-xs font-medium;

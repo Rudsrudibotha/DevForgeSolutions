@@ -7,6 +7,7 @@ const AdminUserService = require('../../business/adminUserService');
 const AdminPaymentService = require('../../business/adminPaymentService');
 const AdminAuditService = require('../../business/adminAuditService');
 const AdminSettingsService = require('../../business/adminSettingsService');
+const { demoOr } = require('../../business/demoData');
 const adminSchoolService = new AdminSchoolService();
 const adminUserService = new AdminUserService();
 const adminPaymentService = new AdminPaymentService();
@@ -43,8 +44,8 @@ router.get('/', requireAuth, requireAdmin, async (req, res, next) => {
     res.locals.title = 'DevForge | Platform overview';
     res.locals.portal = 'devforge';
     res.locals.activeNav = 'home';
-    const kpis = await safeCall(adminSchoolService.getKpis({ actor: req.user }), {});
-    const data = await safeCall(adminSchoolService.list({ actor: req.user, pageSize: 5 }), { rows: [] });
+    const kpis = await safeCall(adminSchoolService.getKpis({ actor: req.user }), demoOr('devforgeKpis', {}));
+    const data = await safeCall(adminSchoolService.list({ actor: req.user, pageSize: 5 }), demoOr('devforgeRecentSchools', { rows: [] }));
     res.render('devforge/dashboard', { kpis, recentSchools: data.rows });
   } catch (err) { next(err); }
 });

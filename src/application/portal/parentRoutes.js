@@ -5,6 +5,7 @@ const { requireAuth } = require('../../middleware/portalAuth');
 const ParentDashboardService = require('../../business/parentDashboardService');
 const ParentPaymentService = require('../../business/parentPaymentService');
 const ParentMessagingService = require('../../business/parentMessagingService');
+const { demoOr } = require('../../business/demoData');
 
 const router = express.Router();
 const service = new ParentDashboardService();
@@ -32,9 +33,9 @@ router.get('/', requireAuth, requireParent, async (req, res, next) => {
     res.locals.activeNav = 'home';
 
     const [children, summary, messages] = await Promise.all([
-      safeCall(service.getChildren(req.user.id), []),
-      safeCall(service.getInvoicesSummary(req.user.id), { totalOwed: 0, totalPaid: 0, outstandingCount: 0, overdueCount: 0, overdueAmount: 0, invoiceCount: 0 }),
-      safeCall(service.getRecentMessages(req.user.id, { limit: 5 }), [])
+      safeCall(service.getChildren(req.user.id), demoOr('parentChildren', [])),
+      safeCall(service.getInvoicesSummary(req.user.id), demoOr('parentSummary', { totalOwed: 0, totalPaid: 0, outstandingCount: 0, overdueCount: 0, overdueAmount: 0, invoiceCount: 0 })),
+      safeCall(service.getRecentMessages(req.user.id, { limit: 5 }), demoOr('parentMessages', []))
     ]);
 
     res.render('parent/dashboard', { children, summary, messages });
@@ -76,9 +77,9 @@ router.get('/invoices', requireAuth, requireParent, async (req, res, next) => {
 
     const { studentId, status } = req.query;
     const [invoices, summary, children] = await Promise.all([
-      safeCall(service.getInvoices(req.user.id, { studentId: studentId ? Number(studentId) : undefined, status }), []),
-      safeCall(service.getInvoicesSummary(req.user.id), { totalOwed: 0, totalPaid: 0, outstandingCount: 0, overdueCount: 0, overdueAmount: 0, invoiceCount: 0 }),
-      safeCall(service.getChildren(req.user.id), [])
+      safeCall(service.getInvoices(req.user.id, { studentId: studentId ? Number(studentId) : undefined, status }), demoOr('parentInvoices', [])),
+      safeCall(service.getInvoicesSummary(req.user.id), demoOr('parentSummary', { totalOwed: 0, totalPaid: 0, outstandingCount: 0, overdueCount: 0, overdueAmount: 0, invoiceCount: 0 })),
+      safeCall(service.getChildren(req.user.id), demoOr('parentChildren', []))
     ]);
 
     res.render('parent/invoices', { invoices, summary, children, filters: { studentId, status } });

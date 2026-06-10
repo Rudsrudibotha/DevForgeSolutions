@@ -14,6 +14,7 @@ const StaffPortalService = require('../../business/staffPortalService');
 const ReportPortalService = require('../../business/reportPortalService');
 const SettingsPortalService = require('../../business/settingsPortalService');
 const DashboardService = require('../../business/dashboardService');
+const { demoOr } = require('../../business/demoData');
 const parentInvitationService = require('../../business/parentInvitationService');
 const parentGate = require('../../data/parentVerificationGateRepository');
 const { requireFeature } = require('../../middleware/requireFeature');
@@ -75,9 +76,9 @@ router.get('/students', requireAuth, requireRoleMw, requireSchoolScope, async (r
       status: req.query.status || 'active',
       page: req.query.page,
       pageSize: 25
-    }), { rows: [], total: 0, page: 1, pageSize: 25, hasMore: false, filters: { search: '', classId: '', status: 'active' } });
+    }), demoOr('smsStudents', { rows: [], total: 0, page: 1, pageSize: 25, hasMore: false, filters: { search: '', classId: '', status: 'active' } }));
 
-    const classes = await safeCall(studentService.listClasses({ schoolDb: req.schoolDb }), []);
+    const classes = await safeCall(studentService.listClasses({ schoolDb: req.schoolDb }), demoOr('smsClasses', []));
     res.render('sms/students/list', { ...data, classes });
   } catch (err) { next(err); }
 });
@@ -790,7 +791,7 @@ router.get('/invoices', requireAuth, requireRoleMw, requireSchoolScope, async (r
       search: req.query.q,
       page: req.query.page,
       pageSize: 25
-    }), { rows: [], total: 0, page: 1, pageSize: 25, hasMore: false, kpis: { totalOutstanding: 0, totalOverdue: 0, count: 0 }, filters: { status: '', studentId: '', familyId: '', overdueOnly: false, from: '', to: '', search: '' } });
+    }), demoOr('smsInvoices', { rows: [], total: 0, page: 1, pageSize: 25, hasMore: false, kpis: { totalOutstanding: 0, totalOverdue: 0, count: 0 }, filters: { status: '', studentId: '', familyId: '', overdueOnly: false, from: '', to: '', search: '' } }));
     res.render('sms/invoices/list', data);
   } catch (err) { next(err); }
 });
@@ -1328,8 +1329,8 @@ router.get('/', requireAuth, requireRoleMw, async (req, res, next) => {
     res.locals.activeNav = 'home';
     const schoolId = req.user.schoolId || (req.schoolDb && req.schoolDb.schoolId);
     const dashboard = schoolId
-      ? await safeCall(dashboardService.getSchoolDashboard(schoolId), null)
-      : null;
+      ? await safeCall(dashboardService.getSchoolDashboard(schoolId), demoOr('schoolDashboard', null))
+      : demoOr('schoolDashboard', null);
     res.render('sms/dashboard', { dashboard });
   } catch (err) { next(err); }
 });
