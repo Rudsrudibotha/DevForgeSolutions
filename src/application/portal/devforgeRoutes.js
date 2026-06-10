@@ -80,7 +80,7 @@ router.get('/schools/partials/table', requireAuth, requireAdmin, async (req, res
   } catch (err) { next(err); }
 });
 
-router.get('/schools/:id([1-9]\\d+)', requireAuth, requireAdmin, async (req, res, next) => {
+router.get('/schools/:id([1-9]\\d*)', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     res.locals.title = 'School | DevForge';
     res.locals.portal = 'devforge';
@@ -91,7 +91,7 @@ router.get('/schools/:id([1-9]\\d+)', requireAuth, requireAdmin, async (req, res
   } catch (err) { next(err); }
 });
 
-router.post('/schools/:id([1-9]\\d+)/status', requireAuth, requireAdmin, async (req, res, next) => {
+router.post('/schools/:id([1-9]\\d*)/status', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const newStatus = String(req.body.status || '').trim();
@@ -151,7 +151,7 @@ router.get('/users/partials/table', requireAuth, requireAdmin, async (req, res, 
   } catch (err) { next(err); }
 });
 
-router.get('/users/:id([1-9]\\d+)', requireAuth, requireAdmin, async (req, res, next) => {
+router.get('/users/:id([1-9]\\d*)', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     res.locals.title = 'User | DevForge';
     res.locals.portal = 'devforge';
@@ -162,7 +162,7 @@ router.get('/users/:id([1-9]\\d+)', requireAuth, requireAdmin, async (req, res, 
   } catch (err) { next(err); }
 });
 
-router.post('/users/:id([1-9]\\d+)/active', requireAuth, requireAdmin, async (req, res, next) => {
+router.post('/users/:id([1-9]\\d*)/active', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const isActive = req.body.isActive === 'true' || req.body.isActive === '1';

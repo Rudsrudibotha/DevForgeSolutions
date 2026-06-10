@@ -758,7 +758,7 @@ router.post('/attendance/:classId([1-9]\\d*)', requireAuth, requireRoleMw, requi
 });
 
 // History for a class (date range)
-router.get('/attendance/:classId([1-9]\\d+)/history', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/attendance/:classId([1-9]\\d*)/history', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Attendance history | School Management';
     res.locals.portal = 'sms';
@@ -879,7 +879,7 @@ router.post('/invoices/generate', requireAuth, requireRoleMw, requireSchoolScope
   } catch (err) { next(err); }
 });
 
-router.get('/invoices/:id([1-9]\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/invoices/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Invoice | School Management';
     res.locals.portal = 'sms';
@@ -891,7 +891,7 @@ router.get('/invoices/:id([1-9]\\d+)', requireAuth, requireRoleMw, requireSchool
   } catch (err) { next(err); }
 });
 
-router.post('/invoices/:id([1-9]\\d+)/status', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/invoices/:id([1-9]\\d*)/status', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const newStatus = String(req.body.status || '').trim();
@@ -991,7 +991,7 @@ router.post('/payments', requireAuth, requireRoleMw, requireSchoolScope, async (
   } catch (err) { next(err); }
 });
 
-router.post('/payments/:id([1-9]\\d+)/allocate', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/payments/:id([1-9]\\d*)/allocate', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const invoiceId = Number(req.body.invoiceId);
     if (!Number.isInteger(invoiceId) || invoiceId <= 0) {
@@ -1064,7 +1064,7 @@ router.post('/bank-statements', requireAuth, requireRoleMw, requireSchoolScope, 
   }
 });
 
-router.get('/bank-statements/:id([1-9]\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/bank-statements/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Statement detail | School Management';
     res.locals.portal = 'sms';
@@ -1076,14 +1076,14 @@ router.get('/bank-statements/:id([1-9]\\d+)', requireAuth, requireRoleMw, requir
   } catch (err) { next(err); }
 });
 
-router.get('/bank-statements/lines/:id([1-9]\\d+)/suggest', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/bank-statements/lines/:id([1-9]\\d*)/suggest', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const matches = await safeCall(bankStatementService.suggestMatches({ schoolDb: req.schoolDb, transactionId: Number(req.params.id), limit: 5 }), []);
     res.render('sms/bank-statements/partials/match-suggestions', { matches, transactionId: Number(req.params.id), layout: false });
   } catch (err) { next(err); }
 });
 
-router.delete('/bank-statements/:id([1-9]\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.delete('/bank-statements/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const ok = await safeCall(bankStatementService.deleteStatement({ schoolDb: req.schoolDb, statementId: Number(req.params.id), actor: req.user }), false);
     if (!ok) {
@@ -1131,7 +1131,7 @@ router.get('/staff/partials/table', requireAuth, requireRoleMw, requireSchoolSco
   } catch (err) { next(err); }
 });
 
-router.get('/staff/:id([1-9]\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/staff/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Staff member | School Management';
     res.locals.portal = 'sms';
@@ -1297,7 +1297,7 @@ router.post('/settings/billing-categories', requireAuth, requireRoleMw, requireS
   }
 });
 
-router.post('/settings/billing-categories/:id([1-9]\\d+)/toggle', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/settings/billing-categories/:id([1-9]\\d*)/toggle', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     if (req.schoolDb.schoolId == null) {
       return res.status(403).render('errors/forbidden', { user: req.user, message: 'No school context.' });
@@ -1366,7 +1366,7 @@ router.get('/leave', requireAuth, requireRoleMw, requireSchoolScope, async (req,
   } catch (err) { next(err); }
 });
 
-router.post('/leave/:id([1-9]\\d+)/review', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/leave/:id([1-9]\\d*)/review', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const status = String(req.body.status || '').trim();
@@ -1395,7 +1395,7 @@ router.get('/payslips', requireAuth, requireRoleMw, requireSchoolScope, async (r
   } catch (err) { next(err); }
 });
 
-router.get('/payslips/:id([1-9]\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/payslips/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Payslip | School Management';
     res.locals.portal = 'sms';
@@ -1425,7 +1425,7 @@ router.post('/payslips', requireAuth, requireRoleMw, requireSchoolScope, async (
   }
 });
 
-router.post('/payslips/:id([1-9]\\d+)/finalize', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/payslips/:id([1-9]\\d*)/finalize', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     await payslipService.finalizePayslip(parseInt(req.params.id, 10), req.user);
     res.redirect('/sms/payslips/' + req.params.id);

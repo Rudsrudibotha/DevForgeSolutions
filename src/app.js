@@ -312,6 +312,10 @@ app.get('/privacy', (req, res) => res.render('legal/privacy', { title: 'Privacy 
 app.get('/terms', (req, res) => res.render('legal/terms', { title: 'Terms of Service | Kinder Care Hub' }));
 app.get('/status', (req, res) => res.render('status', { title: 'Status | Kinder Care Hub', health: healthPayload() }));
 
+// Password help page, linked from the login form. There is no self-serve
+// token reset flow yet; this page routes each role to the right human.
+app.get('/forgot', (req, res) => res.render('auth/forgot', { title: 'Reset password | Kinder Care Hub' }));
+
 // Each dashboard has its own independent login page so users cannot accidentally
 // sign into the wrong shell. The same public/login.html is reused with a
 // per-URL configuration (devforge-login / school-login / parent-login) and

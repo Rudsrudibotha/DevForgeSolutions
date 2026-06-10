@@ -1,0 +1,36 @@
+<% layout = 'layouts/app' %>
+<% hideChrome = true %>
+
+<div class="min-h-screen flex items-center justify-center p-4 bg-mesh">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-6">
+      <img src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub" class="h-12 w-12 mx-auto rounded-lg mb-3" />
+      <h1 class="text-2xl font-semibold">Reset your password</h1>
+    </div>
+
+    <div class="card p-6 space-y-4 text-sm">
+      <p>Password resets are handled by the people who manage your account:</p>
+      <ul class="space-y-3">
+        <li class="flex gap-3">
+          <span class="badge-brand flex-shrink-0 mt-0.5">School staff</span>
+          <span>Ask your school's system administrator to reset your password from <span class="font-medium">Settings &rarr; System users</span>.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="badge-brand flex-shrink-0 mt-0.5">Parents</span>
+          <span>Ask your school to send you a new invitation link &mdash; it verifies your email and lets you set a new password.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="badge-brand flex-shrink-0 mt-0.5">Schools</span>
+          <span>Contact DevForge through the Report a Fault channel, or reply to your onboarding email.</span>
+        </li>
+      </ul>
+      <div class="pt-2 border-t" style="border-color: rgb(var(--color-border))">
+        <p class="text-muted">Signed up with Microsoft or Google? You don't have a password here &mdash; just use the matching button on the sign-in page.</p>
+      </div>
+    </div>
+
+    <p class="text-center text-xs text-muted mt-4">
+      <a href="/login" class="text-brand-600 dark:text-brand-300 hover:underline">&larr; Back to sign in</a>
+    </p>
+  </div>
+</div>
