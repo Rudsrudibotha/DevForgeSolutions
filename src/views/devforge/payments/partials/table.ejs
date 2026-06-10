@@ -4,7 +4,7 @@
   <% rows.forEach(function(t) { %>
     <tr>
       <td class="text-sm text-muted whitespace-nowrap">
-        <%= new Date(t.TransactionDate).toLocaleDateString('en-ZA') %>
+        <%= formatDate(t.TransactionDate) %>
       </td>
       <td class="text-sm">
         <span class="badge-neutral"><%= t.SchoolName %></span>

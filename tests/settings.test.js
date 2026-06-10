@@ -60,7 +60,7 @@ async function run() {
 
   await test('GET /sms/settings shows school form fields when school is loaded', async () => {
     const r = await request('GET', '/sms/settings', school);
-    if (r.body.includes('No school linked')) {
+    if (r.body.includes('School details unavailable')) {
       // SKIP_DB=true path - no school in scope, empty state shown
       return;
     }

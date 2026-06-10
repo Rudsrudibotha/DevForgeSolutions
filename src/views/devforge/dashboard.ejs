@@ -25,8 +25,8 @@
       </div>
       <div class="kpi-card">
         <p class="kpi-label">Outstanding (all schools)</p>
-        <p class="kpi-value text-money">R <%= Number(kpis.TotalOutstanding || 0).toFixed(2) %></p>
-        <p class="kpi-delta text-emerald-600 dark:text-emerald-400">R <%= Number(kpis.CollectionsLast30Days || 0).toFixed(2) %> last 30d</p>
+        <p class="kpi-value text-money"><%= formatMoney(Number(kpis.TotalOutstanding || 0)) %></p>
+        <p class="kpi-delta text-emerald-600 dark:text-emerald-400"><%= formatMoney(Number(kpis.CollectionsLast30Days || 0)) %> last 30d</p>
       </div>
     </div>
   <% } %>

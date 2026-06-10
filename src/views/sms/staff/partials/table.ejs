@@ -12,7 +12,7 @@
       <td class="text-sm"><%= s.JobTitle || '—' %></td>
       <td class="text-sm text-muted"><%= s.Department || '—' %></td>
       <td class="text-sm text-muted"><%= s.Email || '—' %></td>
-      <td class="text-sm text-muted"><%= s.StartDate ? new Date(s.StartDate).toLocaleDateString('en-ZA') : '—' %></td>
+      <td class="text-sm text-muted"><%= s.StartDate ? formatDate(s.StartDate) : '—' %></td>
       <td>
         <% if (s.IsActive) { %><span class="badge-success">Active</span>
         <% } else { %><span class="badge-neutral">Inactive</span><% } %>

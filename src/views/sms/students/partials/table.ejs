@@ -20,7 +20,7 @@
       <td class="text-muted"><%= s.FamilyName || '—' %></td>
       <td>
         <% if (s.ClassName) { %>
-          <%= s.ClassName %><% if (s.Grade) { %> <span class="text-xs text-muted">(G<%= s.Grade %>)</span><% } %>
+          <%= s.ClassName %><% if (s.Grade) { %> <span class="text-xs text-muted">Grade <%= s.Grade %></span><% } %>
         <% } else { %>
           <span class="text-muted">Unassigned</span>
         <% } %>
@@ -30,9 +30,9 @@
       </td>
       <td class="text-right text-money">
         <% if (Number(s.OutstandingAmount) > 0) { %>
-          <span class="text-red-600 dark:text-red-400 font-medium">R <%= Number(s.OutstandingAmount).toFixed(2) %></span>
+          <span class="text-red-600 dark:text-red-400 font-medium"><%= formatMoney(s.OutstandingAmount) %></span>
         <% } else { %>
-          <span class="text-emerald-600 dark:text-emerald-400">R 0.00</span>
+          <span class="text-emerald-600 dark:text-emerald-400"><%= formatMoney(0) %></span>
         <% } %>
       </td>
       <td>

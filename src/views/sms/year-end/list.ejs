@@ -30,8 +30,8 @@
                 <tr>
                   <td><%= y.Year || y.year %></td>
                   <td><span class="badge <%= y.Status === 'Closed' ? 'badge-emerald' : 'badge-amber' %>"><%= y.Status || 'Open' %></span></td>
-                  <td><%= y.OpenedAt ? new Date(y.OpenedAt).toLocaleDateString('en-ZA') : '-' %></td>
-                  <td><%= y.ClosedAt ? new Date(y.ClosedAt).toLocaleDateString('en-ZA') : '-' %></td>
+                  <td><%= y.OpenedAt ? formatDate(y.OpenedAt) : '-' %></td>
+                  <td><%= y.ClosedAt ? formatDate(y.ClosedAt) : '-' %></td>
                   <td class="text-right">
                     <% if (y.Status === 'Open') { %>
                       <button class="btn-primary btn-sm" hx-put="/api/hr/year-end/<%= y.YearEndClosingID %>/status" hx-vals='{"status":"Closed"}'>Close year</button>

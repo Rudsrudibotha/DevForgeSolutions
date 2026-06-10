@@ -53,7 +53,7 @@
               <% } else { %>
                 <% transactions.forEach(function (tx) { %>
                   <tr class="<%= selectedBankTransactionId === tx.BankTransactionId ? 'bg-brand-50' : '' %>">
-                    <td><%= tx.BankEffectiveDate ? new Date(tx.BankEffectiveDate).toLocaleDateString('en-ZA') : '' %></td>
+                    <td><%= tx.BankEffectiveDate ? formatDate(tx.BankEffectiveDate) : '' %></td>
                     <td>
                       <p class="text-sm"><%= tx.Description || '' %></p>
                       <p class="text-xs text-muted"><%= tx.Reference || '' %></p>

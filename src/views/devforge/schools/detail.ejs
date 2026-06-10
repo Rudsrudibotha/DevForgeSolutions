@@ -12,7 +12,7 @@
     <div class="card-body flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-semibold"><%= school.SchoolName %></h1>
-        <p class="text-muted text-sm mt-1">School #<%= school.SchoolID %> &middot; Created <%= new Date(school.CreatedDate).toLocaleDateString('en-ZA') %></p>
+        <p class="text-muted text-sm mt-1">School #<%= school.SchoolID %> &middot; Created <%= formatDate(school.CreatedDate) %></p>
       </div>
       <div>
         <% if (school.SubscriptionStatus === 'Active') { %><span class="badge-success">Active</span>
@@ -37,7 +37,7 @@
     </div>
     <div class="kpi-card">
       <p class="kpi-label">Outstanding</p>
-      <p class="kpi-value text-money">R <%= Number(school.Outstanding || 0).toFixed(2) %></p>
+      <p class="kpi-value text-money"><%= formatMoney(Number(school.Outstanding || 0)) %></p>
     </div>
   </div>
 
@@ -73,7 +73,7 @@
       <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
         <div>
           <p class="kpi-label">Default monthly fee</p>
-          <p class="font-medium text-money">R <%= Number(school.DefaultMonthlyFee || 0).toFixed(2) %></p>
+          <p class="font-medium text-money"><%= formatMoney(Number(school.DefaultMonthlyFee || 0)) %></p>
         </div>
         <div>
           <p class="kpi-label">Currency</p>

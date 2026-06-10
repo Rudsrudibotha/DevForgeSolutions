@@ -25,7 +25,7 @@
           <option value="">Unallocated (no invoice)</option>
           <% invoices.forEach(function(inv) { %>
             <option value="<%= inv.InvoiceID %>" <%= String(defaults.invoiceId) === String(inv.InvoiceID) ? 'selected' : '' %>>
-              #<%= inv.InvoiceNumber %> &middot; <%= inv.StudentName %> &middot; R <%= Number(inv.Outstanding || (inv.Amount - inv.AmountPaid)).toFixed(2) %> outstanding
+              #<%= inv.InvoiceNumber %> &middot; <%= inv.StudentName %> &middot; <%= formatMoney(Number(inv.Outstanding || (inv.Amount - inv.AmountPaid))) %> outstanding
             </option>
           <% }) %>
         </select>

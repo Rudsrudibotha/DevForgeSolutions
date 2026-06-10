@@ -123,7 +123,7 @@ const FIXTURES = {
   // /parent dashboard + invoices
   parentChildren: () => ([
     { StudentID: 2, FirstName: 'Anika', LastName: 'Naidoo', ClassName: 'Busy Bees',  Grade: 'RR', SchoolName: 'Sunshine Kids Pre-School', OutstandingAmount: 1850, PresentLastWeek: 5 },
-    { StudentID: 7, FirstName: 'Dhiren',LastName: 'Naidoo', ClassName: 'Grade 0',    Grade: 'R',  SchoolName: 'Little Acorns Day Care',   OutstandingAmount: 0,    PresentLastWeek: 4 }
+    { StudentID: 7, FirstName: 'Dhiren',LastName: 'Naidoo', ClassName: 'Acorn Class', Grade: 'R',  SchoolName: 'Little Acorns Day Care',   OutstandingAmount: 0,    PresentLastWeek: 4 }
   ]),
   parentSummary: () => ({ totalOwed: 1850, totalPaid: 16650, outstandingCount: 1, overdueCount: 0, overdueAmount: 0, invoiceCount: 10 }),
   parentMessages: () => ([

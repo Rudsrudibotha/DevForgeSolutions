@@ -35,7 +35,7 @@
                   <td><%= a.StudentName || a.FamilyName || '-' %></td>
                   <td><%= formatMoney(a.Amount, a.CurrencyCode) %></td>
                   <td><%= a.Reason || '-' %></td>
-                  <td><%= a.CreatedAt ? new Date(a.CreatedAt).toLocaleDateString('en-ZA') : '-' %></td>
+                  <td><%= a.CreatedAt ? formatDate(a.CreatedAt) : '-' %></td>
                 </tr>
               <% }); %>
             <% } %>

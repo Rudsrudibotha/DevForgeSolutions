@@ -35,7 +35,7 @@
                   <td><%= c.ConsentRequestID || c.consentRequestId %></td>
                   <td><%= c.Title || '-' %></td>
                   <td><%= c.Audience || 'All parents' %></td>
-                  <td><%= c.SentAt ? new Date(c.SentAt).toLocaleDateString('en-ZA') : '-' %></td>
+                  <td><%= c.SentAt ? formatDate(c.SentAt) : '-' %></td>
                   <td><%= c.ResponseCount || 0 %></td>
                   <td><span class="badge"><%= c.Status || 'Open' %></span></td>
                 </tr>

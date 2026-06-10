@@ -14,7 +14,7 @@
         <h1 class="text-2xl font-semibold"><%= statement.FileName %></h1>
         <p class="text-muted text-sm mt-1">
           Uploaded <%= new Date(statement.CreatedDate).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' }) %>
-          <% if (statement.StatementDate) { %> &middot; Statement date <%= new Date(statement.StatementDate).toLocaleDateString('en-ZA') %><% } %>
+          <% if (statement.StatementDate) { %> &middot; Statement date <%= formatDate(statement.StatementDate) %><% } %>
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -59,10 +59,10 @@
         <% } else { %>
           <% lines.forEach(function(l) { %>
             <tr id="bankline-<%= l.TransactionID %>">
-              <td class="text-sm text-muted"><%= l.TransactionDate ? new Date(l.TransactionDate).toLocaleDateString('en-ZA') : '—' %></td>
+              <td class="text-sm text-muted"><%= l.TransactionDate ? formatDate(l.TransactionDate) : '—' %></td>
               <td><%= l.Description %></td>
               <td class="text-muted text-sm"><%= l.Reference || '—' %></td>
-              <td class="text-right text-money">R <%= Number(l.Amount).toFixed(2) %></td>
+              <td class="text-right text-money"><%= formatMoney(Number(l.Amount)) %></td>
               <td>
                 <% if (l.InvoiceID) { %>
                   <a href="/sms/invoices/<%= l.InvoiceID %>" class="text-sm text-brand-600 dark:text-brand-300 hover:underline">#<%= l.InvoiceNumber %></a>

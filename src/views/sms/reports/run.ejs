@@ -64,7 +64,7 @@
               <p class="kpi-label"><%= key %></p>
               <div class="text-xs text-muted mt-1 space-y-0.5">
                 <% Object.entries(val).forEach(function(sub) { %>
-                  <p><span class="font-medium"><%= sub[0] %>:</span> R <%= Number(sub[1]).toFixed(2) %></p>
+                  <p><span class="font-medium"><%= sub[0] %>:</span> <%= formatMoney(Number(sub[1])) %></p>
                 <% }) %>
               </div>
             </div>

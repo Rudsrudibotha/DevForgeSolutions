@@ -37,7 +37,7 @@
             <option value="">None</option>
             <% categories.forEach(function(c) { %>
               <option value="<%= c.BillingCategoryID %>" data-amount="<%= c.BaseAmount %>">
-                <%= c.CategoryName %><% if (c.BaseAmount) { %> (R <%= Number(c.BaseAmount).toFixed(2) %>)<% } %>
+                <%= c.CategoryName %><% if (c.BaseAmount) { %> (<%= formatMoney(Number(c.BaseAmount)) %>)<% } %>
               </option>
             <% }) %>
           </select>

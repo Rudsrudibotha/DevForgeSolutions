@@ -16,15 +16,15 @@
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
     <div class="kpi-card">
       <p class="kpi-label">Allocated</p>
-      <p class="kpi-value text-money text-emerald-600 dark:text-emerald-400">R <%= (kpis.totalAllocated || 0).toFixed(2) %></p>
+      <p class="kpi-value text-money text-emerald-600 dark:text-emerald-400"><%= formatMoney(kpis.totalAllocated || 0) %></p>
     </div>
     <div class="kpi-card">
       <p class="kpi-label">Unallocated</p>
-      <p class="kpi-value text-money text-amber-600 dark:text-amber-400">R <%= (kpis.totalUnallocated || 0).toFixed(2) %></p>
+      <p class="kpi-value text-money text-amber-600 dark:text-amber-400"><%= formatMoney(kpis.totalUnallocated || 0) %></p>
     </div>
     <div class="kpi-card">
       <p class="kpi-label">Awaiting parent</p>
-      <p class="kpi-value text-money text-sky-600 dark:text-sky-400">R <%= (kpis.totalPending || 0).toFixed(2) %></p>
+      <p class="kpi-value text-money text-sky-600 dark:text-sky-400"><%= formatMoney(kpis.totalPending || 0) %></p>
     </div>
   </div>
 
@@ -53,8 +53,11 @@
         <label class="label">Method</label>
         <select name="paymentMethod" class="select">
           <option value="">All</option>
-          <% ['EFT','Cash','Card','Cheque','DebitOrder','Mobile','ParentInitiated','Other'].forEach(function(m) { %>
-            <option value="<%= m %>" <%= filters.paymentMethod === m ? 'selected' : '' %>><%= m %></option>
+          <%
+            var methodLabels = { EFT: 'EFT', Cash: 'Cash', Card: 'Card', Cheque: 'Cheque', DebitOrder: 'Debit order', Mobile: 'Mobile payment', ParentInitiated: 'Parent (online)', Other: 'Other' };
+          %>
+          <% Object.keys(methodLabels).forEach(function(m) { %>
+            <option value="<%= m %>" <%= filters.paymentMethod === m ? 'selected' : '' %>><%= methodLabels[m] %></option>
           <% }) %>
         </select>
       </div>

@@ -96,7 +96,7 @@
                 </a>
                 <p class="text-xs text-muted">
                   <% if (s.ClassName) { %><%= s.ClassName %><% if (s.Grade) { %> (G<%= s.Grade %>)<% } %><% } else { %>Unassigned<% } %>
-                  <% if (s.DateOfBirth) { %> &middot; DOB <%= new Date(s.DateOfBirth).toLocaleDateString('en-ZA') %><% } %>
+                  <% if (s.DateOfBirth) { %> &middot; DOB <%= formatDate(s.DateOfBirth) %><% } %>
                 </p>
               </div>
               <% if (s.IsActive) { %><span class="badge-success">Active</span>

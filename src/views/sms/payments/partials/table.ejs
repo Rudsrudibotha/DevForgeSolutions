@@ -10,9 +10,11 @@
   <% rows.forEach(function(p) { %>
     <tr id="payment-row-<%= p.TransactionID %>">
       <td class="font-medium"><%= p.ReceiptNumber || '—' %></td>
-      <td class="text-sm text-muted"><%= p.TransactionDate ? new Date(p.TransactionDate).toLocaleDateString('en-ZA') : '—' %></td>
+      <td class="text-sm text-muted"><%= p.TransactionDate ? formatDate(p.TransactionDate) : '—' %></td>
       <td><%= p.PayeeName || '—' %></td>
-      <td><%= p.PaymentMethod || '—' %></td>
+      <td><%
+        var methodNames = { DebitOrder: 'Debit order', Mobile: 'Mobile payment', ParentInitiated: 'Parent (online)' };
+      %><%= methodNames[p.PaymentMethod] || p.PaymentMethod || '—' %></td>
       <td class="text-sm">
         <% if (p.InvoiceID) { %>
           <a href="/sms/invoices/<%= p.InvoiceID %>" class="text-brand-600 dark:text-brand-300 hover:underline">#<%= p.InvoiceNumber %></a>
@@ -21,7 +23,7 @@
           <span class="text-muted">Unallocated</span>
         <% } %>
       </td>
-      <td class="text-right text-money">R <%= Number(p.Amount).toFixed(2) %></td>
+      <td class="text-right text-money"><%= formatMoney(p.Amount) %></td>
       <td>
         <% if (p.AllocationStatus === 'Allocated') { %><span class="badge-success">Allocated</span>
         <% } else if (p.AllocationStatus === 'PendingPayment') { %><span class="badge-warning">Awaiting parent</span>

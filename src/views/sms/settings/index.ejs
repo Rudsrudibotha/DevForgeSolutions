@@ -14,7 +14,10 @@
 
   <div x-show="tab === 'school'">
     <% if (!school) { %>
-      <div class="card"><div class="card-body empty-state"><p class="empty-state-desc">No school linked to your account.</p></div></div>
+      <div class="card"><div class="card-body empty-state">
+        <p class="empty-state-title">School details unavailable</p>
+        <p class="empty-state-desc">We couldn't load your school's details right now. Please refresh the page — if this keeps happening, contact support via Report a Fault.</p>
+      </div></div>
     <% } else { %>
       <form method="post" action="/sms/settings/school"
             hx-post="/sms/settings/school"
@@ -140,7 +143,7 @@
             <% categories.forEach(function(c) { %>
               <tr>
                 <td class="font-medium"><%= c.CategoryName %></td>
-                <td class="text-money">R <%= Number(c.BaseAmount).toFixed(2) %></td>
+                <td class="text-money"><%= formatMoney(Number(c.BaseAmount)) %></td>
                 <td class="text-sm"><%= c.Frequency %></td>
                 <td class="text-sm text-muted"><%= c.Description || '—' %></td>
                 <td>

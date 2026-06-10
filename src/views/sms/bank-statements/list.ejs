@@ -39,11 +39,11 @@
             <tr>
               <td>
                 <a href="/sms/bank-statements/<%= s.BankStatementID %>" class="font-medium hover:underline"><%= s.FileName %></a>
-                <% if (s.StatementDate) { %><p class="text-xs text-muted">Statement date: <%= new Date(s.StatementDate).toLocaleDateString('en-ZA') %></p><% } %>
+                <% if (s.StatementDate) { %><p class="text-xs text-muted">Statement date: <%= formatDate(s.StatementDate) %></p><% } %>
               </td>
               <td class="text-sm text-muted"><%= new Date(s.CreatedDate).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' }) %></td>
               <td class="text-right"><%= s.LineCount %></td>
-              <td class="text-right text-money">R <%= Number(s.TotalAmount || 0).toFixed(2) %></td>
+              <td class="text-right text-money"><%= formatMoney(Number(s.TotalAmount || 0)) %></td>
               <td class="text-right">
                 <% if (Number(s.UnmatchedCount) > 0) { %>
                   <span class="badge-warning"><%= s.UnmatchedCount %></span>

@@ -49,8 +49,8 @@
                 <tr>
                   <td><%= (lv.FirstName || '') + ' ' + (lv.LastName || '') %></td>
                   <td><%= lv.LeaveType || '-' %></td>
-                  <td><%= lv.StartDate ? new Date(lv.StartDate).toLocaleDateString('en-ZA') : '' %></td>
-                  <td><%= lv.EndDate ? new Date(lv.EndDate).toLocaleDateString('en-ZA') : '' %></td>
+                  <td><%= lv.StartDate ? formatDate(lv.StartDate) : '' %></td>
+                  <td><%= lv.EndDate ? formatDate(lv.EndDate) : '' %></td>
                   <td><%= lv.Days || 0 %></td>
                   <td class="text-right">
                     <button class="btn-primary btn-sm" hx-post="/sms/leave/<%= lv.LeaveRequestID %>/review" hx-vals='{"status":"Approved"}'>Approve</button>
@@ -88,9 +88,9 @@
                   <td><%= (lv.FirstName || '') + ' ' + (lv.LastName || '') %></td>
                   <td><%= lv.LeaveType || '-' %></td>
                   <td>
-                    <%= lv.StartDate ? new Date(lv.StartDate).toLocaleDateString('en-ZA') : '' %>
+                    <%= lv.StartDate ? formatDate(lv.StartDate) : '' %>
                     -
-                    <%= lv.EndDate ? new Date(lv.EndDate).toLocaleDateString('en-ZA') : '' %>
+                    <%= lv.EndDate ? formatDate(lv.EndDate) : '' %>
                   </td>
                   <td><%= lv.Days || 0 %></td>
                   <td><span class="badge <%= lv.Status === 'Approved' ? 'badge-emerald' : (lv.Status === 'Declined' ? 'badge-rose' : 'badge-amber') %>"><%= lv.Status || 'Pending' %></span></td>

@@ -17,11 +17,11 @@
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
     <div class="kpi-card">
       <p class="kpi-label">Total outstanding</p>
-      <p class="kpi-value text-money">R <%= (kpis.totalOutstanding || 0).toFixed(2) %></p>
+      <p class="kpi-value text-money"><%= formatMoney(kpis.totalOutstanding || 0) %></p>
     </div>
     <div class="kpi-card">
       <p class="kpi-label">Overdue</p>
-      <p class="kpi-value text-money text-red-600 dark:text-red-400">R <%= (kpis.totalOverdue || 0).toFixed(2) %></p>
+      <p class="kpi-value text-money <%= (kpis.totalOverdue || 0) > 0 ? 'text-red-600 dark:text-red-400' : '' %>"><%= formatMoney(kpis.totalOverdue || 0) %></p>
     </div>
     <div class="kpi-card">
       <p class="kpi-label">Invoice count</p>
@@ -46,8 +46,11 @@
         <label class="label">Status</label>
         <select name="status" class="select">
           <option value="">All</option>
-          <% ['Pending','Overdue','Partial','Paid','PendingPayment','Cancelled'].forEach(function(s) { %>
-            <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option>
+          <%
+            var statusLabels = { Pending: 'Pending', Overdue: 'Overdue', Partial: 'Partially paid', Paid: 'Paid', PendingPayment: 'Awaiting parent payment', Cancelled: 'Cancelled' };
+          %>
+          <% Object.keys(statusLabels).forEach(function(s) { %>
+            <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= statusLabels[s] %></option>
           <% }) %>
         </select>
       </div>

@@ -49,7 +49,7 @@
     <div class="kpi-card">
       <p class="kpi-label">Outstanding</p>
       <p class="kpi-value text-money">
-        R <%= Number(roster.reduce((s, r) => s + Number(r.OutstandingAmount || 0), 0)).toFixed(2) %>
+        <%= formatMoney(Number(roster.reduce((s, r) => s + Number(r.OutstandingAmount || 0), 0))) %>
       </p>
     </div>
   </div>
@@ -87,14 +87,14 @@
                     <%= s.FirstName %> <%= s.LastName %>
                   </a>
                   <% if (s.DateOfBirth) { %>
-                    <p class="text-xs text-muted">DOB <%= new Date(s.DateOfBirth).toLocaleDateString('en-ZA') %></p>
+                    <p class="text-xs text-muted">DOB <%= formatDate(s.DateOfBirth) %></p>
                   <% } %>
                 </td>
                 <td class="text-muted"><%= s.FamilyName %></td>
                 <td class="text-muted text-sm"><%= s.EnrolledDate ? new Date(s.EnrolledDate).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short' }) : '—' %></td>
                 <td class="text-right text-money">
                   <% if (Number(s.OutstandingAmount) > 0) { %>
-                    <span class="text-red-600 dark:text-red-400 font-medium">R <%= Number(s.OutstandingAmount).toFixed(2) %></span>
+                    <span class="text-red-600 dark:text-red-400 font-medium"><%= formatMoney(Number(s.OutstandingAmount)) %></span>
                   <% } else { %>
                     <span class="text-emerald-600 dark:text-emerald-400">R 0.00</span>
                   <% } %>

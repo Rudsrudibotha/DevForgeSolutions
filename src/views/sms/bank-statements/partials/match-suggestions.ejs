@@ -8,14 +8,14 @@
         <div>
           <a href="/sms/invoices/<%= m.InvoiceID %>" class="font-medium hover:underline">#<%= m.InvoiceNumber %></a>
           <span class="text-muted"> &middot; <%= m.StudentName || '' %></span>
-          <span class="text-muted"> &middot; R <%= Number(m.Outstanding).toFixed(2) %> outstanding</span>
+          <span class="text-muted"> &middot; <%= formatMoney(Number(m.Outstanding)) %> outstanding</span>
         </div>
         <button class="btn-primary btn-sm"
                 hx-post="/sms/payments/<%= transactionId %>/allocate"
                 hx-vals='{"invoiceId": "<%= m.InvoiceID %>"}'
                 hx-target="#bankline-<%= transactionId %>"
                 hx-swap="outerHTML">
-          Allocate R <%= Number(m.Outstanding).toFixed(2) %>
+          Allocate <%= formatMoney(Number(m.Outstanding)) %>
         </button>
       </li>
     <% }) %>

@@ -24,9 +24,9 @@
       </td>
       <td class="text-right text-money">
         <% if (Number(f.OutstandingAmount) > 0) { %>
-          <span class="text-red-600 dark:text-red-400 font-medium">R <%= Number(f.OutstandingAmount).toFixed(2) %></span>
+          <span class="text-red-600 dark:text-red-400 font-medium"><%= formatMoney(f.OutstandingAmount) %></span>
         <% } else { %>
-          <span class="text-emerald-600 dark:text-emerald-400">R 0.00</span>
+          <span class="text-emerald-600 dark:text-emerald-400"><%= formatMoney(0) %></span>
         <% } %>
       </td>
       <td class="text-right">

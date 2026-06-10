@@ -13,8 +13,8 @@
         <% } else { %><span class="badge-neutral">parent</span><% } %>
       </td>
       <td class="text-sm text-muted"><%= u.SchoolName || '—' %></td>
-      <td class="text-sm text-muted"><%= u.LastLoginDate ? new Date(u.LastLoginDate).toLocaleDateString('en-ZA') : 'Never' %></td>
-      <td class="text-sm text-muted"><%= new Date(u.CreatedDate).toLocaleDateString('en-ZA') %></td>
+      <td class="text-sm text-muted"><%= u.LastLoginDate ? formatDate(u.LastLoginDate) : 'Never' %></td>
+      <td class="text-sm text-muted"><%= formatDate(u.CreatedDate) %></td>
       <td>
         <% if (u.IsActive) { %><span class="badge-success">Active</span>
         <% } else { %><span class="badge-neutral">Inactive</span><% } %>

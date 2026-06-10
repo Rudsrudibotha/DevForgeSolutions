@@ -31,7 +31,7 @@
                 <tr>
                   <td><%= p.FinancePeriodLockID || p.financePeriodLockId %></td>
                   <td><%= p.LockType || '-' %></td>
-                  <td><%= p.PeriodStart ? new Date(p.PeriodStart).toLocaleDateString('en-ZA') : '-' %> - <%= p.PeriodEnd ? new Date(p.PeriodEnd).toLocaleDateString('en-ZA') : '' %></td>
+                  <td><%= p.PeriodStart ? formatDate(p.PeriodStart) : '-' %> - <%= p.PeriodEnd ? formatDate(p.PeriodEnd) : '' %></td>
                   <td><%= p.Reason || '-' %></td>
                   <td><%= p.LockedAt ? new Date(p.LockedAt).toLocaleString('en-ZA') : '-' %></td>
                   <td class="text-right">

@@ -114,7 +114,7 @@
               <div>
                 <p class="font-medium"><%= c.ConsentType %></p>
                 <p class="text-sm text-muted"><%= c.Description || '' %></p>
-                <% if (c.ExpiresOn) { %><p class="text-xs text-muted mt-1">Expires: <%= new Date(c.ExpiresOn).toLocaleDateString('en-ZA') %></p><% } %>
+                <% if (c.ExpiresOn) { %><p class="text-xs text-muted mt-1">Expires: <%= formatDate(c.ExpiresOn) %></p><% } %>
               </div>
               <% if (c.Status === 'Approved') { %><span class="badge-success">Approved</span>
               <% } else if (c.Status === 'Pending') { %><span class="badge-warning">Action needed</span>

@@ -20,7 +20,7 @@
         </div>
         <p class="text-muted text-sm">
           <%= student.ClassName || 'No class' %><% if (student.Grade) { %> &middot; Grade <%= student.Grade %><% } %>
-          <% if (student.DateOfBirth) { %> &middot; DOB <%= new Date(student.DateOfBirth).toLocaleDateString('en-ZA') %><% } %>
+          <% if (student.DateOfBirth) { %> &middot; DOB <%= formatDate(student.DateOfBirth) %><% } %>
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -57,7 +57,7 @@
         </div>
         <div>
           <p class="kpi-label">Enrolled</p>
-          <p class="font-medium"><%= student.EnrolledDate ? new Date(student.EnrolledDate).toLocaleDateString('en-ZA') : '—' %></p>
+          <p class="font-medium"><%= student.EnrolledDate ? formatDate(student.EnrolledDate) : '—' %></p>
         </div>
         <div>
           <p class="kpi-label">Class</p>

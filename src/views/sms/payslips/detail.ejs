@@ -71,7 +71,7 @@
           <dt class="text-muted">Pay period</dt>
           <dd><%= payslip.PayPeriod || '-' %></dd>
           <dt class="text-muted">Payment date</dt>
-          <dd><%= payslip.PaymentDate ? new Date(payslip.PaymentDate).toLocaleDateString('en-ZA') : '-' %></dd>
+          <dd><%= payslip.PaymentDate ? formatDate(payslip.PaymentDate) : '-' %></dd>
           <dt class="text-muted">Status</dt>
           <dd><%= payslip.Status || 'Draft' %></dd>
           <dt class="text-muted">Notes</dt>

@@ -18,22 +18,22 @@
         <p class="text-xs text-muted"><%= inv.FamilyName %></p>
       </td>
       <td class="text-sm <%= inv.Status !== 'Paid' && inv.Status !== 'Cancelled' && inv.DueDate && new Date(inv.DueDate) < new Date() ? 'text-red-600 dark:text-red-400 font-medium' : 'text-muted' %>">
-        <%= inv.DueDate ? new Date(inv.DueDate).toLocaleDateString('en-ZA') : '—' %>
+        <%= inv.DueDate ? formatDate(inv.DueDate) : '—' %>
       </td>
-      <td class="text-right text-money">R <%= Number(inv.Amount).toFixed(2) %></td>
-      <td class="text-right text-money">R <%= Number(inv.AmountPaid || 0).toFixed(2) %></td>
+      <td class="text-right text-money"><%= formatMoney(inv.Amount) %></td>
+      <td class="text-right text-money"><%= formatMoney(inv.AmountPaid || 0) %></td>
       <td class="text-right text-money">
         <% if (Number(inv.Outstanding) > 0) { %>
-          <span class="text-red-600 dark:text-red-400 font-medium">R <%= Number(inv.Outstanding).toFixed(2) %></span>
+          <span class="text-red-600 dark:text-red-400 font-medium"><%= formatMoney(inv.Outstanding) %></span>
         <% } else { %>
-          <span class="text-emerald-600 dark:text-emerald-400">R 0.00</span>
+          <span class="text-emerald-600 dark:text-emerald-400"><%= formatMoney(0) %></span>
         <% } %>
       </td>
       <td>
         <% if (inv.Status === 'Paid') { %><span class="badge-success">Paid</span>
         <% } else if (inv.Status === 'Overdue' || (inv.Status !== 'Paid' && inv.Status !== 'Cancelled' && inv.DueDate && new Date(inv.DueDate) < new Date())) { %><span class="badge-danger">Overdue</span>
         <% } else if (inv.Status === 'PendingPayment') { %><span class="badge-warning">Awaiting parent</span>
-        <% } else if (inv.Status === 'Partial') { %><span class="badge-warning">Partial</span>
+        <% } else if (inv.Status === 'Partial') { %><span class="badge-warning">Partially paid</span>
         <% } else if (inv.Status === 'Cancelled') { %><span class="badge-neutral">Cancelled</span>
         <% } else { %><span class="badge-neutral"><%= inv.Status %></span><% } %>
       </td>

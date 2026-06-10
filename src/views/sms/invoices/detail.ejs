@@ -23,14 +23,14 @@
         <p class="text-muted text-sm mt-1">
           <a href="/sms/students/<%= invoice.StudentID %>" class="hover:underline"><%= invoice.StudentName %></a>
           &middot; <%= invoice.FamilyName %>
-          &middot; Due <%= invoice.DueDate ? new Date(invoice.DueDate).toLocaleDateString('en-ZA') : '—' %>
+          &middot; Due <%= invoice.DueDate ? formatDate(invoice.DueDate) : '—' %>
         </p>
       </div>
       <div class="text-right">
         <p class="kpi-label">Amount</p>
-        <p class="kpi-value text-money">R <%= Number(invoice.Amount).toFixed(2) %></p>
-        <p class="text-sm text-muted">Paid: R <%= Number(invoice.AmountPaid || 0).toFixed(2) %></p>
-        <p class="text-sm font-medium">Outstanding: R <%= (Number(invoice.Amount) - Number(invoice.AmountPaid || 0)).toFixed(2) %></p>
+        <p class="kpi-value text-money"><%= formatMoney(Number(invoice.Amount)) %></p>
+        <p class="text-sm text-muted">Paid: <%= formatMoney(Number(invoice.AmountPaid || 0)) %></p>
+        <p class="text-sm font-medium">Outstanding: <%= formatMoney((Number(invoice.Amount) - Number(invoice.AmountPaid || 0))) %></p>
       </div>
     </div>
   </div>
@@ -65,18 +65,18 @@
         </div>
         <div>
           <p class="kpi-label">Issue date</p>
-          <p class="font-medium"><%= invoice.IssueDate ? new Date(invoice.IssueDate).toLocaleDateString('en-ZA') : '—' %></p>
+          <p class="font-medium"><%= invoice.IssueDate ? formatDate(invoice.IssueDate) : '—' %></p>
         </div>
         <div>
           <p class="kpi-label">Due date</p>
           <p class="font-medium <%= invoice.Status !== 'Paid' && invoice.Status !== 'Cancelled' && invoice.DueDate && new Date(invoice.DueDate) < new Date() ? 'text-red-600 dark:text-red-400' : '' %>">
-            <%= invoice.DueDate ? new Date(invoice.DueDate).toLocaleDateString('en-ZA') : '—' %>
+            <%= invoice.DueDate ? formatDate(invoice.DueDate) : '—' %>
           </p>
         </div>
         <% if (invoice.PaidDate) { %>
           <div>
             <p class="kpi-label">Paid date</p>
-            <p class="font-medium"><%= new Date(invoice.PaidDate).toLocaleDateString('en-ZA') %></p>
+            <p class="font-medium"><%= formatDate(invoice.PaidDate) %></p>
           </div>
         <% } %>
       </div>
@@ -109,8 +109,8 @@
                 <td class="font-medium"><%= p.ReceiptNumber || '—' %></td>
                 <td><%= p.PaymentMethod || '—' %></td>
                 <td class="text-muted"><%= p.PayeeName || '—' %></td>
-                <td class="text-muted text-sm"><%= p.TransactionDate ? new Date(p.TransactionDate).toLocaleDateString('en-ZA') : '—' %></td>
-                <td class="text-right text-money">R <%= Number(p.Amount).toFixed(2) %></td>
+                <td class="text-muted text-sm"><%= p.TransactionDate ? formatDate(p.TransactionDate) : '—' %></td>
+                <td class="text-right text-money"><%= formatMoney(Number(p.Amount)) %></td>
                 <td>
                   <% if (p.AllocationStatus === 'Allocated') { %><span class="badge-success">Allocated</span>
                   <% } else if (p.AllocationStatus === 'PendingPayment') { %><span class="badge-warning">Awaiting confirmation</span>
