@@ -1923,18 +1923,31 @@ router.get('/settings/subscription', requireAuth, requireRoleMw, requireSchoolSc
     res.locals.title = 'Subscription | School Management';
     res.locals.portal = 'sms';
     res.locals.activeNav = 'settings';
-    // The plans catalogue is a DevForge-wide list of available plans;
-    // we render the current subscription status inline below.
-    res.render('sms/settings/subscription', { plans: [
-      { PlanCode: 'STANDARD', PlanName: 'Standard', Description: 'Everything your school needs.', PricePerMonth: '899', IsDefault: true, features: [
-        { FeatureName: 'Messaging', IsEnabled: true },
-        { FeatureName: 'Image messaging', IsEnabled: true },
-        { FeatureName: 'AI chatbot', IsEnabled: true },
-        { FeatureName: 'AI reconciliation', IsEnabled: true },
-        { FeatureName: 'Broadcasts', IsEnabled: true },
-        { FeatureName: 'Report a Fault', IsEnabled: true }
-      ]}
-    ] });
+    // Plan cards mirror the real gating: every plan gets the full school
+    // management + finance platform; Kinder Care Hub messaging and AI are
+    // included on Pro+ only (messagingPackageService) and available to the
+    // other plans as paid messaging packages.
+    const currentPlan = (req.currentSchool && req.currentSchool.SubscriptionPlan) || 'Standard';
+    const core = [
+      { FeatureName: 'Students, families, classes & attendance', IsEnabled: true },
+      { FeatureName: 'Invoicing, payments & outstanding fees', IsEnabled: true },
+      { FeatureName: 'Bank statement reconciliation', IsEnabled: true },
+      { FeatureName: 'Staff, leave & payslips', IsEnabled: true },
+      { FeatureName: 'Parent portal with online payments', IsEnabled: true },
+      { FeatureName: 'Reports & audit log', IsEnabled: true },
+      { FeatureName: 'Report a Fault support channel', IsEnabled: true }
+    ];
+    const messaging = (included) => [
+      { FeatureName: 'Kinder Care Hub messaging' + (included ? '' : ' (paid add-on packages)'), IsEnabled: included },
+      { FeatureName: 'Parent & staff broadcasts', IsEnabled: included },
+      { FeatureName: 'AI assistant & AI reconciliation', IsEnabled: included }
+    ];
+    const plans = [
+      { PlanCode: 'STANDARD', PlanName: 'Standard', Description: 'The full school management and finance platform.', PricePerMonth: '899', IsCurrent: currentPlan === 'Standard', features: core.concat(messaging(false)) },
+      { PlanCode: 'PRO', PlanName: 'Pro', Description: 'For growing schools - higher usage limits and priority support.', PricePerMonth: null, IsCurrent: currentPlan === 'Pro', features: core.concat(messaging(false)) },
+      { PlanCode: 'PRO_PLUS', PlanName: 'Pro+', Description: 'Everything, including Kinder Care Hub messaging and AI.', PricePerMonth: null, IsCurrent: currentPlan === 'Pro+', features: core.concat(messaging(true)) }
+    ];
+    res.render('sms/settings/subscription', { plans, currentPlan });
   } catch (err) { next(err); }
 });
 

@@ -43,6 +43,14 @@ function registerLocals(req, res, next) {
   res.locals.activeClass = activeClass;
   res.locals.portalHome = portalHome;
   res.locals.title = res.locals.title || 'Kinder Care Hub';
+  // Views communicate `<% sidebar = 'school' %>` / `<% hideChrome = true %>`
+  // to the layout through implicit globals (EJS with(locals) assignment
+  // fall-through). The view and layout render synchronously within one
+  // request, so the channel is safe per request — but the globals survive
+  // the request and would bleed one page's chrome flags into the next
+  // render. Reset them here so every request starts clean.
+  globalThis.sidebar = undefined;
+  globalThis.hideChrome = undefined;
   next();
 }
 

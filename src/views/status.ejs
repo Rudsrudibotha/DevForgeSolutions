@@ -1,0 +1,51 @@
+<% layout = 'layouts/app' %>
+<% hideChrome = true %>
+
+<div class="min-h-screen bg-mesh">
+  <header class="mx-auto max-w-3xl px-4 sm:px-6 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2">
+      <img src="/assets/kinder-care-hub-logo.png" alt="" class="h-9 w-9 rounded-md" />
+      <span class="font-semibold text-lg">Kinder Care Hub</span>
+    </a>
+    <a href="/login" class="btn-secondary btn-sm">Sign in</a>
+  </header>
+
+  <div class="container-narrow">
+    <div class="card p-8">
+      <div class="flex items-center gap-3">
+        <% if (health.database.connected) { %>
+          <span class="h-3 w-3 rounded-full bg-emerald-500" aria-hidden="true"></span>
+          <h1 class="text-2xl font-semibold">All systems operational</h1>
+        <% } else { %>
+          <span class="h-3 w-3 rounded-full bg-amber-500" aria-hidden="true"></span>
+          <h1 class="text-2xl font-semibold">Partial outage</h1>
+        <% } %>
+      </div>
+      <p class="text-muted text-sm mt-1">Live platform status, refreshed on every page load.</p>
+
+      <ul class="mt-6 divide-y" style="border-color: rgb(var(--color-border))">
+        <li class="py-3 flex items-center justify-between text-sm">
+          <span>Application</span>
+          <span class="badge-success">Operational</span>
+        </li>
+        <li class="py-3 flex items-center justify-between text-sm">
+          <span>Database</span>
+          <% if (health.database.connected) { %>
+            <span class="badge-success">Operational</span>
+          <% } else { %>
+            <span class="badge-warning">Degraded</span>
+          <% } %>
+        </li>
+        <li class="py-3 flex items-center justify-between text-sm">
+          <span>Uptime (this instance)</span>
+          <span class="text-muted tabular-nums"><%= Math.floor(health.uptimeSeconds / 3600) %>h <%= Math.floor((health.uptimeSeconds % 3600) / 60) %>m</span>
+        </li>
+        <li class="py-3 flex items-center justify-between text-sm">
+          <span>Version</span>
+          <span class="text-muted"><%= health.version %></span>
+        </li>
+      </ul>
+    </div>
+    <p class="text-center text-xs text-muted mt-4"><a href="/" class="hover:underline">&larr; Back to home</a></p>
+  </div>
+</div>

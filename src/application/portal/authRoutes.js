@@ -25,14 +25,14 @@ router.get('/login', function (req, res) {
   res.render('auth/login');
 });
 
-// GET /school-register - placeholder
+// GET /auth/school-register and /auth/parent-register - the real
+// registration pages live at the top-level paths served by app.js.
 router.get('/school-register', function (req, res) {
-  res.redirect('/school/register');
+  res.redirect('/school-register');
 });
 
-// GET /parent-register - placeholder
 router.get('/parent-register', function (req, res) {
-  res.redirect('/parent/register');
+  res.redirect('/parent-register');
 });
 
 // POST /auth/portal-login - delegates to existing user login flow

@@ -15,13 +15,20 @@
 </head>
 <body class="h-full" data-portal="<%= typeof portal !== 'undefined' ? portal : 'system' %>" hx-headers='{"X-CSRF-Token": "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"}'>
   <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-brand focus:text-white focus:rounded">Skip to main content</a>
-  <%- include('../partials/header', {
-       user: typeof user !== 'undefined' ? user : null,
-       portal: typeof portal !== 'undefined' ? portal : 'system',
-       currentSchool: typeof currentSchool !== 'undefined' ? currentSchool : null
-     }) %>
+  <% var chromeHidden = typeof hideChrome !== 'undefined' && hideChrome; %>
+  <% if (!chromeHidden) { %>
+    <%- include('../partials/header', {
+         user: typeof user !== 'undefined' ? user : null,
+         portal: typeof portal !== 'undefined' ? portal : 'system',
+         currentSchool: typeof currentSchool !== 'undefined' ? currentSchool : null
+       }) %>
+  <% } %>
 
-  <% if (typeof sidebar !== 'undefined' && sidebar) { %>
+  <% if (chromeHidden) { %>
+    <main id="main-content" role="main" tabindex="-1" class="flex flex-col min-h-screen">
+      <%- body %>
+    </main>
+  <% } else if (typeof sidebar !== 'undefined' && sidebar) { %>
     <%- include('../partials/' + sidebar + '-sidebar', { user, currentPath: typeof currentPath !== 'undefined' ? currentPath : '' }) %>
     <main id="main-content" role="main" tabindex="-1" class="<%= (typeof currentPath !== 'undefined' && currentPath === '/login') ? '' : 'md:pl-64' %> min-h-[calc(100vh-4rem)] flex flex-col">
       <%- body %>

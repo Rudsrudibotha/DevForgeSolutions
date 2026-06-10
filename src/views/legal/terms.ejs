@@ -1,0 +1,52 @@
+<% layout = 'layouts/app' %>
+<% hideChrome = true %>
+
+<div class="min-h-screen bg-mesh">
+  <header class="mx-auto max-w-3xl px-4 sm:px-6 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2">
+      <img src="/assets/kinder-care-hub-logo.png" alt="" class="h-9 w-9 rounded-md" />
+      <span class="font-semibold text-lg">Kinder Care Hub</span>
+    </a>
+    <a href="/login" class="btn-secondary btn-sm">Sign in</a>
+  </header>
+
+  <div class="container-narrow">
+    <div class="card p-8">
+      <h1 class="text-2xl font-semibold">Terms of Service</h1>
+      <p class="text-muted text-sm mt-1">Last updated: <%= formatDate(new Date()) %></p>
+
+      <div class="mt-6 space-y-6 text-sm leading-6">
+        <section>
+          <h2 class="font-semibold text-base mb-2">The service</h2>
+          <p>Kinder Care Hub is a subscription service for pre-schools and day-care centres covering learner administration, invoicing and payments, attendance, staff management, and parent communication. The service is provided by DevForge Solutions.</p>
+        </section>
+
+        <section>
+          <h2 class="font-semibold text-base mb-2">Subscriptions and billing</h2>
+          <p>Schools subscribe to a monthly plan (Standard, Pro, or Pro+). Fees are billed monthly in South African Rand. Plan changes take effect on the next billing cycle. Optional messaging packages may be purchased separately on plans that do not include messaging.</p>
+        </section>
+
+        <section>
+          <h2 class="font-semibold text-base mb-2">Your data</h2>
+          <p>The school owns the data it captures in the service. We process it only to provide the service, as described in our <a href="/privacy" class="underline">Privacy Policy</a>. On termination, a school may request an export of its data before the account is closed.</p>
+        </section>
+
+        <section>
+          <h2 class="font-semibold text-base mb-2">Acceptable use</h2>
+          <p>You may not use the service to store or send unlawful content, attempt to access another school's data, or interfere with the operation of the platform. We may suspend accounts that put other tenants' data at risk.</p>
+        </section>
+
+        <section>
+          <h2 class="font-semibold text-base mb-2">Availability and support</h2>
+          <p>We aim for high availability but do not guarantee uninterrupted service. Current platform status is published on our <a href="/status" class="underline">status page</a>. Support is available through the Report a Fault channel in the app.</p>
+        </section>
+
+        <section>
+          <h2 class="font-semibold text-base mb-2">Liability</h2>
+          <p>To the maximum extent permitted by law, DevForge Solutions' liability for any claim arising from the service is limited to the subscription fees paid by the school in the three months preceding the claim.</p>
+        </section>
+      </div>
+    </div>
+    <p class="text-center text-xs text-muted mt-4"><a href="/" class="hover:underline">&larr; Back to home</a></p>
+  </div>
+</div>

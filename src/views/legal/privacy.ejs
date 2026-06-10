@@ -1,0 +1,52 @@
+<% layout = 'layouts/app' %>
+<% hideChrome = true %>
+
+<div class="min-h-screen bg-mesh">
+  <header class="mx-auto max-w-3xl px-4 sm:px-6 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2">
+      <img src="/assets/kinder-care-hub-logo.png" alt="" class="h-9 w-9 rounded-md" />
+      <span class="font-semibold text-lg">Kinder Care Hub</span>
+    </a>
+    <a href="/login" class="btn-secondary btn-sm">Sign in</a>
+  </header>
+
+  <div class="container-narrow">
+    <div class="card p-8">
+      <h1 class="text-2xl font-semibold">Privacy Policy</h1>
+      <p class="text-muted text-sm mt-1">Last updated: <%= formatDate(new Date()) %></p>
+
+      <div class="mt-6 space-y-6 text-sm leading-6">
+        <section>
+          <h2 class="font-semibold text-base mb-2">Who we are</h2>
+          <p>Kinder Care Hub (operated by DevForge Solutions) provides school management, invoicing, attendance, and messaging services to pre-schools and day-care centres in South Africa, and a portal for the parents of children enrolled at those schools.</p>
+        </section>
+
+        <section>
+          <h2 class="font-semibold text-base mb-2">What we collect</h2>
+          <p>We process personal information that schools capture to run their operations: learner names and enrolment details, parent and guardian contact details, attendance records, invoices and payment records, and staff employment records. Parents who use the parent portal also provide a verified email address and cellphone number.</p>
+        </section>
+
+        <section>
+          <h2 class="font-semibold text-base mb-2">How we use it (POPIA)</h2>
+          <p>We process personal information in line with the Protection of Personal Information Act (POPIA). Each school remains the responsible party for the learner and family information it captures; Kinder Care Hub acts as the operator processing that information on the school's instructions. We do not sell personal information, and information about one school's learners is never visible to another school.</p>
+        </section>
+
+        <section>
+          <h2 class="font-semibold text-base mb-2">Security</h2>
+          <p>Data is stored in Microsoft Azure (South Africa region where available), encrypted in transit and at rest. Access is role-based: school staff see only their school, parents see only their own children, and every administrative action is recorded in an audit log.</p>
+        </section>
+
+        <section>
+          <h2 class="font-semibold text-base mb-2">Your rights</h2>
+          <p>You may request access to, correction of, or deletion of your personal information. Parents should direct requests to their school in the first instance; you can also contact us and we will assist with your request together with the school.</p>
+        </section>
+
+        <section>
+          <h2 class="font-semibold text-base mb-2">Contact</h2>
+          <p>For privacy enquiries, contact your school administrator or reach DevForge Solutions through the Report a Fault channel in the app.</p>
+        </section>
+      </div>
+    </div>
+    <p class="text-center text-xs text-muted mt-4"><a href="/" class="hover:underline">&larr; Back to home</a></p>
+  </div>
+</div>

@@ -307,6 +307,11 @@ app.get('/health/ready', (req, res) => {
 app.get('/', (req, res) => res.render('home', { title: 'Kinder Care Hub' }));
 app.get('/website', (req, res) => res.render('home', { title: 'Kinder Care Hub' }));
 
+// Public legal + status pages (linked from the marketing footer).
+app.get('/privacy', (req, res) => res.render('legal/privacy', { title: 'Privacy Policy | Kinder Care Hub' }));
+app.get('/terms', (req, res) => res.render('legal/terms', { title: 'Terms of Service | Kinder Care Hub' }));
+app.get('/status', (req, res) => res.render('status', { title: 'Status | Kinder Care Hub', health: healthPayload() }));
+
 // Each dashboard has its own independent login page so users cannot accidentally
 // sign into the wrong shell. The same public/login.html is reused with a
 // per-URL configuration (devforge-login / school-login / parent-login) and
