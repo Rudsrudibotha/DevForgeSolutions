@@ -5,7 +5,7 @@ A multi-tenant SaaS for South African pre-schools / day-care centres: parent inv
 ## Stack
 
 - **Backend**: Node.js 20 (LTS), Express, mssql (Azure SQL)
-- **Frontend**: EJS server-side rendering, HTMX 2.x, Alpine.js, Tailwind CSS
+- **Frontend**: EJS server-side rendering, HTMX 1.9.x, Alpine.js, Tailwind CSS
 - **Observability**: Application Insights
 - **Deployment**: Azure App Service Linux, Application Settings, Key Vault for secrets
 - **Auth**: JWT (cookie + bearer), Microsoft + Google OAuth, AAD for DevForge admins

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Kinder Care Hub / DevForge Solutions — a multi-tenant SaaS for South African pre-schools / day-care centres (parent invoicing, attendance, registrations, messaging, staff leave, payslips, bank-statement reconciliation). Three portals share one EJS-rendered UI over a strict multi-tenant data layer.
 
-Node 20 / Express / mssql (Azure SQL) / EJS + HTMX 2.x + Alpine.js / Tailwind / Application Insights. Deployed to Azure App Service Linux.
+Node 20 / Express / mssql (Azure SQL) / EJS + HTMX 1.9.x + Alpine.js / Tailwind / Application Insights. Deployed to Azure App Service Linux.
 
 ## Daily commands
 
