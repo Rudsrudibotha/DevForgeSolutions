@@ -62,7 +62,7 @@ HTTP  →  src/application/   (route modules — thin: parse, validate, delegate
 ```
 
 **Two parallel routings**:
-- The **legacy JSON API** under `/api/*` still powers `public/*.html` (the original SPA). The original un-prefixed filenames are kept for back-compat; the canonical copy is the prefixed one (e.g. `sms-messaging-routes.js` vs `messagingRoutes.js`).
+- The **legacy JSON API** under `/api/*` still powers `public/*.html` (the original SPA). Newer route modules use the prefixed naming (e.g. `sms-messaging-routes.js`); the older camelCase modules (`userRoutes.js`, `invoiceRoutes.js`, …) are still the live, mounted copies for their endpoints — there are no duplicate back-compat files.
 - The **new SSR portal** at `/` (mounted in `src/app.js` via `src/application/portal/`) renders the three dashboards: `/auth/*`, `/sms/*`, `/parent/*`, `/devforge/*` through EJS. `src/application/portal/render.js` registers view engine and locals.
 
 Route file naming convention (used in `src/app.js` and `src/application/portal/`):

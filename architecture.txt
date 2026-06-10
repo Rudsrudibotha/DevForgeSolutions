@@ -200,24 +200,16 @@ with the dashboard name. See the table below.
   - registrationRoutes.js          /api/registrations
   - faultRoutes.js                 /api/faults
   - emailRoutes.js                 /api/email
-  - messagingRoutes.js             /api/messaging
-  - aiRoutes.js                    /api/ai
+  - sms-messaging-routes.js        /api/messaging
+  - devforge-sms-ai-routes.js      /api/ai
   - sms-bank-reconciliation-routes.js  /api/bank-reconciliation (canonical)
   - adminAuditService.js -> /api/audit (special)
-  - all-dashboards-user-routes.js  - prefixed copy of userRoutes
-  - sms-invoice-routes.js          - prefixed copy of invoiceRoutes
-  - sms-messaging-routes.js        - prefixed copy of messagingRoutes
-  - all-dashboards-parent-routes.js - prefixed copy of parentRoutes
-  - devforge-sms-ai-routes.js      - prefixed copy of aiRoutes
 
 5.2 NEW SAAS (Tasks 22-77)
-  - kinderCareHubRoutes.js          /api/messages (KCH messaging)
-  - all-dashboards-kch-messaging-routes.js - canonical prefixed copy
-  - devforgeSubscriptionRoutes.js   /api/devforge-subscriptions
-  - devforge-devforge-subscription-routes.js - canonical prefixed copy
+  - all-dashboards-kch-messaging-routes.js  /api/messages (KCH messaging)
+  - devforge-subscription-routes.js  /api/devforge-subscriptions
   - pdfRoutes.js                    /api/pdf (invoice PDF + parent PDF)
   - parentVerificationRoutes.js     /api/parent-verification
-  - kinderCareHubRoutes.js          (the original, unprefixed)
 
 5.3 PORTAL (EJS-rendered dashboards)
   - portal/index.js                 mounts /, /auth, /sms, /parent, /devforge
@@ -479,10 +471,8 @@ Shared partials:
        devforge-sidebar.ejs
        parent-sidebar.ejs
        kch-chat.ejs                  the Kinder Care Hub chat
-       devforge-...                 prefixed copies for clarity
        empty/{default, skeleton-*}
        palette/command.ejs
-       all-dashboards-kch-chat.ejs   prefixed copy
 
 Errors:
   - src/views/errors/{404, csrf, forbidden, offline}.ejs
@@ -518,7 +508,6 @@ bookmarks to /school/index.html are redirected by app.js to /sms).
   - test-auth.js               local-test auth shim
   - styles.css                 compiled CSS (legacy)
   - kch-chat.js                NEW Kinder Care Hub client JS
-  - all-dashboards-kch-chat.js prefixed copy
   - assets/                    logos, icons, kindergarten photos
 
 ================================================================================

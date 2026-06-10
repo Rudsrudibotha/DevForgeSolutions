@@ -49,12 +49,11 @@ const emailRoutes = require('./application/emailRoutes');
 //   - sms-*      : School Management Dashboard only
 //   - parent-*   : Parent Management Dashboard only
 //   - all-dashboards-* : shared across all 3 dashboards
-// The original (un-prefixed) filenames remain for backwards compatibility.
 const messagingRoutes = require('./application/sms-messaging-routes');
 const aiRoutes = require('./application/devforge-sms-ai-routes');
 const bankReconciliationRoutes = require('./application/sms-bank-reconciliation-routes');
 const kinderCareHubRoutes = require('./application/all-dashboards-kch-messaging-routes');
-const devforgeSubscriptionRoutes = require('./application/devforge-devforge-subscription-routes');
+const devforgeSubscriptionRoutes = require('./application/devforge-subscription-routes');
 const pdfRoutes = require('./application/pdfRoutes');
 const parentVerificationRoutes = require('./application/parentVerificationRoutes');
 const InvoiceService = require('./business/invoiceService');
