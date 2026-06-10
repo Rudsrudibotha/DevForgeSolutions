@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@azure/communication-email": "^1.1.0",
+    "@fontsource-variable/inter": "^5.2.8",
     "alpinejs": "^3.13.5",
     "applicationinsights": "^2.9.8",
     "bcryptjs": "^2.4.3",

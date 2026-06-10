@@ -1,38 +1,132 @@
 <% layout = 'layouts/app' %>
 <% sidebar = 'school' %>
 
+<%
+  var d = (typeof dashboard !== 'undefined' && dashboard) ? dashboard : null;
+  var overview = d && d.overview ? d.overview : null;
+  var attendanceRows = overview && overview.attendanceToday ? overview.attendanceToday : [];
+  var presentToday = 0, capturedToday = 0;
+  attendanceRows.forEach(function (row) {
+    capturedToday += row.count;
+    if (row.status === 'Present') presentToday += row.count;
+  });
+  var warningLinks = {
+    'class-capacity': '/sms/classes',
+    'attendance-not-captured': '/sms/attendance',
+    'missing-billing': '/sms/students',
+    'missing-payer': '/sms/students',
+    'unallocated-bank': '/sms/bank-reconciliation',
+    'duplicate-references': '/sms/payments',
+    'overdue-invoices': '/sms/outstanding',
+    'draft-payslips': '/sms/payslips'
+  };
+%>
+
 <div class="container-page">
-  <div class="card">
-    <div class="card-body">
-      <h1 class="text-2xl font-semibold mb-1">School dashboard</h1>
-      <p class="text-muted text-sm mb-6">A quick snapshot for <%= currentSchool ? currentSchool.SchoolName : 'your school' %>.</p>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="kpi-card">
-          <p class="kpi-label">Students</p>
-          <p class="kpi-value">—</p>
-        </div>
-        <div class="kpi-card">
-          <p class="kpi-label">Staff</p>
-          <p class="kpi-value">—</p>
-        </div>
-        <div class="kpi-card">
-          <p class="kpi-label">Outstanding</p>
-          <p class="kpi-value">—</p>
-        </div>
-        <div class="kpi-card">
-          <p class="kpi-label">Today attendance</p>
-          <p class="kpi-value">—</p>
-        </div>
-      </div>
-
-      <div class="alert-info mt-6">
-        <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <div>
-          <p class="font-medium">New School Management Dashboard shell</p>
-          <p class="text-sm opacity-90">Detailed screens (Students, Invoices, Payments, Bank reconciliation) are being migrated to the new design. The legacy app at <code class="px-1 rounded bg-white/40 dark:bg-black/30">/sms/*</code> continues to work.</p>
-        </div>
-      </div>
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">School dashboard</h1>
+      <p class="text-muted text-sm">A quick snapshot for <%= currentSchool ? currentSchool.SchoolName : 'your school' %>.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="/sms/attendance" class="btn-primary btn-sm">Capture attendance</a>
+      <a href="/sms/students/new" class="btn-secondary btn-sm">Add learner</a>
+      <a href="/sms/invoices/generate" class="btn-secondary btn-sm">Generate invoices</a>
+      <a href="/sms/payments/new" class="btn-secondary btn-sm">Record payment</a>
     </div>
   </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="kpi-card">
+      <p class="kpi-label">Active learners</p>
+      <p class="kpi-value"><%= d ? d.activeStudents : '—' %></p>
+      <% if (d) { %><p class="kpi-delta text-muted"><%= d.familyCount %> famil<%= d.familyCount === 1 ? 'y' : 'ies' %></p><% } %>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Staff</p>
+      <p class="kpi-value"><%= d ? d.employeeCount : '—' %></p>
+      <% if (d && d.pendingLeaveRequests > 0) { %>
+        <p class="kpi-delta text-amber-600 dark:text-amber-400"><%= d.pendingLeaveRequests %> leave request<%= d.pendingLeaveRequests === 1 ? '' : 's' %> pending</p>
+      <% } %>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Outstanding</p>
+      <p class="kpi-value text-money"><%= d ? formatMoney(d.outstandingAmount) : '—' %></p>
+      <% if (d) { %>
+        <% if (d.overdueInvoices > 0) { %>
+          <p class="kpi-delta text-amber-600 dark:text-amber-400"><%= d.overdueInvoices %> overdue invoice<%= d.overdueInvoices === 1 ? '' : 's' %></p>
+        <% } else { %>
+          <p class="kpi-delta text-emerald-600 dark:text-emerald-400"><%= formatMoney(d.paidLast30Days) %> collected last 30d</p>
+        <% } %>
+      <% } %>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-label">Attendance today</p>
+      <% if (d && capturedToday > 0) { %>
+        <p class="kpi-value"><%= presentToday %><span class="text-base font-normal text-muted"> / <%= overview.totalLearners || capturedToday %></span></p>
+        <p class="kpi-delta text-muted">present</p>
+      <% } else { %>
+        <p class="kpi-value">—</p>
+        <% if (d) { %><p class="kpi-delta"><a href="/sms/attendance" class="text-brand-600 dark:text-brand-300 hover:underline">Not captured yet</a></p><% } %>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (d && d.warnings && d.warnings.length > 0) { %>
+    <div class="card mb-6">
+      <div class="card-header flex items-center justify-between">
+        <h2 class="font-semibold">Needs attention</h2>
+        <span class="badge-warning"><%= d.warnings.length %></span>
+      </div>
+      <ul class="divide-y" style="border-color: rgb(var(--color-border))">
+        <% d.warnings.forEach(function (w) { %>
+          <li class="px-5 py-3 flex items-start justify-between gap-4">
+            <div>
+              <p class="text-sm font-medium">
+                <% if (warningLinks[w.code]) { %>
+                  <a href="<%= warningLinks[w.code] %>" class="hover:underline"><%= w.title %></a>
+                <% } else { %>
+                  <%= w.title %>
+                <% } %>
+              </p>
+              <p class="text-xs text-muted"><%= w.detail %></p>
+            </div>
+            <span class="badge-warning flex-shrink-0"><%= w.count %></span>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+  <% } else if (d) { %>
+    <div class="alert-success mb-6">
+      <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <p class="text-sm font-medium">All clear — nothing needs your attention right now.</p>
+    </div>
+  <% } %>
+
+  <% if (d && overview && overview.capacity && overview.capacity.length > 0) { %>
+    <div class="card">
+      <div class="card-header flex items-center justify-between">
+        <h2 class="font-semibold">Class capacity</h2>
+        <a href="/sms/classes" class="text-sm text-brand-600 dark:text-brand-300 hover:underline">Manage classes &rarr;</a>
+      </div>
+      <div class="card-body grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <% overview.capacity.forEach(function (c) { %>
+          <% var pct = c.capacity > 0 ? Math.min(100, Math.round((c.learnerCount / c.capacity) * 100)) : 0; %>
+          <div>
+            <div class="flex items-center justify-between text-sm mb-1">
+              <span class="font-medium"><%= c.className %></span>
+              <span class="text-muted tabular-nums"><%= c.learnerCount %><% if (c.capacity > 0) { %> / <%= c.capacity %><% } %></span>
+            </div>
+            <div class="h-2 rounded-full overflow-hidden" style="background-color: rgb(var(--color-border))" role="progressbar" aria-valuenow="<%= pct %>" aria-valuemin="0" aria-valuemax="100" aria-label="<%= c.className %> capacity">
+              <div class="h-full rounded-full <%= pct >= 100 ? 'bg-amber-500' : '' %>" style="width: <%= pct %>%; <%= pct < 100 ? 'background-color: rgb(var(--color-brand))' : '' %>"></div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  <% } %>
+
+  <% if (!d) { %>
+    <p class="text-muted text-sm">Live figures will appear here once the database connection is available.</p>
+  <% } %>
 </div>

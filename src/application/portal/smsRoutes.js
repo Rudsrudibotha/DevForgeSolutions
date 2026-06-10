@@ -13,6 +13,7 @@ const BankStatementPortalService = require('../../business/bankStatementPortalSe
 const StaffPortalService = require('../../business/staffPortalService');
 const ReportPortalService = require('../../business/reportPortalService');
 const SettingsPortalService = require('../../business/settingsPortalService');
+const DashboardService = require('../../business/dashboardService');
 const parentInvitationService = require('../../business/parentInvitationService');
 const parentGate = require('../../data/parentVerificationGateRepository');
 const { requireFeature } = require('../../middleware/requireFeature');
@@ -27,6 +28,7 @@ const bankStatementService = new BankStatementPortalService();
 const staffService = new StaffPortalService();
 const reportService = new ReportPortalService();
 const settingsService = new SettingsPortalService();
+const dashboardService = new DashboardService();
 
 function requireAuth(req, res, next) {
   if (!req.user) return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
@@ -1324,7 +1326,11 @@ router.get('/', requireAuth, requireRoleMw, async (req, res, next) => {
     res.locals.title = 'Dashboard | School Management';
     res.locals.portal = 'sms';
     res.locals.activeNav = 'home';
-    res.render('sms/dashboard');
+    const schoolId = req.user.schoolId || (req.schoolDb && req.schoolDb.schoolId);
+    const dashboard = schoolId
+      ? await safeCall(dashboardService.getSchoolDashboard(schoolId), null)
+      : null;
+    res.render('sms/dashboard', { dashboard });
   } catch (err) { next(err); }
 });
 

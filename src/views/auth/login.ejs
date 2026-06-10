@@ -1,12 +1,22 @@
 <% layout = 'layouts/app' %>
 <% hideChrome = true %>
 
+<%
+  var portalName = typeof portal !== 'undefined' && portal === 'parent' ? 'Parent Portal'
+    : typeof portal !== 'undefined' && portal === 'devforge' ? 'DevForge Admin'
+    : 'School Management';
+  var portalTagline = typeof portal !== 'undefined' && portal === 'parent'
+    ? 'See your children\'s invoices, attendance, and messages.'
+    : typeof portal !== 'undefined' && portal === 'devforge'
+    ? 'Platform administration. Every action is audit-logged.'
+    : 'Run your school\'s admissions, billing, and attendance.';
+%>
 <div class="min-h-screen flex items-center justify-center p-4 bg-mesh">
   <div class="w-full max-w-md">
     <div class="text-center mb-6">
       <img src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub" class="h-12 w-12 mx-auto rounded-lg mb-3" />
-      <h1 class="text-2xl font-semibold">Sign in</h1>
-      <p class="text-muted text-sm mt-1">Access your school, family, or admin dashboard.</p>
+      <h1 class="text-2xl font-semibold">Sign in to <%= portalName %></h1>
+      <p class="text-muted text-sm mt-1"><%= portalTagline %></p>
     </div>
 
     <div class="card p-6">
@@ -23,22 +33,22 @@
         <input type="hidden" name="portal" value="<%= typeof portal !== 'undefined' ? portal : 'school' %>" />
 
         <div class="form-field">
-          <label class="label">Email or username</label>
-          <input type="text" name="identifier" required autofocus class="input" placeholder="you@school.com" />
+          <label class="label" for="login-identifier">Email or username</label>
+          <input type="text" id="login-identifier" name="identifier" required autofocus autocomplete="username" class="input" placeholder="you@school.com" />
         </div>
 
         <div class="form-field">
           <div class="flex items-center justify-between">
-            <label class="label">Password</label>
+            <label class="label" for="login-password">Password</label>
             <a href="/forgot" class="text-xs text-brand-600 dark:text-brand-300 hover:underline">Forgot password?</a>
           </div>
-          <input type="password" name="password" required class="input" />
+          <input type="password" id="login-password" name="password" required autocomplete="current-password" class="input" />
         </div>
 
         <% if (typeof portal !== 'undefined' && portal === 'school') { %>
           <div class="form-field">
-            <label class="label">School ID</label>
-            <input type="number" name="schoolId" class="input" placeholder="e.g. 1234" />
+            <label class="label" for="login-school-id">School ID</label>
+            <input type="number" id="login-school-id" name="schoolId" inputmode="numeric" class="input" placeholder="e.g. 1234" />
             <p class="help-text">Provided by your school administrator.</p>
           </div>
         <% } %>
