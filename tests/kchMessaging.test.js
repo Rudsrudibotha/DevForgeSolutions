@@ -215,6 +215,23 @@ async function run() {
     assert.strictEqual(stubs.calls.created[0].conversationType, 'SchoolToParent');
     assert.deepStrictEqual(stubs.calls.participantsAdded.map(p => p.userId).sort(), [10, 20]);
   });
+  await test('startConversation admin->school uses the contact tenant, not the school id', async () => {
+    const stubs = makeStubs();
+    stubs.contactRepository.findContact = async () => ({
+      UserID: 20,
+      ContactRole: 'school',
+      ContactSchoolId: 7,
+      ContactTenantId: 42,
+      FirstName: 'School',
+      LastName: 'User'
+    });
+    const svc = new KchChatService(stubs);
+    const result = await svc.startConversation(ctxFor('admin', { userId: 10 }), { targetUserId: 20 });
+    assert.strictEqual(result.conversationType, 'DevForgeToSchool');
+    assert.strictEqual(stubs.calls.created[0].tenantId, 42);
+    assert.strictEqual(stubs.calls.created[0].schoolId, 7);
+    assert.deepStrictEqual(stubs.calls.participantsAdded.map(p => p.tenantId), [42, 42]);
+  });
 
   await test('startConversation reuses the reverse-direction thread (one thread per pair)', async () => {
     const stubs = makeStubs();

@@ -129,7 +129,7 @@ class KchChatService {
 
     // DevForge conversations live in the school's tenant so the school
     // or parent participant can see them.
-    const tenantId = ctx.IsDevForgeUser ? contact.ContactSchoolId : ctx.ActiveTenantId;
+    const tenantId = ctx.IsDevForgeUser ? (contact.ContactTenantId || contact.ContactSchoolId) : ctx.ActiveTenantId;
     if (!tenantId) throw httpError(400, 'contact_has_no_school');
     const schoolId = ctx.IsDevForgeUser ? contact.ContactSchoolId : (ctx.ActiveSchoolId || contact.ContactSchoolId || null);
 

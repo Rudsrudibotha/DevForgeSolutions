@@ -88,13 +88,13 @@ class KchContactRepository {
     const result = await request.query(`
       SELECT TOP (@limit) * FROM (
         SELECT u.UserID, u.Username, u.Email, u.FirstName, u.LastName,
-               'school' AS ContactRole, u.SchoolID AS ContactSchoolId, s.SchoolName
+               'school' AS ContactRole, u.SchoolID AS ContactSchoolId, s.TenantId AS ContactTenantId, s.SchoolName
         FROM dbo.Users u
         INNER JOIN dbo.Schools s ON s.SchoolID = u.SchoolID
         WHERE u.Role = 'school' AND ISNULL(u.IsActive, 1) = 1 ${search}
         UNION ALL
         SELECT u.UserID, u.Username, u.Email, u.FirstName, u.LastName,
-               'parent' AS ContactRole, pl.SchoolID AS ContactSchoolId, s.SchoolName
+               'parent' AS ContactRole, pl.SchoolID AS ContactSchoolId, s.TenantId AS ContactTenantId, s.SchoolName
         FROM dbo.Users u
         INNER JOIN dbo.ParentLinks pl ON pl.UserID = u.UserID
         INNER JOIN dbo.Schools s ON s.SchoolID = pl.SchoolID
@@ -162,14 +162,23 @@ class KchContactRepository {
       query = `
         SELECT TOP 1 * FROM (
           SELECT u.UserID, u.Username, u.Email, u.FirstName, u.LastName,
-                 'school' AS ContactRole, u.SchoolID AS ContactSchoolId
+                 'school' AS ContactRole, u.SchoolID AS ContactSchoolId, s.TenantId AS ContactTenantId
           FROM dbo.Users u
+          INNER JOIN dbo.Schools s ON s.SchoolID = u.SchoolID
           WHERE u.UserID = @targetUserId AND u.Role = 'school' AND ISNULL(u.IsActive, 1) = 1
           UNION ALL
           SELECT u.UserID, u.Username, u.Email, u.FirstName, u.LastName,
                  'parent' AS ContactRole,
-                 (SELECT TOP 1 pl.SchoolID FROM dbo.ParentLinks pl WHERE pl.UserID = u.UserID ORDER BY pl.ParentLinkID DESC) AS ContactSchoolId
+                 link.SchoolID AS ContactSchoolId,
+                 s.TenantId AS ContactTenantId
           FROM dbo.Users u
+          CROSS APPLY (
+            SELECT TOP 1 pl.SchoolID
+            FROM dbo.ParentLinks pl
+            WHERE pl.UserID = u.UserID
+            ORDER BY pl.ParentLinkID DESC
+          ) link
+          INNER JOIN dbo.Schools s ON s.SchoolID = link.SchoolID
           WHERE u.UserID = @targetUserId AND u.Role = 'parent'
             AND EXISTS (SELECT 1 FROM dbo.ParentLinks pl WHERE pl.UserID = u.UserID)
             AND ISNULL(u.IsActive, 1) = 1
