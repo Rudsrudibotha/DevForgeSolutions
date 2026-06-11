@@ -33,14 +33,22 @@
             </div>
           </div>
           <div class="registration-steps" aria-label="Registration steps">
-            <span><b>1</b>Details</span>
-            <span><b>2</b>Review</span>
-            <span><b>3</b>Activation</span>
+            <span data-school-step-indicator="0" class="active"><b>1</b>School profile</span>
+            <span data-school-step-indicator="1"><b>2</b>Contact</span>
+            <span data-school-step-indicator="2"><b>3</b>Billing</span>
+            <span data-school-step-indicator="3"><b>4</b>Plan</span>
+            <span data-school-step-indicator="4"><b>5</b>Review</span>
           </div>
         </div>
 
-        <form id="schoolRegistrationForm" class="auth-form hidden">
-          <fieldset class="registration-panel">
+        <form id="schoolRegistrationForm" class="auth-form registration-wizard hidden">
+          <div class="registration-form-header">
+            <p class="registration-eyebrow">Get started</p>
+            <h2>Tell us about your school</h2>
+            <p>Complete each step and review the request before it goes to DevForge onboarding.</p>
+          </div>
+
+          <fieldset class="registration-panel" data-registration-step="0">
             <legend>
               <span>01</span>
               <strong>School profile</strong>
@@ -66,7 +74,7 @@
             </div>
           </fieldset>
 
-          <fieldset class="registration-panel">
+          <fieldset class="registration-panel" data-registration-step="1">
             <legend>
               <span>02</span>
               <strong>Primary contact</strong>
@@ -88,7 +96,7 @@
             </div>
           </fieldset>
 
-          <fieldset class="registration-panel">
+          <fieldset class="registration-panel" data-registration-step="2">
             <legend>
               <span>03</span>
               <strong>Billing contact</strong>
@@ -118,24 +126,24 @@
             </div>
           </fieldset>
 
-          <fieldset class="registration-panel">
+          <fieldset class="registration-panel" data-registration-step="3">
             <legend>
               <span>04</span>
               <strong>Subscription preference</strong>
             </legend>
             <p class="registration-panel-note">Select a starting plan. Final billing details are confirmed during onboarding.</p>
             <div class="registration-plan-strip" aria-label="Available subscription plans">
-              <article>
+              <article data-plan-choice="Standard" tabindex="0">
                 <span>Standard</span>
                 <strong>R 899 pm</strong>
                 <small>Core admin, billing, attendance, and parent tools.</small>
               </article>
-              <article>
+              <article data-plan-choice="Pro" tabindex="0">
                 <span>Pro</span>
                 <strong>R 1 199 pm</strong>
                 <small>More operational depth for growing centres.</small>
               </article>
-              <article>
+              <article data-plan-choice="Pro+" tabindex="0">
                 <span>Pro+</span>
                 <strong>TBA</strong>
                 <small>Advanced rollout support and future add-ons.</small>
@@ -161,8 +169,20 @@
               </label>
             </div>
           </fieldset>
+
+          <fieldset class="registration-panel registration-review-panel" data-registration-step="4">
+            <legend>
+              <span>05</span>
+              <strong>Review request</strong>
+            </legend>
+            <p class="registration-panel-note">Check the summary before submitting. You can go back and change anything.</p>
+            <div id="schoolRegistrationReview" class="registration-review-grid"></div>
+          </fieldset>
+
           <p id="schoolRegistrationMessage" class="form-message hidden"></p>
-          <div class="form-actions">
+          <div class="form-actions registration-wizard-actions">
+            <button id="schoolRegistrationBack" class="secondary-button" type="button">Back</button>
+            <button id="schoolRegistrationNext" class="primary-button" type="button">Continue</button>
             <button class="primary-button" type="submit">Submit registration request</button>
             <a class="secondary-button link-button" href="/school-login">School Login</a>
           </div>
