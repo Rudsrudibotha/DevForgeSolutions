@@ -1,15 +1,15 @@
 const REGISTER_CONFIG = {
   '/school-register': {
     formId: 'schoolRegistrationForm',
-    title: 'Kinder Care Hub',
-    subtitle: 'School Registration',
+    title: 'School registration',
+    subtitle: 'Kinder Care Hub onboarding',
     messageId: 'schoolRegistrationMessage',
     endpoint: '/api/registrations/schools'
   },
   '/parent-register': {
     formId: 'parentRegistrationForm',
-    title: 'Kinder Care Hub',
-    subtitle: 'Parent Registration',
+    title: 'Parent registration',
+    subtitle: 'Kinder Care Hub access request',
     messageId: 'parentRegistrationMessage',
     endpoint: '/api/registrations/parents'
   }

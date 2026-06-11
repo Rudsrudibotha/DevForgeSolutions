@@ -19,8 +19,8 @@
           </div>
           <div class="registration-copy">
             <p class="registration-eyebrow">South African childcare operations</p>
-            <h2>Start with the details we need to set up your portal.</h2>
-            <p>Submit the registration request and DevForge will complete onboarding, billing setup, and access activation.</p>
+            <h2>A guided setup request for your school portal.</h2>
+            <p>Share the operational and billing details DevForge needs to prepare your Kinder Care Hub workspace.</p>
           </div>
           <div class="registration-steps" aria-label="Registration steps">
             <span>1. Details</span>
@@ -30,126 +30,156 @@
         </div>
 
         <form id="schoolRegistrationForm" class="auth-form hidden">
-          <div class="registration-section">
-            <h2>School details</h2>
-            <p>These details identify the centre and the main person we should contact.</p>
-          </div>
-          <div class="registration-grid">
-            <label>
-              School name
-              <input name="schoolName" type="text" required>
-            </label>
-            <label>
-              Registration number
-              <input name="registrationNumber" type="text">
-            </label>
-            <label class="span-two">
-              Address
-              <input name="address" type="text" autocomplete="street-address">
-            </label>
-            <label>
-              Website
-              <input name="website" type="url" placeholder="https://">
-            </label>
-            <label>
-              Contact person
-              <input name="contactPerson" type="text" autocomplete="name" required>
-            </label>
-            <label>
-              Contact email
-              <input name="contactEmail" type="email" autocomplete="email" required>
-            </label>
-            <label>
-              Contact phone
-              <input name="contactPhone" type="tel" autocomplete="tel" required>
-            </label>
-          </div>
-          <div class="registration-section">
-            <h2>Billing setup</h2>
-            <p>Use the school contact if billing is handled by the same person.</p>
-          </div>
-          <div class="registration-grid">
-            <label>
-              Billing contact
-              <input name="billingContactName" type="text" autocomplete="name">
-            </label>
-            <label>
-              Billing email
-              <input name="billingContactEmail" type="email" autocomplete="email">
-            </label>
-            <label>
-              Billing phone
-              <input name="billingContactPhone" type="tel" autocomplete="tel">
-            </label>
-            <label class="span-two">
-              Billing address
-              <input name="billingAddress" type="text" autocomplete="street-address">
-            </label>
-            <label>
-              Requested plan
-              <select name="requestedPlan">
-                <option value="">Select plan</option>
-                <option value="Standard">Standard - R 899 pm</option>
-                <option value="Pro">Pro - R 1 199 pm</option>
-                <option value="Pro+">Pro+ - TBA</option>
-              </select>
-            </label>
-            <label>
-              Payment provider
-              <input name="paymentProvider" type="text" value="Placeholder" readonly>
-            </label>
-            <label>
-              Customer reference
-              <input name="paymentCustomerReference" type="text">
-            </label>
-            <label class="span-two">
-              Billing notes
-              <textarea name="billingNotes" rows="3"></textarea>
-            </label>
-          </div>
+          <fieldset class="registration-panel">
+            <legend>
+              <span>01</span>
+              <strong>School profile</strong>
+            </legend>
+            <p class="registration-panel-note">Official centre details used for account setup and school identification.</p>
+            <div class="registration-grid">
+              <label>
+                School name
+                <input name="schoolName" type="text" autocomplete="organization" required>
+              </label>
+              <label>
+                Registration number
+                <input name="registrationNumber" type="text">
+              </label>
+              <label class="span-two">
+                Physical address
+                <input name="address" type="text" autocomplete="street-address">
+              </label>
+              <label class="span-two">
+                Website
+                <input name="website" type="url" placeholder="https://www.yourschool.co.za">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="registration-panel">
+            <legend>
+              <span>02</span>
+              <strong>Primary contact</strong>
+            </legend>
+            <p class="registration-panel-note">The person DevForge should contact for onboarding, access, and launch questions.</p>
+            <div class="registration-grid">
+              <label>
+                Contact person
+                <input name="contactPerson" type="text" autocomplete="name" required>
+              </label>
+              <label>
+                Contact email
+                <input name="contactEmail" type="email" autocomplete="email" required>
+              </label>
+              <label class="span-two">
+                Contact phone
+                <input name="contactPhone" type="tel" autocomplete="tel" required>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="registration-panel">
+            <legend>
+              <span>03</span>
+              <strong>Billing contact</strong>
+            </legend>
+            <p class="registration-panel-note">Complete this if invoicing should go to a different person or address.</p>
+            <div class="registration-grid">
+              <label>
+                Billing contact
+                <input name="billingContactName" type="text" autocomplete="name">
+              </label>
+              <label>
+                Billing email
+                <input name="billingContactEmail" type="email" autocomplete="email">
+              </label>
+              <label>
+                Billing phone
+                <input name="billingContactPhone" type="tel" autocomplete="tel">
+              </label>
+              <label>
+                Customer reference
+                <input name="paymentCustomerReference" type="text">
+              </label>
+              <label class="span-two">
+                Billing address
+                <input name="billingAddress" type="text" autocomplete="street-address">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="registration-panel">
+            <legend>
+              <span>04</span>
+              <strong>Subscription preference</strong>
+            </legend>
+            <p class="registration-panel-note">Select a starting plan. Final billing details are confirmed during onboarding.</p>
+            <div class="registration-grid">
+              <label>
+                Requested plan
+                <select name="requestedPlan">
+                  <option value="">Select plan</option>
+                  <option value="Standard">Standard - R 899 pm</option>
+                  <option value="Pro">Pro - R 1 199 pm</option>
+                  <option value="Pro+">Pro+ - TBA</option>
+                </select>
+              </label>
+              <label>
+                Payment provider
+                <input name="paymentProvider" type="text" value="Pending onboarding" readonly>
+              </label>
+              <label class="span-two">
+                Billing notes
+                <textarea name="billingNotes" rows="3" placeholder="Anything we should know before activating the account?"></textarea>
+              </label>
+            </div>
+          </fieldset>
           <p id="schoolRegistrationMessage" class="form-message hidden"></p>
           <div class="form-actions">
-            <button class="primary-button" type="submit">Submit Registration</button>
+            <button class="primary-button" type="submit">Submit registration request</button>
             <a class="secondary-button link-button" href="/school-login">School Login</a>
           </div>
         </form>
 
         <form id="parentRegistrationForm" class="auth-form hidden">
-          <div class="registration-section">
-            <h2>Parent details</h2>
-            <p>Choose the school and use the same email the school has on record.</p>
-          </div>
-          <div class="registration-grid">
-            <label class="span-two">
-              School
-              <select name="schoolId" id="parentSchoolSelect" required>
-                <option value="">Select school</option>
-              </select>
-            </label>
-            <label>
-              First name
-              <input name="firstName" type="text" autocomplete="given-name" required>
-            </label>
-            <label>
-              Last name
-              <input name="lastName" type="text" autocomplete="family-name" required>
-            </label>
-            <label>
-              Email
-              <input name="email" type="email" autocomplete="email" required>
-            </label>
-            <label>
-              Phone
-              <input name="phone" type="tel" autocomplete="tel">
-            </label>
-            <label class="span-two">
-              Relationship
-              <input name="relationship" type="text">
-            </label>
-          </div>
+          <fieldset class="registration-panel">
+            <legend>
+              <span>01</span>
+              <strong>Parent access</strong>
+            </legend>
+            <p class="registration-panel-note">Choose the school and use the same email the school has on record.</p>
+            <div class="registration-grid">
+              <label class="span-two">
+                School
+                <select name="schoolId" id="parentSchoolSelect" required>
+                  <option value="">Select school</option>
+                </select>
+              </label>
+              <label>
+                First name
+                <input name="firstName" type="text" autocomplete="given-name" required>
+              </label>
+              <label>
+                Last name
+                <input name="lastName" type="text" autocomplete="family-name" required>
+              </label>
+              <label>
+                Email
+                <input name="email" type="email" autocomplete="email" required>
+              </label>
+              <label>
+                Phone
+                <input name="phone" type="tel" autocomplete="tel">
+              </label>
+              <label class="span-two">
+                Relationship
+                <input name="relationship" type="text">
+              </label>
+            </div>
+          </fieldset>
           <p id="parentRegistrationMessage" class="form-message hidden"></p>
           <div class="form-actions">
-            <button class="primary-button" type="submit">Submit Registration</button>
+            <button class="primary-button" type="submit">Submit access request</button>
             <a class="secondary-button link-button" href="/parent-login">Parent Login</a>
           </div>
         </form>

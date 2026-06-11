@@ -3923,26 +3923,55 @@ body {
   padding: 30px;
 }
 
-.registration-section {
+.registration-panel {
   display: grid;
-  gap: 4px;
-  margin-bottom: 14px;
-}
-
-.registration-section:not(:first-child) {
-  margin-top: 10px;
-  padding-top: 18px;
-  border-top: 1px solid var(--portal-border);
-}
-
-.registration-section h2 {
+  gap: 14px;
   margin: 0;
+  border: 1px solid var(--portal-border);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.registration-panel + .registration-panel {
+  margin-top: 14px;
+}
+
+.registration-panel legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  float: left;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 0;
   color: var(--portal-text);
   font-size: 16px;
   line-height: 1.25;
 }
 
-.registration-section p {
+.registration-panel legend + * {
+  clear: both;
+}
+
+.registration-panel legend span {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 8px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.registration-panel legend strong {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.registration-panel-note {
   margin: 0;
   color: var(--portal-muted);
   font-size: 13px;
