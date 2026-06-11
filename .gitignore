@@ -13,3 +13,8 @@ test-results/
 azure-logs/
 .claude/settings.local.json
 .azure-*.local.json
+
+# Agent/codebase guidance stays local-only (not published to GitHub)
+CLAUDE.md
+AGENTS.md
+architecture.txt
