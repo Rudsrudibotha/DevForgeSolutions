@@ -7,17 +7,33 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <div class="auth-shell">
+    <div class="auth-shell registration-shell">
       <div class="auth-card registration-card">
-        <div class="auth-brand">
-          <img class="brand-logo auth-brand-logo" src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub">
-          <div>
-            <h1 id="registerTitle">Kinder Care Hub</h1>
-            <p id="registerSubtitle">Registration</p>
+        <div class="registration-intro">
+          <div class="auth-brand">
+            <img class="brand-logo auth-brand-logo" src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub">
+            <div>
+              <h1 id="registerTitle">Kinder Care Hub</h1>
+              <p id="registerSubtitle">Registration</p>
+            </div>
+          </div>
+          <div class="registration-copy">
+            <p class="registration-eyebrow">South African childcare operations</p>
+            <h2>Start with the details we need to set up your portal.</h2>
+            <p>Submit the registration request and DevForge will complete onboarding, billing setup, and access activation.</p>
+          </div>
+          <div class="registration-steps" aria-label="Registration steps">
+            <span>1. Details</span>
+            <span>2. Review</span>
+            <span>3. Activation</span>
           </div>
         </div>
 
         <form id="schoolRegistrationForm" class="auth-form hidden">
+          <div class="registration-section">
+            <h2>School details</h2>
+            <p>These details identify the centre and the main person we should contact.</p>
+          </div>
           <div class="registration-grid">
             <label>
               School name
@@ -47,6 +63,12 @@
               Contact phone
               <input name="contactPhone" type="tel" autocomplete="tel" required>
             </label>
+          </div>
+          <div class="registration-section">
+            <h2>Billing setup</h2>
+            <p>Use the school contact if billing is handled by the same person.</p>
+          </div>
+          <div class="registration-grid">
             <label>
               Billing contact
               <input name="billingContactName" type="text" autocomplete="name">
@@ -93,6 +115,10 @@
         </form>
 
         <form id="parentRegistrationForm" class="auth-form hidden">
+          <div class="registration-section">
+            <h2>Parent details</h2>
+            <p>Choose the school and use the same email the school has on record.</p>
+          </div>
           <div class="registration-grid">
             <label class="span-two">
               School

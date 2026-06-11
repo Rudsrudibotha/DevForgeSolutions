@@ -3847,6 +3847,153 @@ body {
   box-shadow: var(--portal-shadow-raised);
 }
 
+.registration-shell {
+  align-items: start;
+  padding: 32px 18px;
+}
+
+.registration-card {
+  display: grid;
+  width: min(100%, 1040px);
+  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.registration-intro {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
+  border-right: 1px solid var(--portal-border);
+  background: #f8fafc;
+  padding: 30px;
+}
+
+.registration-intro .auth-brand {
+  margin-bottom: 0;
+}
+
+.registration-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.registration-eyebrow {
+  margin: 0;
+  color: var(--portal-primary);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.registration-copy h2 {
+  margin: 0;
+  color: var(--portal-text);
+  font-size: 26px;
+  line-height: 1.12;
+}
+
+.registration-copy p {
+  margin: 0;
+  color: var(--portal-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.registration-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.registration-steps span {
+  border: 1px solid var(--portal-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 12px;
+}
+
+.registration-card .auth-form {
+  padding: 30px;
+}
+
+.registration-section {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.registration-section:not(:first-child) {
+  margin-top: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--portal-border);
+}
+
+.registration-section h2 {
+  margin: 0;
+  color: var(--portal-text);
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.registration-section p {
+  margin: 0;
+  color: var(--portal-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.registration-card .registration-grid {
+  gap: 14px 16px;
+}
+
+.registration-card .auth-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.registration-card .auth-form input,
+.registration-card .auth-form select,
+.registration-card .auth-form textarea {
+  min-height: 44px;
+  width: 100%;
+  padding: 10px 12px;
+}
+
+.registration-card .auth-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.registration-card .form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-start;
+  margin-top: 18px;
+}
+
+@media (max-width: 860px) {
+  .registration-card {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-intro {
+    border-right: 0;
+    border-bottom: 1px solid var(--portal-border);
+  }
+
+  .registration-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .auth-brand {
   align-items: center;
   margin-bottom: 22px;
@@ -4432,6 +4579,32 @@ body.school-user .brand-mark {
 
   .auth-card {
     padding: 22px;
+  }
+
+  .registration-shell {
+    padding: 12px;
+  }
+
+  .registration-card {
+    padding: 0;
+  }
+
+  .registration-intro,
+  .registration-card .auth-form {
+    padding: 22px;
+  }
+
+  .registration-copy h2 {
+    font-size: 22px;
+  }
+
+  .registration-card .form-actions {
+    flex-direction: column;
+  }
+
+  .registration-card .form-actions .primary-button,
+  .registration-card .form-actions .secondary-button {
+    width: 100%;
   }
 
   body.school-user .brand {
