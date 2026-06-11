@@ -144,9 +144,9 @@
 
   // ---- Open conversation + history ----
 
-  async function openConversation(conversationId) {
+  async function openConversation(conversationId, fallbackConversation) {
     state.currentConversationId = conversationId;
-    const conv = state.conversations.find(c => c.conversationId === conversationId);
+    const conv = state.conversations.find(c => c.conversationId === conversationId) || fallbackConversation;
     if (conv) {
       $('kchConvTitle').textContent = conv.name;
       $('kchConvSubtitle').textContent = roleLabel(conv.otherRole);
@@ -358,7 +358,24 @@
       });
       newConvModal.classList.add('hidden');
       await loadConversations();
-      await openConversation(data.conversation.conversationId);
+      const created = data.conversation || {};
+      const conversationId = Number(created.conversationId || 0);
+      const fallbackConversation = {
+        conversationId,
+        name: created.otherName || 'New chat',
+        otherUserId: created.otherUserId || userId,
+        otherRole: created.otherRole || null,
+        conversationType: created.conversationType || null,
+        isBroadcast: false,
+        lastMessageAt: null,
+        lastMessagePreview: '',
+        unreadCount: 0
+      };
+      if (conversationId && !state.conversations.some(c => c.conversationId === conversationId)) {
+        state.conversations.unshift(fallbackConversation);
+        renderConversations();
+      }
+      await openConversation(conversationId, fallbackConversation);
     } catch (err) {
       toast('Could not start chat: ' + err.message, 'error');
     }
