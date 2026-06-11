@@ -11,3 +11,4 @@ __pycache__/
 backup/
 test-results/
 azure-logs/
+.claude/settings.local.json
