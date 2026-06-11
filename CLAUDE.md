@@ -16,6 +16,7 @@ npm ci
 
 # Build Tailwind CSS to public/styles/app.css
 npm run build:css
+# (CI uses `npm run build`, which wraps the same step via scripts/build-css.js)
 
 # Watch CSS during frontend work
 npm run watch:css
@@ -35,7 +36,7 @@ DATABASE_URL='sqlserver://user:pass@localhost:1433/db' \
 #   http://localhost:3000/parent-login
 # With DISABLE_AUTH=true the X-Test-Role: parent|school|admin header also works.
 
-# Full test suite (~480 assertions, 21 test files, auto-skips SQL tests when SKIP_DB=true)
+# Full test suite (61 test files; the 17 SQL-level *Db.test.js files auto-skip when SKIP_DB=true)
 node tests/run.js
 
 # Single test file (e.g. one tenancy test)
@@ -102,7 +103,7 @@ CSRF: double-submit cookie (`kch_csrf` set by `issueCsrf`, validated by `verifyC
 
 1. **Unit** — `scope.test.js` (ScopedDb guard), no server needed.
 2. **Architecture** — `tests/architecture/*.test.js` are static-analysis rules that grep the tree: `no-repos-in-routes.test.js` (route files must not import repositories), `no-express-in-data.test.js` (data layer must not import express), `tenant-isolation-on-reads.test.js`, `csrf-on-portal-writes.test.js`, `audit-on-state-changes.test.js`, `parent-gate.test.js`, `finance-wiring.test.js`, `access-matrix.test.js`. These are the project's most important guardrails.
-3. **Integration** — feature files (`tenancy`, `invoices`, `students`, `families`, `attendance`, `payments`, `bankStatements`, `staff`, `reports`, `settings`, `devforgeSchools`, `devforgeUsers`, `devforgePayments`, `devforgeAudit`, `devforgeSettings`, `parentMessages`, `commandPalette`, `keyboardShortcuts`, `accessibility`, `mobileResponsive`, `cacheHeaders`, `coveringIndexes`, `databasePool`, `docs`, `healthEndpoint`, `notFound`, `emptyStates`).
+3. **Integration** — one feature file per area in `tests/` (e.g. `invoices`, `students`, `attendance`, `payments`, `bankStatements`, `parentTenancy`, `subscription`, the `devforge*` suites, plus cross-cutting suites like `accessibility`, `mobileResponsive`, `cacheHeaders`, `emptyStates`). Adding a feature usually means adding or extending the matching file.
 4. **SQL-level** — `*Db.test.js` files, all auto-skip when `SKIP_DB=true`. CI runs these against a real DB.
 
 Every test that touches tenant data must also assert a **negative case** (cross-tenant request is denied, not silently allowed) — the project enforces this convention.
@@ -131,6 +132,8 @@ Every test that touches tenant data must also assert a **negative case** (cross-
 - `architecture.txt` — full file-by-file map and key data flows (parent verification, bank reconciliation, AI chat, auto-invoicing, permission check).
 - `db/schema.sql` — idempotent DDL; the canonical list of tables and SaaS features.
 - `CHANGELOG.md` — release notes (1.0.0 is the current line).
-- `.claude/`, `AGENTS.md`, `ClaireKnowledge/` — project-level guidance (check for updates).
+- `AGENTS.md` — agent-facing summary of the non-negotiable rules and verification expectations.
+- `.agents/` (mirrored in `.claude/agents/`) — role prompts for the four specialised agents: `tenancy-security-reviewer`, `portal-feature-builder`, `data-service-implementer`, `test-architecture-runner`.
+- `ClaireKnowledge/` — shared guidance in the parent GitHub folder (not in this repo).
 
 The shared GitHub folder's `CLAUDE.md` adds: use `AGENTS.md` and `ClaireKnowledge/` for project guidance, and for Kinder Care Hubs work read `kinder_care_hubs_rules.md`, `database_security.md`, `server_requests_api_design.md`, `review_checklists.md`. Those files are not in this repo — they're referenced from the parent GitHub folder.
