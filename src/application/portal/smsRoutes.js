@@ -1353,7 +1353,7 @@ router.post('/payments/:id([1-9]\\d*)/allocate', requireAuth, requireRoleMw, req
 // ========================================================
 // Bank Statements
 // ========================================================
-router.get('/bank-statements', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/bank-statements', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.bank_reconciliation.view'), async (req, res, next) => {
   try {
     res.locals.title = 'Bank statements | School Management';
     res.locals.portal = 'sms';
@@ -1363,7 +1363,7 @@ router.get('/bank-statements', requireAuth, requireRoleMw, requireSchoolScope, a
   } catch (err) { next(err); }
 });
 
-router.get('/bank-statements/new', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/bank-statements/new', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.bank_reconciliation.view'), async (req, res, next) => {
   try {
     res.locals.title = 'Upload statement | School Management';
     res.locals.portal = 'sms';
@@ -1372,7 +1372,7 @@ router.get('/bank-statements/new', requireAuth, requireRoleMw, requireSchoolScop
   } catch (err) { next(err); }
 });
 
-router.post('/bank-statements', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/bank-statements', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.bank_reconciliation.view'), async (req, res, next) => {
   try {
     if (req.schoolDb.schoolId == null) {
       return res.status(403).render('errors/forbidden', { user: req.user, message: 'No school context.' });
@@ -1504,7 +1504,7 @@ router.post('/staff', requireAuth, requireRoleMw, requireSchoolScope, async (req
 // ========================================================
 // Reports
 // ========================================================
-router.get('/reports', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/reports', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('reports.view'), async (req, res, next) => {
   try {
     res.locals.title = 'Reports | School Management';
     res.locals.portal = 'sms';
@@ -1514,7 +1514,7 @@ router.get('/reports', requireAuth, requireRoleMw, requireSchoolScope, async (re
   } catch (err) { next(err); }
 });
 
-router.get('/reports/:type', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/reports/:type', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('reports.view'), async (req, res, next) => {
   try {
     res.locals.title = 'Report | School Management';
     res.locals.portal = 'sms';
@@ -1550,7 +1550,7 @@ router.get('/reports/:type', requireAuth, requireRoleMw, requireSchoolScope, asy
   } catch (err) { next(err); }
 });
 
-router.get('/reports/:type/export.csv', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/reports/:type/export.csv', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('reports.view'), async (req, res, next) => {
   try {
     const type = req.params.type;
     const report = await safeCall(reportService.run({
@@ -1672,7 +1672,7 @@ router.get('/', requireAuth, requireRoleMw, async (req, res, next) => {
 });
 
 // Kinder Care Hub inside the SMS portal
-router.get('/kch', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/kch', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('messaging.school.use'), async (req, res, next) => {
   try {
     res.locals.title = 'Kinder Care Hub | School Management';
     res.locals.portal = 'sms';
@@ -1875,7 +1875,7 @@ router.post('/bank-reconciliation/:id/transactions/:txId/match', requireAuth, re
   }
 });
 
-router.get('/bank-statements/import', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/bank-statements/import', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.bank_reconciliation.view'), async (req, res, next) => {
   try {
     res.locals.title = 'Import Bank Statement | School Management';
     res.locals.portal = 'sms';
@@ -2002,7 +2002,7 @@ router.get('/adjustments', requireAuth, requireRoleMw, requireSchoolScope, requi
   } catch (err) { next(err); }
 });
 
-router.get('/adjustments/new', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/adjustments/new', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.adjustments.create'), async (req, res, next) => {
   try {
     res.locals.title = 'New adjustment | School Management';
     res.locals.portal = 'sms';
@@ -2014,9 +2014,9 @@ router.get('/adjustments/new', requireAuth, requireRoleMw, requireSchoolScope, a
   } catch (err) { next(err); }
 });
 
-router.get('/adjustments/students/:familyId', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/adjustments/students', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.adjustments.create'), async (req, res, next) => {
   try {
-    const students = await safeCall(admissionsFinanceService.getStudentsForFamily(req.user, Number(req.params.familyId)), []);
+    const students = await safeCall(admissionsFinanceService.getStudentsForFamily(req.user, Number(req.query.familyId)), []);
     res.render('sms/adjustments/partials/student-rows', { students, layout: false }, (err, html) => {
       if (err) return next(err);
       res.send(html);
@@ -2024,7 +2024,7 @@ router.get('/adjustments/students/:familyId', requireAuth, requireRoleMw, requir
   } catch (err) { next(err); }
 });
 
-router.post('/adjustments', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/adjustments', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.adjustments.create'), async (req, res, next) => {
   try {
     // Collect items from the dynamic form: students[N][id], students[N][amount], students[N][type]
     const items = [];
@@ -2035,7 +2035,8 @@ router.post('/adjustments', requireAuth, requireRoleMw, requireSchoolScope, asyn
         const id = req.body[`students[${i}][id]`];
         const amount = req.body[`students[${i}][amount]`];
         const adjustmentType = req.body[`students[${i}][type]`];
-        if (id && amount) items.push({ studentId: id, amount, adjustmentType });
+        const invoiceId = req.body[`students[${i}][invoiceId]`];
+        if (id && amount) items.push({ studentId: id, amount, adjustmentType, invoiceId });
       }
     });
     const result = await safeCall(admissionsFinanceService.createAdjustment(req.user, {
@@ -2147,7 +2148,7 @@ router.get('/consents', requireAuth, requireRoleMw, requireSchoolScope, async (r
   } catch (err) { next(err); }
 });
 
-router.get('/permissions', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/permissions', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('permissions.view'), async (req, res, next) => {
   try {
     res.locals.title = 'Permissions | School Management';
     res.locals.portal = 'sms';
@@ -2172,7 +2173,7 @@ router.get('/permissions', requireAuth, requireRoleMw, requireSchoolScope, async
   } catch (err) { next(err); }
 });
 
-router.post('/permissions/:roleId', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/permissions/:roleId', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('school.staff.permissions.manage'), async (req, res, next) => {
   try {
     const roleId = Number(req.params.roleId);
     if (!Number.isInteger(roleId) || roleId <= 0) {
@@ -2218,7 +2219,7 @@ router.get('/audit', requireAuth, requireRoleMw, requireSchoolScope, async (req,
 // ========================================================
 // System users (school-scoped)
 // ========================================================
-router.get('/users', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/users', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('school.staff.manage'), async (req, res, next) => {
   try {
     res.locals.title = 'System users | School Management';
     res.locals.portal = 'sms';
@@ -2231,7 +2232,7 @@ router.get('/users', requireAuth, requireRoleMw, requireSchoolScope, async (req,
 // ========================================================
 // School account settings (banking + financial year + logo)
 // ========================================================
-router.get('/settings/school-account', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/settings/school-account', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('school.account.view'), async (req, res, next) => {
   try {
     res.locals.title = 'School account | School Management';
     res.locals.portal = 'sms';
@@ -2241,7 +2242,7 @@ router.get('/settings/school-account', requireAuth, requireRoleMw, requireSchool
   } catch (err) { next(err); }
 });
 
-router.post('/settings/school-account', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/settings/school-account', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('school.account.view'), async (req, res, next) => {
   try {
     await schoolServiceFacade.updateSchool(req.schoolDb.schoolId, req.body, req.user);
     res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: 'School account saved' } }));

@@ -27,7 +27,7 @@
       <div class="form-field">
         <label class="label label-required" for="familyId">Family</label>
         <select id="familyId" name="familyId" required class="select"
-                hx-get="/sms/adjustments/students/<%= selectedFamilyId || '' %>"
+                hx-get="/sms/adjustments/students"
                 hx-trigger="change"
                 hx-target="#student-rows"
                 hx-swap="outerHTML">

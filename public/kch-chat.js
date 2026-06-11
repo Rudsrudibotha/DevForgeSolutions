@@ -326,7 +326,7 @@
         lastGroup = group;
         html.push(`<li class="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted bg-slate-50">${escapeHtml(group)}</li>`);
       }
-      html.push(`<li class="px-4 py-2.5 cursor-pointer hover:bg-slate-50 flex items-center gap-3" data-uid="${c.userId}" role="option" aria-selected="false">
+      html.push(`<li class="px-4 py-2.5 cursor-pointer hover:bg-slate-50 flex items-center gap-3" data-uid="${c.userId}" data-school-id="${c.schoolId || ''}" role="option" aria-selected="false">
         <div class="h-9 w-9 shrink-0 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold" aria-hidden="true">${escapeHtml(initials(c.name))}</div>
         <div class="min-w-0">
           <p class="text-sm font-medium truncate">${escapeHtml(c.name)}</p>
@@ -336,7 +336,7 @@
     }
     list.innerHTML = html.join('');
     Array.from(list.querySelectorAll('li[data-uid]')).forEach(li => {
-      li.addEventListener('click', () => startChatWith(Number(li.getAttribute('data-uid'))));
+      li.addEventListener('click', () => startChatWith(Number(li.getAttribute('data-uid')), Number(li.getAttribute('data-school-id')) || null));
     });
   }
 
@@ -350,11 +350,11 @@
     }
   }
 
-  async function startChatWith(userId) {
+  async function startChatWith(userId, schoolId) {
     try {
       const data = await api('/api/messages/conversations', {
         method: 'POST',
-        body: JSON.stringify({ targetUserId: userId })
+        body: JSON.stringify({ targetUserId: userId, targetSchoolId: schoolId })
       });
       newConvModal.classList.add('hidden');
       await loadConversations();

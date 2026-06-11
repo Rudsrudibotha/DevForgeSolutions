@@ -197,6 +197,7 @@ class SchoolService {
       contactPhone: this.optionalString(source.contactPhone ?? existingSchool.ContactPhone, 'Contact phone', 50),
       registrationNumber: this.optionalString(source.registrationNumber ?? existingSchool.RegistrationNumber, 'Registration number', 100),
       bankName: this.optionalString(source.bankName ?? existingSchool.BankName, 'Bank name', 255),
+      bankAccountHolder: this.optionalString(source.bankAccountHolder ?? existingSchool.BankAccountHolder, 'Account holder', 255),
       bankAccountNumber: this.optionalString(source.bankAccountNumber ?? existingSchool.BankAccountNumber, 'Bank account number', 100),
       bankBranchCode: this.optionalString(source.bankBranchCode ?? existingSchool.BankBranchCode, 'Branch code', 50),
       bankAccountType: this.optionalString(source.bankAccountType ?? existingSchool.BankAccountType, 'Account type', 100),

@@ -17,22 +17,24 @@ const today = () => new Date();
 const daysAgo = (n) => new Date(Date.now() - n * 86400000);
 const daysAhead = (n) => new Date(Date.now() + n * 86400000);
 
+const SUNSHINE_SCHOOL = 'Sunshine Academy';
+
 const STUDENTS = [
-  { StudentID: 1, FirstName: 'Lwazi',  LastName: 'Dlamini',  ClassName: 'Busy Bees',    Grade: 'RR', FamilyName: 'Dlamini',  DateOfBirth: '2021-03-14', EnrolledDate: '2025-01-15', IsActive: 1, OutstandingAmount: 0 },
-  { StudentID: 2, FirstName: 'Anika',  LastName: 'Naidoo',   ClassName: 'Busy Bees',    Grade: 'RR', FamilyName: 'Naidoo',   DateOfBirth: '2021-07-02', EnrolledDate: '2025-01-15', IsActive: 1, OutstandingAmount: 1850 },
-  { StudentID: 3, FirstName: 'Pieter', LastName: 'van Wyk',  ClassName: 'Sunflowers',   Grade: 'R',  FamilyName: 'van Wyk',  DateOfBirth: '2020-11-21', EnrolledDate: '2024-01-10', IsActive: 1, OutstandingAmount: 0 },
-  { StudentID: 4, FirstName: 'Naledi', LastName: 'Mokoena',  ClassName: 'Sunflowers',   Grade: 'R',  FamilyName: 'Mokoena',  DateOfBirth: '2020-05-09', EnrolledDate: '2024-01-10', IsActive: 1, OutstandingAmount: 3700 },
-  { StudentID: 5, FirstName: 'Emma',   LastName: 'Botha',    ClassName: 'Little Lions', Grade: 'RRR',FamilyName: 'Botha',    DateOfBirth: '2022-01-30', EnrolledDate: '2025-06-01', IsActive: 1, OutstandingAmount: 1850 },
-  { StudentID: 6, FirstName: 'Sipho',  LastName: 'Khumalo',  ClassName: 'Little Lions', Grade: 'RRR',FamilyName: 'Khumalo',  DateOfBirth: '2022-04-17', EnrolledDate: '2025-06-01', IsActive: 1, OutstandingAmount: 0 }
+  { StudentID: 1, FirstName: 'Lwazi',  LastName: 'Dlamini',  ClassName: 'Busy Bees',    Grade: 'RR', FamilyName: 'Dlamini',  DateOfBirth: '2021-03-14', EnrolledDate: '2025-01-15', IsActive: 1, OutstandingAmount: 0,    PrimaryParentEmail: 'sunshine.dlamini@devforgesolutions.com' },
+  { StudentID: 2, FirstName: 'Anika',  LastName: 'Naidoo',   ClassName: 'Busy Bees',    Grade: 'RR', FamilyName: 'Naidoo',   DateOfBirth: '2021-07-02', EnrolledDate: '2025-01-15', IsActive: 1, OutstandingAmount: 1850, PrimaryParentEmail: 'sunshine.naidoo@devforgesolutions.com' },
+  { StudentID: 3, FirstName: 'Pieter', LastName: 'van Wyk',  ClassName: 'Sunflowers',   Grade: 'R',  FamilyName: 'van Wyk',  DateOfBirth: '2020-11-21', EnrolledDate: '2024-01-10', IsActive: 1, OutstandingAmount: 0,    PrimaryParentEmail: 'sunshine.vanwyk@devforgesolutions.com' },
+  { StudentID: 4, FirstName: 'Naledi', LastName: 'Mokoena',  ClassName: 'Sunflowers',   Grade: 'R',  FamilyName: 'Mokoena',  DateOfBirth: '2020-05-09', EnrolledDate: '2024-01-10', IsActive: 1, OutstandingAmount: 3700, PrimaryParentEmail: 'sunshine.mokoena@devforgesolutions.com' },
+  { StudentID: 5, FirstName: 'Emma',   LastName: 'Botha',    ClassName: 'Little Lions', Grade: 'RRR',FamilyName: 'Botha',    DateOfBirth: '2022-01-30', EnrolledDate: '2025-06-01', IsActive: 1, OutstandingAmount: 1850, PrimaryParentEmail: 'sunshine.botha@devforgesolutions.com' },
+  { StudentID: 6, FirstName: 'Sipho',  LastName: 'Khumalo',  ClassName: 'Little Lions', Grade: 'RRR',FamilyName: 'Khumalo',  DateOfBirth: '2022-04-17', EnrolledDate: '2025-06-01', IsActive: 1, OutstandingAmount: 0,    PrimaryParentEmail: 'sunshine.khumalo@devforgesolutions.com' }
 ];
 
 const INVOICES = [
-  { InvoiceID: 101, InvoiceNumber: 'INV-2026-0101', StudentID: 2, StudentName: 'Anika Naidoo',   FamilyName: 'Naidoo',  SchoolName: 'Sunshine Kids Pre-School', Amount: 1850, AmountPaid: 0,    Outstanding: 1850, PaymentCount: 0, Status: 'Pending', DueDate: daysAhead(6) },
-  { InvoiceID: 102, InvoiceNumber: 'INV-2026-0102', StudentID: 4, StudentName: 'Naledi Mokoena', FamilyName: 'Mokoena', SchoolName: 'Sunshine Kids Pre-School', Amount: 1850, AmountPaid: 0,    Outstanding: 1850, PaymentCount: 0, Status: 'Overdue', DueDate: daysAgo(12) },
-  { InvoiceID: 103, InvoiceNumber: 'INV-2026-0103', StudentID: 4, StudentName: 'Naledi Mokoena', FamilyName: 'Mokoena', SchoolName: 'Sunshine Kids Pre-School', Amount: 1850, AmountPaid: 0,    Outstanding: 1850, PaymentCount: 0, Status: 'Overdue', DueDate: daysAgo(42) },
-  { InvoiceID: 104, InvoiceNumber: 'INV-2026-0104', StudentID: 5, StudentName: 'Emma Botha',     FamilyName: 'Botha',   SchoolName: 'Sunshine Kids Pre-School', Amount: 1850, AmountPaid: 0,    Outstanding: 1850, PaymentCount: 0, Status: 'Pending', DueDate: daysAhead(6) },
-  { InvoiceID: 105, InvoiceNumber: 'INV-2026-0105', StudentID: 1, StudentName: 'Lwazi Dlamini',  FamilyName: 'Dlamini', SchoolName: 'Sunshine Kids Pre-School', Amount: 1850, AmountPaid: 1850, Outstanding: 0,    PaymentCount: 1, Status: 'Paid',    DueDate: daysAgo(24) },
-  { InvoiceID: 106, InvoiceNumber: 'INV-2026-0106', StudentID: 3, StudentName: 'Pieter van Wyk', FamilyName: 'van Wyk', SchoolName: 'Sunshine Kids Pre-School', Amount: 1850, AmountPaid: 1850, Outstanding: 0,    PaymentCount: 1, Status: 'Paid',    DueDate: daysAgo(24) }
+  { InvoiceID: 101, InvoiceNumber: 'SUN-2026-0101', StudentID: 2, StudentName: 'Anika Naidoo',   FamilyName: 'Naidoo',  SchoolName: SUNSHINE_SCHOOL, Amount: 1850, AmountPaid: 0,    Outstanding: 1850, PaymentCount: 0, Status: 'Pending', DueDate: daysAhead(6),  PrimaryParentEmail: 'sunshine.naidoo@devforgesolutions.com' },
+  { InvoiceID: 102, InvoiceNumber: 'SUN-2026-0102', StudentID: 4, StudentName: 'Naledi Mokoena', FamilyName: 'Mokoena', SchoolName: SUNSHINE_SCHOOL, Amount: 1850, AmountPaid: 0,    Outstanding: 1850, PaymentCount: 0, Status: 'Overdue', DueDate: daysAgo(12), PrimaryParentEmail: 'sunshine.mokoena@devforgesolutions.com' },
+  { InvoiceID: 103, InvoiceNumber: 'SUN-2026-0103', StudentID: 4, StudentName: 'Naledi Mokoena', FamilyName: 'Mokoena', SchoolName: SUNSHINE_SCHOOL, Amount: 1850, AmountPaid: 0,    Outstanding: 1850, PaymentCount: 0, Status: 'Overdue', DueDate: daysAgo(42), PrimaryParentEmail: 'sunshine.mokoena@devforgesolutions.com' },
+  { InvoiceID: 104, InvoiceNumber: 'SUN-2026-0104', StudentID: 5, StudentName: 'Emma Botha',     FamilyName: 'Botha',   SchoolName: SUNSHINE_SCHOOL, Amount: 1850, AmountPaid: 0,    Outstanding: 1850, PaymentCount: 0, Status: 'Pending', DueDate: daysAhead(6),  PrimaryParentEmail: 'sunshine.botha@devforgesolutions.com' },
+  { InvoiceID: 105, InvoiceNumber: 'SUN-2026-0105', StudentID: 1, StudentName: 'Lwazi Dlamini',  FamilyName: 'Dlamini', SchoolName: SUNSHINE_SCHOOL, Amount: 1850, AmountPaid: 1850, Outstanding: 0,    PaymentCount: 1, Status: 'Paid',    DueDate: daysAgo(24), PrimaryParentEmail: 'sunshine.dlamini@devforgesolutions.com' },
+  { InvoiceID: 106, InvoiceNumber: 'SUN-2026-0106', StudentID: 3, StudentName: 'Pieter van Wyk', FamilyName: 'van Wyk', SchoolName: SUNSHINE_SCHOOL, Amount: 1850, AmountPaid: 1850, Outstanding: 0,    PaymentCount: 1, Status: 'Paid',    DueDate: daysAgo(24), PrimaryParentEmail: 'sunshine.vanwyk@devforgesolutions.com' }
 ];
 
 const FIXTURES = {
@@ -113,7 +115,7 @@ const FIXTURES = {
     TotalOutstanding: 184500, CollectionsLast30Days: 1240000
   }),
   devforgeRecentSchools: () => ({ rows: [
-    { SchoolID: 1, SchoolName: 'Sunshine Kids Pre-School',  ContactEmail: 'admin@sunshinekids.example', SubscriptionPlan: 'Pro+',     SubscriptionStatus: 'Active',    ActiveUserCount: 8,  ActiveStudentCount: 64 },
+    { SchoolID: 1, SchoolName: SUNSHINE_SCHOOL,             ContactEmail: 'admin@devforgesolutions.com', SubscriptionPlan: 'Pro+',     SubscriptionStatus: 'Active',    ActiveUserCount: 8,  ActiveStudentCount: 64 },
     { SchoolID: 2, SchoolName: 'Little Acorns Day Care',    ContactEmail: 'info@littleacorns.example',  SubscriptionPlan: 'Standard', SubscriptionStatus: 'Active',    ActiveUserCount: 5,  ActiveStudentCount: 41 },
     { SchoolID: 3, SchoolName: 'Rainbow Bridge Nursery',    ContactEmail: 'hello@rainbowbridge.example',SubscriptionPlan: 'Pro',      SubscriptionStatus: 'Active',    ActiveUserCount: 11, ActiveStudentCount: 88 },
     { SchoolID: 4, SchoolName: 'Tiny Tots Education Centre',ContactEmail: 'admin@tinytots.example',     SubscriptionPlan: 'Standard', SubscriptionStatus: 'Suspended', ActiveUserCount: 3,  ActiveStudentCount: 0 },
@@ -122,13 +124,13 @@ const FIXTURES = {
 
   // /parent dashboard + invoices
   parentChildren: () => ([
-    { StudentID: 2, FirstName: 'Anika', LastName: 'Naidoo', ClassName: 'Busy Bees',  Grade: 'RR', SchoolName: 'Sunshine Kids Pre-School', OutstandingAmount: 1850, PresentLastWeek: 5 },
+    { StudentID: 2, FirstName: 'Anika', LastName: 'Naidoo', ClassName: 'Busy Bees',  Grade: 'RR', SchoolName: SUNSHINE_SCHOOL, OutstandingAmount: 1850, PresentLastWeek: 5, PrimaryParentEmail: 'sunshine.naidoo@devforgesolutions.com' },
     { StudentID: 7, FirstName: 'Dhiren',LastName: 'Naidoo', ClassName: 'Acorn Class', Grade: 'R',  SchoolName: 'Little Acorns Day Care',   OutstandingAmount: 0,    PresentLastWeek: 4 }
   ]),
   parentSummary: () => ({ totalOwed: 1850, totalPaid: 16650, outstandingCount: 1, overdueCount: 0, overdueAmount: 0, invoiceCount: 10 }),
   parentMessages: () => ([
-    { MessageID: 1, Subject: 'Sports day this Friday',        Body: 'Dear parents, please remember sports day starts at 09:00. Learners should wear their house colours.', SentAt: daysAgo(1), IsRead: 0, SchoolName: 'Sunshine Kids Pre-School', StudentName: 'Anika Naidoo' },
-    { MessageID: 2, Subject: 'June invoice ready',            Body: 'Your invoice for June is ready in the parent portal. Thank you for your continued support.',           SentAt: daysAgo(3), IsRead: 1, SchoolName: 'Sunshine Kids Pre-School', StudentName: 'Anika Naidoo' },
+    { MessageID: 1, Subject: 'Sports day this Friday',        Body: 'Dear parents, please remember sports day starts at 09:00. Learners should wear their house colours.', SentAt: daysAgo(1), IsRead: 0, SchoolName: SUNSHINE_SCHOOL, StudentName: 'Anika Naidoo' },
+    { MessageID: 2, Subject: 'June invoice ready',            Body: 'Your invoice for June is ready in the parent portal. Thank you for your continued support.',           SentAt: daysAgo(3), IsRead: 1, SchoolName: SUNSHINE_SCHOOL, StudentName: 'Anika Naidoo' },
     { MessageID: 3, Subject: 'Winter concert save-the-date',  Body: 'Our winter concert will be held on 26 June. More details to follow next week.',                        SentAt: daysAgo(6), IsRead: 1, SchoolName: 'Little Acorns Day Care',   StudentName: 'Dhiren Naidoo' }
   ]),
   parentInvoices: () => INVOICES.filter(i => [2, 7].includes(i.StudentID) || i.StudentID === 2)

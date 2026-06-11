@@ -18,6 +18,8 @@ const NotificationService = require('./notificationService');
 const UserRepository = require('../data/userRepository');
 const RegistrationRepository = require('../data/registrationRepository');
 const AuditRepository = require('../data/auditRepository');
+const { getPool, sql } = require('../data/db');
+const { allPermissionKeys } = require('../security/featureCatalog');
 
 class SchoolOnboardingService {
   constructor() {
@@ -131,6 +133,60 @@ class SchoolOnboardingService {
     };
   }
 
+  async selfRegisterSchool({ school, owner } = {}) {
+    const cleaned = this.validateRegistration(school, owner);
+    const existingUser = await this.userRepository.getUserByEmail(cleaned.owner.email);
+    if (existingUser) {
+      throw new Error('A user with the owner email already exists.');
+    }
+
+    const tempPassword = this.generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    const username = await this.deriveUsername(cleaned.owner.email);
+    const pool = await getPool();
+    const tx = new sql.Transaction(pool);
+
+    let result;
+    await tx.begin();
+    try {
+      const tenantId = await this.insertTenant(tx, cleaned.school.schoolName);
+      const schoolId = await this.insertSchool(tx, cleaned.school, tenantId);
+      const ownerUser = await this.insertOwnerUser(tx, { cleaned, username, passwordHash, schoolId });
+      const ownerRoleId = await this.insertOwnerTenantRole(tx, tenantId);
+      await this.grantAllTenantPermissions(tx, ownerRoleId);
+      await this.insertTenantMembership(tx, { userId: ownerUser.UserID, tenantId, schoolId, roleId: ownerRoleId });
+      await this.insertOwnerEmployeeAndStaffRole(tx, { cleaned, ownerUser, schoolId });
+      const subscriptionId = await this.insertTenantSubscription(tx, tenantId, cleaned.school.subscriptionPlan);
+      await tx.commit();
+      result = { tenantId, schoolId, ownerUser, subscriptionId };
+    } catch (err) {
+      try { await tx.rollback(); } catch (_) {}
+      throw err;
+    }
+
+    const auditActor = { id: result.ownerUser.UserID, UserID: result.ownerUser.UserID, role: 'school', Role: 'school', email: cleaned.owner.email, Email: cleaned.owner.email };
+    await this.auditRepository.recordWrite(
+      auditActor,
+      result.schoolId,
+      'school',
+      result.schoolId,
+      'SELF_REGISTER_SCHOOL',
+      null,
+      { schoolName: cleaned.school.schoolName, ownerUserId: result.ownerUser.UserID, tenantId: result.tenantId },
+      { source: 'public-registration' }
+    );
+
+    await this.sendSelfRegistrationEmail(cleaned.owner, { SchoolName: cleaned.school.schoolName, SchoolID: result.schoolId }, username, tempPassword);
+
+    return {
+      schoolId: result.schoolId,
+      tenantId: result.tenantId,
+      ownerUserId: result.ownerUser.UserID,
+      status: 'Active',
+      message: 'School registered. Owner sign-in details have been sent to the contact email.'
+    };
+  }
+
   validateRegistration(school = {}, owner = {}) {
     const schoolName = this.requiredString(school.schoolName, 'School name', 255);
     const ownerFirstName = this.requiredString(owner.firstName, 'Owner first name', 100);
@@ -193,6 +249,172 @@ class SchoolOnboardingService {
     } catch (err) {
       console.warn('[onboarding] welcome email failed:', err.message);
     }
+  }
+
+  async sendSelfRegistrationEmail(owner, school, username, tempPassword) {
+    const baseUrl = process.env.BASE_URL || process.env.PUBLIC_BASE_URL || '';
+    try {
+      await this.notificationService.sendEmail(
+        owner.email,
+        `Kinder Care Hub is ready - ${school.SchoolName}`,
+        `Hi ${owner.firstName},\n\n` +
+        `${school.SchoolName} has been registered on Kinder Care Hub.\n\n` +
+        `Sign in at ${baseUrl}/school-login with school ID ${school.SchoolID}, username "${username}", ` +
+        `and this temporary password: ${tempPassword}\n\n` +
+        `Change this password under Account settings after your first sign-in.`
+      );
+    } catch (err) {
+      console.warn('[onboarding] self-registration email failed:', err.message);
+    }
+  }
+
+  async insertTenant(tx, tenantName) {
+    const result = await new sql.Request(tx)
+      .input('tenantName', sql.NVarChar, tenantName)
+      .query(`
+        INSERT INTO dbo.Tenants (TenantName, TenantType, Status, CreatedAt, UpdatedAt, IsActive)
+        OUTPUT INSERTED.TenantId
+        VALUES (@tenantName, 'School', 'Active', SYSUTCDATETIME(), SYSUTCDATETIME(), 1)
+      `);
+    return result.recordset[0].TenantId;
+  }
+
+  async insertSchool(tx, school, tenantId) {
+    const result = await new sql.Request(tx)
+      .input('tenantId', sql.Int, tenantId)
+      .input('schoolName', sql.NVarChar, school.schoolName)
+      .input('address', sql.NVarChar, school.address || null)
+      .input('contactPerson', sql.NVarChar, school.contactPerson || null)
+      .input('contactEmail', sql.NVarChar, school.contactEmail || null)
+      .input('contactPhone', sql.NVarChar, school.contactPhone || null)
+      .input('website', sql.NVarChar, school.website || null)
+      .input('subscriptionPlan', sql.NVarChar, school.subscriptionPlan || 'Standard')
+      .query(`
+        INSERT INTO dbo.Schools
+          (TenantId, SchoolName, Address, ContactPerson, ContactEmail, ContactPhone, Website, SubscriptionPlan, SubscriptionStatus)
+        OUTPUT INSERTED.SchoolID
+        VALUES
+          (@tenantId, @schoolName, @address, @contactPerson, @contactEmail, @contactPhone, @website, @subscriptionPlan, 'Active')
+      `);
+    return result.recordset[0].SchoolID;
+  }
+
+  async insertOwnerUser(tx, { cleaned, username, passwordHash, schoolId }) {
+    const result = await new sql.Request(tx)
+      .input('username', sql.NVarChar, username)
+      .input('email', sql.NVarChar, cleaned.owner.email)
+      .input('passwordHash', sql.NVarChar, passwordHash)
+      .input('schoolId', sql.Int, schoolId)
+      .input('firstName', sql.NVarChar, cleaned.owner.firstName)
+      .input('lastName', sql.NVarChar, cleaned.owner.lastName || null)
+      .query(`
+        INSERT INTO dbo.Users (Username, Email, PasswordHash, Role, SchoolID, FirstName, LastName, IsActive, IsVerified, VerifiedAt)
+        OUTPUT INSERTED.UserID, INSERTED.Username, INSERTED.Email, INSERTED.SchoolID
+        VALUES (@username, @email, @passwordHash, 'school', @schoolId, @firstName, @lastName, 1, 1, SYSUTCDATETIME())
+      `);
+    return result.recordset[0];
+  }
+
+  async insertOwnerTenantRole(tx, tenantId) {
+    const result = await new sql.Request(tx)
+      .input('tenantId', sql.Int, tenantId)
+      .query(`
+        INSERT INTO dbo.Roles (RoleName, RoleCode, TenantId, IsPlatformRole, Description, CreatedAt, UpdatedAt, IsActive)
+        OUTPUT INSERTED.RoleId
+        VALUES ('Owner', 'OWNER', @tenantId, 0, 'Owner full access for the registered school administrator', SYSUTCDATETIME(), SYSUTCDATETIME(), 1)
+      `);
+    return result.recordset[0].RoleId;
+  }
+
+  async grantAllTenantPermissions(tx, roleId) {
+    for (const permissionKey of allPermissionKeys()) {
+      await new sql.Request(tx)
+        .input('roleId', sql.Int, roleId)
+        .input('permissionKey', sql.NVarChar, permissionKey)
+        .input('permissionName', sql.NVarChar, permissionKey)
+        .query(`
+          DECLARE @permissionId INT;
+          SELECT @permissionId = PermissionId FROM dbo.Permissions WHERE PermissionKey = @permissionKey;
+          IF @permissionId IS NULL
+          BEGIN
+            INSERT INTO dbo.Permissions (PermissionKey, PermissionName, CreatedAt, UpdatedAt, IsActive)
+            VALUES (@permissionKey, @permissionName, SYSUTCDATETIME(), SYSUTCDATETIME(), 1);
+            SET @permissionId = SCOPE_IDENTITY();
+          END;
+          IF NOT EXISTS (SELECT 1 FROM dbo.RolePermissions WHERE RoleId = @roleId AND PermissionId = @permissionId)
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId, CreatedAt) VALUES (@roleId, @permissionId, SYSUTCDATETIME());
+        `);
+    }
+  }
+
+  async insertTenantMembership(tx, { userId, tenantId, schoolId, roleId }) {
+    await new sql.Request(tx)
+      .input('userId', sql.Int, userId)
+      .input('tenantId', sql.Int, tenantId)
+      .input('schoolId', sql.Int, schoolId)
+      .input('roleId', sql.Int, roleId)
+      .query(`
+        INSERT INTO dbo.UserTenantMemberships (UserId, TenantId, SchoolId, RoleId, Status, JoinedAt, IsActive)
+        VALUES (@userId, @tenantId, @schoolId, @roleId, 'Active', SYSUTCDATETIME(), 1)
+      `);
+  }
+
+  async insertOwnerEmployeeAndStaffRole(tx, { cleaned, ownerUser, schoolId }) {
+    const employeeResult = await new sql.Request(tx)
+      .input('schoolId', sql.Int, schoolId)
+      .input('userId', sql.Int, ownerUser.UserID)
+      .input('firstName', sql.NVarChar, cleaned.owner.firstName)
+      .input('lastName', sql.NVarChar, cleaned.owner.lastName || 'Owner')
+      .input('email', sql.NVarChar, cleaned.owner.email)
+      .query(`
+        INSERT INTO dbo.Employees (SchoolID, UserID, FirstName, LastName, Email, JobTitle, Department, StartDate, Salary, LeaveBalance, IsActive)
+        OUTPUT INSERTED.EmployeeID
+        VALUES (@schoolId, @userId, @firstName, @lastName, @email, 'School Owner', 'Administration', CAST(GETDATE() AS DATE), 0, 21, 1)
+      `);
+    const roleResult = await new sql.Request(tx)
+      .input('schoolId', sql.Int, schoolId)
+      .query(`
+        INSERT INTO dbo.StaffRoles (SchoolID, RoleName, Description, Permissions, IsActive)
+        OUTPUT INSERTED.StaffRoleID
+        VALUES (@schoolId, 'Owner', 'Owner full access for the registered school administrator', '["*"]', 1)
+      `);
+    await new sql.Request(tx)
+      .input('userId', sql.Int, ownerUser.UserID)
+      .input('staffRoleId', sql.Int, roleResult.recordset[0].StaffRoleID)
+      .query(`
+        INSERT INTO dbo.UserRoleAssignments (UserID, StaffRoleID, AssignedBy)
+        VALUES (@userId, @staffRoleId, @userId)
+      `);
+    return employeeResult.recordset[0].EmployeeID;
+  }
+
+  async insertTenantSubscription(tx, tenantId, requestedPlan) {
+    const planCode = this.planCode(requestedPlan);
+    const result = await new sql.Request(tx)
+      .input('tenantId', sql.Int, tenantId)
+      .input('planCode', sql.NVarChar, planCode)
+      .query(`
+        DECLARE @planId INT;
+        SELECT TOP 1 @planId = SubscriptionPlanId
+        FROM dbo.SubscriptionPlans
+        WHERE IsActive = 1 AND (PlanCode = @planCode OR IsDefault = 1)
+        ORDER BY CASE WHEN PlanCode = @planCode THEN 0 ELSE 1 END, IsDefault DESC;
+        IF @planId IS NULL
+          THROW 50002, 'No active subscription plan is configured', 1;
+        INSERT INTO dbo.TenantSubscriptions (TenantId, SubscriptionPlanId, Status, StartDate, CreatedAt, UpdatedAt, IsActive)
+        OUTPUT INSERTED.TenantSubscriptionId
+        VALUES (@tenantId, @planId, 'Active', CAST(GETDATE() AS DATE), SYSUTCDATETIME(), SYSUTCDATETIME(), 1)
+      `);
+    return result.recordset[0].TenantSubscriptionId;
+  }
+
+  planCode(plan) {
+    const raw = String(plan || 'Standard').trim().toUpperCase();
+    if (raw === 'PRO+' || raw === 'PRO PLUS' || raw === 'PRO_PLUS') return 'PRO_PLUS';
+    const cleaned = raw.replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    if (cleaned === 'PRO') return 'PRO';
+    if (cleaned === 'PRO_PLUS') return 'PRO_PLUS';
+    return 'STANDARD';
   }
 
   email(value, label) {

@@ -105,7 +105,8 @@ function createKchRouter(options = {}) {
   router.post('/conversations', async (req, res) => {
     try {
       const conversation = await chat.startConversation(req, {
-        targetUserId: (req.body || {}).targetUserId
+        targetUserId: (req.body || {}).targetUserId,
+        targetSchoolId: (req.body || {}).targetSchoolId
       });
       res.status(conversation.existing ? 200 : 201).json({ conversation });
     } catch (err) { sendError(res, err, 'start conversation'); }
@@ -146,6 +147,10 @@ function createKchRouter(options = {}) {
       res.setHeader('Content-Type', result.contentType);
       res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(result.filename)}"`);
       res.setHeader('Cache-Control', 'private, max-age=3600');
+      // Defence in depth: never let a stored file be sniffed/executed as
+      // active content if opened directly.
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
       res.send(result.buffer);
     } catch (err) { sendError(res, err, 'view attachment'); }
   });

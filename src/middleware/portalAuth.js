@@ -9,6 +9,7 @@
 const jwt = require('jsonwebtoken');
 const UserService = require('../business/userService');
 const { isAuthDisabled, buildTestAuthResponse } = require('../security/testAuth');
+const { getSchoolPermissions } = require('../security/schoolPermissions');
 
 const userService = new UserService();
 
@@ -102,6 +103,15 @@ async function loadUser(req, _res, next) {
       if (links.length) { activeRole = 'parent'; activeSchoolId = null; }
     }
 
+    let permissions = [];
+    if (activeRole === 'school') {
+      if (user.Role === 'admin') {
+        permissions = ['*'];
+      } else {
+        permissions = await getSchoolPermissions({ ...user, Role: 'school', SchoolID: activeSchoolId }).catch(() => []);
+      }
+    }
+
     req.user = {
       id: user.UserID,
       email: user.Email,
@@ -109,7 +119,9 @@ async function loadUser(req, _res, next) {
       firstName: user.FirstName || user.Username || '',
       lastName: user.LastName || '',
       schoolId: activeSchoolId,
-      permissions: [],
+      permissions,
+      SchoolPermissions: permissions,
+      PermissionSet: permissions,
       // Set when a DevForge admin is impersonating this user. Drives the
       // portal banner so the session is never silent.
       impersonatorId: decoded.imp || null

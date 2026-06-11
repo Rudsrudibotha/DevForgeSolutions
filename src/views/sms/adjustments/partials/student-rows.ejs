@@ -6,6 +6,7 @@
       <tr>
         <th>Student</th>
         <th>Class</th>
+        <th>Invoice</th>
         <th>Type</th>
         <th class="text-right">Amount</th>
       </tr>
@@ -18,6 +19,16 @@
             <%= s.FirstName %> <%= s.LastName %>
           </td>
           <td><%= s.ClassName || 'Unassigned' %></td>
+          <td>
+            <select name="students[<%= i %>][invoiceId]" class="select">
+              <option value="">Family balance</option>
+              <% (s.invoices || []).forEach(function(inv) { %>
+                <option value="<%= inv.InvoiceID %>">
+                  <%= inv.InvoiceNumber %> · <%= inv.Status || 'Open' %>
+                </option>
+              <% }) %>
+            </select>
+          </td>
           <td>
             <select name="students[<%= i %>][type]" class="select">
               <option value="Fee Correction">Fee Correction</option>

@@ -84,9 +84,14 @@ app.use(helmet({
       // directive fails silently and dropdowns render permanently open.
       // Script *sources* remain locked to 'self'.
       'script-src': ["'self'", "'unsafe-eval'"],
-      'style-src': ["'self'", "'unsafe-inline'"]
+      'style-src': ["'self'", "'unsafe-inline'"],
+      // Force browsers to upgrade any http subresource to https.
+      'upgrade-insecure-requests': []
     }
   },
+  // Tell browsers to use HTTPS for a full year, cover subdomains, and
+  // allow HSTS preload-list submission.
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
   referrerPolicy: { policy: 'no-referrer' }
 }));
 
@@ -957,8 +962,14 @@ app.use(function (err, req, res, next) {
     'headers=' + JSON.stringify(safeHeaders),
     'stack=' + (err && err.stack ? err.stack : String(err)));
 
+  // SECURITY: never leak internal/DB error detail to clients on an
+  // unexpected 500. Intentional 4xx errors carry user-facing messages;
+  // 5xx gets a generic message in production.
+  const isProd = process.env.NODE_ENV === 'production';
+  const safeMessage = (status >= 500 && isProd) ? 'Something went wrong. Please try again.' : (err.message || 'Server error');
+
   if (req.path.startsWith('/api/')) {
-    return res.status(status).json({ error: err.message || 'Server error' });
+    return res.status(status).json({ error: safeMessage });
   }
 
   if (res.headersSent) return next(err);
@@ -967,9 +978,9 @@ app.use(function (err, req, res, next) {
     return res.status(404).render('errors/404', { path: req.originalUrl });
   }
   if (status === 403) {
-    return res.status(403).render('errors/forbidden', { message: err.message });
+    return res.status(403).render('errors/forbidden', { message: status >= 500 ? safeMessage : err.message });
   }
-  res.status(status).render('errors/offline', { message: err.message || 'Something went wrong.' });
+  res.status(status).render('errors/offline', { message: (status >= 500 && isProd) ? safeMessage : (err.message || 'Something went wrong.') });
 });
 
 // Application startup: bind a port, connect DB, and optionally start schedulers.

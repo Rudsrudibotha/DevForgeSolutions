@@ -34,6 +34,8 @@ class SchoolRepository {
     await pool.request().query(`
       IF COL_LENGTH('dbo.Schools', 'BankName') IS NULL
         ALTER TABLE dbo.Schools ADD BankName NVARCHAR(255) NULL;
+      IF COL_LENGTH('dbo.Schools', 'BankAccountHolder') IS NULL
+        ALTER TABLE dbo.Schools ADD BankAccountHolder NVARCHAR(255) NULL;
       IF COL_LENGTH('dbo.Schools', 'BankAccountNumber') IS NULL
         ALTER TABLE dbo.Schools ADD BankAccountNumber NVARCHAR(100) NULL;
       IF COL_LENGTH('dbo.Schools', 'BankBranchCode') IS NULL
@@ -164,6 +166,7 @@ class SchoolRepository {
       .input('contactPhone', sql.NVarChar, schoolData.contactPhone)
       .input('registrationNumber', sql.NVarChar, optionalString(schoolData.registrationNumber))
       .input('bankName', sql.NVarChar, optionalString(schoolData.bankName))
+      .input('bankAccountHolder', sql.NVarChar, optionalString(schoolData.bankAccountHolder))
       .input('bankAccountNumber', sql.NVarChar, optionalString(schoolData.bankAccountNumber))
       .input('bankBranchCode', sql.NVarChar, optionalString(schoolData.bankBranchCode))
       .input('bankAccountType', sql.NVarChar, optionalString(schoolData.bankAccountType))
@@ -213,7 +216,7 @@ class SchoolRepository {
       .input('subscriptionStatus', sql.NVarChar, schoolData.subscriptionStatus)
       .query(`UPDATE Schools SET SchoolName = @schoolName, Address = @address, ContactEmail = @contactEmail,
               LogoUrl = @logoUrl, ContactPerson = @contactPerson, ContactPhone = @contactPhone,
-              RegistrationNumber = @registrationNumber, BankName = @bankName, BankAccountNumber = @bankAccountNumber,
+              RegistrationNumber = @registrationNumber, BankName = @bankName, BankAccountHolder = @bankAccountHolder, BankAccountNumber = @bankAccountNumber,
               BankBranchCode = @bankBranchCode, BankAccountType = @bankAccountType,
               FinancialYearStartDate = @financialYearStartDate, FinancialYearEndDate = @financialYearEndDate,
               Website = @website, CurrencyCode = @currencyCode, CurrencySymbol = @currencySymbol,
