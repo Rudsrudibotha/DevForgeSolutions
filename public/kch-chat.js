@@ -29,7 +29,8 @@
     filter: '',
     lastEventId: 0,
     pollTimer: null,
-    pendingFile: null
+    pendingFile: null,
+    startingContactUserId: null
   };
 
   const $ = (id) => document.getElementById(id);
@@ -326,18 +327,25 @@
         lastGroup = group;
         html.push(`<li class="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted bg-slate-50">${escapeHtml(group)}</li>`);
       }
-      html.push(`<li class="px-4 py-2.5 cursor-pointer hover:bg-slate-50 flex items-center gap-3" data-uid="${c.userId}" data-school-id="${c.schoolId || ''}" role="option" aria-selected="false">
-        <div class="h-9 w-9 shrink-0 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold" aria-hidden="true">${escapeHtml(initials(c.name))}</div>
-        <div class="min-w-0">
-          <p class="text-sm font-medium truncate">${escapeHtml(c.name)}</p>
-          ${c.schoolName ? `<p class="text-xs text-muted truncate">${escapeHtml(c.schoolName)}</p>` : ''}
-        </div>
+      const userId = Number(c.userId);
+      const isStarting = state.startingContactUserId === userId;
+      html.push(`<li role="option" aria-selected="${isStarting ? 'true' : 'false'}">
+        <button type="button"
+                class="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 ${isStarting ? 'bg-brand-50' : ''}"
+                data-kch-contact
+                data-uid="${userId || ''}"
+                data-school-id="${c.schoolId || ''}"
+                ${isStarting ? 'aria-busy="true" disabled' : ''}>
+          <div class="h-9 w-9 shrink-0 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold" aria-hidden="true">${escapeHtml(initials(c.name))}</div>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium truncate">${escapeHtml(c.name)}</p>
+            ${c.schoolName ? `<p class="text-xs text-muted truncate">${escapeHtml(c.schoolName)}</p>` : ''}
+          </div>
+          ${isStarting ? '<span class="text-xs text-muted shrink-0">Opening...</span>' : ''}
+        </button>
       </li>`);
     }
     list.innerHTML = html.join('');
-    Array.from(list.querySelectorAll('li[data-uid]')).forEach(li => {
-      li.addEventListener('click', () => startChatWith(Number(li.getAttribute('data-uid')), Number(li.getAttribute('data-school-id')) || null));
-    });
   }
 
   async function loadContacts(q) {
@@ -351,6 +359,9 @@
   }
 
   async function startChatWith(userId, schoolId) {
+    if (!Number.isInteger(userId) || userId <= 0 || state.startingContactUserId) return;
+    state.startingContactUserId = userId;
+    renderContacts();
     try {
       const data = await api('/api/messages/conversations', {
         method: 'POST',
@@ -378,6 +389,9 @@
       await openConversation(conversationId, fallbackConversation);
     } catch (err) {
       toast('Could not start chat: ' + err.message, 'error');
+    } finally {
+      state.startingContactUserId = null;
+      renderContacts();
     }
   }
 
@@ -394,6 +408,14 @@
   if (newConvCancel) newConvCancel.addEventListener('click', () => newConvModal.classList.add('hidden'));
   if (newConvModal) {
     newConvModal.addEventListener('click', (e) => { if (e.target === newConvModal) newConvModal.classList.add('hidden'); });
+  }
+  const contactList = $('kchContactList');
+  if (contactList) {
+    contactList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-kch-contact]');
+      if (!button || !contactList.contains(button)) return;
+      startChatWith(Number(button.getAttribute('data-uid')), Number(button.getAttribute('data-school-id')) || null);
+    });
   }
   if (contactSearch) {
     contactSearch.addEventListener('input', () => {
