@@ -61,15 +61,18 @@ async function canUserSendMessage(req, conversationId) {
   if (!access.participant.CanSend) return { allowed: false, reason: 'cannot-send' };
   const conv = access.conversation;
   if (!req.sessionContext.IsDevForgeUser) {
-    // Parent users may only message their own school.
+    // Parent users may only message their own school (either side may
+    // have started the thread) or reply to DevForge.
     if (req.sessionContext.IsParentUser) {
-      if (conv.ConversationType !== 'ParentToSchool' && conv.ConversationType !== 'BroadcastAnnouncement') {
+      const parentTypes = ['ParentToSchool', 'SchoolToParent', 'DevForgeToParent', 'BroadcastAnnouncement'];
+      if (!parentTypes.includes(conv.ConversationType)) {
         return { allowed: false, reason: 'parent-cannot-message-this-type' };
       }
     }
-    // School users may only message staff/parents in same tenant + DevForge support.
+    // School users may only message staff/parents in same tenant +
+    // DevForge support (again, either side may have started the thread).
     if (req.sessionContext.IsSchoolUser) {
-      const allowedTypes = ['SchoolInternal', 'SchoolToParent', 'SchoolToDevForge', 'BroadcastAnnouncement'];
+      const allowedTypes = ['SchoolInternal', 'SchoolToParent', 'ParentToSchool', 'SchoolToDevForge', 'DevForgeToSchool', 'BroadcastAnnouncement'];
       if (!allowedTypes.includes(conv.ConversationType)) {
         return { allowed: false, reason: 'school-cannot-message-this-type' };
       }
@@ -77,7 +80,7 @@ async function canUserSendMessage(req, conversationId) {
   }
   const ent = await canTenantUseFeature(conv.TenantId, 'KINDER_CARE_HUB_MESSAGING');
   if (!ent.IsAllowed) return { allowed: false, reason: 'feature-disabled:' + ent.Reason };
-  return { allowed: true, reason: 'ok' };
+  return { allowed: true, reason: 'ok', conversation: conv, participant: access.participant };
 }
 
 // CanUserUploadImage (Task 32).

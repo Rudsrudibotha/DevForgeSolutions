@@ -2,119 +2,275 @@
 <% hideChrome = true %>
 
 <div class="min-h-screen bg-mesh">
-  <header class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-    <a href="/" class="flex items-center gap-2">
-      <img src="/assets/kinder-care-hub-logo.png" alt="" class="h-9 w-9 rounded-md" />
-      <span class="font-semibold text-lg">Kinder Care Hub</span>
-    </a>
-    <nav class="flex items-center gap-2">
-      <a href="#features" class="btn-ghost btn-sm hidden sm:inline-flex">Features</a>
-      <a href="#pricing" class="btn-ghost btn-sm hidden sm:inline-flex">Pricing</a>
-      <a href="/login" class="btn-secondary btn-sm">Sign in</a>
-      <a href="/school-register" class="btn-primary btn-sm">Get started</a>
-    </nav>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-surface-200/60 dark:border-surface-700/60 bg-white/80 dark:bg-surface-900/80 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5">
+        <img src="/assets/kinder-care-hub-logo.png" alt="" class="h-9 w-9 rounded-md" />
+        <span class="font-semibold text-lg tracking-tight">Kinder Care Hub</span>
+      </a>
+      <nav class="flex items-center gap-1.5" aria-label="Main">
+        <a href="#features" class="btn-ghost btn-sm hidden md:inline-flex">Features</a>
+        <a href="#parents" class="btn-ghost btn-sm hidden md:inline-flex">For parents</a>
+        <a href="#pricing" class="btn-ghost btn-sm hidden md:inline-flex">Pricing</a>
+        <a href="/parent-login" class="btn-ghost btn-sm hidden sm:inline-flex">Parent sign in</a>
+        <a href="/school-login" class="btn-secondary btn-sm">School sign in</a>
+        <a href="/school-register" class="btn-primary btn-sm">Get started</a>
+      </nav>
+    </div>
   </header>
 
-  <section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center">
-    <span class="badge-brand mb-4">For preschools and early learning centres</span>
-    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-4xl mx-auto">
-      The school finance &amp; management platform that just <span class="text-brand-600 dark:text-brand-300">works</span>.
-    </h1>
-    <p class="mt-6 text-lg text-muted max-w-2xl mx-auto">
-      Invoices, payments, parents, staff and reporting — in one place, secure by default, beautiful on every device.
-    </p>
-    <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-      <a href="/school-register" class="btn-primary btn-lg">Start a free trial</a>
-      <a href="/login" class="btn-secondary btn-lg">Sign in to your school</a>
-    </div>
-  </section>
-
-  <section id="features" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-    <div class="text-center mb-12">
-      <h2 class="text-3xl font-bold">One platform, three portals</h2>
-      <p class="text-muted mt-2">Built for schools, their staff, and the parents they serve.</p>
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="card p-6">
-        <div class="h-10 w-10 rounded-md bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center mb-3">
-          <svg class="h-5 w-5 text-brand-600 dark:text-brand-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-        </div>
-        <h3 class="font-semibold">School Management</h3>
-        <p class="text-sm text-muted mt-1">Manage students, staff, classes, attendance, invoices and reports. Your data stays yours.</p>
-      </div>
-      <div class="card p-6">
-        <div class="h-10 w-10 rounded-md bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mb-3">
-          <svg class="h-5 w-5 text-emerald-600 dark:text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        </div>
-        <h3 class="font-semibold">Parent Portal</h3>
-        <p class="text-sm text-muted mt-1">Parents see every child, every school, every invoice, on any device. Pay in two taps.</p>
-      </div>
-      <div class="card p-6">
-        <div class="h-10 w-10 rounded-md bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center mb-3">
-          <svg class="h-5 w-5 text-amber-600 dark:text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-        </div>
-        <h3 class="font-semibold">DevForge Admin</h3>
-        <p class="text-sm text-muted mt-1">Run the business. Watch payments, manage schools, audit everything, ship features faster.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="pricing" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-    <div class="text-center mb-12">
-      <h2 class="text-3xl font-bold">Simple, school-friendly pricing</h2>
-      <p class="text-muted mt-2">Every plan includes the full management and finance platform, the parent portal, and POPIA-conscious data handling.</p>
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-      <div class="card p-6 flex flex-col">
-        <h3 class="font-semibold text-lg">Standard</h3>
-        <p class="text-sm text-muted mt-1">The full school management and finance platform.</p>
-        <p class="text-3xl font-bold mt-4">R899<span class="text-sm text-muted font-normal">/mo</span></p>
-        <ul class="text-sm mt-4 space-y-2 flex-1">
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> Students, classes &amp; attendance</li>
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> Invoicing, payments &amp; reconciliation</li>
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> Staff, leave &amp; payslips</li>
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> Parent portal with online payments</li>
-        </ul>
-        <a href="/school-register" class="btn-secondary w-full mt-6">Start free trial</a>
-      </div>
-      <div class="card p-6 flex flex-col">
-        <h3 class="font-semibold text-lg">Pro</h3>
-        <p class="text-sm text-muted mt-1">For growing schools — higher usage limits and priority support.</p>
-        <p class="text-3xl font-bold mt-4">Talk to us</p>
-        <ul class="text-sm mt-4 space-y-2 flex-1">
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> Everything in Standard</li>
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> Higher usage limits</li>
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> Priority support</li>
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> Messaging add-on packages</li>
-        </ul>
-        <a href="/school-register" class="btn-secondary w-full mt-6">Get started</a>
-      </div>
-      <div class="card p-6 flex flex-col ring-2" style="--tw-ring-color: rgb(var(--color-brand))">
-        <div class="flex items-center justify-between">
-          <h3 class="font-semibold text-lg">Pro+</h3>
-          <span class="badge-brand">Most popular</span>
-        </div>
-        <p class="text-sm text-muted mt-1">Everything, including Kinder Care Hub messaging and AI.</p>
-        <p class="text-3xl font-bold mt-4">Talk to us</p>
-        <ul class="text-sm mt-4 space-y-2 flex-1">
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> Everything in Pro</li>
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> Kinder Care Hub parent &amp; staff messaging</li>
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> School-wide broadcasts</li>
-          <li class="flex gap-2"><span class="text-emerald-600 dark:text-emerald-400" aria-hidden="true">&#10003;</span> AI assistant &amp; AI bank reconciliation</li>
-        </ul>
-        <a href="/school-register" class="btn-primary w-full mt-6">Start free trial</a>
-      </div>
-    </div>
-  </section>
-
-  <footer class="border-t mt-16" style="border-color: rgb(var(--color-border))">
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 text-xs text-muted flex flex-col sm:flex-row gap-2 items-center justify-between">
-      <p>&copy; <%= new Date().getFullYear() %> Kinder Care Hub. All rights reserved.</p>
-      <p class="flex items-center gap-3">
-        <a href="/privacy" class="hover:underline">Privacy</a>
-        <a href="/terms" class="hover:underline">Terms</a>
-        <a href="/status" class="hover:underline">Status</a>
+  <!-- Hero -->
+  <section class="relative overflow-hidden">
+    <div class="pointer-events-none absolute inset-x-0 -top-40 h-[480px] bg-gradient-to-b from-brand-100/70 via-transparent to-transparent dark:from-brand-900/30" aria-hidden="true"></div>
+    <div class="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-20 pb-16 sm:pt-28 sm:pb-24 text-center">
+      <span class="badge-brand mb-5 inline-flex">Built for South African pre-schools &amp; day-care centres</span>
+      <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-4xl mx-auto text-balance">
+        Run your school&rsquo;s admin, fees and parents
+        <span class="bg-gradient-to-r from-brand-600 via-brand-500 to-brand-400 bg-clip-text text-transparent">in one calm place</span>.
+      </h1>
+      <p class="mt-6 text-lg sm:text-xl text-muted max-w-2xl mx-auto leading-relaxed">
+        Invoices that send themselves. Payments that reconcile themselves. Parents who can see
+        everything and pay in two taps &mdash; so you can get back to the children.
       </p>
+      <div class="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="/school-register" class="btn-primary btn-lg shadow-elev2">Register your school</a>
+        <a href="/parent-login" class="btn-secondary btn-lg">I&rsquo;m a parent &mdash; sign in</a>
+      </div>
+      <dl class="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto text-sm">
+        <div class="card px-5 py-4">
+          <dt class="font-semibold">Hosted in South Africa</dt>
+          <dd class="text-muted mt-0.5">Your data lives in Azure&rsquo;s Johannesburg region.</dd>
+        </div>
+        <div class="card px-5 py-4">
+          <dt class="font-semibold">POPIA-conscious</dt>
+          <dd class="text-muted mt-0.5">Children&rsquo;s data is treated as sensitive, always.</dd>
+        </div>
+        <div class="card px-5 py-4">
+          <dt class="font-semibold">Live in days, not months</dt>
+          <dd class="text-muted mt-0.5">Onboarding review within 24 hours of registering.</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Everything a centre runs on</h2>
+      <p class="text-muted mt-3 max-w-2xl mx-auto">One subscription covers the lot &mdash; no modules to bolt on, no surprise add-ons.</p>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div class="card p-6 hover:shadow-elev2 transition-shadow">
+        <div class="h-10 w-10 rounded-md bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center mb-4">
+          <svg class="h-5 w-5 text-brand-600 dark:text-brand-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3-2 2 2 2-2 2 2 2-2 3 2z"/></svg>
+        </div>
+        <h3 class="font-semibold">Invoicing &amp; fees</h3>
+        <p class="text-sm text-muted mt-1.5 leading-relaxed">Monthly invoices generate themselves. Track outstanding fees per family, send statements, and lock closed periods.</p>
+      </div>
+      <div class="card p-6 hover:shadow-elev2 transition-shadow">
+        <div class="h-10 w-10 rounded-md bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mb-4">
+          <svg class="h-5 w-5 text-emerald-600 dark:text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+        </div>
+        <h3 class="font-semibold">Bank reconciliation</h3>
+        <p class="text-sm text-muted mt-1.5 leading-relaxed">Import bank statements and match payments to invoices in minutes &mdash; with smart suggestions doing the heavy lifting.</p>
+      </div>
+      <div class="card p-6 hover:shadow-elev2 transition-shadow">
+        <div class="h-10 w-10 rounded-md bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center mb-4">
+          <svg class="h-5 w-5 text-amber-600 dark:text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        </div>
+        <h3 class="font-semibold">Attendance register</h3>
+        <p class="text-sm text-muted mt-1.5 leading-relaxed">A filterable daily register per class. Capture in seconds, report by child, class, or term.</p>
+      </div>
+      <div class="card p-6 hover:shadow-elev2 transition-shadow">
+        <div class="h-10 w-10 rounded-md bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center mb-4">
+          <svg class="h-5 w-5 text-violet-600 dark:text-violet-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <h3 class="font-semibold">Staff, leave &amp; payslips</h3>
+        <p class="text-sm text-muted mt-1.5 leading-relaxed">Staff records, leave balances and approvals, and monthly payslips &mdash; without the spreadsheet juggling.</p>
+      </div>
+      <div class="card p-6 hover:shadow-elev2 transition-shadow">
+        <div class="h-10 w-10 rounded-md bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center mb-4">
+          <svg class="h-5 w-5 text-sky-600 dark:text-sky-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        </div>
+        <h3 class="font-semibold">Parent messaging</h3>
+        <p class="text-sm text-muted mt-1.5 leading-relaxed">WhatsApp-style chats between the school and every parent, plus one-tap broadcasts to all families.</p>
+      </div>
+      <div class="card p-6 hover:shadow-elev2 transition-shadow">
+        <div class="h-10 w-10 rounded-md bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center mb-4">
+          <svg class="h-5 w-5 text-rose-600 dark:text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <h3 class="font-semibold">Reports &amp; audit trail</h3>
+        <p class="text-sm text-muted mt-1.5 leading-relaxed">Outstanding-fee, attendance and finance reports on demand &mdash; with every change audited behind the scenes.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- For parents -->
+  <section id="parents" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+    <div class="card overflow-hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-2">
+        <div class="p-8 sm:p-12">
+          <span class="badge-brand mb-4 inline-flex">For parents</span>
+          <h2 class="text-3xl font-bold tracking-tight">Your child&rsquo;s school, in your pocket</h2>
+          <p class="text-muted mt-3 leading-relaxed">
+            If your school runs on Kinder Care Hub, you get your own portal &mdash; free, on any device.
+          </p>
+          <ul class="mt-6 space-y-3 text-sm">
+            <li class="flex gap-3">
+              <span class="text-emerald-600 dark:text-emerald-400 font-bold" aria-hidden="true">&#10003;</span>
+              See every invoice and statement the moment it lands
+            </li>
+            <li class="flex gap-3">
+              <span class="text-emerald-600 dark:text-emerald-400 font-bold" aria-hidden="true">&#10003;</span>
+              Pay school fees online in two taps
+            </li>
+            <li class="flex gap-3">
+              <span class="text-emerald-600 dark:text-emerald-400 font-bold" aria-hidden="true">&#10003;</span>
+              Message the school directly &mdash; like a chat app
+            </li>
+            <li class="flex gap-3">
+              <span class="text-emerald-600 dark:text-emerald-400 font-bold" aria-hidden="true">&#10003;</span>
+              Children at two schools? One sign-in covers both
+            </li>
+          </ul>
+          <div class="mt-8 flex flex-col sm:flex-row gap-3">
+            <a href="/parent-login" class="btn-primary">Sign in to the Parent Portal</a>
+            <a href="/parent-register" class="btn-secondary">Request parent access</a>
+          </div>
+        </div>
+        <div class="hidden lg:flex items-center justify-center bg-gradient-to-br from-brand-600 to-brand-400 p-12" aria-hidden="true">
+          <div class="w-full max-w-sm space-y-3">
+            <div class="rounded-xl bg-white/95 shadow-elev3 p-4">
+              <p class="text-xs text-surface-500">Little Acorns Pre-School</p>
+              <p class="text-sm font-semibold text-surface-900 mt-0.5">Invoice INV-2026-0214 &middot; R2 450,00</p>
+              <span class="inline-flex mt-2 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium px-2.5 py-0.5">Paid</span>
+            </div>
+            <div class="rounded-xl bg-white/95 shadow-elev3 p-4 ml-8">
+              <p class="text-xs text-surface-500">Message from school</p>
+              <p class="text-sm text-surface-900 mt-0.5">Sports day moved to Friday &mdash; bring a hat! &#127937;</p>
+            </div>
+            <div class="rounded-xl bg-white/95 shadow-elev3 p-4">
+              <p class="text-xs text-surface-500">Attendance</p>
+              <p class="text-sm font-semibold text-surface-900 mt-0.5">Amara &mdash; present 19 of 20 days this month</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Up and running in three steps</h2>
+      <p class="text-muted mt-3">No consultants, no training week, no data hostage-taking.</p>
+    </div>
+    <ol class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <li class="card p-6">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-white text-sm font-bold mb-4" aria-hidden="true">1</span>
+        <h3 class="font-semibold">Register your school</h3>
+        <p class="text-sm text-muted mt-1.5 leading-relaxed">Five minutes of basics &mdash; school details, a contact, and you&rsquo;re in the queue.</p>
+      </li>
+      <li class="card p-6">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-white text-sm font-bold mb-4" aria-hidden="true">2</span>
+        <h3 class="font-semibold">We set you up</h3>
+        <p class="text-sm text-muted mt-1.5 leading-relaxed">Our team reviews within 24 hours and hands you a ready-to-use workspace with your owner account.</p>
+      </li>
+      <li class="card p-6">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-white text-sm font-bold mb-4" aria-hidden="true">3</span>
+        <h3 class="font-semibold">Invite your parents</h3>
+        <p class="text-sm text-muted mt-1.5 leading-relaxed">Parents join with the email your school has on file and start paying online from day one.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- Pricing: one plan -->
+  <section id="pricing" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">One plan. Everything included.</h2>
+      <p class="text-muted mt-3 max-w-2xl mx-auto">No tiers, no feature gates, no &ldquo;contact sales&rdquo; surprises. Every school gets the whole platform.</p>
+    </div>
+    <div class="max-w-lg mx-auto">
+      <div class="card p-8 ring-2 ring-brand-500 shadow-elev3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-xl">Standard</h3>
+          <span class="badge-brand">All features</span>
+        </div>
+        <p class="mt-5 flex items-baseline gap-1">
+          <span class="text-5xl font-bold tracking-tight">R899</span>
+          <span class="text-muted">/month per school</span>
+        </p>
+        <p class="text-sm text-muted mt-1.5">Unlimited staff users. Free parent portal for every family.</p>
+        <ul class="text-sm mt-7 space-y-3">
+          <li class="flex gap-3"><span class="text-emerald-600 dark:text-emerald-400 font-bold" aria-hidden="true">&#10003;</span> Students, families, classes &amp; attendance</li>
+          <li class="flex gap-3"><span class="text-emerald-600 dark:text-emerald-400 font-bold" aria-hidden="true">&#10003;</span> Invoicing, online payments &amp; outstanding fees</li>
+          <li class="flex gap-3"><span class="text-emerald-600 dark:text-emerald-400 font-bold" aria-hidden="true">&#10003;</span> Bank statement import &amp; reconciliation</li>
+          <li class="flex gap-3"><span class="text-emerald-600 dark:text-emerald-400 font-bold" aria-hidden="true">&#10003;</span> Staff, leave &amp; payslips</li>
+          <li class="flex gap-3"><span class="text-emerald-600 dark:text-emerald-400 font-bold" aria-hidden="true">&#10003;</span> Parent &amp; staff messaging with broadcasts</li>
+          <li class="flex gap-3"><span class="text-emerald-600 dark:text-emerald-400 font-bold" aria-hidden="true">&#10003;</span> Reports, audit trail &amp; POPIA-conscious hosting</li>
+        </ul>
+        <a href="/school-register" class="btn-primary btn-lg w-full mt-8">Register your school</a>
+        <p class="text-xs text-muted text-center mt-3">Billing is confirmed during onboarding &mdash; no card needed to register.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA band -->
+  <section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-20">
+    <div class="rounded-xl bg-gradient-to-r from-brand-700 via-brand-600 to-brand-500 px-8 py-12 sm:px-14 text-center shadow-elev3">
+      <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Ready to spend less time on admin?</h2>
+      <p class="text-brand-100 mt-3 max-w-xl mx-auto">Register today and your workspace can be live before the end of the week.</p>
+      <div class="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="/school-register" class="btn-lg inline-flex items-center justify-center rounded-md bg-white text-brand-700 font-semibold px-6 hover:bg-brand-50 transition-colors">Register your school</a>
+        <a href="/school-login" class="btn-lg inline-flex items-center justify-center rounded-md border border-white/40 text-white font-semibold px-6 hover:bg-white/10 transition-colors">School sign in</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-surface-200/80 dark:border-surface-700/60 bg-white/60 dark:bg-surface-900/60">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-8 text-sm">
+        <div class="col-span-2 sm:col-span-1">
+          <div class="flex items-center gap-2 mb-3">
+            <img src="/assets/kinder-care-hub-logo.png" alt="" class="h-7 w-7 rounded-md" />
+            <span class="font-semibold">Kinder Care Hub</span>
+          </div>
+          <p class="text-muted text-xs leading-relaxed">School finance and management for South African early-learning centres.</p>
+        </div>
+        <nav aria-label="Product">
+          <p class="font-semibold mb-3">Product</p>
+          <ul class="space-y-2 text-muted">
+            <li><a href="#features" class="hover:underline">Features</a></li>
+            <li><a href="#pricing" class="hover:underline">Pricing</a></li>
+            <li><a href="/status" class="hover:underline">System status</a></li>
+          </ul>
+        </nav>
+        <nav aria-label="Sign in">
+          <p class="font-semibold mb-3">Sign in</p>
+          <ul class="space-y-2 text-muted">
+            <li><a href="/school-login" class="hover:underline">School Management</a></li>
+            <li><a href="/parent-login" class="hover:underline">Parent Portal</a></li>
+            <li><a href="/school-register" class="hover:underline">Register a school</a></li>
+            <li><a href="/parent-register" class="hover:underline">Request parent access</a></li>
+          </ul>
+        </nav>
+        <nav aria-label="Legal">
+          <p class="font-semibold mb-3">Legal</p>
+          <ul class="space-y-2 text-muted">
+            <li><a href="/privacy" class="hover:underline">Privacy policy</a></li>
+            <li><a href="/terms" class="hover:underline">Terms of service</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="mt-10 pt-6 border-t border-surface-200/80 dark:border-surface-700/60 flex flex-col sm:flex-row gap-2 items-center justify-between text-xs text-muted">
+        <p>&copy; <%= new Date().getFullYear() %> Kinder Care Hub by DevForge Solutions. All rights reserved.</p>
+        <p>
+          <a href="/devforge-login" class="text-[11px] text-surface-400 dark:text-surface-500 hover:underline">DevForge admin</a>
+        </p>
+      </div>
     </div>
   </footer>
 </div>

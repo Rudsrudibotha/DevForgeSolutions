@@ -3,234 +3,257 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Kinder Care Hub Registration</title>
-    <link rel="stylesheet" href="/styles.css">
+    <title>Register | Kinder Care Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/app.css">
+    <style>
+      /* States toggled by register.js */
+      [data-school-step-indicator] { display: flex; align-items: center; gap: 0.75rem; color: rgba(255,255,255,0.55); font-size: 0.875rem; }
+      [data-school-step-indicator] b { display: inline-flex; align-items: center; justify-content: center; height: 1.75rem; width: 1.75rem; border-radius: 9999px; border: 1.5px solid rgba(255,255,255,0.35); font-weight: 600; font-size: 0.75rem; flex: none; }
+      [data-school-step-indicator].active { color: #ffffff; font-weight: 600; }
+      [data-school-step-indicator].active b { background: #ffffff; color: #274be0; border-color: #ffffff; }
+      [data-school-step-indicator].complete { color: rgba(255,255,255,0.85); }
+      [data-school-step-indicator].complete b { background: rgba(255,255,255,0.25); border-color: transparent; }
+      .form-message { border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.875rem; }
+      .form-message.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+      .form-message.success { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+      .form-message.info { background: #eef4ff; color: #1f3bb4; border: 1px solid #bdd2ff; }
+      .registration-review-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+      .registration-review-grid > div { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.625rem 0.875rem; }
+      .registration-review-grid > div span { display: block; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+      .registration-review-grid > div strong { display: block; font-size: 0.875rem; color: #0f172a; margin-top: 0.125rem; word-break: break-word; }
+      @media (max-width: 480px) { .registration-review-grid { grid-template-columns: 1fr; } }
+    </style>
   </head>
-  <body>
-    <div class="auth-shell registration-shell">
-      <div class="auth-card registration-card">
-        <div class="registration-intro">
-          <div class="auth-brand">
-            <img class="brand-logo auth-brand-logo" src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub">
-            <div>
-              <h1 id="registerTitle">Kinder Care Hub</h1>
-              <p id="registerSubtitle">Registration</p>
-            </div>
-          </div>
-          <div class="registration-copy">
-            <p class="registration-eyebrow">South African childcare operations</p>
-            <h2>Launch your school portal with a clean onboarding handover.</h2>
-            <p>Capture the core information DevForge needs to prepare billing, access, and first-day setup for your Kinder Care Hub workspace.</p>
-          </div>
-          <div class="registration-summary" aria-label="What happens next">
-            <div>
-              <strong>24h</strong>
-              <span>Onboarding review</span>
-            </div>
-            <div>
-              <strong>ZA</strong>
-              <span>Hosted in South Africa</span>
-            </div>
-          </div>
-          <div class="registration-steps" aria-label="Registration steps">
-            <span data-school-step-indicator="0" class="active"><b>1</b>School profile</span>
-            <span data-school-step-indicator="1"><b>2</b>Contact</span>
-            <span data-school-step-indicator="2"><b>3</b>Billing</span>
-            <span data-school-step-indicator="3"><b>4</b>Plan</span>
-            <span data-school-step-indicator="4"><b>5</b>Review</span>
-          </div>
+  <body class="font-sans bg-surface-50 text-surface-900 antialiased">
+    <div class="min-h-screen lg:grid lg:grid-cols-[440px_minmax(0,1fr)]">
+
+      <!-- Brand panel -->
+      <aside class="relative overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 text-white px-8 py-10 lg:px-12 lg:py-14 flex flex-col">
+        <div class="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/10 blur-2xl" aria-hidden="true"></div>
+        <a href="/" class="flex items-center gap-3">
+          <img class="h-10 w-10 rounded-md" src="/assets/kinder-care-hub-logo.png" alt="Kinder Care Hub">
+          <span>
+            <span class="block font-semibold text-lg leading-tight" id="registerTitle">Kinder Care Hub</span>
+            <span class="block text-sm text-brand-100" id="registerSubtitle">Registration</span>
+          </span>
+        </a>
+
+        <div class="mt-12 max-w-sm">
+          <p class="text-xs font-semibold uppercase tracking-widest text-brand-100">South African childcare operations</p>
+          <h1 class="mt-3 text-3xl font-bold leading-tight tracking-tight">Five minutes now. A running school portal this week.</h1>
+          <p class="mt-4 text-sm text-brand-100 leading-relaxed">
+            Tell us about your centre and our onboarding team prepares billing, access,
+            and your owner account &mdash; reviewed within 24 hours.
+          </p>
         </div>
 
-        <form id="schoolRegistrationForm" class="auth-form registration-wizard hidden">
-          <div class="registration-form-header">
-            <p class="registration-eyebrow">Get started</p>
-            <h2>Tell us about your school</h2>
-            <p>Complete each step and review the request before it goes to DevForge onboarding.</p>
+        <nav class="mt-12 space-y-4" aria-label="Registration steps">
+          <span data-school-step-indicator="0" class="active"><b>1</b>School profile</span>
+          <span data-school-step-indicator="1"><b>2</b>Primary contact</span>
+          <span data-school-step-indicator="2"><b>3</b>Billing</span>
+          <span data-school-step-indicator="3"><b>4</b>Your plan</span>
+          <span data-school-step-indicator="4"><b>5</b>Review &amp; submit</span>
+        </nav>
+
+        <div class="mt-auto pt-12">
+          <div class="grid grid-cols-2 gap-3 max-w-sm text-sm" aria-label="What happens next">
+            <div class="rounded-lg bg-white/10 px-4 py-3">
+              <strong class="block text-lg font-bold">24h</strong>
+              <span class="text-brand-100 text-xs">Onboarding review</span>
+            </div>
+            <div class="rounded-lg bg-white/10 px-4 py-3">
+              <strong class="block text-lg font-bold">ZA</strong>
+              <span class="text-brand-100 text-xs">Hosted in South Africa</span>
+            </div>
           </div>
+          <p class="mt-8 text-xs text-brand-100">
+            Already set up?
+            <a href="/school-login" class="underline hover:text-white">School sign in</a>
+            &middot;
+            <a href="/parent-login" class="underline hover:text-white">Parent sign in</a>
+          </p>
+        </div>
+      </aside>
 
-          <fieldset class="registration-panel" data-registration-step="0">
-            <legend>
-              <span>01</span>
-              <strong>School profile</strong>
-            </legend>
-            <p class="registration-panel-note">Official centre details used for account setup and school identification.</p>
-            <div class="registration-grid">
-              <label>
-                School name
-                <input name="schoolName" type="text" autocomplete="organization" required>
-              </label>
-              <label>
-                Registration number
-                <input name="registrationNumber" type="text">
-              </label>
-              <label class="span-two">
-                Physical address
-                <input name="address" type="text" autocomplete="street-address">
-              </label>
-              <label class="span-two">
-                Website
-                <input name="website" type="url" placeholder="https://www.yourschool.co.za">
-              </label>
+      <!-- Form area -->
+      <main class="px-4 py-10 sm:px-8 lg:px-14 lg:py-14 flex justify-center">
+        <div class="w-full max-w-2xl">
+
+          <!-- School registration wizard -->
+          <form id="schoolRegistrationForm" class="hidden card shadow-elev2 p-6 sm:p-9 space-y-7">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">Get started</p>
+              <h2 class="text-2xl font-bold tracking-tight mt-1.5">Tell us about your school</h2>
+              <p class="text-sm text-surface-500 mt-1.5">Complete each step and review the request before it goes to our onboarding team.</p>
             </div>
-          </fieldset>
 
-          <fieldset class="registration-panel" data-registration-step="1">
-            <legend>
-              <span>02</span>
-              <strong>Primary contact</strong>
-            </legend>
-            <p class="registration-panel-note">The person DevForge should contact for onboarding, access, and launch questions.</p>
-            <div class="registration-grid">
-              <label>
-                Contact person
-                <input name="contactPerson" type="text" autocomplete="name" required>
-              </label>
-              <label>
-                Contact email
-                <input name="contactEmail" type="email" autocomplete="email" required>
-              </label>
-              <label class="span-two">
-                Contact phone
-                <input name="contactPhone" type="tel" autocomplete="tel" required>
-              </label>
+            <fieldset data-registration-step="0" class="space-y-4">
+              <legend class="font-semibold text-base">School profile</legend>
+              <p class="text-sm text-surface-500 -mt-2">Official centre details used for account setup and identification.</p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label class="block text-sm font-medium">
+                  School name <span class="text-rose-600" aria-hidden="true">*</span>
+                  <input name="schoolName" type="text" autocomplete="organization" required class="input mt-1.5 w-full">
+                </label>
+                <label class="block text-sm font-medium">
+                  Registration number
+                  <input name="registrationNumber" type="text" class="input mt-1.5 w-full">
+                </label>
+                <label class="block text-sm font-medium sm:col-span-2">
+                  Physical address
+                  <input name="address" type="text" autocomplete="street-address" class="input mt-1.5 w-full">
+                </label>
+                <label class="block text-sm font-medium sm:col-span-2">
+                  Website
+                  <input name="website" type="url" placeholder="https://www.yourschool.co.za" class="input mt-1.5 w-full">
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset data-registration-step="1" class="space-y-4" hidden>
+              <legend class="font-semibold text-base">Primary contact</legend>
+              <p class="text-sm text-surface-500 -mt-2">The person we should contact for onboarding, access, and launch questions.</p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label class="block text-sm font-medium">
+                  Contact person <span class="text-rose-600" aria-hidden="true">*</span>
+                  <input name="contactPerson" type="text" autocomplete="name" required class="input mt-1.5 w-full">
+                </label>
+                <label class="block text-sm font-medium">
+                  Contact email <span class="text-rose-600" aria-hidden="true">*</span>
+                  <input name="contactEmail" type="email" autocomplete="email" required class="input mt-1.5 w-full">
+                </label>
+                <label class="block text-sm font-medium sm:col-span-2">
+                  Contact phone <span class="text-rose-600" aria-hidden="true">*</span>
+                  <input name="contactPhone" type="tel" autocomplete="tel" required class="input mt-1.5 w-full">
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset data-registration-step="2" class="space-y-4" hidden>
+              <legend class="font-semibold text-base">Billing contact</legend>
+              <p class="text-sm text-surface-500 -mt-2">Only needed if invoicing should go to a different person or address.</p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label class="block text-sm font-medium">
+                  Billing contact
+                  <input name="billingContactName" type="text" autocomplete="name" class="input mt-1.5 w-full">
+                </label>
+                <label class="block text-sm font-medium">
+                  Billing email
+                  <input name="billingContactEmail" type="email" autocomplete="email" class="input mt-1.5 w-full">
+                </label>
+                <label class="block text-sm font-medium">
+                  Billing phone
+                  <input name="billingContactPhone" type="tel" autocomplete="tel" class="input mt-1.5 w-full">
+                </label>
+                <label class="block text-sm font-medium">
+                  Customer reference
+                  <input name="paymentCustomerReference" type="text" class="input mt-1.5 w-full">
+                </label>
+                <label class="block text-sm font-medium sm:col-span-2">
+                  Billing address
+                  <input name="billingAddress" type="text" autocomplete="street-address" class="input mt-1.5 w-full">
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset data-registration-step="3" class="space-y-4" hidden>
+              <legend class="font-semibold text-base">Your plan</legend>
+              <p class="text-sm text-surface-500 -mt-2">One plan, everything included. Billing is confirmed during onboarding &mdash; no card needed today.</p>
+              <input type="hidden" name="requestedPlan" value="Standard">
+              <div class="rounded-xl border-2 border-brand-500 bg-brand-50/60 p-5">
+                <div class="flex items-center justify-between">
+                  <p class="font-semibold text-lg">Standard</p>
+                  <span class="inline-flex items-center rounded-full bg-brand-600 text-white text-xs font-semibold px-2.5 py-1">All features</span>
+                </div>
+                <p class="mt-2 flex items-baseline gap-1">
+                  <span class="text-3xl font-bold tracking-tight">R899</span>
+                  <span class="text-sm text-surface-500">/month per school</span>
+                </p>
+                <ul class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-surface-700">
+                  <li class="flex gap-2"><span class="text-emerald-600 font-bold" aria-hidden="true">&#10003;</span> Students, classes &amp; attendance</li>
+                  <li class="flex gap-2"><span class="text-emerald-600 font-bold" aria-hidden="true">&#10003;</span> Invoicing &amp; online payments</li>
+                  <li class="flex gap-2"><span class="text-emerald-600 font-bold" aria-hidden="true">&#10003;</span> Bank reconciliation</li>
+                  <li class="flex gap-2"><span class="text-emerald-600 font-bold" aria-hidden="true">&#10003;</span> Staff, leave &amp; payslips</li>
+                  <li class="flex gap-2"><span class="text-emerald-600 font-bold" aria-hidden="true">&#10003;</span> Parent messaging &amp; broadcasts</li>
+                  <li class="flex gap-2"><span class="text-emerald-600 font-bold" aria-hidden="true">&#10003;</span> Free parent portal for families</li>
+                </ul>
+              </div>
+              <div class="grid grid-cols-1 gap-4">
+                <label class="block text-sm font-medium">
+                  Payment provider
+                  <input name="paymentProvider" type="text" value="Pending onboarding" readonly class="input mt-1.5 w-full bg-surface-100 text-surface-500">
+                </label>
+                <label class="block text-sm font-medium">
+                  Billing notes
+                  <textarea name="billingNotes" rows="3" placeholder="Anything we should know before activating the account?" class="input mt-1.5 w-full"></textarea>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset data-registration-step="4" class="space-y-4" hidden>
+              <legend class="font-semibold text-base">Review your request</legend>
+              <p class="text-sm text-surface-500 -mt-2">Check the summary before submitting. You can go back and change anything.</p>
+              <div id="schoolRegistrationReview" class="registration-review-grid"></div>
+            </fieldset>
+
+            <p id="schoolRegistrationMessage" class="form-message hidden" role="status"></p>
+
+            <div class="flex flex-col-reverse sm:flex-row sm:items-center gap-3 pt-1">
+              <button id="schoolRegistrationBack" class="btn-secondary" type="button">Back</button>
+              <span class="flex-1" aria-hidden="true"></span>
+              <button id="schoolRegistrationNext" class="btn-primary" type="button">Continue</button>
+              <button class="btn-primary" type="submit">Submit registration request</button>
             </div>
-          </fieldset>
+          </form>
 
-          <fieldset class="registration-panel" data-registration-step="2">
-            <legend>
-              <span>03</span>
-              <strong>Billing contact</strong>
-            </legend>
-            <p class="registration-panel-note">Complete this if invoicing should go to a different person or address.</p>
-            <div class="registration-grid">
-              <label>
-                Billing contact
-                <input name="billingContactName" type="text" autocomplete="name">
-              </label>
-              <label>
-                Billing email
-                <input name="billingContactEmail" type="email" autocomplete="email">
-              </label>
-              <label>
-                Billing phone
-                <input name="billingContactPhone" type="tel" autocomplete="tel">
-              </label>
-              <label>
-                Customer reference
-                <input name="paymentCustomerReference" type="text">
-              </label>
-              <label class="span-two">
-                Billing address
-                <input name="billingAddress" type="text" autocomplete="street-address">
-              </label>
+          <!-- Parent access request -->
+          <form id="parentRegistrationForm" class="hidden card shadow-elev2 p-6 sm:p-9 space-y-6">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">Parent access</p>
+              <h2 class="text-2xl font-bold tracking-tight mt-1.5">Join your child&rsquo;s school</h2>
+              <p class="text-sm text-surface-500 mt-1.5">Choose the school and use the same email address the school has on record &mdash; we match you to your family automatically.</p>
             </div>
-          </fieldset>
-
-          <fieldset class="registration-panel" data-registration-step="3">
-            <legend>
-              <span>04</span>
-              <strong>Subscription preference</strong>
-            </legend>
-            <p class="registration-panel-note">Select a starting plan. Final billing details are confirmed during onboarding.</p>
-            <div class="registration-plan-strip" aria-label="Available subscription plans">
-              <article data-plan-choice="Standard" tabindex="0">
-                <span>Standard</span>
-                <strong>R 899 pm</strong>
-                <small>Core admin, billing, attendance, and parent tools.</small>
-              </article>
-              <article data-plan-choice="Pro" tabindex="0">
-                <span>Pro</span>
-                <strong>R 1 199 pm</strong>
-                <small>More operational depth for growing centres.</small>
-              </article>
-              <article data-plan-choice="Pro+" tabindex="0">
-                <span>Pro+</span>
-                <strong>TBA</strong>
-                <small>Advanced rollout support and future add-ons.</small>
-              </article>
-            </div>
-            <div class="registration-grid">
-              <label>
-                Requested plan
-                <select name="requestedPlan">
-                  <option value="">Select plan</option>
-                  <option value="Standard">Standard - R 899 pm</option>
-                  <option value="Pro">Pro - R 1 199 pm</option>
-                  <option value="Pro+">Pro+ - TBA</option>
-                </select>
-              </label>
-              <label>
-                Payment provider
-                <input name="paymentProvider" type="text" value="Pending onboarding" readonly>
-              </label>
-              <label class="span-two">
-                Billing notes
-                <textarea name="billingNotes" rows="3" placeholder="Anything we should know before activating the account?"></textarea>
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset class="registration-panel registration-review-panel" data-registration-step="4">
-            <legend>
-              <span>05</span>
-              <strong>Review request</strong>
-            </legend>
-            <p class="registration-panel-note">Check the summary before submitting. You can go back and change anything.</p>
-            <div id="schoolRegistrationReview" class="registration-review-grid"></div>
-          </fieldset>
-
-          <p id="schoolRegistrationMessage" class="form-message hidden"></p>
-          <div class="form-actions registration-wizard-actions">
-            <button id="schoolRegistrationBack" class="secondary-button" type="button">Back</button>
-            <button id="schoolRegistrationNext" class="primary-button" type="button">Continue</button>
-            <button class="primary-button" type="submit">Submit registration request</button>
-            <a class="secondary-button link-button" href="/school-login">School Login</a>
-          </div>
-        </form>
-
-        <form id="parentRegistrationForm" class="auth-form hidden">
-          <fieldset class="registration-panel">
-            <legend>
-              <span>01</span>
-              <strong>Parent access</strong>
-            </legend>
-            <p class="registration-panel-note">Choose the school and use the same email the school has on record.</p>
-            <div class="registration-grid">
-              <label class="span-two">
-                School
-                <select name="schoolId" id="parentSchoolSelect" required>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label class="block text-sm font-medium sm:col-span-2">
+                School <span class="text-rose-600" aria-hidden="true">*</span>
+                <select name="schoolId" id="parentSchoolSelect" required class="select mt-1.5 w-full">
                   <option value="">Select school</option>
                 </select>
               </label>
-              <label>
-                First name
-                <input name="firstName" type="text" autocomplete="given-name" required>
+              <label class="block text-sm font-medium">
+                First name <span class="text-rose-600" aria-hidden="true">*</span>
+                <input name="firstName" type="text" autocomplete="given-name" required class="input mt-1.5 w-full">
               </label>
-              <label>
-                Last name
-                <input name="lastName" type="text" autocomplete="family-name" required>
+              <label class="block text-sm font-medium">
+                Last name <span class="text-rose-600" aria-hidden="true">*</span>
+                <input name="lastName" type="text" autocomplete="family-name" required class="input mt-1.5 w-full">
               </label>
-              <label>
-                Email
-                <input name="email" type="email" autocomplete="email" required>
+              <label class="block text-sm font-medium">
+                Email <span class="text-rose-600" aria-hidden="true">*</span>
+                <input name="email" type="email" autocomplete="email" required class="input mt-1.5 w-full">
               </label>
-              <label>
+              <label class="block text-sm font-medium">
                 Phone
-                <input name="phone" type="tel" autocomplete="tel">
+                <input name="phone" type="tel" autocomplete="tel" class="input mt-1.5 w-full">
               </label>
-              <label class="span-two">
-                Relationship
-                <input name="relationship" type="text">
+              <label class="block text-sm font-medium sm:col-span-2">
+                Relationship to the child
+                <input name="relationship" type="text" placeholder="e.g. Mother, Father, Guardian" class="input mt-1.5 w-full">
               </label>
             </div>
-          </fieldset>
-          <p id="parentRegistrationMessage" class="form-message hidden"></p>
-          <div class="form-actions">
-            <button class="primary-button" type="submit">Submit access request</button>
-            <a class="secondary-button link-button" href="/parent-login">Parent Login</a>
-          </div>
-        </form>
-      </div>
+            <p id="parentRegistrationMessage" class="form-message hidden" role="status"></p>
+            <div class="flex flex-col-reverse sm:flex-row sm:items-center gap-3 pt-1">
+              <a class="btn-secondary text-center" href="/parent-login">I already have access</a>
+              <span class="flex-1" aria-hidden="true"></span>
+              <button class="btn-primary" type="submit">Submit access request</button>
+            </div>
+          </form>
+
+        </div>
+      </main>
     </div>
 
     <script src="/register.js"></script>

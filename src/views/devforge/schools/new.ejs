@@ -1,0 +1,120 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'devforge' %>
+
+<div class="container-narrow">
+  <nav class="mb-4 text-sm">
+    <a href="/devforge/schools" class="text-muted hover:underline">Schools</a>
+    <span class="text-muted mx-1">/</span>
+    <span>Register</span>
+  </nav>
+
+  <% if (requests && requests.length && !requestId) { %>
+    <div class="card mb-4">
+      <div class="card-header">
+        <h2 class="text-base font-semibold">Pending registration requests</h2>
+        <p class="text-muted text-sm mt-0.5"><%= requests.length %> school<%= requests.length === 1 ? ' has' : 's have' %> asked to join. Pick one to prefill the form.</p>
+      </div>
+      <ul class="divide-y">
+        <% requests.forEach(function(r) { %>
+          <li class="flex items-center justify-between gap-3 px-4 py-2.5">
+            <div class="min-w-0">
+              <div class="font-medium truncate"><%= r.SchoolName %></div>
+              <div class="text-muted text-sm truncate"><%= r.ContactPerson %> &middot; <%= r.ContactEmail %></div>
+            </div>
+            <a href="/devforge/schools/new?requestId=<%= r.RequestID %>" class="btn-secondary btn-sm shrink-0">Use details</a>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+  <% } %>
+
+  <div class="card">
+    <div class="card-header">
+      <h1 class="text-xl font-semibold">Register a new school</h1>
+      <p class="text-muted text-sm mt-0.5">Creates the school and its owner account in one step. The owner gets full access to everything in their school.</p>
+    </div>
+    <form method="post" action="/devforge/schools" class="card-body space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <% if (requestId) { %>
+        <input type="hidden" name="requestId" value="<%= requestId %>" />
+        <div class="alert alert-info text-sm">Prefilled from registration request #<%= requestId %>. The request will be marked converted when the school is registered.</div>
+      <% } %>
+
+      <% if (error) { %>
+        <div class="alert alert-error"><%= error %></div>
+      <% } %>
+
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-muted">School details</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label label-required" for="schoolName">School name</label>
+          <input id="schoolName" name="schoolName" type="text" required maxlength="255"
+                 value="<%= form.schoolName || '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="subscriptionPlan">Plan</label>
+          <select id="subscriptionPlan" name="subscriptionPlan" class="select">
+            <% ['Standard', 'Pro', 'Pro+'].forEach(function(p) { %>
+              <option value="<%= p %>" <%= form.subscriptionPlan === p ? 'selected' : '' %>><%= p %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label" for="contactPhone">Contact phone</label>
+          <input id="contactPhone" name="contactPhone" type="tel" maxlength="50"
+                 value="<%= form.contactPhone || '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="website">Website</label>
+          <input id="website" name="website" type="text" maxlength="255"
+                 value="<%= form.website || '' %>" class="input" />
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="label" for="address">Address</label>
+        <input id="address" name="address" type="text" maxlength="500"
+               value="<%= form.address || '' %>" class="input" />
+      </div>
+
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-muted pt-2">Owner account</h2>
+      <p class="text-muted text-sm -mt-2">This person becomes the school's first user, with the Owner role and full permissions. A temporary password is generated and shown to you once on the next screen.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label label-required" for="ownerFirstName">First name</label>
+          <input id="ownerFirstName" name="ownerFirstName" type="text" required maxlength="100"
+                 value="<%= form.ownerFirstName || '' %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="ownerLastName">Last name</label>
+          <input id="ownerLastName" name="ownerLastName" type="text" maxlength="100"
+                 value="<%= form.ownerLastName || '' %>" class="input" />
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="label label-required" for="ownerEmail">Owner email</label>
+        <input id="ownerEmail" name="ownerEmail" type="email" required maxlength="255"
+               value="<%= form.ownerEmail || '' %>" class="input" />
+        <p class="text-muted text-xs mt-1">Used to sign in and to receive the welcome email. Also becomes the school contact email unless you set one below.</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label" for="contactPerson">School contact person</label>
+          <input id="contactPerson" name="contactPerson" type="text" maxlength="255"
+                 value="<%= form.contactPerson || '' %>" class="input" placeholder="Defaults to the owner" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="contactEmail">School contact email</label>
+          <input id="contactEmail" name="contactEmail" type="email" maxlength="255"
+                 value="<%= form.contactEmail || '' %>" class="input" placeholder="Defaults to the owner email" />
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <a href="/devforge/schools" class="btn-secondary">Cancel</a>
+        <button type="submit" class="btn-primary">Register school</button>
+      </div>
+    </form>
+  </div>
+</div>

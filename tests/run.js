@@ -101,6 +101,8 @@ proc.stderr.on('data', d => { errorOut += d.toString(); });
     await runEmptyStates();
     const runParentMessages = require('./parentMessages.test.js');
     await runParentMessages();
+    const runKchMessaging = require('./kchMessaging.test.js');
+    await runKchMessaging();
     const runCommandPalette = require('./commandPalette.test.js');
     await runCommandPalette();
     const runKeyboardShortcuts = require('./keyboardShortcuts.test.js');

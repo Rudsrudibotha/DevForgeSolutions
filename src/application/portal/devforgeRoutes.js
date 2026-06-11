@@ -7,8 +7,10 @@ const AdminUserService = require('../../business/adminUserService');
 const AdminPaymentService = require('../../business/adminPaymentService');
 const AdminAuditService = require('../../business/adminAuditService');
 const AdminSettingsService = require('../../business/adminSettingsService');
+const SchoolOnboardingService = require('../../business/schoolOnboardingService');
 const { demoOr } = require('../../business/demoData');
 const adminSchoolService = new AdminSchoolService();
+const schoolOnboardingService = new SchoolOnboardingService();
 const adminUserService = new AdminUserService();
 const adminPaymentService = new AdminPaymentService();
 const adminAuditService = new AdminAuditService();
@@ -79,6 +81,80 @@ router.get('/schools/partials/table', requireAuth, requireAdmin, async (req, res
     }), { rows: [], total: 0, page: 1, pageSize: 25, hasMore: false, filters: { search: '', plan: '', status: '' } });
     res.render('devforge/schools/partials/table', { ...data, layout: false });
   } catch (err) { next(err); }
+});
+
+// Register a new school: one form creates the school tenant plus its
+// owner user (Employee record + 'Owner' staff role with full access).
+// Optionally prefilled from a pending public registration request.
+router.get('/schools/new', requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    res.locals.title = 'Register school | DevForge';
+    res.locals.portal = 'devforge';
+    res.locals.activeNav = 'schools';
+    const requests = await safeCall(schoolOnboardingService.listPendingRequests({ actor: req.user }), []);
+    let form = {};
+    let requestId = null;
+    if (/^[1-9]\d*$/.test(String(req.query.requestId || ''))) {
+      const request = await safeCall(schoolOnboardingService.getRequest({ actor: req.user, requestId: Number(req.query.requestId) }), null);
+      if (request && request.Status === 'Pending') {
+        requestId = request.RequestID;
+        const nameParts = String(request.ContactPerson || '').trim().split(/\s+/).filter(Boolean);
+        form = {
+          schoolName: request.SchoolName,
+          address: request.Address,
+          contactPerson: request.ContactPerson,
+          contactEmail: request.ContactEmail,
+          contactPhone: request.ContactPhone,
+          website: request.Website,
+          subscriptionPlan: request.RequestedPlan,
+          ownerFirstName: nameParts.shift() || '',
+          ownerLastName: nameParts.join(' '),
+          ownerEmail: request.ContactEmail
+        };
+      }
+    }
+    res.render('devforge/schools/new', { form, requests, requestId, error: null });
+  } catch (err) { next(err); }
+});
+
+router.post('/schools', requireAuth, requireAdmin, async (req, res, next) => {
+  const form = {
+    schoolName: req.body.schoolName,
+    address: req.body.address,
+    contactPerson: req.body.contactPerson,
+    contactEmail: req.body.contactEmail,
+    contactPhone: req.body.contactPhone,
+    website: req.body.website,
+    subscriptionPlan: req.body.subscriptionPlan,
+    ownerFirstName: req.body.ownerFirstName,
+    ownerLastName: req.body.ownerLastName,
+    ownerEmail: req.body.ownerEmail
+  };
+  try {
+    res.locals.title = 'Register school | DevForge';
+    res.locals.portal = 'devforge';
+    res.locals.activeNav = 'schools';
+    const result = await schoolOnboardingService.registerSchool({
+      actor: req.user,
+      school: form,
+      owner: {
+        firstName: form.ownerFirstName,
+        lastName: form.ownerLastName,
+        email: form.ownerEmail
+      },
+      requestId: req.body.requestId
+    });
+    res.render('devforge/schools/onboarded', result);
+  } catch (err) {
+    if (res.headersSent) return next(err);
+    const requests = await safeCall(schoolOnboardingService.listPendingRequests({ actor: req.user }), []);
+    res.status(400).render('devforge/schools/new', {
+      form,
+      requests,
+      requestId: /^[1-9]\d*$/.test(String(req.body.requestId || '')) ? Number(req.body.requestId) : null,
+      error: err.message || 'Could not register the school.'
+    });
+  }
 });
 
 router.get('/schools/:id([1-9]\\d*)', requireAuth, requireAdmin, async (req, res, next) => {

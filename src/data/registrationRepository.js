@@ -54,6 +54,42 @@ class RegistrationRepository {
     return result.recordset[0];
   }
 
+  async getPendingSchoolRegistrationRequests() {
+    const pool = await getPool();
+    const result = await pool.request()
+      .query(`SELECT RequestID, SchoolName, RegistrationNumber, Address, Website,
+                     ContactPerson, ContactEmail, ContactPhone, RequestedPlan, Status, CreatedDate
+              FROM SchoolRegistrationRequests
+              WHERE Status = 'Pending'
+              ORDER BY CreatedDate DESC`);
+
+    return result.recordset;
+  }
+
+  async getSchoolRegistrationRequestById(requestId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('requestId', sql.Int, requestId)
+      .query(`SELECT *
+              FROM SchoolRegistrationRequests
+              WHERE RequestID = @requestId`);
+
+    return result.recordset[0];
+  }
+
+  async updateSchoolRegistrationRequestStatus(requestId, status) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('requestId', sql.Int, requestId)
+      .input('status', sql.NVarChar, status)
+      .query(`UPDATE SchoolRegistrationRequests
+              SET Status = @status, UpdatedDate = GETDATE()
+              OUTPUT INSERTED.*
+              WHERE RequestID = @requestId`);
+
+    return result.recordset[0];
+  }
+
   async getActiveSchoolById(schoolId) {
     const pool = await getPool();
     const result = await pool.request()

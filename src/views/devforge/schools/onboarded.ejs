@@ -1,0 +1,72 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'devforge' %>
+
+<div class="container-narrow">
+  <nav class="mb-4 text-sm">
+    <a href="/devforge/schools" class="text-muted hover:underline">Schools</a>
+    <span class="text-muted mx-1">/</span>
+    <span>Registered</span>
+  </nav>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h1 class="text-xl font-semibold"><%= school.SchoolName %> is registered</h1>
+      <p class="text-muted text-sm mt-0.5">The school and its owner account were created. A welcome email was sent to the owner.</p>
+    </div>
+    <div class="card-body">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div>
+          <dt class="text-muted">School ID</dt>
+          <dd class="font-medium"><%= school.SchoolID %></dd>
+        </div>
+        <div>
+          <dt class="text-muted">Plan</dt>
+          <dd class="font-medium"><%= school.SubscriptionPlan || 'Standard' %></dd>
+        </div>
+        <div>
+          <dt class="text-muted">Contact</dt>
+          <dd class="font-medium"><%= school.ContactPerson || '—' %></dd>
+        </div>
+        <div>
+          <dt class="text-muted">Contact email</dt>
+          <dd class="font-medium"><%= school.ContactEmail || '—' %></dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h2 class="text-base font-semibold">Owner sign-in details</h2>
+      <p class="text-muted text-sm mt-0.5"><%= owner.firstName %> <%= owner.lastName || '' %> has the Owner role with full access to everything in this school.</p>
+    </div>
+    <div class="card-body">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div>
+          <dt class="text-muted">Sign-in page</dt>
+          <dd class="font-medium">/school-login (school ID <%= school.SchoolID %>)</dd>
+        </div>
+        <div>
+          <dt class="text-muted">Username</dt>
+          <dd class="font-medium"><%= owner.username %></dd>
+        </div>
+        <div>
+          <dt class="text-muted">Email</dt>
+          <dd class="font-medium"><%= owner.email %></dd>
+        </div>
+        <div>
+          <dt class="text-muted">Temporary password</dt>
+          <dd><code class="font-mono font-medium"><%= tempPassword %></code></dd>
+        </div>
+      </dl>
+      <div class="alert alert-info text-sm mt-4">
+        This temporary password is shown only once and is not emailed. Share it with the owner securely and ask them to change it under Account settings after their first sign-in.
+      </div>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <a href="/devforge/schools/<%= school.SchoolID %>" class="btn-primary">View school</a>
+    <a href="/devforge/schools/new" class="btn-secondary">Register another school</a>
+  </div>
+</div>

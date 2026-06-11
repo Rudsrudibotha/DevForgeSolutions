@@ -217,6 +217,10 @@ function configurePage() {
   elements.schoolForm.classList.toggle('hidden', config.formId !== 'schoolRegistrationForm');
   elements.parentForm.classList.toggle('hidden', config.formId !== 'parentRegistrationForm');
 
+  // The step rail only applies to the school wizard.
+  const stepsNav = document.querySelector('[aria-label="Registration steps"]');
+  if (stepsNav) stepsNav.classList.toggle('hidden', config.formId !== 'schoolRegistrationForm');
+
   if (config.formId === 'schoolRegistrationForm') {
     setSchoolStep(0);
   }

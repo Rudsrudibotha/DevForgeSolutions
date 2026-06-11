@@ -165,6 +165,116 @@ async function run() {
     assert.strictEqual(r.status, 404);
   });
 
+  console.log('\n[devforge-schools] register-school onboarding');
+
+  await test('GET /devforge/schools/new is 200 for admin with form fields', async () => {
+    const r = await request('GET', '/devforge/schools/new', admin);
+    assert.strictEqual(r.status, 200);
+    assert.ok(r.body.includes('name="schoolName"'));
+    assert.ok(r.body.includes('name="ownerFirstName"'));
+    assert.ok(r.body.includes('name="ownerEmail"'));
+    assert.ok(r.body.includes('name="_csrf"'));
+  });
+
+  await test('school role is 403 on /devforge/schools/new', async () => {
+    const r = await request('GET', '/devforge/schools/new', school);
+    assert.strictEqual(r.status, 403);
+  });
+
+  await test('parent role is 403 on /devforge/schools/new', async () => {
+    const r = await request('GET', '/devforge/schools/new', parent);
+    assert.strictEqual(r.status, 403);
+  });
+
+  await test('POST /devforge/schools without CSRF is 403', async () => {
+    const r = await request('POST', '/devforge/schools', admin,
+      'schoolName=Test&ownerFirstName=Jo&ownerEmail=jo@example.com');
+    assert.strictEqual(r.status, 403);
+  });
+
+  await test('POST /devforge/schools as school role is 403', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/devforge/schools',
+      { ...school, 'X-CSRF-Token': csrf, 'Cookie': cookieHeader, 'Content-Type': 'application/x-www-form-urlencoded' },
+      '_csrf=' + csrf + '&schoolName=Test&ownerFirstName=Jo&ownerEmail=jo@example.com');
+    assert.strictEqual(r.status, 403);
+  });
+
+  await test('POST /devforge/schools with CSRF + missing school name is 400', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/devforge/schools',
+      { ...admin, 'X-CSRF-Token': csrf, 'Cookie': cookieHeader, 'Content-Type': 'application/x-www-form-urlencoded' },
+      '_csrf=' + csrf + '&ownerFirstName=Jo&ownerEmail=jo@example.com');
+    assert.strictEqual(r.status, 400, `expected 400, got ${r.status}`);
+    assert.ok(r.body.includes('School name is required'));
+  });
+
+  await test('POST /devforge/schools with CSRF + invalid owner email is 400', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/devforge/schools',
+      { ...admin, 'X-CSRF-Token': csrf, 'Cookie': cookieHeader, 'Content-Type': 'application/x-www-form-urlencoded' },
+      '_csrf=' + csrf + '&schoolName=Test+School&ownerFirstName=Jo&ownerEmail=not-an-email');
+    assert.strictEqual(r.status, 400, `expected 400, got ${r.status}`);
+    assert.ok(r.body.includes('valid email address'));
+  });
+
+  await test('POST /devforge/schools with CSRF + valid payload is 200 or 400 (DB-dependent)', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/devforge/schools',
+      { ...admin, 'X-CSRF-Token': csrf, 'Cookie': cookieHeader, 'Content-Type': 'application/x-www-form-urlencoded' },
+      '_csrf=' + csrf + '&schoolName=Sunshine+Daycare&ownerFirstName=Thandi&ownerLastName=Mokoena&ownerEmail=thandi@example.com');
+    assert.ok([200, 400].includes(r.status), `expected 200/400, got ${r.status}`);
+  });
+
+  console.log('\n[devforge-schools] onboarding service validation (no DB)');
+
+  const SchoolOnboardingService = require('../src/business/schoolOnboardingService');
+  const onboarding = new SchoolOnboardingService();
+
+  await test('registerSchool rejects a non-admin actor', async () => {
+    await assert.rejects(
+      () => onboarding.registerSchool({ actor: { role: 'school', schoolId: 1 }, school: { schoolName: 'X' }, owner: { firstName: 'A', email: 'a@b.co' } }),
+      /admin role required/
+    );
+  });
+
+  await test('listPendingRequests rejects a non-admin actor', async () => {
+    await assert.rejects(
+      () => onboarding.listPendingRequests({ actor: { role: 'parent' } }),
+      /admin role required/
+    );
+  });
+
+  await test('registerSchool rejects a missing school name', async () => {
+    await assert.rejects(
+      () => onboarding.registerSchool({ actor: { role: 'admin' }, school: {}, owner: { firstName: 'A', email: 'a@b.co' } }),
+      /School name is required/
+    );
+  });
+
+  await test('registerSchool rejects a missing owner first name', async () => {
+    await assert.rejects(
+      () => onboarding.registerSchool({ actor: { role: 'admin' }, school: { schoolName: 'X' }, owner: { email: 'a@b.co' } }),
+      /Owner first name is required/
+    );
+  });
+
+  await test('registerSchool rejects an invalid owner email', async () => {
+    await assert.rejects(
+      () => onboarding.registerSchool({ actor: { role: 'admin' }, school: { schoolName: 'X' }, owner: { firstName: 'A', email: 'nope' } }),
+      /valid email address/
+    );
+  });
+
+  await test('generateTempPassword satisfies the password policy', async () => {
+    for (let i = 0; i < 20; i++) {
+      const pwd = onboarding.generateTempPassword();
+      assert.ok(pwd.length >= 8, 'too short: ' + pwd);
+      assert.ok(/[A-Za-z]/.test(pwd), 'no letter: ' + pwd);
+      assert.ok(/[0-9]/.test(pwd), 'no digit: ' + pwd);
+    }
+  });
+
   console.log(process.exitCode ? '\nFAILED' : '\nALL DEVFORGE SCHOOLS ROUTE TESTS PASSED');
 }
 

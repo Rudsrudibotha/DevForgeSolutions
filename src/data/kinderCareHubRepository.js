@@ -86,22 +86,35 @@ class ConversationRepository {
       `);
   }
 
-  // List for an active participant set, filtered by ActiveTenantId.
-  // Sorted by LastMessageAt DESC, paginated.
+  // List for an active participant set, filtered by ActiveTenantId
+  // (pass tenantId = null for DevForge users, who span tenants).
+  // Sorted by LastMessageAt DESC, paginated. Includes the "other"
+  // participant so direct chats can be titled like a contact.
   async listForUser(userId, tenantId, { limit = 30, offset = 0 } = {}) {
     const pool = await getPool();
     const result = await pool.request()
       .input('userId', sql.Int, userId)
-      .input('tenantId', sql.Int, tenantId)
+      .input('tenantId', sql.Int, tenantId || null)
       .input('limit', sql.Int, limit)
       .input('offset', sql.Int, offset)
       .query(`
         SELECT c.ConversationId, c.TenantId, c.SchoolId, c.ConversationType, c.ConversationName,
                c.LastMessageId, c.LastMessageAt, c.LastMessagePreview, c.IsBroadcast,
-               cp.UnreadCount, cp.LastReadMessageId
+               cp.UnreadCount, cp.LastReadMessageId,
+               other.OtherUserId, other.OtherFullName, other.OtherUsername, other.OtherRole
         FROM dbo.ConversationParticipants cp
         INNER JOIN dbo.Conversations c ON c.ConversationId = cp.ConversationId
-        WHERE cp.UserId = @userId AND c.TenantId = @tenantId AND cp.IsActive = 1 AND c.IsActive = 1
+        OUTER APPLY (
+          SELECT TOP 1 u.UserID AS OtherUserId,
+                 LTRIM(RTRIM(ISNULL(u.FirstName, '') + ' ' + ISNULL(u.LastName, ''))) AS OtherFullName,
+                 u.Username AS OtherUsername, u.Role AS OtherRole
+          FROM dbo.ConversationParticipants cp2
+          INNER JOIN dbo.Users u ON u.UserID = cp2.UserId
+          WHERE cp2.ConversationId = c.ConversationId AND cp2.IsActive = 1 AND cp2.UserId <> @userId
+          ORDER BY cp2.ConversationParticipantId
+        ) other
+        WHERE cp.UserId = @userId AND (@tenantId IS NULL OR c.TenantId = @tenantId)
+          AND cp.IsActive = 1 AND c.IsActive = 1
         ORDER BY ISNULL(c.LastMessageAt, c.UpdatedAt) DESC
         OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
       `);
@@ -249,8 +262,19 @@ class MessageRepository {
     }
     const result = await request.query(`
       SELECT TOP (@pageSize) m.MessageId, m.TenantId, m.SchoolId, m.ConversationId, m.SenderUserId,
-             m.MessageType, m.MessageBody, m.CreatedAt, m.EditedAt, m.IsSystemMessage, m.ReplyToMessageId
+             m.MessageType, m.MessageBody, m.CreatedAt, m.EditedAt, m.IsSystemMessage, m.ReplyToMessageId,
+             LTRIM(RTRIM(ISNULL(u.FirstName, '') + ' ' + ISNULL(u.LastName, ''))) AS SenderFullName,
+             u.Username AS SenderUsername, u.Role AS SenderRole,
+             a.AttachmentId, a.AttachmentMimeType, a.AttachmentFileName, a.AttachmentExpired
       FROM dbo.Messages m
+      LEFT JOIN dbo.Users u ON u.UserID = m.SenderUserId
+      OUTER APPLY (
+        SELECT TOP 1 ma.MessageAttachmentId AS AttachmentId, ma.MimeType AS AttachmentMimeType,
+               ma.OriginalFileName AS AttachmentFileName, ma.IsDeleted AS AttachmentExpired
+        FROM dbo.MessageAttachments ma
+        WHERE ma.MessageId = m.MessageId AND ma.TenantId = m.TenantId
+        ORDER BY ma.MessageAttachmentId
+      ) a
       WHERE ${where}
       ORDER BY m.MessageId DESC
     `);
@@ -301,6 +325,50 @@ class MessageAttachmentRepository {
     return result.recordset[0] || null;
   }
 
+  // Lookup without a tenant filter (and including expired rows) for the
+  // attachment view endpoint: the caller MUST run canUserAccessConversation
+  // on the returned ConversationId before serving any bytes.
+  async findById(messageAttachmentId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.Int, messageAttachmentId)
+      .query(`
+        SELECT MessageAttachmentId, TenantId, SchoolId, ConversationId, MessageId, UploadedByUserId,
+               OriginalFileName, StoredFileName, FileExtension, MimeType, FileSizeBytes, StoragePath, ThumbnailPath,
+               UploadedAt, IsImage, IsScanned, ScanStatus, IsDeleted
+        FROM dbo.MessageAttachments
+        WHERE MessageAttachmentId = @id
+      `);
+    return result.recordset[0] || null;
+  }
+
+  // Attachments past the retention window, oldest first. Used by the
+  // retention sweep; runs across tenants by design (platform job).
+  async listExpired(cutoffDate, { limit = 100 } = {}) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('cutoff', sql.DateTime2, cutoffDate)
+      .input('limit', sql.Int, Math.min(500, Math.max(1, limit)))
+      .query(`
+        SELECT TOP (@limit) MessageAttachmentId, TenantId, ConversationId, MessageId, StoragePath, ThumbnailPath
+        FROM dbo.MessageAttachments
+        WHERE IsDeleted = 0 AND UploadedAt < @cutoff
+        ORDER BY UploadedAt ASC
+      `);
+    return result.recordset;
+  }
+
+  async markDeleted(messageAttachmentId) {
+    const pool = await getPool();
+    await pool.request()
+      .input('id', sql.Int, messageAttachmentId)
+      .query(`
+        UPDATE dbo.MessageAttachments
+        SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME()
+        WHERE MessageAttachmentId = @id AND IsDeleted = 0
+      `);
+  }
+
   async setScanResult(messageAttachmentId, status) {
     const pool = await getPool();
     await pool.request()
@@ -333,19 +401,20 @@ class MessageNotificationEventRepository {
   }
 
   // Polling fallback. Returns events newer than sinceEventId for the
-  // current user only. SSE-friendly payload.
+  // current user only (tenantId = null for DevForge users, who span
+  // tenants). SSE-friendly payload.
   async listForUserSince(userId, tenantId, sinceEventId = 0, { limit = 50 } = {}) {
     const pool = await getPool();
     const result = await pool.request()
       .input('userId', sql.Int, userId)
-      .input('tenantId', sql.Int, tenantId)
+      .input('tenantId', sql.Int, tenantId || null)
       .input('since', sql.BigInt, sinceEventId || 0)
       .input('limit', sql.Int, limit)
       .query(`
         SELECT TOP (@limit) MessageNotificationEventId, TenantId, SchoolId, ConversationId, MessageId, TargetUserId,
                EventType, Status, CreatedAt, DeliveredAt, ReadAt
         FROM dbo.MessageNotificationEvents
-        WHERE TargetUserId = @userId AND TenantId = @tenantId AND MessageNotificationEventId > @since
+        WHERE TargetUserId = @userId AND (@tenantId IS NULL OR TenantId = @tenantId) AND MessageNotificationEventId > @since
         ORDER BY MessageNotificationEventId ASC
       `);
     return result.recordset;

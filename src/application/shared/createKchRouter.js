@@ -1,89 +1,71 @@
-// Route factory - Kinder Care Hub messaging endpoints.
+// Route factory - Kinder Care Hub chat endpoints (WhatsApp-style
+// direct messaging shared by all 3 dashboards).
 //
-// Backs the KCH messaging API for every dashboard. The original prefixed
-// files (messagingRoutes.js, kinderCareHubRoutes.js, sms-messaging-routes.js,
-// all-dashboards-kch-messaging-routes.js) are now thin re-exports of
-// this factory so behaviour stays consistent.
+// Thin layer: parse + delegate to KchChatService, which owns every
+// access decision (tenant match, participant membership, contact
+// validation, entitlements). The original prefixed files
+// (sms-messaging-routes.js, all-dashboards-kch-messaging-routes.js)
+// are thin re-exports of this factory.
 //
-// Differences per dashboard (driven by `dashboard`):
-//   - 'shared'  : the default; no extra gating beyond session
-//   - 'sms'     : school dashboard; adds requireSchoolPermission
-//   - 'parent'  : parent dashboard; adds requireParent
-//   - 'devforge': DevForge admin; adds requireAdmin
+// Role gating: school users need the messaging.school.use permission;
+// parents and DevForge admins pass the role gate and are constrained
+// per-conversation by the access layer instead.
 //
-// Usage:
-//   const createKchRouter = require('./createKchRouter');
-//   app.use('/api/messages', createKchRouter({ dashboard: 'shared' }));
-//   app.use('/sms/api/messages', createKchRouter({ dashboard: 'sms' }));
-//
-// Public surface (12 endpoints) - kept identical to the original file:
-//   GET    /conversations
-//   POST   /conversations
-//   GET    /conversations/:id/messages
-//   POST   /conversations/:id/messages
-//   POST   /conversations/:id/read
-//   POST   /attachments
-//   GET    /attachments/:id/view
-//   GET    /poll
-//   GET    /events
-//   POST   /broadcasts
-//   POST   /broadcasts/:id/process
-//
-// Every endpoint enforces the 9-step access check (see architecture.txt
-// section 18e) through the existing middleware chain.
+// Public surface:
+//   GET    /contacts                       - who can I message (picker)
+//   GET    /conversations                  - my chats, newest first
+//   POST   /conversations                  - open/create chat with a contact
+//   GET    /conversations/:id/messages     - history (cursor pagination)
+//   POST   /conversations/:id/messages     - send text and/or one image
+//   POST   /conversations/:id/read         - mark read
+//   GET    /attachments/:id/view           - stream an image (410 if expired)
+//   GET    /poll                           - notification events fallback
+//   GET    /events                         - SSE keepalive stream
+//   POST   /broadcasts                     - school/devforge announcements
+//   POST   /broadcasts/:id/process         - deliver a broadcast batch
 
 const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
 const multer = require('multer');
-const { requireAuth } = require('../../middleware/portalAuth');
 const { attachSessionContext } = require('../../business/sessionContextService');
-const { canTenantUseFeature, TenantFeatureUsageRepository, SaaSFeatureRepository } = require('../../data/entitlementRepository');
-const {
-  ConversationRepository,
-  ConversationParticipantRepository,
-  MessageRepository,
-  MessageAttachmentRepository,
-  MessageNotificationEventRepository,
-  ConversationAuditLogRepository
-} = require('../../data/kinderCareHubRepository');
-const {
-  BroadcastAnnouncementRepository,
-  BroadcastDeliveryRepository
-} = require('../../data/kinderCareHubOperationsRepository');
-const {
-  validateActiveTenantAccess,
-  canUserAccessConversation,
-  canUserSendMessage,
-  canUserUploadImage
-} = require('../../business/kinderCareHubAccess');
-const { getBlobStorageProvider } = require('../../data/blobStorage');
+const { KchChatService } = require('../../business/kchChatService');
+const { KchBroadcastService } = require('../../business/kchBroadcastService');
+const { getSchoolPermissions, hasSchoolPermission } = require('../../security/schoolPermissions');
 const { audit } = require('../../middleware/audit');
 
 const VALID_DASHBOARDS = new Set(['shared', 'sms', 'parent', 'devforge']);
+const ID_PATTERN = '([1-9]\\d*)';
 
-function pickRoleGuard(dashboard) {
-  if (dashboard === 'sms') {
-    const { requireSchoolPermission } = require('../../middleware/auth');
-    return requireSchoolPermission('messaging.school.use');
-  }
-  if (dashboard === 'parent') {
-    const { requireParent } = require('../../middleware/auth');
-    return requireParent;
-  }
-  if (dashboard === 'devforge') {
-    const { requireAdmin } = require('../../middleware/auth');
-    return requireAdmin;
-  }
-  return null;
+// JSON 401 for API consumers (the portal-auth requireAuth redirects to
+// the login page, which is wrong for fetch() calls).
+function requireApiAuth(req, res, next) {
+  if (!req.user) return res.status(401).json({ error: 'unauthorized' });
+  next();
 }
 
-function pickFeatureKey(dashboard) {
-  if (dashboard === 'parent') return 'KINDER_CARE_HUB_PARENT_MESSAGING';
-  if (dashboard === 'devforge') return 'KINDER_CARE_HUB_DEVFORGE_MESSAGING';
-  if (dashboard === 'sms') return 'KINDER_CARE_HUB_MESSAGING';
-  return 'KINDER_CARE_HUB_MESSAGING';
+// School users must hold the messaging permission; parents and admins
+// are gated per-conversation by the access layer.
+async function roleAwareGuard(req, res, next) {
+  const role = req.user && (req.user.role || req.user.Role);
+  if (role === 'parent' || role === 'admin') return next();
+  if (role !== 'school') return res.status(403).json({ error: 'forbidden' });
+  try {
+    if (!Array.isArray(req.user.SchoolPermissions) || !req.user.SchoolPermissions.length) {
+      req.user.SchoolPermissions = await getSchoolPermissions(req.user);
+    }
+    if (!hasSchoolPermission(req.user, 'messaging.school.use')) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    next();
+  } catch (err) {
+    console.error('KCH role guard error:', err.message);
+    res.status(500).json({ error: 'internal_error' });
+  }
+}
+
+function sendError(res, err, fallback) {
+  const status = err.statusCode || 500;
+  if (status >= 500) console.error('KCH ' + fallback + ' error:', err.message);
+  res.status(status).json({ error: status >= 500 ? 'internal_error' : err.message });
 }
 
 function createKchRouter(options = {}) {
@@ -92,235 +74,87 @@ function createKchRouter(options = {}) {
     throw new Error(`createKchRouter: invalid dashboard "${dashboard}"`);
   }
   const router = express.Router();
-  const roleGuard = pickRoleGuard(dashboard);
-  const featureKey = pickFeatureKey(dashboard);
+  const chat = new KchChatService();
+  const broadcasts = new KchBroadcastService();
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 }
   });
 
-  router.use(requireAuth);
+  router.use(requireApiAuth);
   router.use(attachSessionContext());
-  if (roleGuard) router.use(roleGuard);
+  router.use(roleAwareGuard);
+
+  router.get('/contacts', async (req, res) => {
+    try {
+      const items = await chat.listContacts(req, { q: req.query.q });
+      res.json({ items });
+    } catch (err) { sendError(res, err, 'list contacts'); }
+  });
 
   router.get('/conversations', async (req, res) => {
     try {
-      const ctx = req.sessionContext;
-      if (!ctx || !ctx.ActiveTenantId) return res.status(401).json({ error: 'No active tenant' });
-      const allowed = await canTenantUseFeature(ctx.ActiveTenantId, featureKey);
-      if (!allowed) return res.status(402).json({ error: 'feature_not_entitled', feature: featureKey });
-      const list = await ConversationRepository.listForUser({
-        tenantId: ctx.ActiveTenantId,
-        schoolId: ctx.ActiveSchoolId,
-        userId: ctx.UserId,
-        role: ctx.UserRole
+      const items = await chat.listConversations(req, {
+        limit: Number(req.query.limit) || 30,
+        offset: Number(req.query.offset) || 0
       });
-      res.json({ conversations: list });
-    } catch (err) {
-      console.error('KCH list conversations error', err.message);
-      res.status(500).json({ error: 'internal_error' });
-    }
+      res.json({ items });
+    } catch (err) { sendError(res, err, 'list conversations'); }
   });
 
   router.post('/conversations', async (req, res) => {
     try {
-      const ctx = req.sessionContext;
-      if (!ctx || !ctx.ActiveTenantId) return res.status(401).json({ error: 'No active tenant' });
-      const allowed = await canTenantUseFeature(ctx.ActiveTenantId, featureKey);
-      if (!allowed) return res.status(402).json({ error: 'feature_not_entitled', feature: featureKey });
-      const { subjectUserId, schoolId, topic } = req.body || {};
-      const conv = await ConversationRepository.createOrGet({
-        tenantId: ctx.ActiveTenantId,
-        schoolId: schoolId || ctx.ActiveSchoolId,
-        createdByUserId: ctx.UserId,
-        topic: topic || null,
-        subjectUserId: subjectUserId || null
+      const conversation = await chat.startConversation(req, {
+        targetUserId: (req.body || {}).targetUserId
       });
-      await ConversationAuditLogRepository.write({
-        tenantId: ctx.ActiveTenantId,
-        schoolId: ctx.ActiveSchoolId,
-        conversationId: conv.ConversationId,
-        actorUserId: ctx.UserId,
-        action: 'create'
-      });
-      res.status(201).json({ conversation: conv });
-    } catch (err) {
-      console.error('KCH create conversation error', err.message);
-      res.status(500).json({ error: 'internal_error' });
-    }
+      res.status(conversation.existing ? 200 : 201).json({ conversation });
+    } catch (err) { sendError(res, err, 'start conversation'); }
   });
 
-  router.get('/conversations/:id/messages', async (req, res) => {
+  router.get(`/conversations/:id${ID_PATTERN}/messages`, async (req, res) => {
     try {
-      const ctx = req.sessionContext;
-      if (!ctx || !ctx.ActiveTenantId) return res.status(401).json({ error: 'No active tenant' });
-      const allowed = await canTenantUseFeature(ctx.ActiveTenantId, featureKey);
-      if (!allowed) return res.status(402).json({ error: 'feature_not_entitled', feature: featureKey });
-      const ok = await canUserAccessConversation({
-        userId: ctx.UserId,
-        role: ctx.UserRole,
-        conversationId: Number(req.params.id),
-        tenantId: ctx.ActiveTenantId
+      const items = await chat.listMessages(req, Number(req.params.id), {
+        beforeMessageId: req.query.beforeMessageId,
+        pageSize: Number(req.query.pageSize) || 40
       });
-      if (!ok) return res.status(403).json({ error: 'forbidden' });
-      const messages = await MessageRepository.listForConversation({
-        tenantId: ctx.ActiveTenantId,
-        conversationId: Number(req.params.id),
-        cursor: req.query.cursor || null
-      });
-      res.json({ messages });
-    } catch (err) {
-      console.error('KCH list messages error', err.message);
-      res.status(500).json({ error: 'internal_error' });
-    }
+      res.json({ items });
+    } catch (err) { sendError(res, err, 'list messages'); }
   });
 
-  router.post('/conversations/:id/messages', async (req, res) => {
+  router.post(`/conversations/:id${ID_PATTERN}/messages`, upload.single('image'), async (req, res) => {
     try {
-      const ctx = req.sessionContext;
-      if (!ctx || !ctx.ActiveTenantId) return res.status(401).json({ error: 'No active tenant' });
-      const allowed = await canTenantUseFeature(ctx.ActiveTenantId, featureKey);
-      if (!allowed) return res.status(402).json({ error: 'feature_not_entitled', feature: featureKey });
-      const canSend = await canUserSendMessage({
-        userId: ctx.UserId,
-        role: ctx.UserRole,
-        conversationId: Number(req.params.id),
-        tenantId: ctx.ActiveTenantId
+      const message = await chat.sendMessage(req, Number(req.params.id), {
+        body: (req.body || {}).body,
+        file: req.file || null
       });
-      if (!canSend) return res.status(403).json({ error: 'forbidden' });
-      const { body } = req.body || {};
-      if (!body || typeof body !== 'string') return res.status(400).json({ error: 'body_required' });
-      const msg = await MessageRepository.create({
-        tenantId: ctx.ActiveTenantId,
-        schoolId: ctx.ActiveSchoolId,
-        conversationId: Number(req.params.id),
-        senderUserId: ctx.UserId,
-        body
-      });
-      await ConversationAuditLogRepository.write({
-        tenantId: ctx.ActiveTenantId,
-        schoolId: ctx.ActiveSchoolId,
-        conversationId: Number(req.params.id),
-        actorUserId: ctx.UserId,
-        action: 'send'
-      });
-      res.status(201).json({ message: msg });
-    } catch (err) {
-      console.error('KCH send message error', err.message);
-      res.status(500).json({ error: 'internal_error' });
-    }
+      res.status(201).json({ message });
+    } catch (err) { sendError(res, err, 'send message'); }
   });
 
-  router.post('/conversations/:id/read', async (req, res) => {
+  router.post(`/conversations/:id${ID_PATTERN}/read`, async (req, res) => {
     try {
-      const ctx = req.sessionContext;
-      if (!ctx || !ctx.ActiveTenantId) return res.status(401).json({ error: 'No active tenant' });
-      const allowed = await canTenantUseFeature(ctx.ActiveTenantId, featureKey);
-      if (!allowed) return res.status(402).json({ error: 'feature_not_entitled', feature: featureKey });
-      const ok = await canUserAccessConversation({
-        userId: ctx.UserId,
-        role: ctx.UserRole,
-        conversationId: Number(req.params.id),
-        tenantId: ctx.ActiveTenantId
-      });
-      if (!ok) return res.status(403).json({ error: 'forbidden' });
-      await MessageRepository.markRead({
-        tenantId: ctx.ActiveTenantId,
-        conversationId: Number(req.params.id),
-        userId: ctx.UserId
-      });
-      res.json({ ok: true });
-    } catch (err) {
-      console.error('KCH mark read error', err.message);
-      res.status(500).json({ error: 'internal_error' });
-    }
+      res.json(await chat.markRead(req, Number(req.params.id)));
+    } catch (err) { sendError(res, err, 'mark read'); }
   });
 
-  router.post('/attachments', upload.single('file'), async (req, res) => {
+  router.get(`/attachments/:id${ID_PATTERN}/view`, async (req, res) => {
     try {
-      const ctx = req.sessionContext;
-      if (!ctx || !ctx.ActiveTenantId) return res.status(401).json({ error: 'No active tenant' });
-      const allowed = await canTenantUseFeature(ctx.ActiveTenantId, featureKey);
-      if (!allowed) return res.status(402).json({ error: 'feature_not_entitled', feature: featureKey });
-      if (!req.file) return res.status(400).json({ error: 'file_required' });
-      const canUpload = await canUserUploadImage({
-        userId: ctx.UserId,
-        role: ctx.UserRole,
-        conversationId: Number((req.body || {}).conversationId) || null,
-        tenantId: ctx.ActiveTenantId
-      });
-      if (!canUpload) return res.status(403).json({ error: 'forbidden' });
-      const provider = getBlobStorageProvider();
-      const stored = await provider.store({
-        buffer: req.file.buffer,
-        contentType: req.file.mimetype,
-        filename: req.file.originalname,
-        tenantId: ctx.ActiveTenantId,
-        schoolId: ctx.ActiveSchoolId,
-        ownerId: ctx.UserId
-      });
-      const attachment = await MessageAttachmentRepository.create({
-        tenantId: ctx.ActiveTenantId,
-        schoolId: ctx.ActiveSchoolId,
-        conversationId: Number((req.body || {}).conversationId) || null,
-        uploaderUserId: ctx.UserId,
-        blobUrl: stored.blobUrl,
-        provider: stored.provider,
-        contentType: req.file.mimetype,
-        filename: req.file.originalname,
-        sizeBytes: req.file.size
-      });
-      res.status(201).json({ attachment });
-    } catch (err) {
-      console.error('KCH upload attachment error', err.message);
-      res.status(500).json({ error: 'internal_error' });
-    }
-  });
-
-  router.get('/attachments/:id/view', async (req, res) => {
-    try {
-      const ctx = req.sessionContext;
-      if (!ctx || !ctx.ActiveTenantId) return res.status(401).json({ error: 'No active tenant' });
-      const att = await MessageAttachmentRepository.findById({
-        tenantId: ctx.ActiveTenantId,
-        attachmentId: Number(req.params.id)
-      });
-      if (!att) return res.status(404).json({ error: 'not_found' });
-      const ok = await canUserAccessConversation({
-        userId: ctx.UserId,
-        role: ctx.UserRole,
-        conversationId: att.ConversationId,
-        tenantId: ctx.ActiveTenantId
-      });
-      if (!ok) return res.status(403).json({ error: 'forbidden' });
-      const provider = getBlobStorageProvider();
-      const { buffer, contentType, filename } = await provider.read(att.BlobUrl);
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-      res.send(buffer);
-    } catch (err) {
-      console.error('KCH view attachment error', err.message);
-      res.status(500).json({ error: 'internal_error' });
-    }
+      const result = await chat.getAttachmentForView(req, Number(req.params.id));
+      if (result.expired) {
+        return res.status(410).json({ error: 'image_expired' });
+      }
+      res.setHeader('Content-Type', result.contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(result.filename)}"`);
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      res.send(result.buffer);
+    } catch (err) { sendError(res, err, 'view attachment'); }
   });
 
   router.get('/poll', async (req, res) => {
     try {
-      const ctx = req.sessionContext;
-      if (!ctx || !ctx.ActiveTenantId) return res.status(401).json({ error: 'No active tenant' });
-      const allowed = await canTenantUseFeature(ctx.ActiveTenantId, featureKey);
-      if (!allowed) return res.status(402).json({ error: 'feature_not_entitled', feature: featureKey });
-      const since = req.query.since || null;
-      const events = await MessageNotificationEventRepository.listSince({
-        tenantId: ctx.ActiveTenantId,
-        userId: ctx.UserId,
-        since
-      });
-      res.json({ events, serverTime: new Date().toISOString() });
-    } catch (err) {
-      console.error('KCH poll error', err.message);
-      res.status(500).json({ error: 'internal_error' });
-    }
+      const items = await chat.pollEvents(req, { sinceEventId: req.query.sinceEventId });
+      res.json({ items, serverTime: new Date().toISOString() });
+    } catch (err) { sendError(res, err, 'poll'); }
   });
 
   router.get('/events', (req, res) => {
@@ -333,8 +167,8 @@ function createKchRouter(options = {}) {
     res.flushHeaders();
     res.write('retry: 5000\n\n');
     const ctx = req.sessionContext;
-    if (!ctx || !ctx.ActiveTenantId) {
-      res.write('event: error\ndata: {"error":"no_tenant"}\n\n');
+    if (!ctx || !ctx.UserId) {
+      res.write('event: error\ndata: {"error":"no_session"}\n\n');
       return res.end();
     }
     const ping = setInterval(() => res.write(': ping\n\n'), 15000);
@@ -343,43 +177,16 @@ function createKchRouter(options = {}) {
 
   router.post('/broadcasts', audit('Broadcast', 'Create'), async (req, res) => {
     try {
-      const ctx = req.sessionContext;
-      if (!ctx || !ctx.ActiveTenantId) return res.status(401).json({ error: 'No active tenant' });
-      const allowed = await canTenantUseFeature(ctx.ActiveTenantId, 'KINDER_CARE_HUB_BROADCASTS');
-      if (!allowed) return res.status(402).json({ error: 'feature_not_entitled', feature: 'KINDER_CARE_HUB_BROADCASTS' });
-      const { title, body, audienceFilter } = req.body || {};
-      if (!title || !body) return res.status(400).json({ error: 'title_and_body_required' });
-      const b = await BroadcastAnnouncementRepository.create({
-        tenantId: ctx.ActiveTenantId,
-        schoolId: ctx.ActiveSchoolId,
-        createdByUserId: ctx.UserId,
-        title,
-        body,
-        audienceFilter: audienceFilter || null
-      });
-      res.status(201).json({ broadcast: b });
-    } catch (err) {
-      console.error('KCH create broadcast error', err.message);
-      res.status(500).json({ error: 'internal_error' });
-    }
+      const broadcast = await broadcasts.createBroadcast(req, req.body || {});
+      res.status(201).json({ broadcast });
+    } catch (err) { sendError(res, err, 'create broadcast'); }
   });
 
-  router.post('/broadcasts/:id/process', async (req, res) => {
+  router.post(`/broadcasts/:id${ID_PATTERN}/process`, async (req, res) => {
     try {
-      const ctx = req.sessionContext;
-      if (!ctx || !ctx.ActiveTenantId) return res.status(401).json({ error: 'No active tenant' });
-      const allowed = await canTenantUseFeature(ctx.ActiveTenantId, 'KINDER_CARE_HUB_BROADCASTS');
-      if (!allowed) return res.status(402).json({ error: 'feature_not_entitled', feature: 'KINDER_CARE_HUB_BROADCASTS' });
-      const result = await BroadcastDeliveryRepository.processBatch({
-        tenantId: ctx.ActiveTenantId,
-        broadcastId: Number(req.params.id),
-        batchSize: 200
-      });
-      res.json({ processed: result.processed });
-    } catch (err) {
-      console.error('KCH process broadcast error', err.message);
-      res.status(500).json({ error: 'internal_error' });
-    }
+      const result = await broadcasts.processBroadcast(req, Number(req.params.id));
+      res.json(result);
+    } catch (err) { sendError(res, err, 'process broadcast'); }
   });
 
   return router;

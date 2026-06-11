@@ -2977,6 +2977,13 @@ BEGIN
     CREATE INDEX IX_MA_Tenant_Conv_Msg_User ON dbo.MessageAttachments(TenantId, ConversationId, MessageId, UploadedByUserId) INCLUDE (FileExtension, FileSizeBytes);
 END;
 
+-- Retention sweep: find live attachments past the retention window.
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_MA_Retention' AND object_id = OBJECT_ID('dbo.MessageAttachments'))
+BEGIN
+    CREATE INDEX IX_MA_Retention ON dbo.MessageAttachments(IsDeleted, UploadedAt)
+        INCLUDE (StoragePath, ThumbnailPath);
+END;
+
 IF OBJECT_ID('dbo.MessageNotificationEvents', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.MessageNotificationEvents (

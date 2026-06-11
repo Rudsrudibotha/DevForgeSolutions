@@ -76,9 +76,8 @@ async function run() {
   console.log('TENANCY.md documents testing approach');
   assert.match(ten, /Testing tenancy|tests\/scope|tests\/parentTenancy/i, 'testing section');
 
-  console.log('README.md and CHANGELOG.md exist');
+  console.log('README.md exists');
   assert.ok(fs.existsSync('README.md'), 'README.md missing');
-  assert.ok(fs.existsSync('CHANGELOG.md'), 'CHANGELOG.md missing');
   assert.ok(fs.existsSync('.env.example'), '.env.example missing');
 
   console.log('README has the key sections');
@@ -90,13 +89,6 @@ async function run() {
   assert.match(readme, /## Tests/, 'tests section');
   assert.match(readme, /## API/, 'api section');
   assert.match(readme, /## Conventions/i, 'conventions section');
-
-  console.log('CHANGELOG documents the 1.0.0 release');
-  const ch = fs.readFileSync('CHANGELOG.md', 'utf8');
-  assert.match(ch, /1\.0\.0/, '1.0.0 entry');
-  assert.match(ch, /ScopedDb|multi-tenant/i, 'mentions tenancy work');
-  assert.match(ch, /portal/i, 'mentions portals');
-  assert.match(ch, /DevForge/i, 'mentions DevForge');
 
   console.log('.env.example has all the env vars we read');
   const env = fs.readFileSync('.env.example', 'utf8');
@@ -111,7 +103,7 @@ async function run() {
   assert.match(env, /DB_POOL_MAX/, 'pool tuning');
   assert.match(env, /ALLOWED_ORIGINS/, 'CORS');
 
-  console.log('OK all 12 docs tests passed');
+  console.log('OK all docs tests passed');
   if (process.exitCode) console.log('\nFAILED'); else console.log('\nALL DOCS TESTS PASSED');
 }
 

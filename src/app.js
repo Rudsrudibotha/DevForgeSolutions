@@ -856,6 +856,29 @@ function startOverdueScheduler() {
   }, interval);
 }
 
+// Daily sweep that removes chat images from blob storage once they pass
+// the retention window (default 60 days; KCH_ATTACHMENT_RETENTION_DAYS).
+function startAttachmentRetentionScheduler() {
+  const { AttachmentRetentionService } = require('./business/attachmentRetentionService');
+  const retentionService = new AttachmentRetentionService();
+  const interval = Number(process.env.KCH_RETENTION_SWEEP_INTERVAL_MS) || 24 * 60 * 60 * 1000;
+
+  const runSweep = async () => {
+    try {
+      const result = await retentionService.sweepExpiredAttachments();
+      if (result.scanned > 0) {
+        console.log(`[Scheduler] Attachment retention sweep: ${result.deleted} deleted, ${result.failed} failed (older than ${result.retentionDays} days)`);
+      }
+    } catch (err) {
+      console.error('[Scheduler] Attachment retention sweep failed:', err.message);
+    }
+  };
+
+  // First run shortly after boot (catch-up), then daily.
+  setTimeout(runSweep, 60000);
+  setInterval(runSweep, interval);
+}
+
 // Backoff delay for database startup retries.
 function databaseRetryDelayMs(attempt) {
   const configuredDelay = positiveIntegerEnv('DB_CONNECT_RETRY_MS', 0);
@@ -956,6 +979,7 @@ async function start() {
       if (schedulersEnabled) {
         startOverdueScheduler();
         startMonthlyInvoiceScheduler();
+        startAttachmentRetentionScheduler();
       } else {
         console.log('Schedulers are disabled. Set ENABLE_SCHEDULERS=true to enable them.');
       }

@@ -5,7 +5,7 @@
   <div class="flex items-center justify-between mb-4">
     <div>
       <h1 class="text-2xl font-semibold mb-1">Kinder Care Hub</h1>
-      <p class="text-muted text-sm">Tenant-safe messaging, AI assistant, and Report a Fault.</p>
+      <p class="text-muted text-sm">Direct messages between your school, parents, and DevForge support.</p>
     </div>
     <% if (typeof showAi !== 'undefined' && showAi) { %>
       <span class="badge-brand" id="kchAiBadge">AI</span>
@@ -13,45 +13,49 @@
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-    <!-- Conversation list -->
+    <!-- Chat list -->
     <div class="lg:col-span-4 card">
       <div class="card-body p-0">
         <div class="p-3 border-b flex items-center gap-2">
-          <input type="text" id="kchSearchInput" placeholder="Search conversations" class="input flex-1" />
-          <button id="kchNewConversation" class="btn-secondary btn-icon" title="New conversation">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <input type="search" id="kchSearchInput" placeholder="Search chats" class="input flex-1" aria-label="Search chats" />
+          <button id="kchNewConversation" class="btn-primary btn-icon" title="New chat" aria-label="New chat">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           </button>
         </div>
-        <ul id="kchConversationList" class="divide-y" role="listbox" aria-label="Conversations"></ul>
-        <div id="kchConversationEmpty" class="hidden p-6 text-center text-muted text-sm">No conversations yet.</div>
+        <ul id="kchConversationList" class="divide-y overflow-y-auto" style="max-height: 65vh;" role="listbox" aria-label="Chats"></ul>
+        <div id="kchConversationEmpty" class="hidden p-6 text-center text-muted text-sm">
+          No chats yet. Tap <span class="font-semibold">+</span> to message someone.
+        </div>
       </div>
     </div>
 
-    <!-- Message panel + AI/Fault -->
-    <div class="lg:col-span-5 card">
-      <div class="card-body p-0 flex flex-col" style="min-height: 60vh;">
-        <div class="p-3 border-b flex items-center justify-between">
-          <div>
-            <p class="text-sm font-semibold" id="kchConvTitle">Select a conversation</p>
-            <p class="text-xs text-muted" id="kchConvSubtitle"></p>
+    <!-- Conversation panel -->
+    <div class="<%= (typeof showAi !== 'undefined' && showAi) ? 'lg:col-span-5' : 'lg:col-span-8' %> card">
+      <div class="card-body p-0 flex flex-col" style="min-height: 70vh;">
+        <div class="p-3 border-b flex items-center gap-3">
+          <div id="kchConvAvatar" class="hidden h-9 w-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold" aria-hidden="true"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold truncate" id="kchConvTitle">Select a chat</p>
+            <p class="text-xs text-muted truncate" id="kchConvSubtitle"></p>
           </div>
-          <div class="flex items-center gap-2">
-            <span id="kchUnreadPill" class="badge-brand hidden">0</span>
-            <span id="kchConvType" class="badge"></span>
-          </div>
+          <span id="kchConvType" class="badge"></span>
         </div>
-        <div id="kchMessageList" class="flex-1 overflow-y-auto p-3 space-y-2" style="max-height: 60vh;"></div>
+        <div id="kchMessageList" class="flex-1 overflow-y-auto p-3 space-y-1.5 bg-slate-50/50" style="max-height: 58vh;" aria-live="polite"></div>
         <div class="p-3 border-t">
-          <div id="kchAttachmentPreview" class="hidden mb-2 text-xs text-muted">Image attached: <span id="kchAttachmentName"></span> <button id="kchRemoveAttachment" class="text-brand-600 hover:underline">remove</button></div>
+          <div id="kchAttachmentPreview" class="hidden mb-2 flex items-center gap-2 text-xs text-muted">
+            <img id="kchAttachmentThumb" src="" alt="" class="h-10 w-10 rounded object-cover border" />
+            <span id="kchAttachmentName" class="truncate flex-1"></span>
+            <button id="kchRemoveAttachment" type="button" class="text-brand-600 hover:underline">Remove</button>
+          </div>
           <form id="kchMessageForm" class="flex items-center gap-2">
-            <input type="hidden" id="kchAttachmentId" />
-            <label class="btn-secondary btn-icon cursor-pointer" title="Attach image" id="kchAttachLabel">
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-              <input type="file" id="kchImageFile" accept="image/jpeg,image/png,image/webp" class="hidden" />
+            <label class="btn-secondary btn-icon cursor-pointer" title="Attach image" id="kchAttachLabel" aria-label="Attach image">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+              <input type="file" id="kchImageFile" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" />
             </label>
-            <input type="text" id="kchMessageInput" placeholder="Type a message..." class="input flex-1" maxlength="5000" />
-            <button type="submit" id="kchSendBtn" class="btn-primary">Send</button>
+            <input type="text" id="kchMessageInput" placeholder="Type a message" class="input flex-1" maxlength="5000" autocomplete="off" aria-label="Message" />
+            <button type="submit" id="kchSendBtn" class="btn-primary" aria-label="Send message">Send</button>
           </form>
+          <p class="text-[11px] text-muted mt-1.5">Images are kept for 60 days, then removed automatically.</p>
         </div>
       </div>
     </div>
@@ -59,7 +63,7 @@
     <!-- AI assistant / Fault report (DevForge + School only) -->
     <% if (typeof showAi !== 'undefined' && showAi) { %>
     <div class="lg:col-span-3 card">
-      <div class="card-body p-0 flex flex-col" style="min-height: 60vh;">
+      <div class="card-body p-0 flex flex-col" style="min-height: 70vh;">
         <div class="p-3 border-b flex items-center gap-2">
           <span class="badge-brand">AI</span>
           <p class="text-sm font-semibold flex-1">Kinder Care Assistant</p>
@@ -67,7 +71,7 @@
         <div id="kchAiLog" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm" style="max-height: 50vh;"></div>
         <div class="p-3 border-t">
           <form id="kchAiForm" class="flex items-center gap-2">
-            <input type="text" id="kchAiInput" placeholder="Ask the assistant..." class="input flex-1" maxlength="2000" />
+            <input type="text" id="kchAiInput" placeholder="Ask the assistant..." class="input flex-1" maxlength="2000" aria-label="Ask the assistant" />
             <button type="submit" class="btn-primary">Ask</button>
           </form>
           <button id="kchFaultBtn" class="btn-secondary w-full mt-2">Report a Fault</button>
@@ -78,34 +82,39 @@
   </div>
 </div>
 
-<!-- New conversation modal -->
-<div id="kchNewConvModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+<!-- New chat: contact picker -->
+<div id="kchNewConvModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-label="New chat" aria-modal="true">
+  <div class="card w-full max-w-md max-h-[80vh] flex flex-col">
+    <div class="card-body p-0 flex flex-col min-h-0">
+      <div class="p-4 border-b">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">New chat</h2>
+          <button type="button" id="kchNewConvCancel" class="btn-secondary btn-sm" aria-label="Close">Close</button>
+        </div>
+        <input type="search" id="kchContactSearch" placeholder="Search by name or email" class="input w-full" aria-label="Search contacts" autocomplete="off" />
+      </div>
+      <ul id="kchContactList" class="divide-y overflow-y-auto flex-1 min-h-0" role="listbox" aria-label="Contacts"></ul>
+      <div id="kchContactEmpty" class="hidden p-6 text-center text-muted text-sm">No contacts found.</div>
+      <% if (typeof portal !== 'undefined' && portal === 'sms') { %>
+        <div class="p-3 border-t">
+          <button type="button" id="kchBroadcastBtn" class="btn-secondary w-full">Broadcast a message to all parents</button>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Broadcast to all parents (school only) -->
+<div id="kchBroadcastModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-label="Broadcast" aria-modal="true">
   <div class="card w-full max-w-md">
     <div class="card-body">
-      <h2 class="text-lg font-semibold mb-3">New conversation</h2>
-      <form id="kchNewConvForm" class="space-y-3">
-        <div>
-          <label class="label">Conversation type</label>
-          <select id="kchNewConvType" class="input">
-            <% if (typeof portal !== 'undefined' && portal === 'devforge') { %>
-              <option value="DevForgeToSchool">DevForge → School</option>
-              <option value="DevForgeToParent">DevForge → Parent</option>
-            <% } else if (typeof portal !== 'undefined' && portal === 'sms') { %>
-              <option value="SchoolInternal">School internal</option>
-              <option value="SchoolToParent">School → Parent</option>
-              <option value="SchoolToDevForge">School → DevForge support</option>
-            <% } else { %>
-              <option value="ParentToSchool">Parent → School</option>
-            <% } %>
-          </select>
-        </div>
-        <div>
-          <label class="label">Recipient user IDs (comma-separated)</label>
-          <input type="text" id="kchNewConvRecipients" class="input" placeholder="e.g. 12, 34" />
-        </div>
+      <h2 class="text-lg font-semibold mb-1">Broadcast to all parents</h2>
+      <p class="text-muted text-sm mb-3">Sends this message into your direct chat with every parent linked to the school. Replies come back as normal chats.</p>
+      <form id="kchBroadcastForm" class="space-y-3">
+        <textarea id="kchBroadcastBody" class="input" rows="4" maxlength="5000" required placeholder="Type the announcement" aria-label="Broadcast message"></textarea>
         <div class="flex justify-end gap-2">
-          <button type="button" id="kchNewConvCancel" class="btn-secondary">Cancel</button>
-          <button type="submit" class="btn-primary">Start</button>
+          <button type="button" id="kchBroadcastCancel" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Send to all parents</button>
         </div>
       </form>
     </div>
@@ -113,15 +122,15 @@
 </div>
 
 <!-- Report a fault modal -->
-<div id="kchFaultModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+<div id="kchFaultModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-label="Report a fault" aria-modal="true">
   <div class="card w-full max-w-md">
     <div class="card-body">
       <h2 class="text-lg font-semibold mb-3">Report a Fault</h2>
       <form id="kchFaultForm" class="space-y-3">
-        <div><label class="label">Screen / page</label><input type="text" id="kchFaultScreen" class="input" placeholder="e.g. /sms/students" /></div>
-        <div><label class="label">Description</label><textarea id="kchFaultDescription" class="input" rows="4" required></textarea></div>
+        <div><label class="label" for="kchFaultScreen">Screen / page</label><input type="text" id="kchFaultScreen" class="input" placeholder="e.g. /sms/students" /></div>
+        <div><label class="label" for="kchFaultDescription">Description</label><textarea id="kchFaultDescription" class="input" rows="4" required></textarea></div>
         <div>
-          <label class="label">Priority</label>
+          <label class="label" for="kchFaultPriority">Priority</label>
           <select id="kchFaultPriority" class="input">
             <option value="Low">Low</option>
             <option value="Normal" selected>Normal</option>
@@ -138,4 +147,5 @@
   </div>
 </div>
 
+<script>window.kchCurrentUserId = <%= Number(typeof currentUserId !== 'undefined' ? currentUserId : 0) || 0 %>;</script>
 <script src="/kch-chat.js" defer></script>

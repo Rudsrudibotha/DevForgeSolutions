@@ -7,7 +7,10 @@
       <h1 class="text-2xl font-semibold">Schools</h1>
       <p class="text-muted text-sm"><%= total %> school<%= total === 1 ? '' : 's' %> across the platform</p>
     </div>
-    <a href="/devforge/audit" class="btn-secondary btn-sm">View audit log</a>
+    <div class="flex items-center gap-2">
+      <a href="/devforge/audit" class="btn-secondary btn-sm">View audit log</a>
+      <a href="/devforge/schools/new" class="btn-primary btn-sm">Register school</a>
+    </div>
   </div>
 
   <form method="get" action="/devforge/schools"
