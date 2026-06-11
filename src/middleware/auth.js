@@ -100,7 +100,9 @@ const authenticateToken = async (req, res, next) => {
         ...user,
         OriginalRole: user.Role,
         Role: 'school',
-        SchoolID: requestedSchoolId
+        SchoolID: requestedSchoolId,
+        SchoolPermissions: user.Role === 'admin' ? ['*'] : user.SchoolPermissions,
+        SchoolPermissionSet: user.Role === 'admin' ? new Set(['*']) : user.SchoolPermissionSet
       };
     }
 

@@ -67,7 +67,7 @@ function makeStubs() {
     calls,
     conv,
     contactRepository: {
-      findContact: async () => null,
+      findContact: async (args) => { calls.findContactArgs = args; return null; },
       listForSchoolUser: async (args) => { calls.contactQuery = { kind: 'school', args }; return []; },
       listForParentUser: async (args) => { calls.contactQuery = { kind: 'parent', args }; return []; },
       listForAdminUser: async (args) => { calls.contactQuery = { kind: 'admin', args }; return []; },
@@ -205,6 +205,17 @@ async function run() {
     );
   });
 
+  await test('startConversation forwards the selected contact school to validation', async () => {
+    const stubs = makeStubs();
+    stubs.contactRepository.findContact = async (args) => {
+      stubs.calls.findContactArgs = args;
+      return { UserID: 20, ContactRole: 'school', ContactSchoolId: 7, ContactTenantId: 42, FirstName: 'School', LastName: 'User' };
+    };
+    const svc = new KchChatService(stubs);
+    await svc.startConversation(ctxFor('admin', { userId: 10 }), { targetUserId: 20, targetSchoolId: 7 });
+    assert.strictEqual(stubs.calls.findContactArgs.targetSchoolId, 7);
+  });
+
   await test('startConversation school->parent creates SchoolToParent with both participants', async () => {
     const stubs = makeStubs();
     stubs.contactRepository.findContact = async () => ({ UserID: 20, ContactRole: 'parent', ContactSchoolId: 1, FirstName: 'Thandi', LastName: 'M' });
@@ -215,6 +226,7 @@ async function run() {
     assert.strictEqual(stubs.calls.created[0].conversationType, 'SchoolToParent');
     assert.deepStrictEqual(stubs.calls.participantsAdded.map(p => p.userId).sort(), [10, 20]);
   });
+
   await test('startConversation admin->school uses the contact tenant, not the school id', async () => {
     const stubs = makeStubs();
     stubs.contactRepository.findContact = async () => ({
@@ -231,6 +243,23 @@ async function run() {
     assert.strictEqual(stubs.calls.created[0].tenantId, 42);
     assert.strictEqual(stubs.calls.created[0].schoolId, 7);
     assert.deepStrictEqual(stubs.calls.participantsAdded.map(p => p.tenantId), [42, 42]);
+  });
+
+  await test('startConversation admin->parent uses the selected school tenant', async () => {
+    const stubs = makeStubs();
+    stubs.contactRepository.findContact = async () => ({
+      UserID: 30,
+      ContactRole: 'parent',
+      ContactSchoolId: 8,
+      ContactTenantId: 88,
+      FirstName: 'Parent',
+      LastName: 'User'
+    });
+    const svc = new KchChatService(stubs);
+    const result = await svc.startConversation(ctxFor('admin', { userId: 10 }), { targetUserId: 30, targetSchoolId: 8 });
+    assert.strictEqual(result.conversationType, 'DevForgeToParent');
+    assert.strictEqual(stubs.calls.created[0].tenantId, 88);
+    assert.strictEqual(stubs.calls.created[0].schoolId, 8);
   });
 
   await test('startConversation reuses the reverse-direction thread (one thread per pair)', async () => {
@@ -261,6 +290,25 @@ async function run() {
     );
   });
 
+  await test('sendMessage rejects an SVG/HTML disguised as image/png (magic-byte check)', async () => {
+    const svc = new KchChatService(makeStubs());
+    const evil = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+    await assert.rejects(
+      () => svc.sendMessage(ctxFor('school'), 9, { body: '', file: { mimetype: 'image/png', buffer: evil, originalname: 'x.png', size: evil.length } }),
+      (err) => err.statusCode === 400 && /unsupported_image_type/.test(err.message)
+    );
+  });
+
+  await test('sendMessage accepts a real PNG and stores the verified MIME type', async () => {
+    const stubs = makeStubs();
+    const svc = new KchChatService(stubs);
+    // 12-byte PNG signature header is enough for the sniffer.
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(8)]);
+    const msg = await svc.sendMessage(ctxFor('parent', { userId: 10 }), 9, { body: '', file: { mimetype: 'image/png', buffer: png, originalname: 'real.png', size: png.length } });
+    assert.strictEqual(msg.type, 'Image');
+    assert.strictEqual(stubs.calls.attachmentsCreated[0].mimeType, 'image/png');
+  });
+
   await test('sendMessage text: creates message, bumps unread for the OTHER participant, emits event', async () => {
     const stubs = makeStubs();
     const svc = new KchChatService(stubs);
@@ -276,7 +324,8 @@ async function run() {
   await test('sendMessage with image stores the blob and records the attachment', async () => {
     const stubs = makeStubs();
     const svc = new KchChatService(stubs);
-    const file = { mimetype: 'image/png', buffer: Buffer.from('png'), originalname: 'photo.png', size: 3 };
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(8)]);
+    const file = { mimetype: 'image/png', buffer: png, originalname: 'photo.png', size: png.length };
     const msg = await svc.sendMessage(ctxFor('parent', { userId: 10 }), 9, { body: '', file });
     assert.strictEqual(msg.type, 'Image');
     assert.strictEqual(stubs.calls.blobStored.length, 1);

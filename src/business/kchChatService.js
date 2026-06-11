@@ -49,6 +49,19 @@ function httpError(status, code) {
   return err;
 }
 
+// Defence in depth: the multipart MIME type is client-supplied and
+// spoofable, so confirm the actual file signature (magic bytes) matches
+// an allowed raster image. Blocks a disguised SVG/HTML/script upload
+// even before nosniff would. Returns the detected type or null.
+function sniffImageType(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'image/png';
+  if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) return 'image/gif';
+  if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+  return null;
+}
+
 function displayName({ FirstName, LastName, Username, Email } = {}) {
   const full = `${FirstName || ''} ${LastName || ''}`.trim();
   return full || Username || Email || 'Unknown';
@@ -103,24 +116,27 @@ class KchChatService {
       userId: r.UserID,
       name: displayName(r),
       role: r.ContactRole,
+      tenantId: r.ContactTenantId || null,
       schoolId: r.ContactSchoolId || null,
       schoolName: r.SchoolName || null
     }));
   }
 
   // Open (or create) the direct conversation with a validated contact.
-  async startConversation(req, { targetUserId } = {}) {
+  async startConversation(req, { targetUserId, targetSchoolId } = {}) {
     const ctx = this.context(req);
     await this.ensureEntitled(ctx);
     const target = Number(targetUserId);
     if (!Number.isInteger(target) || target <= 0) throw httpError(400, 'target_user_required');
     if (target === ctx.UserId) throw httpError(400, 'cannot_message_yourself');
+    const selectedSchoolId = Number(targetSchoolId);
 
     const contact = await this.contacts.findContact({
       actorRole: ctx.UserRole,
       schoolId: ctx.ActiveSchoolId,
       userId: ctx.UserId,
-      targetUserId: target
+      targetUserId: target,
+      targetSchoolId: Number.isInteger(selectedSchoolId) && selectedSchoolId > 0 ? selectedSchoolId : null
     });
     if (!contact) throw httpError(403, 'not_a_contact');
 
@@ -225,6 +241,10 @@ class KchChatService {
 
     if (file) {
       if (!IMAGE_MIME_TYPES.has(file.mimetype)) throw httpError(400, 'unsupported_image_type');
+      // The declared MIME is not trusted; the bytes must actually be an image.
+      const sniffed = sniffImageType(file.buffer);
+      if (!sniffed) throw httpError(400, 'unsupported_image_type');
+      file = { ...file, mimetype: sniffed }; // store the verified type, not the client's claim
       const canUpload = await this.access.canUserUploadImage(req, conversationId);
       if (!canUpload.allowed) throw httpError(403, canUpload.reason);
     }

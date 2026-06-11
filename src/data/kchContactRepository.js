@@ -124,12 +124,13 @@ class KchContactRepository {
   // Validate that targetUserId is a legitimate contact for the actor and
   // return its contact row. Returns null when the target is outside the
   // actor's allowed audience (cross-tenant attempts land here).
-  async findContact({ actorRole, schoolId, userId, targetUserId }) {
+  async findContact({ actorRole, schoolId, userId, targetUserId, targetSchoolId }) {
     const pool = await getPool();
     const request = pool.request()
       .input('targetUserId', sql.Int, targetUserId)
       .input('schoolId', sql.Int, schoolId || null)
-      .input('userId', sql.Int, userId || null);
+      .input('userId', sql.Int, userId || null)
+      .input('targetSchoolId', sql.Int, targetSchoolId || null);
 
     let query;
     if (actorRole === 'school') {
@@ -166,6 +167,7 @@ class KchContactRepository {
           FROM dbo.Users u
           INNER JOIN dbo.Schools s ON s.SchoolID = u.SchoolID
           WHERE u.UserID = @targetUserId AND u.Role = 'school' AND ISNULL(u.IsActive, 1) = 1
+            AND (@targetSchoolId IS NULL OR u.SchoolID = @targetSchoolId)
           UNION ALL
           SELECT u.UserID, u.Username, u.Email, u.FirstName, u.LastName,
                  'parent' AS ContactRole,
@@ -176,6 +178,7 @@ class KchContactRepository {
             SELECT TOP 1 pl.SchoolID
             FROM dbo.ParentLinks pl
             WHERE pl.UserID = u.UserID
+              AND (@targetSchoolId IS NULL OR pl.SchoolID = @targetSchoolId)
             ORDER BY pl.ParentLinkID DESC
           ) link
           INNER JOIN dbo.Schools s ON s.SchoolID = link.SchoolID

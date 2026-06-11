@@ -61,6 +61,9 @@ async function run() {
   });
   const css = fs.readFileSync('public/styles/app.css', 'utf8');
   assert.match(css, /\.sidebar\{display:none\}/, 'sidebar hidden by default');
+  assert.match(css, /#mobile-nav \.sidebar\{[^}]*display:flex/, 'mobile drawer sidebar is visible');
+  assert.match(css, /#mobile-nav \.sidebar\{[^}]*position:static/, 'mobile drawer sidebar is not fixed');
+  assert.match(css, /#mobile-nav \.sidebar\{[^}]*width:100%/, 'mobile drawer sidebar fills drawer');
   assert.match(css, /@media \(min-width:768px\)/, 'md: media query');
   assert.match(css, /\.sidebar\{position:fixed;top:0;bottom:0;display:flex;width:16rem/, 'md: flex layout');
   assert.match(css, /\.table-wrap\{[^}]*overflow-x:auto/, 'table-wrap overflow');

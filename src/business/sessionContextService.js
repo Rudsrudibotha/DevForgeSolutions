@@ -9,6 +9,7 @@ const UserTenantMembershipRepository = require('../data/userTenantMembershipRepo
 const { RolePermissionRepository } = require('../data/roleRepository');
 const { isAuthDisabled, buildTestAuthResponse } = require('../security/testAuth');
 const { allPermissionKeys } = require('../security/featureCatalog');
+const { getPool, sql } = require('../data/db');
 
 const memCache = new Map(); // UserId -> { TenantId -> { memberships, permissions, ts } }
 const CACHE_TTL_MS = 60 * 1000; // 1 minute; server-side only, never trust client
@@ -31,6 +32,16 @@ function setCacheForUser(userId, payload) {
 
 function clearCacheForUser(userId) {
   if (userId) memCache.delete(userId);
+}
+
+async function resolveTenantIdForSchool(schoolId) {
+  const id = Number(schoolId);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('schoolId', sql.Int, id)
+    .query('SELECT TenantId FROM dbo.Schools WHERE SchoolID = @schoolId');
+  return result.recordset[0]?.TenantId || null;
 }
 
 // Build the security context for a user at a given tenant. Returns the
@@ -105,9 +116,9 @@ function attachSessionContext() {
       }
     }
 
-    const activeTenantId = req.user.schoolId || req.user.tenantId || null;
     const activeSchoolId = req.user.schoolId || null;
     try {
+      const activeTenantId = req.user.tenantId || await resolveTenantIdForSchool(activeSchoolId);
       const ctx = await buildSessionContext({ user: req.user, activeTenantId, activeSchoolId });
       req.sessionContext = ctx;
       if (ctx && ctx.ActiveTenantId) req.user.tenantId = ctx.ActiveTenantId;

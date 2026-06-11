@@ -94,7 +94,7 @@ class AdmissionsFinanceService {
   async getStudentsForFamily(currentUser, familyId) {
     if (!currentUser || !currentUser.SchoolID) return [];
     const pool = await getPool();
-    const result = await pool.request()
+    const studentsResult = await pool.request()
       .input('schoolId', sql.Int, Number(currentUser.SchoolID))
       .input('familyId', sql.Int, Number(familyId))
       .query(`
@@ -104,7 +104,29 @@ class AdmissionsFinanceService {
         WHERE s.SchoolID = @schoolId AND s.FamilyID = @familyId AND s.IsDeleted = 0
         ORDER BY s.FirstName, s.LastName
       `);
-    return result.recordset;
+    const invoiceResult = await pool.request()
+      .input('schoolId', sql.Int, Number(currentUser.SchoolID))
+      .input('familyId', sql.Int, Number(familyId))
+      .query(`
+        SELECT i.InvoiceID, i.InvoiceNumber, i.StudentID, i.Amount, ISNULL(i.AmountPaid, 0) AS AmountPaid, i.Status, i.DueDate
+        FROM dbo.Invoices i
+        INNER JOIN dbo.Students s ON s.StudentID = i.StudentID AND s.SchoolID = i.SchoolID
+        WHERE i.SchoolID = @schoolId
+          AND s.FamilyID = @familyId
+          AND i.IsDeleted = 0
+          AND ISNULL(i.Status, '') <> 'Cancelled'
+        ORDER BY i.DueDate DESC, i.InvoiceID DESC
+      `);
+    const invoicesByStudent = new Map();
+    for (const inv of invoiceResult.recordset) {
+      const key = Number(inv.StudentID);
+      if (!invoicesByStudent.has(key)) invoicesByStudent.set(key, []);
+      invoicesByStudent.get(key).push(inv);
+    }
+    return studentsResult.recordset.map((student) => ({
+      ...student,
+      invoices: invoicesByStudent.get(Number(student.StudentID)) || []
+    }));
   }
 
   async createRefund(currentUser, payload) {
@@ -173,17 +195,23 @@ class AdmissionsFinanceService {
     const items = Array.isArray(payload.items) ? payload.items : [];
     if (!Number.isInteger(familyId) || familyId <= 0) return { ok: false, error: 'family-required' };
     if (items.length === 0) return { ok: false, error: 'at-least-one-student-required' };
+    const tenantId = Number(currentUser.tenantId || currentUser.TenantId || 0);
+    if (!Number.isInteger(tenantId) || tenantId <= 0) return { ok: false, error: 'tenant-required' };
     const pool = await getPool();
     const created = [];
     for (const it of items) {
       const amount = Number(it.amount);
       if (!Number.isFinite(amount) || amount <= 0) continue;
+      const studentId = Number(it.studentId);
+      const invoiceId = it.invoiceId ? Number(it.invoiceId) : null;
+      if (!Number.isInteger(studentId) || studentId <= 0) return { ok: false, error: 'student-required' };
+      if (invoiceId !== null && (!Number.isInteger(invoiceId) || invoiceId <= 0)) return { ok: false, error: 'invalid-invoice' };
       const r = await pool.request()
         .input('schoolId', sql.Int, Number(currentUser.SchoolID))
-        .input('tenantId', sql.Int, Number(currentUser.tenantId || 0))
-        .input('studentId', sql.Int, Number(it.studentId))
+        .input('tenantId', sql.Int, tenantId)
+        .input('studentId', sql.Int, studentId)
         .input('familyId', sql.Int, familyId)
-        .input('invoiceId', sql.Int, it.invoiceId ? Number(it.invoiceId) : null)
+        .input('invoiceId', sql.Int, invoiceId)
         .input('type', sql.NVarChar, String(it.adjustmentType || 'Fee Correction'))
         .input('amount', sql.Decimal(10, 2), amount)
         .input('reason', sql.NVarChar, String(it.reason || payload.reason || '').slice(0, 500))
@@ -191,6 +219,17 @@ class AdmissionsFinanceService {
         .query(`
           IF NOT EXISTS (SELECT 1 FROM dbo.Students WHERE StudentID = @studentId AND SchoolID = @schoolId AND FamilyID = @familyId)
             THROW 50000, 'Student must belong to the selected family', 1;
+          IF @invoiceId IS NOT NULL AND NOT EXISTS (
+            SELECT 1
+            FROM dbo.Invoices i
+            INNER JOIN dbo.Students s ON s.StudentID = i.StudentID AND s.SchoolID = i.SchoolID
+            WHERE i.InvoiceID = @invoiceId
+              AND i.SchoolID = @schoolId
+              AND i.StudentID = @studentId
+              AND s.FamilyID = @familyId
+              AND i.IsDeleted = 0
+          )
+            THROW 50001, 'Invoice must belong to the selected student and family', 1;
           INSERT INTO dbo.FinancialAdjustments
             (SchoolID, TenantId, StudentID, FamilyID, InvoiceID, AdjustmentType, Amount, Reason, CreatedBy, CreatedDate)
           OUTPUT INSERTED.AdjustmentID, INSERTED.Amount
@@ -311,7 +350,35 @@ class SchoolServiceFacade {
   async updateSchool(schoolId, body, currentUser) {
     if (!schoolId) throw new Error('schoolId-required');
     const repo = new SchoolRepository();
-    return repo.updateSchool(schoolId, body);
+    const updated = await repo.updateSchool(schoolId, body);
+    await this.upsertImportBankAccount(updated, currentUser);
+    return updated;
+  }
+
+  async upsertImportBankAccount(school, currentUser) {
+    if (!school || !school.SchoolID || !school.BankAccountNumber) return;
+    const tenantId = Number(school.TenantId || school.TenantID || currentUser?.tenantId || currentUser?.TenantId || 0);
+    if (!Number.isInteger(tenantId) || tenantId <= 0) return;
+    const accountName = String(school.BankAccountHolder || school.BankName || school.SchoolName || 'Primary account').slice(0, 200);
+    const pool = await getPool();
+    await pool.request()
+      .input('tenantId', sql.Int, tenantId)
+      .input('schoolId', sql.Int, Number(school.SchoolID))
+      .input('accountName', sql.NVarChar, accountName)
+      .input('accountNumber', sql.NVarChar, String(school.BankAccountNumber).slice(0, 50))
+      .input('bankName', sql.NVarChar, school.BankName || null)
+      .query(`
+        IF EXISTS (
+          SELECT 1 FROM dbo.BankAccounts
+          WHERE TenantId = @tenantId AND SchoolID = @schoolId AND AccountNumber = @accountNumber
+        )
+          UPDATE dbo.BankAccounts
+          SET AccountName = @accountName, BankName = @bankName, IsActive = 1
+          WHERE TenantId = @tenantId AND SchoolID = @schoolId AND AccountNumber = @accountNumber;
+        ELSE
+          INSERT INTO dbo.BankAccounts (TenantId, SchoolID, AccountName, AccountNumber, BankName, IsActive, CreatedAt)
+          VALUES (@tenantId, @schoolId, @accountName, @accountNumber, @bankName, 1, SYSUTCDATETIME());
+      `);
   }
 }
 

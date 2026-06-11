@@ -5,6 +5,7 @@ const SchoolRepository = require('../data/schoolRepository');
 const UserRepository = require('../data/userRepository');
 const ParentRepository = require('../data/parentRepository');
 const NotificationService = require('./notificationService');
+const SchoolOnboardingService = require('./schoolOnboardingService');
 
 class RegistrationService {
   constructor(dependencies = {}) {
@@ -13,6 +14,7 @@ class RegistrationService {
     this.userRepository = dependencies.userRepository || new UserRepository();
     this.parentRepository = dependencies.parentRepository || new ParentRepository();
     this.notificationService = dependencies.notificationService || new NotificationService();
+    this.schoolOnboardingService = dependencies.schoolOnboardingService || new SchoolOnboardingService();
   }
 
   async getPublicSchools() {
@@ -46,12 +48,24 @@ class RegistrationService {
       throw error;
     }
 
-    const request = await this.registrationRepository.createSchoolRegistrationRequest(payload);
-    await this.sendRegistrationEmail(
-      payload.contactEmail,
-      'Kinder Care Hub school registration received',
-      `Hi ${payload.contactPerson},\n\nWe received the registration request for ${payload.schoolName}. We will review the details and contact you about activation.`
-    );
+    const ownerName = this.splitName(payload.contactPerson);
+    const result = await this.schoolOnboardingService.selfRegisterSchool({
+      school: {
+        schoolName: payload.schoolName,
+        registrationNumber: payload.registrationNumber,
+        address: payload.address,
+        website: payload.website,
+        contactPerson: payload.contactPerson,
+        contactEmail: payload.contactEmail,
+        contactPhone: payload.contactPhone,
+        subscriptionPlan: payload.requestedPlan || 'Standard'
+      },
+      owner: {
+        firstName: ownerName.firstName,
+        lastName: ownerName.lastName,
+        email: payload.contactEmail
+      }
+    });
 
     if (process.env.REGISTRATION_NOTIFY_EMAIL) {
       await this.sendRegistrationEmail(
@@ -62,10 +76,16 @@ class RegistrationService {
     }
 
     return {
-      requestId: request.RequestID,
-      status: request.Status,
-      message: 'School registration request received'
+      schoolId: result.schoolId,
+      status: result.status,
+      message: result.message
     };
+  }
+
+  splitName(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    const firstName = parts.shift() || 'School';
+    return { firstName, lastName: parts.join(' ') || 'Owner' };
   }
 
   async registerParent(data) {

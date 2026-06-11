@@ -142,6 +142,11 @@ BEGIN
     ALTER TABLE dbo.Schools ADD BankName NVARCHAR(255) NULL;
 END;
 
+IF COL_LENGTH('dbo.Schools', 'BankAccountHolder') IS NULL
+BEGIN
+    ALTER TABLE dbo.Schools ADD BankAccountHolder NVARCHAR(255) NULL;
+END;
+
 IF COL_LENGTH('dbo.Schools', 'BankAccountNumber') IS NULL
 BEGIN
     ALTER TABLE dbo.Schools ADD BankAccountNumber NVARCHAR(100) NULL;
