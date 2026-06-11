@@ -34,9 +34,9 @@
                   <td><%= y.ClosedAt ? formatDate(y.ClosedAt) : '-' %></td>
                   <td class="text-right">
                     <% if (y.Status === 'Open') { %>
-                      <button class="btn-primary btn-sm" hx-put="/api/hr/year-end/<%= y.YearEndClosingID %>/status" hx-vals='{"status":"Closed"}'>Close year</button>
+                      <button class="btn-primary btn-sm" hx-put="/api/hr/year-end/<%= y.YearEndClosingID %>/status" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"status":"Closed"}'>Close year</button>
                     <% } else { %>
-                      <button class="btn-secondary btn-sm" hx-put="/api/hr/year-end/<%= y.YearEndClosingID %>/status" hx-vals='{"status":"Open"}'>Reopen</button>
+                      <button class="btn-secondary btn-sm" hx-put="/api/hr/year-end/<%= y.YearEndClosingID %>/status" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"status":"Open"}'>Reopen</button>
                     <% } %>
                   </td>
                 </tr>

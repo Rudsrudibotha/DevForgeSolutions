@@ -8,6 +8,7 @@
   </div>
 
   <form method="post" action="/sms/settings/school-account" class="card max-w-3xl">
+    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
     <div class="card-body space-y-4">
       <div>
         <label class="label">School name</label>

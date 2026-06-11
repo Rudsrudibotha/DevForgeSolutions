@@ -1,0 +1,54 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/users" class="text-muted hover:underline">System users</a>
+    <span class="text-muted mx-1">/</span>
+    <span>Add user</span>
+  </nav>
+
+  <form method="post" action="/sms/users" class="card max-w-3xl">
+    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+    <div class="card-body space-y-4">
+      <h1 class="text-lg font-semibold">Dashboard access</h1>
+      <% if (errors && errors.form) { %>
+        <div class="alert-danger"><p><%= errors.form %></p></div>
+      <% } %>
+      <div class="form-field">
+        <label class="label" for="employeeId">Staff member</label>
+        <select id="employeeId" name="employeeId" class="select" required>
+          <option value="">Select staff member</option>
+          <% (employees || []).forEach(function (e) { %>
+            <option value="<%= e.EmployeeID %>" <%= String(values.employeeId || '') === String(e.EmployeeID) ? 'selected' : '' %>>
+              <%= e.FirstName || '' %> <%= e.LastName || '' %><% if (e.Email) { %> - <%= e.Email %><% } %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="label" for="staffRoleId">Access role</label>
+        <select id="staffRoleId" name="staffRoleId" class="select" required>
+          <option value="">Select role</option>
+          <% (roles || []).forEach(function (r) { %>
+            <option value="<%= r.StaffRoleID %>" <%= String(values.staffRoleId || '') === String(r.StaffRoleID) ? 'selected' : '' %>><%= r.RoleName %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="form-field">
+          <label class="label" for="username">Username</label>
+          <input id="username" name="username" class="input" required minlength="3" maxlength="50" value="<%= values.username || '' %>" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="password">Temporary password</label>
+          <input id="password" name="password" type="password" class="input" required minlength="8" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2">
+        <a href="/sms/users" class="btn-ghost">Cancel</a>
+        <button type="submit" class="btn-primary">Create user</button>
+      </div>
+    </div>
+  </form>
+</div>

@@ -24,6 +24,7 @@
         <% } %>
         <% if (statement.Status !== 'Reconciled') { %>
           <form method="post" action="/sms/bank-reconciliation/<%= statement.BankReconciliationStatementId %>/reconcile" onsubmit="return confirm('Mark this statement as reconciled? This action cannot be undone.');">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
             <button class="btn-primary btn-sm" type="submit">Mark as Reconciled</button>
           </form>
         <% } %>
@@ -93,6 +94,7 @@
           <p class="text-muted text-sm">Select a transaction on the left to match it to an invoice.</p>
         <% } else { %>
           <form method="post" action="/sms/bank-reconciliation/<%= statement.BankReconciliationStatementId %>/transactions/<%= selectedBankTransactionId %>/match" class="space-y-3 mb-4">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
             <div>
               <label class="label" for="invoiceId">Invoice ID</label>
               <input type="number" id="invoiceId" name="invoiceId" class="input" required min="1" placeholder="e.g. 1042" />

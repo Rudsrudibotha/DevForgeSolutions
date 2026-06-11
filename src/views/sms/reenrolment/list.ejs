@@ -45,9 +45,9 @@
                   <td><%= p.NextClass || '-' %></td>
                   <td><span class="badge"><%= p.Status || 'Pending' %></span></td>
                   <td class="text-right">
-                    <button class="btn-primary btn-sm" hx-post="/api/platform/re-enrolment" hx-vals='{"studentId":"<%= p.StudentID %>","year":"<%= year %>","action":"Promoted","nextClassId":"<%= p.NextClassID %>"}'>Promote</button>
-                    <button class="btn-secondary btn-sm" hx-post="/api/platform/re-enrolment" hx-vals='{"studentId":"<%= p.StudentID %>","year":"<%= year %>","action":"Retained"}'>Retain</button>
-                    <button class="btn-secondary btn-sm" hx-post="/api/platform/re-enrolment" hx-vals='{"studentId":"<%= p.StudentID %>","year":"<%= year %>","action":"Left"}'>Mark left</button>
+                    <button class="btn-primary btn-sm" hx-post="/api/platform/re-enrolment" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"studentId":"<%= p.StudentID %>","academicYear":"<%= year %>","action":"Promoted","newClassName":"<%= p.NextClass || '' %>"}'>Promote</button>
+                    <button class="btn-secondary btn-sm" hx-post="/api/platform/re-enrolment" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"studentId":"<%= p.StudentID %>","academicYear":"<%= year %>","action":"Retained"}'>Retain</button>
+                    <button class="btn-secondary btn-sm" hx-post="/api/platform/re-enrolment" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"studentId":"<%= p.StudentID %>","academicYear":"<%= year %>","action":"Left"}'>Mark left</button>
                   </td>
                 </tr>
               <% }); %>

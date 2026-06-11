@@ -43,7 +43,7 @@ router.get('/', requireAuth, requireParent, async (req, res, next) => {
 });
 
 // GET /parent/child/:studentId  - Single child overview
-router.get('/child/:studentId(\\d+)', requireAuth, requireParent, async (req, res, next) => {
+router.get('/child/:studentId([1-9]\\d*)', requireAuth, requireParent, async (req, res, next) => {
   try {
     res.locals.title = 'My child | Kinder Care Hub';
     res.locals.portal = 'parent';
@@ -94,7 +94,7 @@ router.get('/partials/children-grid', requireAuth, requireParent, async (req, re
   } catch (err) { next(err); }
 });
 
-router.get('/partials/invoice-row/:id(\\d+)', requireAuth, requireParent, async (req, res, next) => {
+router.get('/partials/invoice-row/:id([1-9]\\d*)', requireAuth, requireParent, async (req, res, next) => {
   try {
     const invoices = await safeCall(service.getInvoices(req.user.id), []);
     const invoice = invoices.find(i => i.InvoiceID === Number(req.params.id));
@@ -106,7 +106,7 @@ router.get('/partials/invoice-row/:id(\\d+)', requireAuth, requireParent, async 
 // POST /parent/invoices/:id/pay
 // HTMX target: replaces the row. Sets HX-Trigger header so the client
 // shows a toast. Tenant-scoped via ParentPaymentService.
-router.post('/invoices/:id(\\d+)/pay', requireAuth, requireParent, async (req, res, next) => {
+router.post('/invoices/:id([1-9]\\d*)/pay', requireAuth, requireParent, async (req, res, next) => {
   try {
     const invoiceId = Number(req.params.id);
     const result = await safeCall(
@@ -163,7 +163,7 @@ router.get('/messages/partials/list', requireAuth, requireParent, async (req, re
 });
 
 // GET /parent/messages/:id - Single conversation view
-router.get('/messages/:id(\\d+)', requireAuth, requireParent, async (req, res, next) => {
+router.get('/messages/:id([1-9]\\d*)', requireAuth, requireParent, async (req, res, next) => {
   try {
     res.locals.title = 'Conversation | Kinder Care Hub';
     res.locals.portal = 'parent';
@@ -180,7 +180,7 @@ router.get('/messages/:id(\\d+)', requireAuth, requireParent, async (req, res, n
 });
 
 // GET /parent/messages/:id/partials/messages - HTMX partial for messages
-router.get('/messages/:id(\\d+)/partials/messages', requireAuth, requireParent, async (req, res, next) => {
+router.get('/messages/:id([1-9]\\d*)/partials/messages', requireAuth, requireParent, async (req, res, next) => {
   try {
     const conversationId = Number(req.params.id);
     const data = await safeCall(messagingService.getMessages(req.user, conversationId), { conversation: null, messages: [] });
@@ -189,7 +189,7 @@ router.get('/messages/:id(\\d+)/partials/messages', requireAuth, requireParent, 
 });
 
 // POST /parent/messages/:id/reply
-router.post('/messages/:id(\\d+)/reply', requireAuth, requireParent, async (req, res, next) => {
+router.post('/messages/:id([1-9]\\d*)/reply', requireAuth, requireParent, async (req, res, next) => {
   try {
     const conversationId = Number(req.params.id);
     const body = (req.body && (req.body.body || req.body.message)) || '';
@@ -226,17 +226,21 @@ router.get('/kch', requireAuth, requireParent, async (req, res, next) => {
 });
 
 // Parent consent signing page
-router.get('/consent', (req, res) => {
+router.get('/consent', requireAuth, requireParent, async (req, res) => {
   res.locals.title = 'Consent | Kinder Care Hub';
   res.locals.portal = 'parent';
-  res.render('parent/consent/list', { list: [] });
+  res.locals.activeNav = 'consent';
+  const list = await safeCall(service.getConsents(req.user.id), []);
+  res.render('parent/consent/list', { list });
 });
 
 // Parent re-enrolment confirmation page
-router.get('/reenrolment', (req, res) => {
+router.get('/reenrolment', requireAuth, requireParent, async (req, res) => {
   res.locals.title = 'Re-enrolment | Kinder Care Hub';
   res.locals.portal = 'parent';
-  res.render('parent/reenrolment/list', { list: [] });
+  res.locals.activeNav = 'reenrolment';
+  const list = await safeCall(service.getReEnrolment(req.user.id), []);
+  res.render('parent/reenrolment/list', { list });
 });
 
 // Parent verification pages (no auth required)

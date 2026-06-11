@@ -47,6 +47,10 @@ async function portalLocals(req, res, next) {
     res.locals.visibleGroups = nav;
     return next();
   }
+  if (req.user && req.user.role === 'parent' && nav === PARENT_NAV) {
+    res.locals.visibleGroups = nav;
+    return next();
+  }
   try {
     const visibleSet = await (require('../security/permissionResolver').getEffectivePermissions(req.user));
     res.locals.visibleGroups = applyNavVisibility(nav, visibleSet);

@@ -1,0 +1,46 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/consents" class="text-muted hover:underline">Consent &amp; permissions</a>
+    <span class="text-muted mx-1">/</span>
+    <span>New permission slip</span>
+  </nav>
+
+  <form method="post" action="/sms/consents" class="card max-w-3xl">
+    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+    <div class="card-body space-y-4">
+      <h1 class="text-lg font-semibold">Permission slip details</h1>
+      <% if (errors && errors.form) { %>
+        <div class="alert-danger"><p><%= errors.form %></p></div>
+      <% } %>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="form-field">
+          <label class="label" for="consentType">Type</label>
+          <input id="consentType" name="consentType" class="input" required value="<%= values.consentType || 'General Permission' %>" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="dueDate">Due date</label>
+          <input id="dueDate" name="dueDate" type="date" class="input" value="<%= values.dueDate || '' %>" />
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="label" for="title">Title</label>
+        <input id="title" name="title" class="input" required maxlength="255" value="<%= values.title || '' %>" />
+      </div>
+      <div class="form-field">
+        <label class="label" for="location">Location</label>
+        <input id="location" name="location" class="input" maxlength="255" value="<%= values.location || '' %>" />
+      </div>
+      <div class="form-field">
+        <label class="label" for="documentBody">Message to parents</label>
+        <textarea id="documentBody" name="documentBody" class="textarea" rows="6"><%= values.documentBody || '' %></textarea>
+      </div>
+      <div class="flex justify-end gap-2">
+        <a href="/sms/consents" class="btn-ghost">Cancel</a>
+        <button type="submit" class="btn-primary">Create permission slip</button>
+      </div>
+    </div>
+  </form>
+</div>

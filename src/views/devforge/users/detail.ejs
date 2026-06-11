@@ -83,6 +83,7 @@
             hx-post="/devforge/users/<%= user.UserID %>/active"
             hx-target="this" hx-swap="outerHTML"
             class="border-t pt-3 space-y-2" style="border-color: rgb(var(--color-border))">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
         <div class="form-field">
           <label class="label" for="disableReason">Reason for disabling (required, 4+ chars)</label>
           <input id="disableReason" name="reason" type="text" required minlength="4" class="input" placeholder="e.g. Security incident response" />
@@ -98,6 +99,7 @@
             hx-post="/devforge/users/<%= user.UserID %>/active"
             hx-target="this" hx-swap="outerHTML"
             class="border-t pt-3 space-y-2" style="border-color: rgb(var(--color-border))">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
         <div class="form-field">
           <label class="label" for="enableReason">Reason for enabling (required, 4+ chars)</label>
           <input id="enableReason" name="reason" type="text" required minlength="4" class="input" placeholder="e.g. Account reinstated" />

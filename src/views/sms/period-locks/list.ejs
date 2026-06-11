@@ -35,7 +35,7 @@
                   <td><%= p.Reason || '-' %></td>
                   <td><%= p.LockedAt ? new Date(p.LockedAt).toLocaleString('en-ZA') : '-' %></td>
                   <td class="text-right">
-                    <button class="btn-secondary btn-sm" hx-put="/api/school-features/finance-period-locks/<%= p.FinancePeriodLockID %>/reopen" onclick="return confirm('Reopen this period? Existing invoices remain but new edits will be allowed.');">Reopen</button>
+                    <button class="btn-secondary btn-sm" hx-put="/api/school-features/finance-period-locks/<%= p.FinancePeriodLockID %>/reopen" hx-vals='{"reason":"Reopened from school dashboard"}' hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" onclick="return confirm('Reopen this period? Existing invoices remain but new edits will be allowed.');">Reopen</button>
                   </td>
                 </tr>
               <% }); %>

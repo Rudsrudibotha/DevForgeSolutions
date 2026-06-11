@@ -1,0 +1,47 @@
+<% layout = 'layouts/app' %>
+
+<div class="container-page">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">Help &amp; shortcuts</h1>
+    <p class="text-muted text-sm">Quick reference for common dashboard actions.</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="font-semibold">Navigation</h2>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Shortcut</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><kbd class="kbd">?</kbd></td><td>Open command palette</td></tr>
+              <tr><td><kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">K</kbd></td><td>Search dashboard actions</td></tr>
+              <tr><td><kbd class="kbd">Esc</kbd></td><td>Close menus and dialogs</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="font-semibold">Support</h2>
+      </div>
+      <div class="card-body space-y-3">
+        <p class="text-sm text-muted">Use Kinder Care Hub messages to contact DevForge support from your dashboard.</p>
+        <div class="flex flex-wrap gap-2">
+          <a href="/sms/kch" class="btn-secondary btn-sm">School support</a>
+          <a href="/parent/kch" class="btn-secondary btn-sm">Parent support</a>
+          <a href="/devforge/kch" class="btn-secondary btn-sm">DevForge messages</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

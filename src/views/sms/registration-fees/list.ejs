@@ -38,7 +38,7 @@
                   <td><span class="badge"><%= r.Status || 'Pending' %></span></td>
                   <td class="text-right">
                     <% if (r.Status !== 'Paid') { %>
-                      <button class="btn-primary btn-sm" hx-put="/api/school-features/registration-fees/<%= r.RegistrationFeeID %>/pay">Mark paid</button>
+                      <button class="btn-primary btn-sm" hx-put="/api/school-features/registration-fees/<%= r.RegistrationFeeID %>/pay" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()">Mark paid</button>
                     <% } else { %>
                       <span class="text-emerald-600 text-xs">✓ Paid</span>
                     <% } %>

@@ -20,6 +20,8 @@ const parentGate = require('../../data/parentVerificationGateRepository');
 const { requireFeature } = require('../../middleware/requireFeature');
 const { getAudit } = require('../../middleware/auditTrail');
 const NotificationService = require('../../business/notificationService');
+const UserService = require('../../business/userService');
+const { ConsentRepository } = require('../../data/admissionsFinanceRepositories');
 const { formatDate, formatMoney } = require('./render');
 
 const studentService = new StudentPortalService();
@@ -34,6 +36,8 @@ const staffService = new StaffPortalService();
 const reportService = new ReportPortalService();
 const settingsService = new SettingsPortalService();
 const dashboardService = new DashboardService();
+const userService = new UserService();
+const consentRepository = new ConsentRepository();
 
 function requireAuth(req, res, next) {
   if (!req.user) return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
@@ -143,7 +147,14 @@ router.get('/students/new', requireAuth, requireRoleMw, requireSchoolScope, asyn
     const classes = await safeCall(studentService.listClasses({ schoolDb: req.schoolDb }), []);
     const billingCategories = await safeCall(settingsService.listBillingCategories({ schoolDb: req.schoolDb }), []);
     res.render('sms/students/form', {
-      mode: 'create', student: null, families, classes, errors: {},
+      mode: 'create',
+      student: {
+        FamilyID: req.query.familyId || '',
+        ClassID: req.query.classId || ''
+      },
+      families,
+      classes,
+      errors: {},
       billingCategories: billingCategories.filter(c => c.IsActive),
       assignedCategoryIds: []
     });
@@ -443,7 +454,7 @@ function buildStatementEmail(fam, { schoolName, school, scope, currency }) {
 }
 
 // Student detail
-router.get('/students/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/students/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Student | School Management';
     res.locals.portal = 'sms';
@@ -464,7 +475,7 @@ router.get('/students/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope
 });
 
 // Edit form
-router.get('/students/:id(\\d+)/edit', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/students/:id([1-9]\\d*)/edit', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Edit student | School Management';
     res.locals.portal = 'sms';
@@ -484,7 +495,7 @@ router.get('/students/:id(\\d+)/edit', requireAuth, requireRoleMw, requireSchool
 });
 
 // Update student
-router.post('/students/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/students/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const sid = req.schoolDb.schoolId;
     if (sid == null) return res.status(403).render('errors/forbidden', { user: req.user, message: 'No school context.' });
@@ -560,7 +571,7 @@ router.post('/students/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScop
 });
 
 // Soft delete (HTMX delete button)
-router.delete('/students/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.delete('/students/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const ok = await safeCall(studentService.softDelete({
       schoolDb: req.schoolDb,
@@ -674,7 +685,7 @@ async function loadFamilyParentsContext(schoolDb, familyId) {
   return { family, parents, pendingInvitations, verifiedCount };
 }
 
-router.get('/families/:id(\\d+)/parents', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/families/:id([1-9]\\d*)/parents', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Parents | School Management';
     res.locals.portal = 'sms';
@@ -686,7 +697,7 @@ router.get('/families/:id(\\d+)/parents', requireAuth, requireRoleMw, requireSch
   } catch (err) { next(err); }
 });
 
-router.get('/families/:id(\\d+)/invite-parent', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/families/:id([1-9]\\d*)/invite-parent', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Invite parent | School Management';
     res.locals.portal = 'sms';
@@ -698,7 +709,7 @@ router.get('/families/:id(\\d+)/invite-parent', requireAuth, requireRoleMw, requ
   } catch (err) { next(err); }
 });
 
-router.post('/families/:id(\\d+)/invite-parent', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/families/:id([1-9]\\d*)/invite-parent', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const familyId = Number(req.params.id);
     const result = await parentInvitationService.createInvitation({
@@ -728,7 +739,7 @@ router.post('/families/:id(\\d+)/invite-parent', requireAuth, requireRoleMw, req
   } catch (err) { next(err); }
 });
 
-router.delete('/families/:id(\\d+)/invitations/:invitationId', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.delete('/families/:id([1-9]\\d*)/invitations/:invitationId([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const familyId = Number(req.params.id);
     const invitationId = Number(req.params.invitationId);
@@ -742,7 +753,7 @@ router.delete('/families/:id(\\d+)/invitations/:invitationId', requireAuth, requ
   } catch (err) { next(err); }
 });
 
-router.get('/families/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/families/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Family | School Management';
     res.locals.portal = 'sms';
@@ -762,7 +773,7 @@ router.get('/families/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope
   } catch (err) { next(err); }
 });
 
-router.get('/families/:id(\\d+)/edit', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/families/:id([1-9]\\d*)/edit', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Edit family | School Management';
     res.locals.portal = 'sms';
@@ -773,7 +784,7 @@ router.get('/families/:id(\\d+)/edit', requireAuth, requireRoleMw, requireSchool
   } catch (err) { next(err); }
 });
 
-router.post('/families/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/families/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     if (req.schoolDb.schoolId == null) {
       return res.status(403).render('errors/forbidden', { user: req.user, message: 'No school context.' });
@@ -800,7 +811,7 @@ router.post('/families/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScop
   } catch (err) { next(err); }
 });
 
-router.delete('/families/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.delete('/families/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const ok = await safeCall(familyService.softDelete({
       schoolDb: req.schoolDb,
@@ -913,7 +924,7 @@ router.post('/classes', requireAuth, requireRoleMw, requireSchoolScope, async (r
   } catch (err) { next(err); }
 });
 
-router.get('/classes/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/classes/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Class | School Management';
     res.locals.portal = 'sms';
@@ -925,7 +936,7 @@ router.get('/classes/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope,
   } catch (err) { next(err); }
 });
 
-router.get('/classes/:id(\\d+)/edit', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/classes/:id([1-9]\\d*)/edit', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Edit class | School Management';
     res.locals.portal = 'sms';
@@ -937,7 +948,7 @@ router.get('/classes/:id(\\d+)/edit', requireAuth, requireRoleMw, requireSchoolS
   } catch (err) { next(err); }
 });
 
-router.post('/classes/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/classes/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     if (req.schoolDb.schoolId == null) {
       return res.status(403).render('errors/forbidden', { user: req.user, message: 'No school context.' });
@@ -960,7 +971,7 @@ router.post('/classes/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope
   } catch (err) { next(err); }
 });
 
-router.delete('/classes/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.delete('/classes/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const ok = await safeCall(classService.softDelete({ schoolDb: req.schoolDb, classId: Number(req.params.id), actor: req.user }), false);
     if (!ok) return res.status(404).send('Not found');
@@ -1291,6 +1302,32 @@ router.get('/payments/new', requireAuth, requireRoleMw, requireSchoolScope, asyn
       status: 'Pending', pageSize: 200
     }), { rows: [] });
     res.render('sms/payments/form', { invoices: invoices.rows, defaults: { amount: '', paymentMethod: 'EFT', payeeName: '', transactionDate: new Date().toISOString().slice(0,10), invoiceId: req.query.invoiceId || '' } });
+  } catch (err) { next(err); }
+});
+
+router.get('/payments/:id([1-9]\\d*)/allocate-form', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+  try {
+    const invoices = await safeCall(invoiceService.list({
+      schoolDb: req.schoolDb,
+      status: 'Pending',
+      pageSize: 200
+    }), { rows: [] });
+    const options = (invoices.rows || []).map(inv =>
+      '<option value="' + Number(inv.InvoiceID) + '">#' +
+      String(inv.InvoiceNumber || inv.InvoiceID).replace(/&/g, '&amp;').replace(/</g, '&lt;') +
+      (inv.StudentName ? ' - ' + String(inv.StudentName).replace(/&/g, '&amp;').replace(/</g, '&lt;') : '') +
+      '</option>'
+    ).join('');
+    res.send(
+      '<form class="card p-3 space-y-2" hx-post="/sms/payments/' + Number(req.params.id) + '/allocate" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()">' +
+        '<input type="hidden" name="_csrf" value="' + String(req.csrfToken || '').replace(/"/g, '&quot;') + '" />' +
+        '<label class="label" for="allocate-invoice-' + Number(req.params.id) + '">Invoice</label>' +
+        '<select id="allocate-invoice-' + Number(req.params.id) + '" name="invoiceId" class="select" required>' +
+          '<option value="">Select invoice</option>' + options +
+        '</select>' +
+        '<button type="submit" class="btn-primary btn-sm w-full">Allocate payment</button>' +
+      '</form>'
+    );
   } catch (err) { next(err); }
 });
 
@@ -1826,7 +1863,7 @@ router.get('/bank-reconciliation', requireAuth, requireRoleMw, requireSchoolScop
   } catch (err) { next(err); }
 });
 
-router.get('/bank-reconciliation/:id', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/bank-reconciliation/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Reconciliation | School Management';
     res.locals.portal = 'sms';
@@ -1844,7 +1881,7 @@ router.get('/bank-reconciliation/:id', requireAuth, requireRoleMw, requireSchool
   } catch (err) { next(err); }
 });
 
-router.post('/bank-reconciliation/:id/reconcile', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/bank-reconciliation/:id([1-9]\\d*)/reconcile', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const ctx = await reconciliationContext(req);
@@ -1857,7 +1894,7 @@ router.post('/bank-reconciliation/:id/reconcile', requireAuth, requireRoleMw, re
   }
 });
 
-router.post('/bank-reconciliation/:id/transactions/:txId/match', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/bank-reconciliation/:id([1-9]\\d*)/transactions/:txId([1-9]\\d*)/match', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const ctx = await reconciliationContext(req);
     const service = new BankReconciliationService();
@@ -1923,7 +1960,7 @@ router.get('/refunds', requireAuth, requireRoleMw, requireSchoolScope, requireFe
   } catch (err) { next(err); }
 });
 
-router.get('/refunds/new', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/refunds/new', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.refunds.create'), async (req, res, next) => {
   try {
     res.locals.title = 'New refund | School Management';
     res.locals.portal = 'sms';
@@ -1933,7 +1970,7 @@ router.get('/refunds/new', requireAuth, requireRoleMw, requireSchoolScope, async
   } catch (err) { next(err); }
 });
 
-router.post('/refunds', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/refunds', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.refunds.create'), async (req, res, next) => {
   try {
     const result = await safeCall(admissionsFinanceService.createRefund(req.user, {
       familyId: req.body.familyId,
@@ -1960,7 +1997,7 @@ router.post('/refunds', requireAuth, requireRoleMw, requireSchoolScope, async (r
   } catch (err) { next(err); }
 });
 
-router.post('/refunds/:id/approve', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/refunds/:id([1-9]\\d*)/approve', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.refunds.create'), async (req, res, next) => {
   try {
     await safeCall(admissionsFinanceService.approveRefund(req.user, Number(req.params.id)), { ok: false });
     if (req.headers['hx-request'] === 'true') {
@@ -1971,7 +2008,7 @@ router.post('/refunds/:id/approve', requireAuth, requireRoleMw, requireSchoolSco
   } catch (err) { next(err); }
 });
 
-router.post('/refunds/:id/complete', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.post('/refunds/:id([1-9]\\d*)/complete', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.refunds.create'), async (req, res, next) => {
   try {
     const result = await safeCall(admissionsFinanceService.completeRefund(req.user, Number(req.params.id)), { ok: false, error: 'service-unavailable' });
     if (!result || !result.ok) {
@@ -2078,7 +2115,7 @@ router.get('/outstanding', requireAuth, requireRoleMw, requireSchoolScope, requi
   } catch (err) { next(err); }
 });
 
-router.get('/outstanding/export.csv', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+router.get('/outstanding/export.csv', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('finance.outstanding_fees.view'), async (req, res, next) => {
   try {
     const { buildOutstandingCsv } = require('../../data/outstandingRepository');
     const csv = await safeCall(buildOutstandingCsv({
@@ -2173,7 +2210,7 @@ router.get('/permissions', requireAuth, requireRoleMw, requireSchoolScope, requi
   } catch (err) { next(err); }
 });
 
-router.post('/permissions/:roleId', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('school.staff.permissions.manage'), async (req, res, next) => {
+router.post('/permissions/:roleId([1-9]\\d*)', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('school.staff.permissions.manage'), async (req, res, next) => {
   try {
     const roleId = Number(req.params.roleId);
     if (!Number.isInteger(roleId) || roleId <= 0) {
@@ -2227,6 +2264,67 @@ router.get('/users', requireAuth, requireRoleMw, requireSchoolScope, requireFeat
     const users = await safeCall(userServiceFacade.getSchoolUsers(req.user, req.schoolDb.schoolId), []);
     res.render('sms/users/list', { users });
   } catch (err) { next(err); }
+});
+
+router.get('/consents/compose', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('school.consent.view'), async (req, res, next) => {
+  try {
+    res.locals.title = 'New permission slip | School Management';
+    res.locals.portal = 'sms';
+    res.locals.activeNav = 'consents';
+    res.render('sms/consents/compose', { errors: {}, values: {} });
+  } catch (err) { next(err); }
+});
+
+router.post('/consents', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('school.consent.view'), async (req, res, next) => {
+  try {
+    await consentRepository.create({
+      ...req.body,
+      schoolId: req.schoolDb.schoolId,
+      createdBy: req.user.id,
+      targetScope: req.body.targetScope || 'School'
+    });
+    res.redirect('/sms/consents');
+  } catch (err) {
+    res.status(400).render('sms/consents/compose', { errors: { form: err.message }, values: req.body });
+  }
+});
+
+router.get('/users/new', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('school.staff.manage'), async (req, res, next) => {
+  try {
+    res.locals.title = 'Add system user | School Management';
+    res.locals.portal = 'sms';
+    res.locals.activeNav = 'users';
+    const [employees, roles] = await Promise.all([
+      safeCall(staffService.list({ schoolDb: req.schoolDb, status: 'active', pageSize: 500 }), { rows: [] }),
+      safeCall(permissionLeaveYearEndService.getStaffRoles(req.user), [])
+    ]);
+    res.render('sms/users/new', { employees: employees.rows || employees.items || [], roles, errors: {}, values: {} });
+  } catch (err) { next(err); }
+});
+
+router.post('/users', requireAuth, requireRoleMw, requireSchoolScope, requireFeature('school.staff.manage'), async (req, res, next) => {
+  const actor = { ...req.user, UserID: req.user.id, Role: req.user.role, SchoolID: req.schoolDb.schoolId };
+  try {
+    await userService.createSchoolUser({
+      schoolId: req.schoolDb.schoolId,
+      employeeId: req.body.employeeId,
+      staffRoleId: req.body.staffRoleId,
+      username: req.body.username,
+      password: req.body.password
+    }, actor);
+    res.redirect('/sms/users');
+  } catch (err) {
+    const [employees, roles] = await Promise.all([
+      safeCall(staffService.list({ schoolDb: req.schoolDb, status: 'active', pageSize: 500 }), { rows: [] }),
+      safeCall(permissionLeaveYearEndService.getStaffRoles(req.user), [])
+    ]);
+    res.status(400).render('sms/users/new', {
+      employees: employees.rows || employees.items || [],
+      roles,
+      errors: { form: err.message },
+      values: req.body
+    });
+  }
 });
 
 // ========================================================

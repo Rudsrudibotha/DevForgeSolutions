@@ -7,7 +7,7 @@
       <h1 class="text-2xl font-semibold">System users</h1>
       <p class="text-muted text-sm">Staff who can sign in to this school.</p>
     </div>
-    <button class="btn-primary" hx-get="/sms/users/new" hx-target="#newUserDialog" hx-swap="innerHTML">+ Add system user</button>
+    <a href="/sms/users/new" class="btn-primary">+ Add system user</a>
   </div>
 
   <div id="newUserDialog"></div>
@@ -37,9 +37,9 @@
                   <td><span class="badge <%= u.IsActive ? 'badge-emerald' : 'badge-rose' %>"><%= u.IsActive ? 'Active' : 'Inactive' %></span></td>
                   <td class="text-right">
                     <% if (u.IsActive) { %>
-                      <button class="btn-secondary btn-sm" hx-put="/api/users/school-users/<%= u.UserID %>/deactivate">Deactivate</button>
+                      <button class="btn-secondary btn-sm" hx-put="/api/users/school-users/<%= u.UserID %>/deactivate" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()">Deactivate</button>
                     <% } else { %>
-                      <button class="btn-primary btn-sm" hx-put="/api/users/school-users/<%= u.UserID %>/activate">Activate</button>
+                      <button class="btn-primary btn-sm" hx-put="/api/users/school-users/<%= u.UserID %>/activate" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()">Activate</button>
                     <% } %>
                   </td>
                 </tr>

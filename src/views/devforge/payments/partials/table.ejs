@@ -21,7 +21,7 @@
       </td>
       <td class="text-sm text-muted">
         <% if (t.InvoiceNumber) { %>
-          <a href="#" class="hover:underline"><%= t.InvoiceNumber %></a>
+          <a href="/devforge/payments?q=<%= encodeURIComponent(t.InvoiceNumber) %>" class="hover:underline"><%= t.InvoiceNumber %></a>
         <% } else { %>—<% } %>
       </td>
       <td class="text-right font-medium whitespace-nowrap">R <%= formatMoney(t.Amount) %></td>

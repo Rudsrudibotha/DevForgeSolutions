@@ -79,6 +79,7 @@
         </dl>
         <% if (payslip.Status !== 'Finalized') { %>
           <form method="post" action="/sms/payslips/<%= payslip.PayslipID %>/finalize" class="mt-4">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
             <button class="btn-primary w-full" type="submit" onclick="return confirm('Mark this payslip as finalized? It cannot be edited.');">Finalize payslip</button>
           </form>
         <% } %>

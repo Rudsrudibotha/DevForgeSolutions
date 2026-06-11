@@ -7,8 +7,13 @@
 // the join, never from a schoolId filter on the request.
 
 const { getPool, sql } = require('../data/db');
+const MessagingRepository = require('../data/messagingRepository');
 
 class ParentDashboardService {
+  constructor(dependencies = {}) {
+    this.messagingRepository = dependencies.messagingRepository || new MessagingRepository();
+  }
+
   async getChildren(userId) {
     const pool = await getPool();
     const result = await pool.request()
@@ -110,40 +115,49 @@ class ParentDashboardService {
   }
 
   async getRecentMessages(userId, { limit = 10 } = {}) {
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('userId', sql.Int, userId)
-      .input('limit', sql.Int, limit)
-      .query(`
-        SELECT TOP (@limit)
-          m.MessageID, m.Subject, m.Body, m.SentAt, m.IsRead,
-          sch.SchoolID, sch.SchoolName,
-          s.StudentID, s.FirstName + ' ' + s.LastName AS StudentName
-        FROM Messages m
-        INNER JOIN ParentLinks pl ON pl.UserID = m.RecipientUserID
-        INNER JOIN Schools sch   ON sch.SchoolID = pl.SchoolID
-        LEFT JOIN Students s     ON s.StudentID = m.StudentID
-        WHERE m.RecipientUserID = @userId
-        ORDER BY m.SentAt DESC
-      `);
-    return result.recordset;
+    const conversations = await this.messagingRepository.listConversationsForParent(userId);
+    return conversations.slice(0, Math.min(Math.max(Number(limit) || 10, 1), 50)).map((conversation) => ({
+      MessageID: conversation.ConversationID,
+      ConversationID: conversation.ConversationID,
+      Subject: conversation.Subject,
+      Body: conversation.LastMessageBody,
+      SentAt: conversation.LastMessageDate || conversation.UpdatedDate || conversation.CreatedDate,
+      IsRead: true,
+      SchoolID: conversation.SchoolID,
+      SchoolName: conversation.SchoolName,
+      StudentName: conversation.FamilyName || null
+    }));
   }
 
   async getConsents(userId) {
+    const { ConsentRepository } = require('../data/admissionsFinanceRepositories');
+    return new ConsentRepository().getByParent(userId);
+  }
+
+  async getReEnrolment(userId) {
     const pool = await getPool();
     const result = await pool.request()
       .input('userId', sql.Int, userId)
       .query(`
         SELECT
-          c.ConsentID, c.ConsentType, c.Description, c.ExpiresOn, c.Status, c.CreatedAt,
-          sch.SchoolID, sch.SchoolName,
-          s.StudentID, s.FirstName + ' ' + s.LastName AS StudentName
-        FROM Consents c
-        INNER JOIN ParentLinks pl ON pl.FamilyID = c.FamilyID
-        INNER JOIN Schools sch    ON sch.SchoolID = pl.SchoolID
-        LEFT JOIN Students s      ON s.StudentID = c.StudentID
+          r.ReEnrolmentID,
+          r.AcademicYear,
+          r.Action AS Status,
+          r.PreviousClassName AS CurrentClass,
+          r.NewClassName AS NextClass,
+          r.ProcessedDate,
+          s.StudentID,
+          s.FirstName + ' ' + s.LastName AS StudentName,
+          sch.SchoolID,
+          sch.SchoolName
+        FROM ReEnrolment r
+        INNER JOIN Students s ON s.StudentID = r.StudentID AND s.SchoolID = r.SchoolID
+        INNER JOIN ParentLinks pl ON pl.FamilyID = s.FamilyID AND pl.SchoolID = s.SchoolID
+        INNER JOIN Schools sch ON sch.SchoolID = r.SchoolID
         WHERE pl.UserID = @userId
-        ORDER BY c.ExpiresOn ASC
+          AND r.Action = 'Pending'
+          AND sch.SubscriptionStatus = 'Active'
+        ORDER BY r.AcademicYear DESC, s.LastName, s.FirstName
       `);
     return result.recordset;
   }

@@ -21,13 +21,13 @@
   </td>
   <td class="text-right whitespace-nowrap">
     <% if (isPaid) { %>
-      <a href="/parent/invoices/<%= inv.InvoiceID %>/pdf" class="btn-ghost btn-sm">View PDF</a>
+      <a href="/api/pdf/parent/invoices/<%= inv.InvoiceID %>/pdf" class="btn-ghost btn-sm">View PDF</a>
     <% } else if (isPendingPayment) { %>
       <span class="text-xs text-muted">Awaiting confirmation</span>
     <% } else if (isCancelled) { %>
       <span class="text-xs text-muted">—</span>
     <% } else { %>
-      <a href="/parent/invoices/<%= inv.InvoiceID %>/pdf" class="btn-ghost btn-sm">PDF</a>
+      <a href="/api/pdf/parent/invoices/<%= inv.InvoiceID %>/pdf" class="btn-ghost btn-sm">PDF</a>
       <button class="btn-primary btn-sm"
               hx-post="/parent/invoices/<%= inv.InvoiceID %>/pay"
               hx-target="#invoice-<%= inv.InvoiceID %>"

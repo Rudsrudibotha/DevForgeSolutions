@@ -330,6 +330,7 @@ app.get('/website', (req, res) => res.render('home', { title: 'Kinder Care Hub' 
 app.get('/privacy', (req, res) => res.render('legal/privacy', { title: 'Privacy Policy | Kinder Care Hub' }));
 app.get('/terms', (req, res) => res.render('legal/terms', { title: 'Terms of Service | Kinder Care Hub' }));
 app.get('/status', (req, res) => res.render('status', { title: 'Status | Kinder Care Hub', health: healthPayload() }));
+app.get('/help', (req, res) => res.render('help', { title: 'Help & Shortcuts | Kinder Care Hub' }));
 
 // Password help page, linked from the login form. There is no self-serve
 // token reset flow yet; this page routes each role to the right human.
