@@ -73,6 +73,8 @@ async function run() {
   assertEq(r.headers['x-content-type-options'], 'nosniff', 'X-Content-Type-Options set');
   assertEq(r.headers['referrer-policy'], 'no-referrer', 'Referrer-Policy no-referrer');
   assertEq(r.headers['x-powered-by'], undefined, 'X-Powered-By is hidden');
+  assertEq(String(r.headers['permissions-policy'] || '').includes('camera=()'), true, 'Permissions-Policy locks down camera');
+  assertEq(String(r.headers['strict-transport-security'] || '').includes('max-age'), true, 'HSTS is set');
 
   console.log('\n[4] API health');
   r = await get('/api/config');

@@ -39,6 +39,14 @@ async function portalLocals(req, res, next) {
   else if (req.path.startsWith('/sms')) nav = SMS_NAV;
   else if (req.user && req.user.role === 'admin') nav = DEVFORGE_NAV;
   else if (req.user && req.user.role === 'parent') nav = PARENT_NAV;
+  // DevForge admins are authorised by role at every /devforge route
+  // (requireAdmin), and the DEVFORGE_NAV permission keys are not part of
+  // the SMS feature catalog the resolver scores against. Give admins the
+  // full nav instead of filtering it to an empty set.
+  if (req.user && req.user.role === 'admin' && nav === DEVFORGE_NAV) {
+    res.locals.visibleGroups = nav;
+    return next();
+  }
   try {
     const visibleSet = await (require('../security/permissionResolver').getEffectivePermissions(req.user));
     res.locals.visibleGroups = applyNavVisibility(nav, visibleSet);

@@ -7,12 +7,12 @@ const ParentRepository = require('../data/parentRepository');
 const NotificationService = require('./notificationService');
 
 class RegistrationService {
-  constructor() {
-    this.registrationRepository = new RegistrationRepository();
-    this.schoolRepository = new SchoolRepository();
-    this.userRepository = new UserRepository();
-    this.parentRepository = new ParentRepository();
-    this.notificationService = new NotificationService();
+  constructor(dependencies = {}) {
+    this.registrationRepository = dependencies.registrationRepository || new RegistrationRepository();
+    this.schoolRepository = dependencies.schoolRepository || new SchoolRepository();
+    this.userRepository = dependencies.userRepository || new UserRepository();
+    this.parentRepository = dependencies.parentRepository || new ParentRepository();
+    this.notificationService = dependencies.notificationService || new NotificationService();
   }
 
   async getPublicSchools() {
@@ -155,12 +155,16 @@ class RegistrationService {
     const existing = await this.userRepository.getUserByEmail(email);
 
     if (existing) {
-      if (existing.Role !== 'parent') {
-        throw new Error('This email is already linked to another portal');
+      // One person can be school staff AND a parent on the same email:
+      // the ParentLinks created on match grant parent-portal access
+      // without touching their staff account. Only admin emails are
+      // excluded — platform staff must use a personal address.
+      if (existing.Role === 'admin') {
+        throw new Error('This email belongs to a Kinder Care Hub admin account. Please register with a personal email address.');
       }
 
       if (existing.IsActive !== undefined && existing.IsActive !== null && !existing.IsActive) {
-        throw new Error('This parent account is inactive');
+        throw new Error('This account is inactive');
       }
 
       return existing;

@@ -156,6 +156,70 @@ async function run() {
     assert.strictEqual(r.status, 404);
   });
 
+  console.log('\n[devforge-users] impersonation (sign in as user)');
+
+  await test('POST /devforge/users/123/impersonate without CSRF is 403', async () => {
+    const r = await request('POST', '/devforge/users/123/impersonate', admin, 'reason=Helping+with+a+query');
+    assert.strictEqual(r.status, 403);
+  });
+
+  await test('POST /devforge/users/123/impersonate as school role is 403', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/devforge/users/123/impersonate',
+      { ...school, 'X-CSRF-Token': csrf, 'Cookie': cookieHeader, 'Content-Type': 'application/x-www-form-urlencoded' },
+      '_csrf=' + csrf + '&reason=Helping+with+a+query');
+    assert.strictEqual(r.status, 403);
+  });
+
+  await test('POST /devforge/users/123/impersonate with short reason is 400 (no session issued)', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/devforge/users/123/impersonate',
+      { ...admin, 'X-CSRF-Token': csrf, 'Cookie': cookieHeader, 'Content-Type': 'application/x-www-form-urlencoded' },
+      '_csrf=' + csrf + '&reason=ab');
+    assert.strictEqual(r.status, 400, `expected 400, got ${r.status}`);
+    const issued = (r.headers['set-cookie'] || []).find(c => c.startsWith('kch_token='));
+    assert.ok(!issued, 'no auth cookie issued on invalid impersonation');
+  });
+
+  await test('GET /devforge/users/123 detail offers a Sign in as user action (DB-dependent)', async () => {
+    const r = await request('GET', '/devforge/users/123', admin);
+    // 200 with form when the user exists, 404 otherwise; never an error.
+    assert.ok(r.status === 200 || r.status === 404, `got ${r.status}`);
+    if (r.status === 200) assert.ok(r.body.includes('/impersonate') || r.body.includes('admin'));
+  });
+
+  console.log('\n[devforge-users] impersonation token (unit)');
+
+  const UserService = require('../src/business/userService');
+  const svc = new UserService();
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+
+  await test('signImpersonationToken refuses an admin target', async () => {
+    assert.throws(
+      () => svc.signImpersonationToken({ target: { UserID: 1, Role: 'admin' }, role: 'school', schoolId: 1, impersonatorId: 9 }),
+      /Cannot impersonate an admin/
+    );
+  });
+
+  await test('signImpersonationToken issues a school session with the imp claim', async () => {
+    const jwt = require('jsonwebtoken');
+    const token = svc.signImpersonationToken({ target: { UserID: 5, Username: 'jo', Email: 'jo@x.co', Role: 'school' }, role: 'school', schoolId: 3, impersonatorId: 9 });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    assert.strictEqual(decoded.role, 'school');
+    assert.strictEqual(decoded.schoolId, 3);
+    assert.strictEqual(decoded.imp, 9);
+    assert.strictEqual(decoded.userId, 5);
+  });
+
+  await test('signImpersonationToken issues a parent session with no schoolId', async () => {
+    const jwt = require('jsonwebtoken');
+    const token = svc.signImpersonationToken({ target: { UserID: 7, Email: 'p@x.co', Role: 'parent' }, role: 'parent', schoolId: 3, impersonatorId: 9 });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    assert.strictEqual(decoded.role, 'parent');
+    assert.strictEqual(decoded.schoolId, null);
+    assert.strictEqual(decoded.imp, 9);
+  });
+
   console.log(process.exitCode ? '\nFAILED' : '\nALL DEVFORGE USERS ROUTE TESTS PASSED');
 }
 

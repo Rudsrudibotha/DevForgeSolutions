@@ -72,6 +72,9 @@ class UserRepository {
     return result.recordset[0];
   }
 
+  // Staff access is granted by the active Employees link (a deliberate
+  // action by the school), so parent-account holders who also work at
+  // the school qualify too. The session role is set by the login shell.
   async getStaffLinkedUserBySchoolAndIdentifier(schoolId, identifier) {
     const pool = await getPool();
     const result = await pool.request()
@@ -80,7 +83,7 @@ class UserRepository {
       .query(`SELECT TOP 1 u.*
               FROM Users u
               INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = @schoolId
-              WHERE u.Role IN ('school', 'admin')
+              WHERE u.Role IN ('school', 'admin', 'parent')
                 AND ISNULL(u.IsActive, 1) = 1
                 AND ISNULL(e.IsActive, 1) = 1
                 AND (
@@ -99,7 +102,7 @@ class UserRepository {
       .query(`SELECT TOP 1 u.*
               FROM Users u
               INNER JOIN Employees e ON e.UserID = u.UserID AND e.SchoolID = @schoolId
-              WHERE u.Role IN ('school', 'admin')
+              WHERE u.Role IN ('school', 'admin', 'parent')
                 AND ISNULL(u.IsActive, 1) = 1
                 AND ISNULL(e.IsActive, 1) = 1
                 AND LOWER(u.Username) = LOWER(@username)
@@ -157,6 +160,10 @@ class UserRepository {
     return result.recordset[0];
   }
 
+  // Parenthood is relationship-driven: a dedicated parent account OR any
+  // non-admin account with a ParentLinks row (e.g. school staff who are
+  // also parents) can sign in to the parent portal. Dedicated parent
+  // accounts win when both match an identifier.
   async getParentByIdentifier(identifier) {
     const pool = await getPool();
     const normalizedPhone = String(identifier || '').replace(/\D/g, '');
@@ -167,7 +174,8 @@ class UserRepository {
               FROM Users u
               LEFT JOIN ParentLinks pl ON pl.UserID = u.UserID
               LEFT JOIN Families f ON f.FamilyID = pl.FamilyID
-              WHERE u.Role = 'parent'
+              WHERE (u.Role = 'parent' OR pl.ParentLinkID IS NOT NULL)
+                AND u.Role <> 'admin'
                 AND ISNULL(u.IsActive, 1) = 1
                 AND (
                   LOWER(u.Username) = LOWER(@identifier)
@@ -175,7 +183,7 @@ class UserRepository {
                   OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(ISNULL(f.PrimaryParentPhone, ''), ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') = @normalizedPhone
                   OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(ISNULL(f.SecondaryParentPhone, ''), ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') = @normalizedPhone
                 )
-              ORDER BY u.UserID`);
+              ORDER BY CASE WHEN u.Role = 'parent' THEN 0 ELSE 1 END, u.UserID`);
     return result.recordset[0];
   }
 

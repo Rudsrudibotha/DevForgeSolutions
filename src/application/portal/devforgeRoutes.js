@@ -8,9 +8,11 @@ const AdminPaymentService = require('../../business/adminPaymentService');
 const AdminAuditService = require('../../business/adminAuditService');
 const AdminSettingsService = require('../../business/adminSettingsService');
 const SchoolOnboardingService = require('../../business/schoolOnboardingService');
+const UserService = require('../../business/userService');
 const { demoOr } = require('../../business/demoData');
 const adminSchoolService = new AdminSchoolService();
 const schoolOnboardingService = new SchoolOnboardingService();
+const userService = new UserService();
 const adminUserService = new AdminUserService();
 const adminPaymentService = new AdminPaymentService();
 const adminAuditService = new AdminAuditService();
@@ -182,7 +184,9 @@ router.post('/schools/:id([1-9]\\d*)/status', requireAuth, requireAdmin, async (
       res.set('HX-Trigger', JSON.stringify({ toast: { type: 'error', message: 'Could not update status.' } }));
       return res.status(500).end();
     }
+    // Reload so the new status (and its actions) render immediately.
     res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: 'Status updated to ' + newStatus + '.' } }));
+    res.set('HX-Refresh', 'true');
     return res.status(204).end();
   } catch (err) {
     res.set('HX-Trigger', JSON.stringify({ toast: { type: 'error', message: err.message || 'Update failed' } }));
@@ -254,11 +258,35 @@ router.post('/users/:id([1-9]\\d*)/active', requireAuth, requireAdmin, async (re
       return res.status(404).end();
     }
     res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: isActive ? 'User enabled.' : 'User disabled.' } }));
+    res.set('HX-Refresh', 'true');
     return res.status(204).end();
   } catch (err) {
     res.set('HX-Trigger', JSON.stringify({ toast: { type: 'error', message: err.message || 'Update failed' } }));
     if (req.headers['hx-request'] === 'true') return res.status(400).end();
     next(err);
+  }
+});
+
+// Sign in AS a school or parent user (support tool). Authorised, audited,
+// and the user is emailed — see AdminUserService.prepareImpersonation.
+// Issues a 1-hour session token carrying an `imp` claim so the portal
+// shows a persistent "you are impersonating" banner.
+router.post('/users/:id([1-9]\\d*)/impersonate', requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const reason = String(req.body.reason || '').trim();
+    const { target, role, schoolId } = await adminUserService.prepareImpersonation({ actor: req.user, userId: id, reason });
+    const token = userService.signImpersonationToken({ target, role, schoolId, impersonatorId: req.user.id });
+    const isProd = process.env.NODE_ENV === 'production';
+    res.cookie('kch_token', token, {
+      httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 1000, secure: isProd
+    });
+    res.set('Cache-Control', 'no-store');
+    return res.redirect(role === 'parent' ? '/parent' : '/sms');
+  } catch (err) {
+    res.set('HX-Trigger', JSON.stringify({ toast: { type: 'error', message: err.message || 'Could not sign in as user' } }));
+    if (req.headers['hx-request'] === 'true') return res.status(400).end();
+    return res.status(400).render('errors/forbidden', { user: req.user, message: err.message || 'Could not sign in as user' });
   }
 });
 

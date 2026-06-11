@@ -103,6 +103,8 @@ proc.stderr.on('data', d => { errorOut += d.toString(); });
     await runParentMessages();
     const runKchMessaging = require('./kchMessaging.test.js');
     await runKchMessaging();
+    const runDualRole = require('./dualRole.test.js');
+    await runDualRole();
     const runCommandPalette = require('./commandPalette.test.js');
     await runCommandPalette();
     const runKeyboardShortcuts = require('./keyboardShortcuts.test.js');

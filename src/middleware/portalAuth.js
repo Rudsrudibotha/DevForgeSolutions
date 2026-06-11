@@ -88,12 +88,18 @@ async function loadUser(req, _res, next) {
 
     if (!user) return next();
 
-    // Honour token-bound dashboard context for school users
+    // Honour token-bound dashboard context. One account can be school
+    // staff and a parent: the login shell picks the session role, and we
+    // verify the matching relationship before applying it.
     let activeRole = user.Role;
     let activeSchoolId = user.SchoolID;
-    if (decoded.role === 'school' && decoded.schoolId && ['school', 'admin'].includes(user.Role)) {
+    if (decoded.role === 'school' && decoded.schoolId && ['school', 'admin', 'parent'].includes(user.Role)) {
       const membership = await userService.getActiveStaffMembership(user.UserID, decoded.schoolId).catch(() => null);
       if (membership) { activeRole = 'school'; activeSchoolId = decoded.schoolId; }
+    }
+    if (decoded.role === 'parent' && user.Role !== 'parent' && user.Role !== 'admin') {
+      const links = await userService.getParentLinkedSchools(user.UserID).catch(() => []);
+      if (links.length) { activeRole = 'parent'; activeSchoolId = null; }
     }
 
     req.user = {
@@ -103,7 +109,10 @@ async function loadUser(req, _res, next) {
       firstName: user.FirstName || user.Username || '',
       lastName: user.LastName || '',
       schoolId: activeSchoolId,
-      permissions: []
+      permissions: [],
+      // Set when a DevForge admin is impersonating this user. Drives the
+      // portal banner so the session is never silent.
+      impersonatorId: decoded.imp || null
     };
   } catch (_) { /* invalid token, render as anonymous */ }
   next();

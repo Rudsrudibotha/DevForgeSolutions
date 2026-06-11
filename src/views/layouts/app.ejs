@@ -18,6 +18,15 @@
 </head>
 <body class="h-full" data-portal="<%= typeof portal !== 'undefined' ? portal : 'system' %>" hx-headers='{"X-CSRF-Token": "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"}'>
   <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-brand focus:text-white focus:rounded">Skip to main content</a>
+  <% if (typeof user !== 'undefined' && user && user.impersonatorId) { %>
+    <div class="bg-amber-500 text-amber-950 text-sm px-4 py-2 flex items-center justify-center gap-3 flex-wrap" role="alert">
+      <span class="font-medium">You are signed in as <%= user.email %> on behalf of support. This session is audited.</span>
+      <form method="post" action="/auth/logout" class="inline">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+        <button type="submit" class="underline font-semibold">End impersonation</button>
+      </form>
+    </div>
+  <% } %>
   <% var chromeHidden = typeof hideChrome !== 'undefined' && hideChrome; %>
   <% if (!chromeHidden) { %>
     <%- include('../partials/header', {

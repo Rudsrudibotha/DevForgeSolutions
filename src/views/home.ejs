@@ -24,21 +24,28 @@
   <!-- Hero -->
   <section class="relative overflow-hidden">
     <div class="pointer-events-none absolute inset-x-0 -top-40 h-[480px] bg-gradient-to-b from-brand-100/70 via-transparent to-transparent dark:from-brand-900/30" aria-hidden="true"></div>
-    <div class="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-20 pb-16 sm:pt-28 sm:pb-24 text-center">
-      <span class="badge-brand mb-5 inline-flex">Built for South African pre-schools &amp; day-care centres</span>
-      <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-4xl mx-auto text-balance">
-        Run your school&rsquo;s admin, fees and parents
-        <span class="bg-gradient-to-r from-brand-600 via-brand-500 to-brand-400 bg-clip-text text-transparent">in one calm place</span>.
-      </h1>
-      <p class="mt-6 text-lg sm:text-xl text-muted max-w-2xl mx-auto leading-relaxed">
-        Invoices that send themselves. Payments that reconcile themselves. Parents who can see
-        everything and pay in two taps &mdash; so you can get back to the children.
-      </p>
-      <div class="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
-        <a href="/school-register" class="btn-primary btn-lg shadow-elev2">Register your school</a>
-        <a href="/parent-login" class="btn-secondary btn-lg">I&rsquo;m a parent &mdash; sign in</a>
+    <div class="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-16 pb-12 sm:pt-24 sm:pb-16">
+      <div class="grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
+        <div class="text-center lg:text-left">
+          <span class="badge-brand mb-5 inline-flex">Built for South African pre-schools &amp; day-care centres</span>
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-balance">
+            Run your school&rsquo;s admin, fees and parents
+            <span class="bg-gradient-to-r from-brand-600 via-brand-500 to-brand-400 bg-clip-text text-transparent">in one calm place</span>.
+          </h1>
+          <p class="mt-6 text-lg sm:text-xl text-muted max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+            Invoices that send themselves. Payments that reconcile themselves. Parents who can see
+            everything and pay in two taps &mdash; so you can get back to the children.
+          </p>
+          <div class="mt-9 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+            <a href="/school-register" class="btn-primary btn-lg shadow-elev2">Register your school</a>
+            <a href="/parent-login" class="btn-secondary btn-lg">I&rsquo;m a parent &mdash; sign in</a>
+          </div>
+        </div>
+        <div class="relative">
+          <img src="/assets/hero-school-management.svg" alt="Illustration of the Kinder Care Hub dashboard showing attendance, invoices and parent messaging" class="w-full max-w-lg mx-auto drop-shadow-xl" width="640" height="520" loading="eager" />
+        </div>
       </div>
-      <dl class="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto text-sm">
+      <dl class="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto lg:mx-0 text-sm">
         <div class="card px-5 py-4">
           <dt class="font-semibold">Hosted in South Africa</dt>
           <dd class="text-muted mt-0.5">Your data lives in Azure&rsquo;s Johannesburg region.</dd>
@@ -228,6 +235,18 @@
       </div>
     </div>
   </section>
+
+  <!-- Cookie notice (strictly necessary cookies only, informational) -->
+  <div x-data="{ seen: localStorage.getItem('kch_cookie_notice') === '1' }" x-show="!seen" x-cloak
+       class="fixed bottom-4 inset-x-4 sm:left-auto sm:right-6 sm:max-w-sm z-50 card shadow-elev3 p-4"
+       role="region" aria-label="Cookie notice">
+    <p class="text-sm">
+      We use only the cookies needed to sign you in securely — no tracking, no ads.
+      <a href="/privacy#cookies" class="text-brand-600 dark:text-brand-300 hover:underline">How we use cookies</a>
+    </p>
+    <button type="button" class="btn-secondary btn-sm mt-3"
+            @click="localStorage.setItem('kch_cookie_notice', '1'); seen = true">Got it</button>
+  </div>
 
   <!-- Footer -->
   <footer class="border-t border-surface-200/80 dark:border-surface-700/60 bg-white/60 dark:bg-surface-900/60">

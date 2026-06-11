@@ -90,6 +90,13 @@ app.use(helmet({
   referrerPolicy: { policy: 'no-referrer' }
 }));
 
+// Helmet does not emit Permissions-Policy; lock down powerful browser
+// features the app never uses (privacy requirement).
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  next();
+});
+
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
   : ['http://localhost:3000', 'http://localhost:3001'];

@@ -56,6 +56,7 @@
               <a href="/account" class="nav-item">Account settings</a>
               <a href="/help" class="nav-item">Help &amp; shortcuts</a>
               <form method="post" action="/auth/logout" class="border-t mt-1 pt-1" style="border-color: rgb(var(--color-border))">
+                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
                 <button type="submit" class="nav-item w-full text-left text-red-600 dark:text-red-400">Sign out</button>
               </form>
             </div>

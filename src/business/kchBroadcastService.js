@@ -60,7 +60,9 @@ class KchBroadcastService {
     const body = String(messageBody || '').trim().slice(0, MAX_BODY_LENGTH);
     if (!body) throw httpError(400, 'message_required');
 
-    const recipients = await this.contacts.listParentsForSchool({ schoolId: ctx.ActiveSchoolId });
+    // A staff member who is also a parent must not broadcast to themselves.
+    const recipients = (await this.contacts.listParentsForSchool({ schoolId: ctx.ActiveSchoolId }))
+      .filter(r => r.UserID !== ctx.UserId);
     if (!recipients.length) throw httpError(400, 'no_recipients');
 
     const broadcastId = await this.broadcasts.create({

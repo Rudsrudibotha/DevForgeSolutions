@@ -25,6 +25,15 @@ router.get('/login', function (req, res) {
   res.render('auth/login');
 });
 
+// POST /auth/logout - end the session. The JWT lives in the HttpOnly
+// kch_token cookie, so clearing it is the authoritative sign-out. The
+// legacy SPA's localStorage copy expires with the token (24h).
+router.post('/logout', express.urlencoded({ extended: false, limit: '64kb' }), function (req, res) {
+  res.clearCookie('kch_token', { httpOnly: true, sameSite: 'lax', path: '/', secure: process.env.NODE_ENV === 'production' });
+  res.set('Cache-Control', 'no-store');
+  res.redirect('/login');
+});
+
 // GET /auth/school-register and /auth/parent-register - the real
 // registration pages live at the top-level paths served by app.js.
 router.get('/school-register', function (req, res) {

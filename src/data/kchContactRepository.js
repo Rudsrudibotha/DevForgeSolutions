@@ -36,7 +36,7 @@ class KchContactRepository {
                'parent' AS ContactRole, pl.SchoolID AS ContactSchoolId, NULL AS SchoolName
         FROM dbo.ParentLinks pl
         INNER JOIN dbo.Users u ON u.UserID = pl.UserID
-        WHERE pl.SchoolID = @schoolId AND u.Role = 'parent' AND ISNULL(u.IsActive, 1) = 1 ${search}
+        WHERE pl.SchoolID = @schoolId AND u.Role <> 'admin' AND u.UserID <> @userId AND ISNULL(u.IsActive, 1) = 1 ${search}
         UNION ALL
         SELECT u.UserID, u.Username, u.Email, u.FirstName, u.LastName,
                'school' AS ContactRole, u.SchoolID AS ContactSchoolId, NULL AS SchoolName
@@ -98,7 +98,7 @@ class KchContactRepository {
         FROM dbo.Users u
         INNER JOIN dbo.ParentLinks pl ON pl.UserID = u.UserID
         INNER JOIN dbo.Schools s ON s.SchoolID = pl.SchoolID
-        WHERE u.Role = 'parent' AND ISNULL(u.IsActive, 1) = 1 ${search}
+        WHERE u.Role <> 'admin' AND ISNULL(u.IsActive, 1) = 1 ${search}
       ) contacts
       ORDER BY SchoolName, ContactRole, FirstName, LastName, Username
     `);
@@ -116,7 +116,7 @@ class KchContactRepository {
                pl.SchoolID AS ContactSchoolId
         FROM dbo.ParentLinks pl
         INNER JOIN dbo.Users u ON u.UserID = pl.UserID
-        WHERE pl.SchoolID = @schoolId AND u.Role = 'parent' AND ISNULL(u.IsActive, 1) = 1
+        WHERE pl.SchoolID = @schoolId AND u.Role <> 'admin' AND ISNULL(u.IsActive, 1) = 1
       `);
     return result.recordset;
   }
@@ -139,7 +139,7 @@ class KchContactRepository {
                  'parent' AS ContactRole, pl.SchoolID AS ContactSchoolId
           FROM dbo.ParentLinks pl
           INNER JOIN dbo.Users u ON u.UserID = pl.UserID
-          WHERE pl.SchoolID = @schoolId AND u.UserID = @targetUserId AND u.Role = 'parent' AND ISNULL(u.IsActive, 1) = 1
+          WHERE pl.SchoolID = @schoolId AND u.UserID = @targetUserId AND u.Role <> 'admin' AND ISNULL(u.IsActive, 1) = 1
           UNION ALL
           SELECT u.UserID, u.Username, u.Email, u.FirstName, u.LastName,
                  'school' AS ContactRole, u.SchoolID AS ContactSchoolId
@@ -170,7 +170,9 @@ class KchContactRepository {
                  'parent' AS ContactRole,
                  (SELECT TOP 1 pl.SchoolID FROM dbo.ParentLinks pl WHERE pl.UserID = u.UserID ORDER BY pl.ParentLinkID DESC) AS ContactSchoolId
           FROM dbo.Users u
-          WHERE u.UserID = @targetUserId AND u.Role = 'parent' AND ISNULL(u.IsActive, 1) = 1
+          WHERE u.UserID = @targetUserId AND u.Role = 'parent'
+            AND EXISTS (SELECT 1 FROM dbo.ParentLinks pl WHERE pl.UserID = u.UserID)
+            AND ISNULL(u.IsActive, 1) = 1
         ) contact`;
     } else {
       return null;

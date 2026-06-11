@@ -147,7 +147,9 @@ class UserService {
         throw new Error('This school account is suspended. Please contact the school.');
       }
 
-      return parent;
+      // School staff who are also parents sign in here with the same
+      // email; the session is parent-scoped regardless of Users.Role.
+      return this.asParentDashboardUser(parent);
     }
 
     if (loginType !== 'school') {
@@ -263,10 +265,9 @@ class UserService {
   }
 
   async linkExistingUserToSchoolStaff(existingUser, employee, staffRoleId, schoolId, currentUser) {
-    if (!['school', 'admin'].includes(existingUser.Role)) {
-      throw new Error(`This email is registered as a ${existingUser.Role} user and cannot be used for school staff access`);
-    }
-
+    // Parent-account holders can be granted staff access too (parents
+    // who work at the school): the Employee link is the deliberate
+    // grant, and the school portal session is issued per login shell.
     if (!this.isActiveUser(existingUser)) {
       throw new Error('The existing account for this email is inactive');
     }
@@ -608,16 +609,18 @@ class UserService {
     }
 
     if (loginType === 'parent') {
+      // Relationship-driven: matches dedicated parent accounts AND staff
+      // accounts that have ParentLinks (staff who are also parents).
       const existing = await this.userRepository.getParentByIdentifier(normalizedEmail);
 
-      if (!existing || existing.Role !== 'parent') {
+      if (!existing) {
         const conflictingUser = await this.userRepository.getUserByEmail(normalizedEmail);
         if (conflictingUser?.Role === 'admin') {
-          throw new Error('This email is registered for the Admin dashboard, not a parent account');
+          throw new Error('This email is registered for the Admin dashboard. Please use a personal email address for parent access.');
         }
 
-        if (conflictingUser?.Role && conflictingUser.Role !== 'parent') {
-          throw new Error(`This email is registered as a ${conflictingUser.Role} user, not a parent account`);
+        if (conflictingUser?.Role === 'school') {
+          throw new Error('This email belongs to a staff account that is not linked to a family yet. Submit a parent access request first — your staff sign-in stays separate.');
         }
 
         throw new Error('Parent registration is required before signing in');
@@ -637,7 +640,7 @@ class UserService {
         throw new Error('This school account is suspended. Please contact the school.');
       }
 
-      return existing;
+      return this.asParentDashboardUser(existing);
     }
 
     throw new Error('Invalid login type');
@@ -670,12 +673,15 @@ class UserService {
     const existing = await this.userRepository.getUserByEmail(normalizedEmail);
 
     if (existing) {
-      if (existing.Role !== 'parent') {
-        throw new Error(`This email is already registered as a ${existing.Role} user and cannot be used for parent access`);
+      // School staff can hold parent access on the same account
+      // (ParentLinks decide what they see); only admin emails are
+      // excluded — platform staff must use a personal address.
+      if (existing.Role === 'admin') {
+        throw new Error('This email belongs to a Kinder Care Hub admin account. Please use a personal email address for parent access.');
       }
 
       if (!this.isActiveUser(existing)) {
-        throw new Error('This parent account is inactive');
+        throw new Error('This account is inactive');
       }
 
       return existing;
@@ -708,6 +714,45 @@ class UserService {
       Role: 'school',
       SchoolID: Number(schoolId)
     };
+  }
+
+  // Parent-portal session for a user whose account role may be 'school'
+  // (staff who are also parents). The active school comes from
+  // ParentLinks, never from the staff SchoolID.
+  asParentDashboardUser(user) {
+    return {
+      ...user,
+      OriginalRole: user.Role,
+      Role: 'parent',
+      SchoolID: null
+    };
+  }
+
+  async getParentLinkedSchools(userId) {
+    return await this.userRepository.getParentLinkedSchools(userId);
+  }
+
+  // Sign a short-lived token that lets a DevForge admin act AS another
+  // user. The `imp` claim records the impersonator so every downstream
+  // session is traceable and the portal can show a persistent banner.
+  // Never issued for admin targets (privilege boundary).
+  signImpersonationToken({ target, role, schoolId, impersonatorId }) {
+    if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is required');
+    if (!target || !target.UserID) throw new Error('Impersonation target is required');
+    if ((target.Role || '').toLowerCase() === 'admin') throw new Error('Cannot impersonate an admin account');
+    const sessionRole = role === 'parent' ? 'parent' : 'school';
+    return jwt.sign(
+      {
+        userId: target.UserID,
+        username: target.Username,
+        email: target.Email,
+        role: sessionRole,
+        schoolId: sessionRole === 'school' ? Number(schoolId) || null : null,
+        imp: Number(impersonatorId) || null
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h', algorithm: 'HS256' }
+    );
   }
 
   normalizeUsername(username) {

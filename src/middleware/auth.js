@@ -57,12 +57,14 @@ const authenticateToken = async (req, res, next) => {
     const requestedRole = String(decoded.role || '').toLowerCase();
     const requestedSchoolId = Number(decoded.schoolId);
 
-    // One account can be an internal admin and school staff; keep the token's dashboard context.
+    // One account can be an internal admin or a parent AND school staff;
+    // keep the token's dashboard context (the staff membership check
+    // below is what actually grants school access).
     if (
       requestedRole === 'school'
       && Number.isInteger(requestedSchoolId)
       && requestedSchoolId > 0
-      && ['school', 'admin'].includes(user.Role)
+      && ['school', 'admin', 'parent'].includes(user.Role)
     ) {
       let staffMembership;
 
@@ -99,6 +101,36 @@ const authenticateToken = async (req, res, next) => {
         OriginalRole: user.Role,
         Role: 'school',
         SchoolID: requestedSchoolId
+      };
+    }
+
+    // One account can be school staff AND a parent (ParentLinks decide).
+    // Honour the parent dashboard context from the token, mirroring the
+    // school overlay above.
+    if (requestedRole === 'parent' && user.Role !== 'parent') {
+      if (user.Role === 'admin') {
+        return res.status(403).json({ error: 'Parent access requires a parent account' });
+      }
+
+      let linkedSchools;
+      try {
+        linkedSchools = await userService.getParentLinkedSchools(user.UserID);
+      } catch (error) {
+        if (isDatabaseConnectionError(error)) {
+          return res.status(503).json({ error: 'Database unavailable. Check the database connection and try again.' });
+        }
+        throw error;
+      }
+
+      if (!linkedSchools.length) {
+        return res.status(403).json({ error: 'Parent access requires a linked family record' });
+      }
+
+      user = {
+        ...user,
+        OriginalRole: user.Role,
+        Role: 'parent',
+        SchoolID: null
       };
     }
 

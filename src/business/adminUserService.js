@@ -6,6 +6,7 @@
 const { sql } = require('../data/db');
 const { ScopedDb } = require('../data/scopedDb');
 const AuditRepository = require('../data/auditRepository');
+const NotificationService = require('./notificationService');
 
 const ALLOWED_ROLES = ['admin', 'school', 'parent'];
 const PAGE_SIZE_DEFAULT = 25;
@@ -140,6 +141,73 @@ class AdminUserService {
       return true;
     }
     return false;
+  }
+
+  // Authorise a DevForge admin to sign in AS another user. This is the
+  // security gate for impersonation: admin-only, never targets another
+  // admin, requires a written reason, HARD-FAILS if the audit row can't
+  // be written (no silent impersonation), and notifies the user by email
+  // so nothing happens without their knowledge. Returns the context the
+  // caller needs to mint the session token.
+  async prepareImpersonation({ actor, userId, reason }) {
+    if (!actor || actor.role !== 'admin') throw new Error('admin role required');
+    if (!Number.isInteger(userId) || userId <= 0) throw new Error('A valid user is required');
+    if (!reason || String(reason).trim().length < 4) {
+      throw new Error('A reason of at least 4 characters is required to sign in as a user');
+    }
+
+    const target = await this.getById({ actor, userId });
+    if (!target) throw new Error('User not found');
+    if ((target.Role || '').toLowerCase() === 'admin') {
+      throw new Error('Admin accounts cannot be impersonated');
+    }
+    if (target.IsActive === false || target.IsActive === 0) {
+      throw new Error('Inactive accounts cannot be impersonated');
+    }
+
+    // Resolve the session role + a non-null school for the audit row.
+    let role = 'school';
+    let schoolId = target.SchoolID || null;
+    if ((target.Role || '').toLowerCase() === 'parent' || !schoolId) {
+      const sdb = new ScopedDb(actor);
+      sdb.bypass('impersonation: resolve linked school for user ' + userId);
+      const linkReq = await sdb.request();
+      linkReq.input('userId', sql.Int, userId);
+      const linkRes = await linkReq.query(
+        'SELECT TOP 1 SchoolID FROM ParentLinks WHERE UserID = @userId ORDER BY ParentLinkID DESC'
+      );
+      if (linkRes.recordset[0]) {
+        role = 'parent';
+        schoolId = linkRes.recordset[0].SchoolID;
+      }
+    }
+    if (!schoolId) {
+      throw new Error('This user has no school context to sign in to');
+    }
+
+    // Audit BEFORE issuing the session, and hard-fail on audit error.
+    const audit = new AuditRepository();
+    await audit.recordWrite(
+      actor, schoolId, 'user', userId, 'IMPERSONATE',
+      null,
+      { role, schoolId, email: target.Email },
+      { reason: String(reason).trim() }
+    );
+
+    // Notify the user (best-effort) — transparency requirement.
+    try {
+      await new NotificationService().sendEmail(
+        target.Email,
+        'A Kinder Care Hub administrator accessed your account',
+        `Hi,\n\nA Kinder Care Hub administrator signed in to your account to provide support` +
+        ` (reason: ${String(reason).trim()}). If you did not request help, please contact your school.\n\n` +
+        `This access is recorded in our audit log.`
+      );
+    } catch (err) {
+      console.warn('[impersonation] user notification failed:', err.message);
+    }
+
+    return { target, role, schoolId };
   }
 
   // Get a list of schools for the filter dropdown

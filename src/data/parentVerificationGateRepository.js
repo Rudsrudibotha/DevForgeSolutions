@@ -23,7 +23,7 @@ async function countVerifiedParentsForFamily({ schoolId, familyId }) {
       INNER JOIN dbo.Users u ON u.UserID = pl.UserID
       WHERE pl.SchoolID = @schoolId
         AND pl.FamilyID = @familyId
-        AND u.Role = 'parent'
+        AND u.Role <> 'admin'
         AND u.IsActive = 1
         AND u.IsVerified = 1
     `);
