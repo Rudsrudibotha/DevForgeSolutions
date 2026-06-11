@@ -257,7 +257,6 @@ BEGIN
         AcceptedByUserId    INT           NULL,
         CreatedAt           DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME(),
         CONSTRAINT FK_ParentInvitations_Schools FOREIGN KEY (SchoolId) REFERENCES dbo.Schools(SchoolID),
-        CONSTRAINT FK_ParentInvitations_Families FOREIGN KEY (FamilyId) REFERENCES dbo.Families(FamilyID),
         CONSTRAINT FK_ParentInvitations_Users FOREIGN KEY (InvitedByUserId) REFERENCES dbo.Users(UserID)
     );
     CREATE INDEX IX_ParentInvitations_Token ON dbo.ParentInvitations(TokenHash);
@@ -279,7 +278,6 @@ BEGIN
         PermissionKey NVARCHAR(100) NOT NULL,
         Decision NVARCHAR(10) NOT NULL DEFAULT 'Inherit',  -- Inherit, Allow, Deny
         UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT FK_RPO_Roles FOREIGN KEY (RoleId) REFERENCES dbo.Roles(RoleID),
         CONSTRAINT UQ_RPO UNIQUE (RoleId, PermissionKey)
     );
     CREATE INDEX IX_RPO_Role ON dbo.RolePermissionOverrides(RoleId);
@@ -417,6 +415,14 @@ BEGIN
     );
 END;
 
+IF OBJECT_ID('dbo.ParentInvitations', 'U') IS NOT NULL
+   AND OBJECT_ID('dbo.Families', 'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_ParentInvitations_Families')
+BEGIN
+    ALTER TABLE dbo.ParentInvitations
+        ADD CONSTRAINT FK_ParentInvitations_Families FOREIGN KEY (FamilyId) REFERENCES dbo.Families(FamilyID);
+END;
+
 IF OBJECT_ID('dbo.BillingCategories', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.BillingCategories (
@@ -463,6 +469,7 @@ BEGIN
         HomePhone NVARCHAR(50) NULL,
         HomeAddress NVARCHAR(500) NULL,
         ClassName NVARCHAR(100) NULL,
+        ClassID INT NULL,
         CurrentAcademicYear INT NOT NULL DEFAULT (YEAR(GETDATE())),
         BillingDate DATE NOT NULL,
         EnrolledDate DATE NOT NULL,
@@ -589,6 +596,7 @@ BEGIN
         SchoolID INT NOT NULL,
         FileName NVARCHAR(255) NOT NULL,
         StatementDate DATE NULL,
+        StatementEndDate DATE NULL,
         RawData NVARCHAR(MAX) NOT NULL,
         CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
         UpdatedDate DATETIME NOT NULL DEFAULT GETDATE(),
@@ -903,23 +911,37 @@ BEGIN
     CREATE INDEX IX_BankStatements_SchoolID ON dbo.BankStatements(SchoolID);
 END;
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BankStatements_School_Period' AND object_id = OBJECT_ID('dbo.BankStatements'))
+IF COL_LENGTH('dbo.BankStatements', 'StatementEndDate') IS NULL
 BEGIN
-    CREATE INDEX IX_BankStatements_School_Period ON dbo.BankStatements(SchoolID, StatementDate, StatementEndDate);
+    ALTER TABLE dbo.BankStatements ADD StatementEndDate DATE NULL;
 END;
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_BankStatements_School_Period' AND object_id = OBJECT_ID('dbo.BankStatements'))
-    AND NOT EXISTS (
-        SELECT SchoolID, StatementDate, StatementEndDate
-        FROM dbo.BankStatements
-        WHERE StatementDate IS NOT NULL AND StatementEndDate IS NOT NULL
-        GROUP BY SchoolID, StatementDate, StatementEndDate
-        HAVING COUNT(1) > 1
-    )
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BankStatements_School_Period' AND object_id = OBJECT_ID('dbo.BankStatements'))
 BEGIN
-    CREATE UNIQUE INDEX UX_BankStatements_School_Period
-        ON dbo.BankStatements(SchoolID, StatementDate, StatementEndDate)
-        WHERE StatementDate IS NOT NULL AND StatementEndDate IS NOT NULL;
+    EXEC sp_executesql N'CREATE INDEX IX_BankStatements_School_Period ON dbo.BankStatements(SchoolID, StatementDate, StatementEndDate)';
+END;
+
+BEGIN
+    DECLARE @bankStatementPeriodDuplicates INT = 0;
+    EXEC sp_executesql
+        N'SELECT @duplicates = COUNT(1)
+          FROM (
+              SELECT SchoolID, StatementDate, StatementEndDate
+              FROM dbo.BankStatements
+              WHERE StatementDate IS NOT NULL AND StatementEndDate IS NOT NULL
+              GROUP BY SchoolID, StatementDate, StatementEndDate
+              HAVING COUNT(1) > 1
+          ) d',
+        N'@duplicates INT OUTPUT',
+        @duplicates = @bankStatementPeriodDuplicates OUTPUT;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_BankStatements_School_Period' AND object_id = OBJECT_ID('dbo.BankStatements'))
+       AND @bankStatementPeriodDuplicates = 0
+    BEGIN
+        EXEC sp_executesql N'CREATE UNIQUE INDEX UX_BankStatements_School_Period
+            ON dbo.BankStatements(SchoolID, StatementDate, StatementEndDate)
+            WHERE StatementDate IS NOT NULL AND StatementEndDate IS NOT NULL';
+    END;
 END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Employees_SchoolID' AND object_id = OBJECT_ID('dbo.Employees'))
@@ -2330,26 +2352,32 @@ BEGIN
     ALTER TABLE dbo.Payslips ADD FinalizedBy INT NULL;
 END;
 
+EXEC sp_executesql N'
 UPDATE dbo.Payslips
-SET Status = 'Finalized'
-WHERE IsFinalized = 1 AND ISNULL(Status, '') <> 'Finalized';
+SET Status = ''Finalized''
+WHERE IsFinalized = 1 AND ISNULL(Status, '''') <> ''Finalized''';
 
+EXEC sp_executesql N'
 UPDATE dbo.Payslips
 SET PaymentDate = CONVERT(date, FinalizedDate)
-WHERE PaymentDate IS NULL AND FinalizedDate IS NOT NULL;
+WHERE PaymentDate IS NULL AND FinalizedDate IS NOT NULL';
 
+EXEC sp_executesql N'
 UPDATE dbo.Payslips
 SET BasicSalary = GrossAmount
-WHERE ISNULL(BasicSalary, 0) = 0 AND GrossAmount > 0;
+WHERE ISNULL(BasicSalary, 0) = 0 AND GrossAmount > 0';
 
+EXEC sp_executesql N'
 UPDATE dbo.Payslips
 SET TaxPaye = Deductions
-WHERE ISNULL(TaxPaye, 0) = 0 AND ISNULL(Deductions, 0) > 0;
+WHERE ISNULL(TaxPaye, 0) = 0 AND ISNULL(Deductions, 0) > 0';
 
+EXEC sp_executesql N'
 UPDATE dbo.Employees
-SET EmployeeNumber = 'EMP-' + RIGHT('00000' + CAST(EmployeeID AS NVARCHAR(10)), 5)
-WHERE EmployeeNumber IS NULL OR LTRIM(RTRIM(EmployeeNumber)) = '';
+SET EmployeeNumber = ''EMP-'' + RIGHT(''00000'' + CAST(EmployeeID AS NVARCHAR(10)), 5)
+WHERE EmployeeNumber IS NULL OR LTRIM(RTRIM(EmployeeNumber)) = ''''';
 
+EXEC sp_executesql N'
 UPDATE p
 SET CreatedBy = u.UserID
 FROM dbo.Payslips p
@@ -2357,11 +2385,12 @@ INNER JOIN dbo.Employees e ON e.EmployeeID = p.EmployeeID
 OUTER APPLY (
     SELECT TOP 1 UserID
     FROM dbo.Users
-    WHERE SchoolID = e.SchoolID AND Role = 'school' AND ISNULL(HasHrPermission, 0) = 1 AND ISNULL(IsActive, 1) = 1
+    WHERE SchoolID = e.SchoolID AND Role = ''school'' AND ISNULL(HasHrPermission, 0) = 1 AND ISNULL(IsActive, 1) = 1
     ORDER BY UserID
 ) u
-WHERE p.CreatedBy IS NULL AND u.UserID IS NOT NULL;
+WHERE p.CreatedBy IS NULL AND u.UserID IS NOT NULL';
 
+EXEC sp_executesql N'
 UPDATE p
 SET FinalizedBy = u.UserID
 FROM dbo.Payslips p
@@ -2369,21 +2398,21 @@ INNER JOIN dbo.Employees e ON e.EmployeeID = p.EmployeeID
 OUTER APPLY (
     SELECT TOP 1 UserID
     FROM dbo.Users
-    WHERE SchoolID = e.SchoolID AND Role = 'school' AND ISNULL(HasHrPermission, 0) = 1 AND ISNULL(IsActive, 1) = 1
+    WHERE SchoolID = e.SchoolID AND Role = ''school'' AND ISNULL(HasHrPermission, 0) = 1 AND ISNULL(IsActive, 1) = 1
     ORDER BY UserID
 ) u
-WHERE p.IsFinalized = 1 AND p.FinalizedBy IS NULL AND u.UserID IS NOT NULL;
+WHERE p.IsFinalized = 1 AND p.FinalizedBy IS NULL AND u.UserID IS NOT NULL';
 
 -- Index for transaction duplicate key checking
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_BankTransactionKey' AND object_id = OBJECT_ID('dbo.Transactions'))
 BEGIN
-    CREATE INDEX IX_Transactions_BankTransactionKey ON dbo.Transactions(BankTransactionKey) WHERE BankTransactionKey IS NOT NULL;
+    EXEC sp_executesql N'CREATE INDEX IX_Transactions_BankTransactionKey ON dbo.Transactions(BankTransactionKey) WHERE BankTransactionKey IS NOT NULL';
 END;
 
 -- Index for transaction allocation status
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_AllocationStatus' AND object_id = OBJECT_ID('dbo.Transactions'))
 BEGIN
-    CREATE INDEX IX_Transactions_AllocationStatus ON dbo.Transactions(SchoolID, AllocationStatus);
+    EXEC sp_executesql N'CREATE INDEX IX_Transactions_AllocationStatus ON dbo.Transactions(SchoolID, AllocationStatus)';
 END;
 
 -- =============================================
@@ -2443,7 +2472,7 @@ END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Families_School_IsDeleted' AND object_id = OBJECT_ID('dbo.Families'))
 BEGIN
-    CREATE INDEX IX_Families_School_IsDeleted ON dbo.Families(SchoolID, IsDeleted) INCLUDE (FamilyName, PrimaryParentName);
+    EXEC sp_executesql N'CREATE INDEX IX_Families_School_IsDeleted ON dbo.Families(SchoolID, IsDeleted) INCLUDE (FamilyName, PrimaryParentName)';
 END;
 
 -- =============================================
@@ -2466,7 +2495,26 @@ END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Classes_School_IsDeleted' AND object_id = OBJECT_ID('dbo.Classes'))
 BEGIN
-    CREATE INDEX IX_Classes_School_IsDeleted ON dbo.Classes(SchoolID, IsDeleted, ActiveYear) INCLUDE (ClassName, Grade, TeacherID, Capacity);
+    EXEC sp_executesql N'CREATE INDEX IX_Classes_School_IsDeleted ON dbo.Classes(SchoolID, IsDeleted, ActiveYear) INCLUDE (ClassName, Grade, TeacherID, Capacity)';
+END;
+
+-- Students.IsDeleted for soft delete and scoped list filtering
+IF COL_LENGTH('dbo.Students', 'ClassID') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD ClassID INT NULL;
+END;
+
+IF OBJECT_ID('dbo.Classes', 'U') IS NOT NULL
+   AND COL_LENGTH('dbo.Students', 'ClassID') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Students_Classes')
+BEGIN
+    ALTER TABLE dbo.Students
+        ADD CONSTRAINT FK_Students_Classes FOREIGN KEY (ClassID) REFERENCES dbo.Classes(ClassID);
+END;
+
+IF COL_LENGTH('dbo.Students', 'IsDeleted') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD IsDeleted BIT NOT NULL DEFAULT 0;
 END;
 
 -- =============================================
@@ -2514,17 +2562,17 @@ IF NOT EXISTS (SELECT 1 FROM dbo.PlatformSettings WHERE SettingKey = 'maxSchools
 -- Students: list view filters by SchoolID + IsDeleted + IsActive + ClassID
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Students_School_Active_Class' AND object_id = OBJECT_ID('dbo.Students'))
 BEGIN
-    CREATE INDEX IX_Students_School_Active_Class
+    EXEC sp_executesql N'CREATE INDEX IX_Students_School_Active_Class
         ON dbo.Students(SchoolID, IsDeleted, IsActive, ClassID)
-        INCLUDE (StudentID, FirstName, LastName, FamilyID, BillingCategoryID);
+        INCLUDE (StudentID, FirstName, LastName, FamilyID, BillingCategoryID)';
 END;
 
 -- Students: search by name within a school
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Students_School_LastName' AND object_id = OBJECT_ID('dbo.Students'))
 BEGIN
-    CREATE INDEX IX_Students_School_LastName
+    EXEC sp_executesql N'CREATE INDEX IX_Students_School_LastName
         ON dbo.Students(SchoolID, LastName, FirstName)
-        INCLUDE (StudentID, FamilyID, ClassID, IsActive);
+        INCLUDE (StudentID, FamilyID, ClassID, IsActive)';
 END;
 
 -- Invoices: list view filters by SchoolID + Status, ordered by DueDate DESC
@@ -2546,18 +2594,18 @@ END;
 -- Transactions: payment list per school
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_School_Date' AND object_id = OBJECT_ID('dbo.Transactions'))
 BEGIN
-    CREATE INDEX IX_Transactions_School_Date
+    EXEC sp_executesql N'CREATE INDEX IX_Transactions_School_Date
         ON dbo.Transactions(SchoolID, TransactionDate DESC, CreatedDate DESC)
-        INCLUDE (TransactionID, ReceiptNumber, PayeeName, PaymentMethod, Amount, AllocationStatus, InvoiceID, BankStatementID);
+        INCLUDE (TransactionID, ReceiptNumber, PayeeName, PaymentMethod, Amount, AllocationStatus, InvoiceID, BankStatementID)';
 END;
 
 -- Transactions: unallocated payments (DevForge KPI)
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Transactions_Allocation_School' AND object_id = OBJECT_ID('dbo.Transactions'))
 BEGIN
-    CREATE INDEX IX_Transactions_Allocation_School
+    EXEC sp_executesql N'CREATE INDEX IX_Transactions_Allocation_School
         ON dbo.Transactions(AllocationStatus, SchoolID)
         INCLUDE (TransactionID, Amount, TransactionDate)
-        WHERE AllocationStatus IN ('Unallocated', 'PendingPayment');
+        WHERE AllocationStatus IN (''Unallocated'', ''PendingPayment'')';
 END;
 
 -- AuditLog: scoped queries by school/actor (covering: includes payload + actor fields)
@@ -2584,7 +2632,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ParentLinks_User' AND 
 BEGIN
     CREATE INDEX IX_ParentLinks_User
         ON dbo.ParentLinks(UserID)
-        INCLUDE (ParentLinkID, SchoolID, FamilyID, StudentID);
+        INCLUDE (ParentLinkID, SchoolID, FamilyID);
 END;
 
 -- BankStatements: per school, ordered by statement date
@@ -2593,7 +2641,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BankStatements_School_
 BEGIN
     CREATE INDEX IX_BankStatements_School_Date
         ON dbo.BankStatements(SchoolID, StatementDate DESC)
-        INCLUDE (BankStatementID, FileName, Status);
+        INCLUDE (BankStatementID, FileName);
 END;
 
 -- BankStatementTransactions: reconciliation query
@@ -2620,7 +2668,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Conversations_School' 
 BEGIN
     CREATE INDEX IX_Conversations_School
         ON dbo.Conversations(SchoolID, LastMessageAt DESC)
-        INCLUDE (ConversationID, Subject, FamilyID, ConversationType);
+        INCLUDE (ConversationID, ConversationName, ConversationType);
 END;
 
 -- =============================================
@@ -2683,6 +2731,14 @@ BEGIN
         IsActive        BIT NOT NULL DEFAULT 1
     );
     CREATE INDEX IX_Roles_Tenant ON dbo.Roles(TenantId, IsActive);
+END;
+
+IF OBJECT_ID('dbo.RolePermissionOverrides', 'U') IS NOT NULL
+   AND OBJECT_ID('dbo.Roles', 'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_RPO_Roles')
+BEGIN
+    ALTER TABLE dbo.RolePermissionOverrides
+        ADD CONSTRAINT FK_RPO_Roles FOREIGN KEY (RoleId) REFERENCES dbo.Roles(RoleID);
 END;
 
 IF OBJECT_ID('dbo.Permissions', 'U') IS NULL
@@ -3119,17 +3175,8 @@ INSERT INTO #defaultKeys (PermissionKey, Decision) VALUES
   ('school.consent.view', 'Allow'),
   ('reports.view', 'Allow');
 
-IF OBJECT_ID('dbo.StaffRoles', 'U') IS NOT NULL
-BEGIN
-  INSERT INTO dbo.RolePermissionOverrides (RoleId, PermissionKey, Decision, UpdatedAt)
-  SELECT r.RoleID, k.PermissionKey, k.Decision, SYSUTCDATETIME()
-  FROM dbo.StaffRoles r
-  CROSS JOIN #defaultKeys k
-  WHERE NOT EXISTS (
-    SELECT 1 FROM dbo.RolePermissionOverrides o
-    WHERE o.RoleId = r.RoleID AND o.PermissionKey = k.PermissionKey
-  );
-END;
+-- RolePermissionOverrides belongs to the newer dbo.Roles table. Legacy
+-- dbo.StaffRoles uses StaffRoleID and is intentionally not backfilled here.
 DROP TABLE #defaultKeys;
 
 -- =============================================
@@ -3245,9 +3292,9 @@ END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Transactions_School_BankTransactionId' AND object_id = OBJECT_ID('dbo.Transactions'))
 BEGIN
-    CREATE UNIQUE INDEX UX_Transactions_School_BankTransactionId
+    EXEC sp_executesql N'CREATE UNIQUE INDEX UX_Transactions_School_BankTransactionId
         ON dbo.Transactions(SchoolID, BankTransactionId)
-        WHERE BankTransactionId IS NOT NULL;
+        WHERE BankTransactionId IS NOT NULL';
 END;
 
 -- =============================================
@@ -3296,8 +3343,15 @@ BEGIN
     DECLARE @newTenantId INT;
     DECLARE @schoolId INT;
     DECLARE @schoolName NVARCHAR(255);
+    CREATE TABLE #SchoolsNeedingTenant (
+        SchoolID INT NOT NULL,
+        SchoolName NVARCHAR(255) NOT NULL
+    );
+    INSERT INTO #SchoolsNeedingTenant (SchoolID, SchoolName)
+    EXEC sp_executesql N'SELECT SchoolID, SchoolName FROM dbo.Schools WHERE TenantId IS NULL OR TenantId = 0';
+
     DECLARE schoolCur CURSOR LOCAL FORWARD_ONLY FOR
-        SELECT SchoolID, SchoolName FROM dbo.Schools WHERE TenantId IS NULL OR TenantId = 0;
+        SELECT SchoolID, SchoolName FROM #SchoolsNeedingTenant;
     OPEN schoolCur;
     FETCH NEXT FROM schoolCur INTO @schoolId, @schoolName;
     WHILE @@FETCH_STATUS = 0
@@ -3305,11 +3359,16 @@ BEGIN
         INSERT INTO dbo.Tenants (TenantName, TenantType, Status, IsActive)
         VALUES (@schoolName, 'School', 'Active', 1);
         SET @newTenantId = SCOPE_IDENTITY();
-        UPDATE dbo.Schools SET TenantId = @newTenantId WHERE SchoolID = @schoolId;
+        EXEC sp_executesql
+            N'UPDATE dbo.Schools SET TenantId = @tenantId WHERE SchoolID = @schoolId',
+            N'@tenantId INT, @schoolId INT',
+            @tenantId = @newTenantId,
+            @schoolId = @schoolId;
         FETCH NEXT FROM schoolCur INTO @schoolId, @schoolName;
     END
     CLOSE schoolCur;
     DEALLOCATE schoolCur;
+    DROP TABLE #SchoolsNeedingTenant;
 
     -- For schools with no rows above (already had tenants) but TenantId was
     -- never set on the School itself, leave the existing tenant creation alone.

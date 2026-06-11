@@ -1,4 +1,4 @@
-name: Deploy Node.js app to Azure Web App - devforgesolutions-saas-app-24
+name: Deploy KinderHub to Azure Web App
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: azure-production-${{ github.ref }}
+  group: kinderhub-production-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install dependencies
         run: npm ci --omit=dev
@@ -35,15 +35,15 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_709E587A00FC428282A6B13D227D938F }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_83C034F08B6F47ECB73178D7D1CDE1AA }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_957216CA4DF34E498637032CD17A2E53 }}
+          client-id: 05bdafa0-0d05-4734-90f8-1cd13ff91410
+          tenant-id: bb2c8b70-1ec5-40ea-b52a-263706eab1fa
+          subscription-id: 5a7ad0a9-17e6-45e4-987b-3db59aca4abc
 
       - name: Configure Azure package deployment
         run: |
           az webapp config appsettings set \
-            --name devforgesolutions-saas-app-24 \
-            --resource-group devforge-saas-rg \
+            --name kinderhub-saas-app \
+            --resource-group rg-kinderhub-prod \
             --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false
 
       - name: Create deployment package
@@ -54,6 +54,7 @@ jobs:
             -x ".git/*" \
             -x ".github/*" \
             -x ".env" \
+            -x ".azure-*.local.json" \
             -x "*.log" \
             -x "azure-logs/*" \
             -x "backup/*" \
@@ -63,13 +64,13 @@ jobs:
 
       - name: Publish package and restart Azure Web App
         run: |
-          storage_account="devforgepkgdfs24"
+          storage_account="kinderhubst115707"
           container="app-packages"
           blob_name="release-${GITHUB_SHA}.zip"
           expiry=$(date -u -d "30 days" '+%Y-%m-%dT%H:%MZ')
           storage_key=$(az storage account keys list \
             --account-name "$storage_account" \
-            --resource-group devforge-saas-rg \
+            --resource-group rg-kinderhub-prod \
             --query "[0].value" \
             -o tsv)
 
@@ -101,20 +102,20 @@ jobs:
           package_url="https://${storage_account}.blob.core.windows.net/${container}/${blob_name}?${sas}"
 
           az webapp config appsettings set \
-            --name devforgesolutions-saas-app-24 \
-            --resource-group devforge-saas-rg \
+            --name kinderhub-saas-app \
+            --resource-group rg-kinderhub-prod \
             --settings WEBSITE_RUN_FROM_PACKAGE="$package_url" SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false \
             --output none
 
           az webapp restart \
-            --name devforgesolutions-saas-app-24 \
-            --resource-group devforge-saas-rg \
+            --name kinderhub-saas-app \
+            --resource-group rg-kinderhub-prod \
             --output none
 
       - name: Verify Azure health
         run: |
           for attempt in {1..30}; do
-            status=$(curl -sS -o /tmp/health.json -w "%{http_code}" https://devforgesolutions-saas-app-24.azurewebsites.net/health || true)
+            status=$(curl -sS -o /tmp/health.json -w "%{http_code}" https://kinderhub-saas-app.azurewebsites.net/health || true)
             if [ "$status" = "200" ]; then
               cat /tmp/health.json
               exit 0

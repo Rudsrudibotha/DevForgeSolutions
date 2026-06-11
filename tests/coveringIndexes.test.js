@@ -23,7 +23,7 @@ const REQUIRED_INDEXES = [
   { name: 'IX_BankStatements_School_Date',    columns: ['SchoolID', 'StatementDate'],             includes: ['BankStatementID', 'FileName'] },
   { name: 'IX_BankStmts_School_Match',        columns: ['SchoolID', 'IsMatched'],                  includes: ['BankStatementTransactionID', 'Amount'] },
   { name: 'IX_Employees_School_Active',       columns: ['SchoolID', 'IsActive'],                    includes: ['EmployeeID', 'LastName', 'FirstName'] },
-  { name: 'IX_Conversations_School',          columns: ['SchoolID', 'LastMessageAt'],              includes: ['ConversationID', 'Subject'] }
+  { name: 'IX_Conversations_School',          columns: ['SchoolID', 'LastMessageAt'],              includes: ['ConversationID', 'ConversationName'] }
 ];
 
 async function run() {
@@ -65,7 +65,8 @@ async function run() {
   assert.ok(includeCount >= REQUIRED_INDEXES.length, 'all new indexes use INCLUDE for covering, got ' + includeCount);
 
   console.log('transactions unallocated index has filtered WHERE clause');
-  assert.match(schema, /WHERE AllocationStatus IN \('Unallocated', 'PendingPayment'\)/, 'unallocated index has partial filter');
+  // The index lives inside an sp_executesql string, so quotes may be doubled.
+  assert.match(schema, /WHERE AllocationStatus IN \('{1,2}Unallocated'{1,2}, '{1,2}PendingPayment'{1,2}\)/, 'unallocated index has partial filter');
 
   console.log('OK all 7 covering index tests passed');
   if (process.exitCode) console.log('\nFAILED'); else console.log('\nALL COVERING INDEX TESTS PASSED');
