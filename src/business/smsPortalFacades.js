@@ -247,6 +247,47 @@ class AdmissionsFinanceService {
     return repo.getBySchool(Number(currentUser.SchoolID));
   }
 
+  async createFinancePeriodLock(currentUser, payload = {}) {
+    if (!currentUser || !currentUser.SchoolID) return { ok: false, error: 'no-school-context' };
+    const repo = new FinancePeriodLockRepository();
+    const lockType = ['Month', 'Year', 'Custom'].includes(payload.lockType) ? payload.lockType : 'Month';
+    const year = Number(payload.year || new Date().getFullYear());
+    const month = Number(payload.month || 0);
+    let periodStart;
+    let periodEnd;
+
+    if (lockType === 'Year') {
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) return { ok: false, error: 'invalid-year' };
+      periodStart = `${year}-01-01`;
+      periodEnd = `${year}-12-31`;
+    } else if (lockType === 'Custom') {
+      periodStart = String(payload.periodStart || '').slice(0, 10);
+      periodEnd = String(payload.periodEnd || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(periodStart) || !/^\d{4}-\d{2}-\d{2}$/.test(periodEnd)) return { ok: false, error: 'custom-dates-required' };
+      if (periodStart > periodEnd) return { ok: false, error: 'invalid-date-range' };
+    } else {
+      if (!Number.isInteger(year) || year < 2000 || year > 2100 || !Number.isInteger(month) || month < 1 || month > 12) return { ok: false, error: 'invalid-month' };
+      periodStart = new Date(year, month - 1, 1).toISOString().slice(0, 10);
+      periodEnd = new Date(year, month, 0).toISOString().slice(0, 10);
+    }
+
+    const reason = String(payload.reason || '').trim().slice(0, 500);
+    if (!reason) return { ok: false, error: 'reason-required' };
+    try {
+      const lock = await repo.create({
+        schoolId: Number(currentUser.SchoolID),
+        periodStart,
+        periodEnd,
+        lockType,
+        reason,
+        lockedBy: Number(currentUser.UserID || currentUser.id) || null
+      });
+      return { ok: true, lock };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+
   async getConsents(currentUser) {
     if (!currentUser || !currentUser.SchoolID) return [];
     const pool = await getPool();
@@ -285,14 +326,49 @@ class PermissionLeaveYearEndService {
     const pool = await getPool();
     const result = await pool.request()
       .input('schoolId', sql.Int, Number(currentUser.SchoolID))
-      .input('tenantId', sql.Int, Number(currentUser.tenantId || 0))
       .query(`
-        SELECT YearEndClosingID, SchoolID, TenantId, Year, Status, OpenedAt, ClosedAt
+        SELECT ClosingID AS YearEndClosingID, SchoolID, FinancialYear AS Year, Status,
+               CreatedDate AS OpenedAt, ClosedDate AS ClosedAt,
+               TotalOutstanding, TotalAdvanceCredit, TotalInvoiced, TotalPaid
         FROM dbo.YearEndClosing
-        WHERE SchoolID = @schoolId AND TenantId = @tenantId
-        ORDER BY Year DESC
+        WHERE SchoolID = @schoolId
+        ORDER BY FinancialYear DESC
       `);
     return result.recordset;
+  }
+
+  async createYearEndClosing(currentUser, payload = {}) {
+    if (!currentUser || !currentUser.SchoolID) return { ok: false, error: 'no-school-context' };
+    const year = Number(payload.financialYear || payload.year);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) return { ok: false, error: 'invalid-year' };
+    const repo = new PermissionLeaveYearEndRepositories.YearEndClosingRepository();
+    try {
+      const existing = await repo.getBySchoolAndYear(Number(currentUser.SchoolID), year);
+      if (existing) return { ok: false, error: 'year-end-exists' };
+      const created = await repo.create({
+        schoolId: Number(currentUser.SchoolID),
+        financialYear: year,
+        totalOutstanding: Number(payload.totalOutstanding || 0),
+        totalAdvanceCredit: Number(payload.totalAdvanceCredit || 0),
+        totalInvoiced: Number(payload.totalInvoiced || 0),
+        totalPaid: Number(payload.totalPaid || 0)
+      });
+      return { ok: true, closing: created };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+
+  async updateYearEndStatus(currentUser, id, status, reason) {
+    if (!currentUser || !currentUser.SchoolID) return { ok: false, error: 'no-school-context' };
+    if (!['Open', 'In Review', 'Ready to Close', 'Closed', 'Reopened for Correction'].includes(status)) return { ok: false, error: 'invalid-status' };
+    const repo = new PermissionLeaveYearEndRepositories.YearEndClosingRepository();
+    try {
+      const updated = await repo.updateStatus(Number(id), Number(currentUser.SchoolID), status, Number(currentUser.UserID || currentUser.id) || null, reason || null);
+      return updated ? { ok: true, closing: updated } : { ok: false, error: 'not-found' };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   }
 }
 
@@ -302,20 +378,127 @@ class RolloverTemplateService {
     const pool = await getPool();
     const result = await pool.request()
       .input('schoolId', sql.Int, Number(currentUser.SchoolID))
-      .input('tenantId', sql.Int, Number(currentUser.tenantId || 0))
       .input('year', sql.Int, Number(year))
       .query(`
         SELECT TOP 200 s.StudentID, s.FirstName, s.LastName, s.SchoolID, s.EnrolledDate,
-               c.ClassName AS CurrentClass, nc.ClassName AS NextClass, s.NextClassId AS NextClassID,
-               rre.Status, rre.Year
-        FROM dbo.ReEnrolment rre
-        INNER JOIN dbo.Students s ON s.StudentID = rre.StudentID
-        LEFT JOIN dbo.Classes c ON c.ClassID = s.ClassID
-        LEFT JOIN dbo.Classes nc ON nc.ClassID = s.NextClassId
-        WHERE rre.SchoolID = @schoolId AND rre.TenantId = @tenantId AND rre.Year = @year AND rre.Status = 'Pending'
-        ORDER BY s.LastName
+               s.ClassName AS CurrentClass, CAST(NULL AS NVARCHAR(200)) AS NextClass,
+               ISNULL(s.CurrentAcademicYear, YEAR(GETDATE())) AS CurrentAcademicYear,
+               'Pending' AS Status,
+               ISNULL(SUM(CASE WHEN i.Status IN ('Pending','Overdue','Partial') THEN i.Amount - ISNULL(i.AmountPaid, 0) ELSE 0 END), 0) AS OutstandingBalance
+        FROM dbo.Students s
+        LEFT JOIN dbo.Invoices i ON i.StudentID = s.StudentID AND i.SchoolID = s.SchoolID AND i.IsDeleted = 0
+        WHERE s.SchoolID = @schoolId
+          AND s.IsActive = 1
+          AND s.IsDeleted = 0
+          AND ISNULL(s.CurrentAcademicYear, YEAR(GETDATE())) < @year
+          AND NOT EXISTS (
+            SELECT 1 FROM dbo.ReEnrolment r
+            WHERE r.SchoolID = @schoolId
+              AND r.AcademicYear = @year
+              AND r.StudentID = s.StudentID
+              AND r.Action <> 'Pending'
+          )
+        GROUP BY s.StudentID, s.FirstName, s.LastName, s.SchoolID, s.EnrolledDate, s.ClassName, s.CurrentAcademicYear
+        ORDER BY s.LastName, s.FirstName
       `);
     return result.recordset;
+  }
+
+  async listTargetClasses(currentUser, year) {
+    if (!currentUser || !currentUser.SchoolID) return [];
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('schoolId', sql.Int, Number(currentUser.SchoolID))
+      .input('year', sql.Int, Number(year))
+      .query(`
+        SELECT ClassID, ClassName, Grade
+        FROM dbo.Classes
+        WHERE SchoolID = @schoolId
+          AND IsActive = 1
+          AND (
+            ActiveYear = @year
+            OR NOT EXISTS (
+              SELECT 1
+              FROM dbo.Classes
+              WHERE SchoolID = @schoolId AND IsActive = 1 AND ActiveYear = @year
+            )
+          )
+        ORDER BY Grade, ClassName
+      `);
+    return result.recordset;
+  }
+
+  async processStudent(currentUser, payload = {}) {
+    if (!currentUser || !currentUser.SchoolID) return { ok: false, error: 'no-school-context' };
+    const schoolId = Number(currentUser.SchoolID);
+    const studentId = Number(payload.studentId);
+    const academicYear = Number(payload.academicYear);
+    const action = String(payload.action || '').trim();
+    if (!Number.isInteger(studentId) || studentId <= 0) return { ok: false, error: 'student-required' };
+    if (!Number.isInteger(academicYear) || academicYear < 2000 || academicYear > 2100) return { ok: false, error: 'invalid-year' };
+    if (!['Promoted', 'Left', 'Retained', 'Pending'].includes(action)) return { ok: false, error: 'invalid-action' };
+    const pool = await getPool();
+    try {
+      const studentResult = await pool.request()
+        .input('schoolId', sql.Int, schoolId)
+        .input('studentId', sql.Int, studentId)
+        .query(`
+          SELECT StudentID, FirstName, LastName, ClassName, CurrentAcademicYear
+          FROM dbo.Students
+          WHERE SchoolID = @schoolId AND StudentID = @studentId AND IsDeleted = 0
+        `);
+      const student = studentResult.recordset[0];
+      if (!student) return { ok: false, error: 'student-not-found' };
+      const newClassName = String(payload.newClassName || student.ClassName || '').trim() || null;
+      const recordResult = await pool.request()
+        .input('schoolId', sql.Int, schoolId)
+        .input('academicYear', sql.Int, academicYear)
+        .input('studentId', sql.Int, studentId)
+        .input('previousClassName', sql.NVarChar, student.ClassName || null)
+        .input('newClassName', sql.NVarChar, action === 'Left' ? null : newClassName)
+        .input('action', sql.NVarChar, action)
+        .input('processedBy', sql.Int, Number(currentUser.UserID || currentUser.id) || null)
+        .query(`
+          IF EXISTS (SELECT 1 FROM dbo.ReEnrolment WHERE SchoolID = @schoolId AND AcademicYear = @academicYear AND StudentID = @studentId)
+          BEGIN
+            UPDATE dbo.ReEnrolment
+            SET PreviousClassName = @previousClassName, NewClassName = @newClassName, Action = @action,
+                ProcessedBy = @processedBy, ProcessedDate = GETDATE()
+            OUTPUT INSERTED.*
+            WHERE SchoolID = @schoolId AND AcademicYear = @academicYear AND StudentID = @studentId;
+          END
+          ELSE
+          BEGIN
+            INSERT INTO dbo.ReEnrolment (SchoolID, AcademicYear, StudentID, PreviousClassName, NewClassName, Action, ProcessedBy)
+            OUTPUT INSERTED.*
+            VALUES (@schoolId, @academicYear, @studentId, @previousClassName, @newClassName, @action, @processedBy);
+          END
+        `);
+      if (['Promoted', 'Retained'].includes(action)) {
+        await pool.request()
+          .input('schoolId', sql.Int, schoolId)
+          .input('studentId', sql.Int, studentId)
+          .input('className', sql.NVarChar, newClassName)
+          .input('academicYear', sql.Int, academicYear)
+          .query(`
+            UPDATE dbo.Students
+            SET ClassName = @className, CurrentAcademicYear = @academicYear, UpdatedDate = GETDATE()
+            WHERE SchoolID = @schoolId AND StudentID = @studentId
+          `);
+      } else if (action === 'Left') {
+        await pool.request()
+          .input('schoolId', sql.Int, schoolId)
+          .input('studentId', sql.Int, studentId)
+          .query(`
+            UPDATE dbo.Students
+            SET IsActive = 0, DepartureDate = GETDATE(), DepartureReason = 'Left', UpdatedDate = GETDATE()
+            WHERE SchoolID = @schoolId AND StudentID = @studentId
+          `);
+      }
+      return { ok: true, record: recordResult.recordset[0] };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   }
 }
 

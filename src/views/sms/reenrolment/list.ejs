@@ -42,12 +42,24 @@
                 <tr>
                   <td><%= p.FirstName %> <%= p.LastName %></td>
                   <td><%= p.CurrentClass || '-' %></td>
-                  <td><%= p.NextClass || '-' %></td>
+                  <td>
+                    <form id="reenrol-<%= p.StudentID %>" method="post" action="/sms/reenrolment/process" hx-post="/sms/reenrolment/process" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                      <input type="hidden" name="studentId" value="<%= p.StudentID %>" />
+                      <input type="hidden" name="academicYear" value="<%= year %>" />
+                      <select name="newClassName" class="select">
+                        <option value="<%= p.CurrentClass || '' %>"><%= p.CurrentClass || 'Keep current class' %></option>
+                        <% (classes || []).forEach(function(c) { %>
+                          <option value="<%= c.ClassName %>"><%= c.ClassName %><%= c.Grade ? ' - ' + c.Grade : '' %></option>
+                        <% }) %>
+                      </select>
+                    </form>
+                  </td>
                   <td><span class="badge"><%= p.Status || 'Pending' %></span></td>
                   <td class="text-right">
-                    <button class="btn-primary btn-sm" hx-post="/api/platform/re-enrolment" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"studentId":"<%= p.StudentID %>","academicYear":"<%= year %>","action":"Promoted","newClassName":"<%= p.NextClass || '' %>"}'>Promote</button>
-                    <button class="btn-secondary btn-sm" hx-post="/api/platform/re-enrolment" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"studentId":"<%= p.StudentID %>","academicYear":"<%= year %>","action":"Retained"}'>Retain</button>
-                    <button class="btn-secondary btn-sm" hx-post="/api/platform/re-enrolment" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"studentId":"<%= p.StudentID %>","academicYear":"<%= year %>","action":"Left"}'>Mark left</button>
+                    <button class="btn-primary btn-sm" form="reenrol-<%= p.StudentID %>" name="action" value="Promoted" type="submit">Promote</button>
+                    <button class="btn-secondary btn-sm" form="reenrol-<%= p.StudentID %>" name="action" value="Retained" type="submit">Retain</button>
+                    <button class="btn-secondary btn-sm" form="reenrol-<%= p.StudentID %>" name="action" value="Left" type="submit">Mark left</button>
                   </td>
                 </tr>
               <% }); %>

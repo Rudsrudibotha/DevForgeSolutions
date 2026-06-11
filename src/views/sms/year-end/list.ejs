@@ -9,6 +9,27 @@
     </div>
   </div>
 
+  <form method="post" action="/sms/year-end"
+        hx-post="/sms/year-end"
+        hx-target="this"
+        hx-swap="outerHTML"
+        class="card mb-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="card-body">
+      <% if (errors && errors._form) { %>
+        <div class="alert alert-error mb-3"><%= errors._form %></div>
+      <% } %>
+      <div class="grid grid-cols-1 sm:grid-cols-[200px_1fr_auto] gap-3 items-end">
+        <div class="form-field">
+          <label class="label label-required" for="financialYear">Financial year</label>
+          <input id="financialYear" name="financialYear" type="number" min="2000" max="2100" required class="input" value="<%= form.financialYear || new Date().getFullYear() %>" />
+        </div>
+        <div class="text-sm text-muted pb-2">Create the closing record, then close it once rollover is complete.</div>
+        <button type="submit" class="btn-primary">Create year-end</button>
+      </div>
+    </div>
+  </form>
+
   <div class="card">
     <div class="card-body p-0">
       <div class="table-wrap">
@@ -34,9 +55,9 @@
                   <td><%= y.ClosedAt ? formatDate(y.ClosedAt) : '-' %></td>
                   <td class="text-right">
                     <% if (y.Status === 'Open') { %>
-                      <button class="btn-primary btn-sm" hx-put="/api/hr/year-end/<%= y.YearEndClosingID %>/status" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"status":"Closed"}'>Close year</button>
+                      <button class="btn-primary btn-sm" hx-post="/sms/year-end/<%= y.YearEndClosingID %>/status" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"status":"Closed"}'>Close year</button>
                     <% } else { %>
-                      <button class="btn-secondary btn-sm" hx-put="/api/hr/year-end/<%= y.YearEndClosingID %>/status" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"status":"Open"}'>Reopen</button>
+                      <button class="btn-secondary btn-sm" hx-post="/sms/year-end/<%= y.YearEndClosingID %>/status" hx-swap="none" hx-on::after-request="if(event.detail.successful) location.reload()" hx-vals='{"status":"Reopened for Correction","reason":"Reopened from school dashboard"}'>Reopen</button>
                     <% } %>
                   </td>
                 </tr>

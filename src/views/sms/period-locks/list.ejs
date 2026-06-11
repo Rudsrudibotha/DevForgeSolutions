@@ -9,6 +9,52 @@
     </div>
   </div>
 
+  <form method="post" action="/sms/period-locks"
+        hx-post="/sms/period-locks"
+        hx-target="this"
+        hx-swap="outerHTML"
+        class="card mb-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="card-body space-y-4">
+      <% if (errors && errors._form) { %>
+        <div class="alert alert-error"><%= errors._form %></div>
+      <% } %>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div class="form-field">
+          <label class="label" for="lockType">Lock type</label>
+          <select id="lockType" name="lockType" class="select">
+            <% ['Month','Year','Custom'].forEach(function(t) { %>
+              <option value="<%= t %>" <%= (form.lockType || 'Month') === t ? 'selected' : '' %>><%= t %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="label" for="year">Year</label>
+          <input id="year" name="year" type="number" min="2000" max="2100" class="input" value="<%= form.year || new Date().getFullYear() %>" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="month">Month</label>
+          <input id="month" name="month" type="number" min="1" max="12" class="input" value="<%= form.month || (new Date().getMonth() + 1) %>" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="periodStart">Custom start</label>
+          <input id="periodStart" name="periodStart" type="date" class="input" value="<%= form.periodStart || '' %>" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="periodEnd">Custom end</label>
+          <input id="periodEnd" name="periodEnd" type="date" class="input" value="<%= form.periodEnd || '' %>" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
+        <div class="form-field">
+          <label class="label label-required" for="reason">Reason</label>
+          <input id="reason" name="reason" type="text" maxlength="500" required class="input" value="<%= form.reason || '' %>" />
+        </div>
+        <button type="submit" class="btn-primary">Lock period</button>
+      </div>
+    </div>
+  </form>
+
   <div class="card">
     <div class="card-body p-0">
       <div class="table-wrap">

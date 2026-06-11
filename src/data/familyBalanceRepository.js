@@ -10,7 +10,8 @@
 // If zero: settled.
 //
 // We deliberately query against Invoices/Transactions/Refunds/
-// FinancialAdjustments tables joined on FamilyID. The StudentWallets
+// FinancialAdjustments tables, deriving invoice family ownership
+// through Students where needed. The StudentWallets
 // table is a per-student cache of the same data; this function is
 // the source of truth for the family-level view.
 
@@ -29,35 +30,35 @@ async function getFamilyRunningBalance({ schoolId, familyId }) {
       DECLARE @adjustments DECIMAL(18,2) = 0;
       DECLARE @refunds DECIMAL(18,2) = 0;
 
-      SELECT @invoiced = ISNULL(SUM(Amount), 0)
-        FROM dbo.Invoices
-        WHERE SchoolID = @schoolId
-          AND FamilyID = @familyId
-          AND IsDeleted = 0;
-
-      SELECT @received = ISNULL(SUM(Amount), 0)
-        FROM dbo.Transactions t
-        INNER JOIN dbo.Students s ON s.StudentID = t.StudentID
-        WHERE t.SchoolID = @schoolId
+      SELECT @invoiced = ISNULL(SUM(i.Amount), 0)
+        FROM dbo.Invoices i
+        INNER JOIN dbo.Students s ON s.StudentID = i.StudentID AND s.SchoolID = i.SchoolID
+        WHERE i.SchoolID = @schoolId
           AND s.FamilyID = @familyId
-          AND t.IsDeleted = 0;
+          AND i.IsDeleted = 0;
+
+      SELECT @received = ISNULL(SUM(t.Amount), 0)
+        FROM dbo.Transactions t
+        LEFT JOIN dbo.Students s ON s.StudentID = t.StudentID AND s.SchoolID = t.SchoolID
+        WHERE t.SchoolID = @schoolId
+          AND (t.FamilyID = @familyId OR s.FamilyID = @familyId);
 
       SELECT @adjustments = ISNULL(SUM(
           CASE
-            WHEN AdjustmentType IN ('Write-off','Debit Correction') THEN -Amount
-            WHEN AdjustmentType IN ('Reversal','Credit Correction','Fee Correction') THEN Amount
+            WHEN fa.AdjustmentType IN ('Write-off','Debit Correction') THEN -fa.Amount
+            WHEN fa.AdjustmentType IN ('Reversal','Credit Correction','Fee Correction') THEN fa.Amount
             ELSE 0
           END
         ), 0)
-        FROM dbo.FinancialAdjustments
-        WHERE SchoolID = @schoolId
-          AND FamilyID = @familyId;
+        FROM dbo.FinancialAdjustments fa
+        WHERE fa.SchoolID = @schoolId
+          AND fa.FamilyID = @familyId;
 
-      SELECT @refunds = ISNULL(SUM(Amount), 0)
-        FROM dbo.Refunds
-        WHERE SchoolID = @schoolId
-          AND FamilyID = @familyId
-          AND Status = 'Completed';
+      SELECT @refunds = ISNULL(SUM(r.Amount), 0)
+        FROM dbo.Refunds r
+        WHERE r.SchoolID = @schoolId
+          AND r.FamilyID = @familyId
+          AND r.Status = 'Completed';
 
       -- Balance: (received + adjustments - refunds) - invoiced
       -- If the family has paid more than invoiced, balance is positive
@@ -79,34 +80,28 @@ async function getFamilyRunningBalance({ schoolId, familyId }) {
 // completed) refunds, so a school operator can see what is still
 // available to refund after pending refunds.
 async function getAvailableRefundBalance({ schoolId, familyId }) {
+  const running = await getFamilyRunningBalance({ schoolId, familyId });
   const pool = await getPool();
   const r = await pool.request()
     .input('schoolId', sql.Int, schoolId)
     .input('familyId', sql.Int, familyId)
     .query(`
-      DECLARE @running DECIMAL(18,2) = 0;
       DECLARE @pending DECIMAL(18,2) = 0;
 
-      SELECT @running = ISNULL(SUM(t.Amount), 0) - ISNULL((SELECT SUM(Amount) FROM dbo.Invoices WHERE SchoolID = @schoolId AND FamilyID = @familyId AND IsDeleted = 0), 0)
-                       + ISNULL((SELECT SUM(
-                            CASE
-                              WHEN AdjustmentType IN ('Write-off','Debit Correction') THEN -Amount
-                              ELSE Amount
-                            END) FROM dbo.FinancialAdjustments WHERE SchoolID = @schoolId AND FamilyID = @familyId), 0)
-                       - ISNULL((SELECT SUM(Amount) FROM dbo.Refunds WHERE SchoolID = @schoolId AND FamilyID = @familyId AND Status = 'Completed'), 0)
-      FROM dbo.Transactions t
-      INNER JOIN dbo.Students s ON s.StudentID = t.StudentID
-      WHERE t.SchoolID = @schoolId AND s.FamilyID = @familyId AND t.IsDeleted = 0;
+      SELECT @pending = ISNULL(SUM(r.Amount), 0)
+        FROM dbo.Refunds r
+        WHERE r.SchoolID = @schoolId AND r.FamilyID = @familyId
+          AND r.Status IN ('Pending','Approved');
 
-      SELECT @pending = ISNULL(SUM(Amount), 0)
-        FROM dbo.Refunds
-        WHERE SchoolID = @schoolId AND FamilyID = @familyId
-          AND Status IN ('Pending','Approved');
-
-      SELECT @running AS runningBalance, @pending AS pendingRefunds,
-             (@running - @pending) AS availableForRefund;
+      SELECT @pending AS pendingRefunds;
     `);
-  return r.recordset[0] || { runningBalance: 0, pendingRefunds: 0, availableForRefund: 0 };
+  const pendingRefunds = Number((r.recordset[0] && r.recordset[0].pendingRefunds) || 0);
+  const runningBalance = Number(running.runningBalance || 0);
+  return {
+    runningBalance,
+    pendingRefunds,
+    availableForRefund: runningBalance - pendingRefunds
+  };
 }
 
 module.exports = {

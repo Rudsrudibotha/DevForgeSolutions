@@ -64,6 +64,10 @@ function requireSchoolScope(req, res, next) {
   if (req.user.role === 'school' && !req.schoolDb.schoolId) {
     return res.status(403).render('errors/forbidden', { user: req.user, message: 'No school is linked to your account.' });
   }
+  if (req.user) {
+    req.user.SchoolID = req.user.SchoolID || req.user.schoolId || req.schoolDb.schoolId || null;
+    req.user.UserID = req.user.UserID || req.user.id || null;
+  }
   // Admins can also use req.schoolDb; they pass an explicit schoolId
   // (TODO: add a school picker for admin cross-school browsing)
   next();
@@ -2144,7 +2148,23 @@ router.get('/period-locks', requireAuth, requireRoleMw, requireSchoolScope, asyn
     res.locals.portal = 'sms';
     res.locals.activeNav = 'period-locks';
     const list = await safeCall(admissionsFinanceService.getFinancePeriodLocks(req.user), []);
-    res.render('sms/period-locks/list', { list });
+    res.render('sms/period-locks/list', { list, form: { lockType: 'Month', year: new Date().getFullYear(), month: new Date().getMonth() + 1, reason: '' }, errors: {} });
+  } catch (err) { next(err); }
+});
+
+router.post('/period-locks', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+  try {
+    const result = await safeCall(admissionsFinanceService.createFinancePeriodLock(req.user, req.body), { ok: false, error: 'service-unavailable' });
+    if (!result || !result.ok) {
+      const list = await safeCall(admissionsFinanceService.getFinancePeriodLocks(req.user), []);
+      return res.status(400).render('sms/period-locks/list', { list, form: req.body, errors: { _form: (result && result.error) || 'Could not lock period' } });
+    }
+    if (req.headers['hx-request'] === 'true') {
+      res.set('HX-Redirect', '/sms/period-locks');
+      res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: 'Finance period locked.' } }));
+      return res.status(204).end();
+    }
+    res.redirect('/sms/period-locks');
   } catch (err) { next(err); }
 });
 
@@ -2154,7 +2174,34 @@ router.get('/year-end', requireAuth, requireRoleMw, requireSchoolScope, async (r
     res.locals.portal = 'sms';
     res.locals.activeNav = 'year-end';
     const list = await safeCall(permissionLeaveYearEndService.getYearEndClosings(req.user), []);
-    res.render('sms/year-end/list', { list });
+    res.render('sms/year-end/list', { list, form: { financialYear: new Date().getFullYear() }, errors: {} });
+  } catch (err) { next(err); }
+});
+
+router.post('/year-end', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+  try {
+    const result = await safeCall(permissionLeaveYearEndService.createYearEndClosing(req.user, req.body), { ok: false, error: 'service-unavailable' });
+    if (!result || !result.ok) {
+      const list = await safeCall(permissionLeaveYearEndService.getYearEndClosings(req.user), []);
+      return res.status(400).render('sms/year-end/list', { list, form: req.body, errors: { _form: (result && result.error) || 'Could not create year-end record' } });
+    }
+    if (req.headers['hx-request'] === 'true') {
+      res.set('HX-Redirect', '/sms/year-end');
+      res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: 'Year-end record created.' } }));
+      return res.status(204).end();
+    }
+    res.redirect('/sms/year-end');
+  } catch (err) { next(err); }
+});
+
+router.post('/year-end/:id([1-9]\\d*)/status', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+  try {
+    const result = await safeCall(permissionLeaveYearEndService.updateYearEndStatus(req.user, Number(req.params.id), req.body.status, req.body.reason), { ok: false });
+    if (req.headers['hx-request'] === 'true') {
+      res.set('HX-Trigger', JSON.stringify({ toast: { type: result && result.ok ? 'success' : 'error', message: result && result.ok ? 'Year-end status updated.' : 'Could not update year-end status.' } }));
+      return res.status(result && result.ok ? 204 : 400).end();
+    }
+    res.redirect('/sms/year-end');
   } catch (err) { next(err); }
 });
 
@@ -2168,7 +2215,24 @@ router.get('/reenrolment', requireAuth, requireRoleMw, requireSchoolScope, async
     res.locals.activeNav = 'reenrolment';
     const year = Number(req.query.year) || new Date().getFullYear();
     const pending = await safeCall(rolloverService.getPendingStudentsForYear(req.user, year), []);
-    res.render('sms/reenrolment/list', { year, pending });
+    const classes = await safeCall(rolloverService.listTargetClasses(req.user, year), []);
+    res.render('sms/reenrolment/list', { year, pending, classes });
+  } catch (err) { next(err); }
+});
+
+router.post('/reenrolment/process', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+  try {
+    const result = await safeCall(rolloverService.processStudent(req.user, req.body), { ok: false, error: 'service-unavailable' });
+    if (req.headers['hx-request'] === 'true') {
+      if (result && result.ok) {
+        res.set('HX-Redirect', '/sms/reenrolment?year=' + encodeURIComponent(req.body.academicYear || ''));
+        res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: 'Re-enrolment updated.' } }));
+        return res.status(204).end();
+      }
+      res.set('HX-Trigger', JSON.stringify({ toast: { type: 'error', message: (result && result.error) || 'Could not update re-enrolment.' } }));
+      return res.status(400).end();
+    }
+    res.redirect('/sms/reenrolment?year=' + encodeURIComponent(req.body.academicYear || ''));
   } catch (err) { next(err); }
 });
 
