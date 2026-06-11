@@ -47,7 +47,7 @@ class StudentPortalService {
     const text = `
       SELECT
         s.StudentID, s.FirstName, s.LastName, s.DateOfBirth, s.IsActive,
-        s.CurrentAcademicYear, s.EnrolledDate, s.PhotoUrl,
+        s.CurrentAcademicYear, s.EnrolledDate, CAST(NULL AS NVARCHAR(500)) AS PhotoUrl,
         s.ClassID, c.ClassName, c.Grade,
         f.FamilyID, f.FamilyName,
         (SELECT ISNULL(SUM(i.Amount - i.AmountPaid), 0)

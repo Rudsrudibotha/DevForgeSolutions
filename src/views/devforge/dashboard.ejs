@@ -31,6 +31,7 @@
     </div>
   <% } %>
 
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
   <div class="card">
     <div class="card-header flex items-center justify-between">
       <h2 class="font-semibold">Recent schools</h2>
@@ -71,5 +72,48 @@
         </table>
       </div>
     <% } %>
+  </div>
+  <div class="card">
+    <div class="card-header flex items-center justify-between">
+      <h2 class="font-semibold">Reported faults</h2>
+      <a href="/devforge/settings" class="text-sm text-brand-600 dark:text-brand-300 hover:underline">Platform tools &rarr;</a>
+    </div>
+    <% if (!recentFaults || recentFaults.length === 0) { %>
+      <div class="card-body empty-state"><p class="empty-state-desc">No reported faults.</p></div>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>School</th>
+              <th>Page</th>
+              <th>Status</th>
+              <th>Reported</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% recentFaults.forEach(function(f) { %>
+              <tr>
+                <td>
+                  <p class="font-medium"><%= f.SchoolName || ('School #' + f.SchoolID) %></p>
+                  <% if (f.Email) { %><p class="text-xs text-muted"><%= f.Email %></p><% } %>
+                </td>
+                <td>
+                  <p class="font-medium"><%= f.ViewName || f.PagePath || 'Dashboard' %></p>
+                  <p class="text-xs text-muted line-clamp-2"><%= f.Remarks %></p>
+                </td>
+                <td>
+                  <% if (f.Status === 'Open') { %><span class="badge-warning">Open</span>
+                  <% } else if (f.Status === 'Resolved' || f.Status === 'Closed') { %><span class="badge-success"><%= f.Status %></span>
+                  <% } else { %><span class="badge-neutral"><%= f.Status %></span><% } %>
+                </td>
+                <td><%= f.CreatedDate ? formatDate(f.CreatedDate) : '-' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
   </div>
 </div>

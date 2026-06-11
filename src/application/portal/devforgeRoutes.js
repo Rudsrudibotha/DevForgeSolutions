@@ -9,6 +9,7 @@ const AdminAuditService = require('../../business/adminAuditService');
 const AdminSettingsService = require('../../business/adminSettingsService');
 const SchoolOnboardingService = require('../../business/schoolOnboardingService');
 const UserService = require('../../business/userService');
+const FaultReportService = require('../../business/faultReportService');
 const { demoOr } = require('../../business/demoData');
 const adminSchoolService = new AdminSchoolService();
 const schoolOnboardingService = new SchoolOnboardingService();
@@ -17,6 +18,7 @@ const adminUserService = new AdminUserService();
 const adminPaymentService = new AdminPaymentService();
 const adminAuditService = new AdminAuditService();
 const adminSettingsService = new AdminSettingsService();
+const faultReportService = new FaultReportService();
 
 function requireAuth(req, res, next) {
   if (!req.user) return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
@@ -50,7 +52,8 @@ router.get('/', requireAuth, requireAdmin, async (req, res, next) => {
     res.locals.activeNav = 'home';
     const kpis = await safeCall(adminSchoolService.getKpis({ actor: req.user }), demoOr('devforgeKpis', {}));
     const data = await safeCall(adminSchoolService.list({ actor: req.user, pageSize: 5 }), demoOr('devforgeRecentSchools', { rows: [] }));
-    res.render('devforge/dashboard', { kpis, recentSchools: data.rows });
+    const recentFaults = await safeCall(faultReportService.getFaultReports({ limit: 8 }), []);
+    res.render('devforge/dashboard', { kpis, recentSchools: data.rows, recentFaults });
   } catch (err) { next(err); }
 });
 

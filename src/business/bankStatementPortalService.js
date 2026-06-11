@@ -3,7 +3,7 @@
 // Bank statement portal service. Scoped to school via req.schoolDb.
 // CSV parsing is intentionally simple: date, description, amount, reference.
 
-const { sql } = require('../data/db');
+const { getPool, sql } = require('../data/db');
 
 const PAGE_SIZE_DEFAULT = 25;
 const PAGE_SIZE_MAX = 100;

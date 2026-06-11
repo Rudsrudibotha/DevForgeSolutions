@@ -7,7 +7,30 @@ const faultChangeNotifier = require('../business/faultChangeNotifier');
 const router = express.Router();
 const faultReportService = new FaultReportService();
 
-router.post('/', authenticateToken, async (req, res) => {
+function normalizePortalUser(req, res, next) {
+  if (req.user && req.user.role && !req.user.Role) {
+    req.user = {
+      ...req.user,
+      Role: req.user.role,
+      UserID: req.user.id || req.user.UserID,
+      SchoolID: req.user.schoolId || req.user.SchoolID
+    };
+    return next();
+  }
+
+  return authenticateToken(req, res, next);
+}
+
+function requireAdminUser(req, res, next) {
+  if (req.user && req.user.role && !req.user.Role) {
+    req.user.Role = req.user.role;
+    req.user.UserID = req.user.id || req.user.UserID;
+    req.user.SchoolID = req.user.schoolId || req.user.SchoolID;
+  }
+  return requireAdmin(req, res, next);
+}
+
+router.post('/', normalizePortalUser, async (req, res) => {
   try {
     const report = await faultReportService.createFaultReport(req.body, req.user, {
       userAgent: req.get('user-agent')
@@ -39,7 +62,7 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-router.get('/changes', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/changes', normalizePortalUser, requireAdminUser, async (req, res) => {
   let completed = false;
   let timeout = null;
 
@@ -99,7 +122,7 @@ router.get('/changes', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/', normalizePortalUser, requireAdminUser, async (req, res) => {
   try {
     const reports = await faultReportService.getFaultReports(req.query);
     res.json(reports);
@@ -108,7 +131,7 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id/status', authenticateToken, requireAdmin, async (req, res) => {
+router.put('/:id/status', normalizePortalUser, requireAdminUser, async (req, res) => {
   try {
     const updated = await faultReportService.updateFaultStatus(req.params.id, req.body?.status, req.user);
 

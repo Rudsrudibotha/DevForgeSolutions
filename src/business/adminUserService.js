@@ -43,13 +43,13 @@ class AdminUserService {
     if (search && String(search).trim().length > 0) {
       const like = '%' + String(search).trim().replace(/[%_]/g, '\\$&') + '%';
       request.input('search', sql.NVarChar, like);
-      where.push('(u.Username LIKE @search OR u.Email LIKE @search OR u.UserID::NVARCHAR(20) LIKE @search)');
+      where.push('(u.Username LIKE @search OR u.Email LIKE @search OR CAST(u.UserID AS NVARCHAR(20)) LIKE @search)');
     }
 
     const text = `
       SELECT
         u.UserID, u.Username, u.Email, u.Role, u.SchoolID, u.IsActive,
-        u.CreatedDate, u.LastLoginDate,
+        u.CreatedDate, CAST(NULL AS DATETIME) AS LastLoginDate,
         s.SchoolName
       FROM Users u
       LEFT JOIN Schools s ON s.SchoolID = u.SchoolID

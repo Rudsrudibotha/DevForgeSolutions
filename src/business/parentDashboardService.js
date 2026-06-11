@@ -20,7 +20,7 @@ class ParentDashboardService {
       .input('userId', sql.Int, userId)
       .query(`
         SELECT
-          s.StudentID, s.FirstName, s.LastName, s.DateOfBirth, s.PhotoUrl,
+          s.StudentID, s.FirstName, s.LastName, s.DateOfBirth, CAST(NULL AS NVARCHAR(500)) AS PhotoUrl,
           s.ClassID, c.ClassName, c.Grade,
           f.FamilyID, f.FamilyName,
           sch.SchoolID, sch.SchoolName, sch.LogoUrl,

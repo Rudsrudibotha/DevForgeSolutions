@@ -11,7 +11,7 @@
 //      this file - route code stays identical.
 //   3. Every read by an admin into a foreign school is audit-logged.
 
-const { getPool, sql } = require('../data/db');
+const { getPool } = require('../data/db');
 const AuditRepository = require('../data/auditRepository');
 
 const SCOPED_TABLES = new Set([
@@ -60,12 +60,7 @@ class ScopedDb {
   // they're touching scoped tables without a SchoolID filter.
   async request() {
     const pool = await getPool();
-    const req = pool.request();
-    const sid = this.schoolId;
-    if (sid != null) {
-      req.input('schoolId', sql.Int, sid);
-    }
-    return req;
+    return pool.request();
   }
 
   // Convenience: run a query and have the result audited if it's an admin

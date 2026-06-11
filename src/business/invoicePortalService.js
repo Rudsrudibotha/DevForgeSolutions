@@ -2,7 +2,7 @@
 
 // Invoice portal service. Scoped to school via req.schoolDb.
 
-const { sql } = require('../data/db');
+const { getPool, sql } = require('../data/db');
 
 const ALLOWED_STATUSES = ['Pending', 'Paid', 'Cancelled', 'Overdue', 'Partial', 'PendingPayment'];
 const PAGE_SIZE_DEFAULT = 25;
@@ -317,10 +317,10 @@ class InvoicePortalService {
         ins.input('billingCategoryId', sql.Int, billingCategoryId);
         const insertText = `
           INSERT INTO Invoices
-            (SchoolID, StudentID, InvoiceNumber, Amount, AmountPaid, DueDate, Status, Description, BillingCategoryID, IssueDate, CurrentAcademicYear)
+            (SchoolID, StudentID, InvoiceNumber, Amount, AmountPaid, DueDate, Status, Description, BillingCategoryID, IssueDate)
           OUTPUT INSERTED.InvoiceID
           VALUES
-            (@schoolId, @studentId, @invoiceNumber, @amount, 0, @dueDate, 'Pending', @description, @billingCategoryId, CAST(GETDATE() AS DATE), YEAR(GETDATE()))
+            (@schoolId, @studentId, @invoiceNumber, @amount, 0, @dueDate, 'Pending', @description, @billingCategoryId, CAST(GETDATE() AS DATE))
         `;
         schoolDb.guardTableScope(insertText);
         const ir = await ins.query(insertText);

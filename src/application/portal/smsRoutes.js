@@ -1301,7 +1301,7 @@ router.get('/payments/new', requireAuth, requireRoleMw, requireSchoolScope, asyn
       schoolDb: req.schoolDb,
       status: 'Pending', pageSize: 200
     }), { rows: [] });
-    res.render('sms/payments/form', { invoices: invoices.rows, defaults: { amount: '', paymentMethod: 'EFT', payeeName: '', transactionDate: new Date().toISOString().slice(0,10), invoiceId: req.query.invoiceId || '' } });
+    res.render('sms/payments/form', { invoices: invoices.rows, defaults: { amount: req.query.amount || '', paymentMethod: 'EFT', payeeName: '', transactionDate: new Date().toISOString().slice(0,10), invoiceId: req.query.invoiceId || '' } });
   } catch (err) { next(err); }
 });
 

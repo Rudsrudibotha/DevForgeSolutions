@@ -386,7 +386,7 @@ class UserServiceFacade {
   async getSchoolUsers(currentUser, schoolId) {
     if (!currentUser || !schoolId) return [];
     const repo = new UserRepository();
-    return repo.getSchoolUsers(schoolId);
+    return repo.getUsersBySchool(schoolId);
   }
 }
 

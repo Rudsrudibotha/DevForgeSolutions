@@ -1,0 +1,71 @@
+<% if (typeof user !== 'undefined' && user && user.role === 'school') { %>
+  <div class="fixed bottom-4 right-4 z-40" x-data="{ open: false, sending: false, remarks: '' }">
+    <button type="button"
+            class="btn-primary shadow-lg"
+            @click="open = true"
+            aria-label="Report a fault">
+      Report a fault
+    </button>
+
+    <div x-show="open"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-end justify-end bg-slate-950/40 p-4 sm:p-6"
+         @keydown.escape.window="open = false">
+      <div class="card w-full max-w-md shadow-xl"
+           @click.outside="open = false">
+        <div class="card-header flex items-center justify-between">
+          <h2 class="font-semibold">Report a fault</h2>
+          <button type="button" class="btn-ghost btn-sm" @click="open = false">Close</button>
+        </div>
+        <form class="card-body space-y-4"
+              @submit.prevent="
+                sending = true;
+                fetch('/api/faults', {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': (document.querySelector('meta[name=csrf-token]') || {}).content || ''
+                  },
+                  body: JSON.stringify({
+                    pagePath: window.location.pathname,
+                    viewName: document.title || window.location.pathname,
+                    remarks
+                  })
+                })
+                  .then(async function(response) {
+                    if (!response.ok) {
+                      var data = await response.json().catch(function(){ return {}; });
+                      throw new Error(data.error || 'Could not submit fault');
+                    }
+                    remarks = '';
+                    open = false;
+                    if (window.kch && window.kch.toast) window.kch.toast.show('Fault report sent.', 'success');
+                    else alert('Fault report sent.');
+                  })
+                  .catch(function(error) {
+                    if (window.kch && window.kch.toast) window.kch.toast.show(error.message || 'Could not submit fault', 'error');
+                    else alert(error.message || 'Could not submit fault');
+                  })
+                  .finally(function() { sending = false; })
+              ">
+          <div>
+            <label class="label" for="fault-remarks">What is not working?</label>
+            <textarea id="fault-remarks"
+                      class="input min-h-32"
+                      x-model="remarks"
+                      maxlength="2000"
+                      required
+                      placeholder="Describe the page, button, or error you saw."></textarea>
+          </div>
+          <div class="flex justify-end gap-2">
+            <button type="button" class="btn-secondary" @click="open = false">Cancel</button>
+            <button type="submit" class="btn-primary" :disabled="sending">
+              <span x-text="sending ? 'Sending...' : 'Send fault report'"></span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+<% } %>

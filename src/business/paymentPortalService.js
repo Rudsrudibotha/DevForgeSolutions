@@ -2,7 +2,7 @@
 
 // Payment portal service. Scoped to school via req.schoolDb.
 
-const { sql } = require('../data/db');
+const { getPool, sql } = require('../data/db');
 
 const ALLOWED_ALLOCATION = ['Unallocated', 'Allocated', 'PendingPayment'];
 const ALLOWED_TYPES = ['Credit', 'Debit', 'Bank', 'Payment'];

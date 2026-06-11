@@ -84,7 +84,12 @@
                 <% if (l.InvoiceID) { %>
                   <span class="text-xs text-muted">—</span>
                 <% } else { %>
-                  <a href="/sms/payments/new?amount=<%= Number(l.Amount).toFixed(2) %>" class="btn-secondary btn-sm">Allocate manually</a>
+                  <button class="btn-secondary btn-sm"
+                          hx-get="/sms/payments/<%= l.TransactionID %>/allocate-form"
+                          hx-target="#matches-<%= l.TransactionID %>"
+                          hx-swap="innerHTML">
+                    Allocate manually
+                  </button>
                 <% } %>
               </td>
             </tr>

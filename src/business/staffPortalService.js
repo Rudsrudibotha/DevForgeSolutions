@@ -2,7 +2,9 @@
 
 // Staff portal service. Scoped to school via req.schoolDb.
 
-const { sql } = require('../data/db');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const { getPool, sql } = require('../data/db');
 
 const PAGE_SIZE_DEFAULT = 25;
 const PAGE_SIZE_MAX = 100;
@@ -42,7 +44,7 @@ class StaffPortalService {
       SELECT
         e.EmployeeID, e.FirstName, e.LastName, e.Email, e.Phone, e.JobTitle, e.Department,
         e.StartDate, e.Salary, e.LeaveBalance, e.IsActive,
-        u.Username, u.LastLoginDate
+        u.Username, CAST(NULL AS DATETIME) AS LastLoginDate
       FROM Employees e
       LEFT JOIN Users u ON u.UserID = e.UserID
       WHERE ${where.join(' AND ')}
@@ -78,7 +80,7 @@ class StaffPortalService {
     request.input('schoolId', sql.Int, sid);
     request.input('employeeId', sql.Int, employeeId);
     const text = `
-      SELECT e.*, u.Username, u.LastLoginDate
+      SELECT e.*, u.Username, CAST(NULL AS DATETIME) AS LastLoginDate
       FROM Employees e
       LEFT JOIN Users u ON u.UserID = e.UserID
       WHERE e.SchoolID = @schoolId AND e.EmployeeID = @employeeId
@@ -99,9 +101,10 @@ class StaffPortalService {
     request.input('employeeId', sql.Int, employeeId);
     request.input('limit', sql.Int, lim);
     const text = `
-      SELECT TOP (@limit) LeaveRequestID, StartDate, EndDate, LeaveType, Status, Reason, CreatedDate
-      FROM LeaveRequests
-      WHERE SchoolID = @schoolId AND EmployeeID = @employeeId
+      SELECT TOP (@limit) lr.LeaveRequestID, lr.StartDate, lr.EndDate, lr.LeaveType, lr.Status, lr.Reason, lr.CreatedDate
+      FROM LeaveRequests lr
+      INNER JOIN Employees e ON e.EmployeeID = lr.EmployeeID
+      WHERE e.SchoolID = @schoolId AND lr.EmployeeID = @employeeId
       ORDER BY CreatedDate DESC
     `;
     schoolDb.guardTableScope(text);
@@ -120,10 +123,11 @@ class StaffPortalService {
     request.input('employeeId', sql.Int, employeeId);
     request.input('limit', sql.Int, lim);
     const text = `
-      SELECT TOP (@limit) PayslipID, PayPeriodStart, PayPeriodEnd, GrossPay, NetPay, PayDate, Status
-      FROM Payslips
-      WHERE SchoolID = @schoolId AND EmployeeID = @employeeId
-      ORDER BY PayPeriodEnd DESC
+      SELECT TOP (@limit) p.PayslipID, p.PayPeriod, p.GrossAmount, p.NetAmount, p.PaymentDate, p.Status
+      FROM Payslips p
+      INNER JOIN Employees e ON e.EmployeeID = p.EmployeeID
+      WHERE e.SchoolID = @schoolId AND p.EmployeeID = @employeeId
+      ORDER BY p.PayPeriod DESC
     `;
     schoolDb.guardTableScope(text);
     const result = await request.query(text);
@@ -145,6 +149,145 @@ class StaffPortalService {
     const result = await request.query(text);
     return result.recordset.map(r => r.Department);
   }
+
+  async create({ schoolDb, data, actor } = {}) {
+    if (!schoolDb) throw new Error('schoolDb is required');
+    const sid = schoolDb.schoolId;
+    if (sid == null) throw new Error('requires scoped schoolId');
+
+    const firstName = requiredString(data.firstName, 'First name', 100);
+    const lastName = requiredString(data.lastName, 'Last name', 100);
+    const email = requiredEmail(data.email);
+    const phone = optionalString(data.phone, 50);
+    const jobTitle = optionalString(data.jobTitle || data.role, 100);
+    const department = optionalString(data.department, 100);
+    const startDate = parseDate(data.startDate || data.hireDate) || new Date().toISOString().slice(0, 10);
+    const salary = positiveMoney(data.salary || data.basicSalary || 0, 'Basic salary');
+    const employeeNumber = optionalString(data.employeeNumber || data.staffNumber, 50);
+    const idNumber = optionalString(data.idNumber, 50);
+    const taxNumber = optionalString(data.taxNumber, 50);
+    const uifNumber = optionalString(data.uifNumber, 50);
+    const createSystemUser = data.createSystemUser === true || data.createSystemUser === 'true' || data.createSystemUser === '1';
+
+    const pool = await getPool();
+    const tx = new sql.Transaction(pool);
+    await tx.begin();
+    try {
+      let userId = null;
+      if (createSystemUser) {
+        const userLookup = new sql.Request(tx);
+        userLookup.input('email', sql.NVarChar, email);
+        const existing = await userLookup.query('SELECT UserID FROM Users WHERE Email = @email');
+        if (existing.recordset[0]) {
+          userId = existing.recordset[0].UserID;
+          const updUser = new sql.Request(tx);
+          updUser.input('userId', sql.Int, userId);
+          updUser.input('schoolId', sql.Int, sid);
+          updUser.input('firstName', sql.NVarChar, firstName);
+          updUser.input('lastName', sql.NVarChar, lastName);
+          await updUser.query(`
+            UPDATE Users
+            SET Role = 'school', SchoolID = @schoolId, FirstName = @firstName,
+                LastName = @lastName, IsActive = 1, UpdatedDate = GETDATE()
+            WHERE UserID = @userId
+          `);
+        } else {
+          const hash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+          const insUser = new sql.Request(tx);
+          insUser.input('username', sql.NVarChar, email.split('@')[0]);
+          insUser.input('email', sql.NVarChar, email);
+          insUser.input('hash', sql.NVarChar, hash);
+          insUser.input('schoolId', sql.Int, sid);
+          insUser.input('firstName', sql.NVarChar, firstName);
+          insUser.input('lastName', sql.NVarChar, lastName);
+          const created = await insUser.query(`
+            INSERT INTO Users (Username, Email, PasswordHash, Role, SchoolID, FirstName, LastName, IsActive)
+            OUTPUT INSERTED.UserID
+            VALUES (@username, @email, @hash, 'school', @schoolId, @firstName, @lastName, 1)
+          `);
+          userId = created.recordset[0].UserID;
+        }
+      }
+
+      const req = new sql.Request(tx);
+      req.input('schoolId', sql.Int, sid);
+      req.input('userId', sql.Int, userId);
+      req.input('firstName', sql.NVarChar, firstName);
+      req.input('lastName', sql.NVarChar, lastName);
+      req.input('email', sql.NVarChar, email);
+      req.input('phone', sql.NVarChar, phone);
+      req.input('jobTitle', sql.NVarChar, jobTitle);
+      req.input('department', sql.NVarChar, department);
+      req.input('startDate', sql.Date, startDate);
+      req.input('salary', sql.Decimal(10, 2), salary);
+      req.input('employeeNumber', sql.NVarChar, employeeNumber);
+      req.input('idNumber', sql.NVarChar, idNumber);
+      req.input('taxNumber', sql.NVarChar, taxNumber);
+      req.input('uifNumber', sql.NVarChar, uifNumber);
+      const result = await req.query(`
+        IF EXISTS (SELECT 1 FROM Employees WHERE SchoolID = @schoolId AND Email = @email)
+        BEGIN
+          UPDATE Employees
+          SET UserID = COALESCE(@userId, UserID), FirstName = @firstName, LastName = @lastName,
+              Phone = @phone, JobTitle = @jobTitle, Department = @department, StartDate = @startDate,
+              Salary = @salary, EmployeeNumber = @employeeNumber, IdNumber = @idNumber,
+              TaxNumber = @taxNumber, UifNumber = @uifNumber, IsActive = 1, UpdatedDate = GETDATE()
+          OUTPUT INSERTED.*
+          WHERE SchoolID = @schoolId AND Email = @email
+        END
+        ELSE
+        BEGIN
+          INSERT INTO Employees (
+            SchoolID, UserID, FirstName, LastName, Email, Phone, JobTitle, Department,
+            StartDate, Salary, EmployeeNumber, IdNumber, TaxNumber, UifNumber, IsActive
+          )
+          OUTPUT INSERTED.*
+          VALUES (
+            @schoolId, @userId, @firstName, @lastName, @email, @phone, @jobTitle, @department,
+            @startDate, @salary, @employeeNumber, @idNumber, @taxNumber, @uifNumber, 1
+          )
+        END
+      `);
+
+      await tx.commit();
+      return result.recordset[0];
+    } catch (err) {
+      try { await tx.rollback(); } catch (_) {}
+      throw err;
+    }
+  }
+}
+
+function requiredString(value, label, maxLength) {
+  const cleaned = optionalString(value, maxLength);
+  if (!cleaned) throw new Error(`${label} is required`);
+  return cleaned;
+}
+
+function optionalString(value, maxLength) {
+  if (value === undefined || value === null) return null;
+  const cleaned = String(value).trim();
+  if (!cleaned) return null;
+  return cleaned.slice(0, maxLength);
+}
+
+function requiredEmail(value) {
+  const cleaned = requiredString(value, 'Email', 255).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)) throw new Error('Valid email is required');
+  return cleaned;
+}
+
+function positiveMoney(value, label) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || amount < 0) throw new Error(`${label} must be zero or more`);
+  return amount;
+}
+
+function parseDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
 }
 
 module.exports = StaffPortalService;

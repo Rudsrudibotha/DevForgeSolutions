@@ -13,8 +13,8 @@
         <button class="btn-primary btn-sm"
                 hx-post="/sms/payments/<%= transactionId %>/allocate"
                 hx-vals='{"invoiceId": "<%= m.InvoiceID %>"}'
-                hx-target="#bankline-<%= transactionId %>"
-                hx-swap="outerHTML">
+                hx-swap="none"
+                hx-on::after-request="if(event.detail.successful) location.reload()">
           Allocate <%= formatMoney(Number(m.Outstanding)) %>
         </button>
       </li>
