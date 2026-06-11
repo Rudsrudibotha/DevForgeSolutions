@@ -33,11 +33,7 @@ function issueCsrf(req, res, next) {
 // automatically because we set hx-headers on the body tag.
 function verifyCsrf(req, res, next) {
   if (SAFE_METHODS.has(req.method)) return next();
-  if (req.path.startsWith('/api/')) {
-    const hasBearer = /^Bearer\s+/i.test(req.get('authorization') || '');
-    const hasPortalCookie = Boolean(req.cookies && req.cookies.kch_token);
-    if (!hasPortalCookie || hasBearer) return next();
-  }
+  if (req.path.startsWith('/api/')) return next(); // JWT-protected API
   if (IGNORE_PATHS.includes(req.path)) return next();
 
   const cookieToken = req.cookies && req.cookies[CSRF_COOKIE];
