@@ -93,6 +93,16 @@ async function run() {
     assert.ok(r.status === 200 || r.status === 404);
   });
 
+  await test('GET /sms/invoices/123/print returns 200 or 404 (never 500)', async () => {
+    const r = await request('GET', '/sms/invoices/123/print', school);
+    assert.ok(r.status === 200 || r.status === 404, `expected 200/404, got ${r.status}`);
+  });
+
+  await test('GET /sms/invoices/0/print is 404 (route regex)', async () => {
+    const r = await request('GET', '/sms/invoices/0/print', school);
+    assert.strictEqual(r.status, 404);
+  });
+
   await test('GET /sms/invoices/0 is 404 (route regex)', async () => {
     const r = await request('GET', '/sms/invoices/0', school);
     assert.strictEqual(r.status, 404);

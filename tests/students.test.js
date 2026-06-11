@@ -89,6 +89,68 @@ async function run() {
     assert.ok(r.body.includes('name="familyId"'), 'should have familyId select');
   });
 
+  await test('GET /sms/students/new includes the enrolment-contract fields', async () => {
+    const r = await request('GET', '/sms/students/new', school);
+    assert.strictEqual(r.status, 200);
+    assert.ok(r.body.includes('name="enrolledDate"'), 'should have enrolledDate input');
+    assert.ok(r.body.includes('name="homePhone"'), 'should have homePhone input');
+    assert.ok(r.body.includes('name="homeAddress"'), 'should have homeAddress textarea');
+    assert.ok(r.body.includes('name="grandmotherName"'), 'should have grandmotherName input');
+    assert.ok(r.body.includes('name="grandmotherPhone"'), 'should have grandmotherPhone input');
+    assert.ok(r.body.includes('name="grandfatherName"'), 'should have grandfatherName input');
+    assert.ok(r.body.includes('name="grandfatherPhone"'), 'should have grandfatherPhone input');
+    assert.ok(r.body.includes('name="familyFriendName"'), 'should have familyFriendName input');
+    assert.ok(r.body.includes('name="familyFriendPhone"'), 'should have familyFriendPhone input');
+  });
+
+  await test('GET /sms/students has Current/Left filter checkboxes', async () => {
+    const r = await request('GET', '/sms/students', school);
+    assert.strictEqual(r.status, 200);
+    assert.ok(r.body.includes('name="showCurrent"'), 'should have the Current checkbox');
+    assert.ok(r.body.includes('name="showLeft"'), 'should have the Left checkbox');
+    assert.ok(!r.body.includes('name="status"'), 'the status select should be gone');
+  });
+
+  await test('GET /sms/students/outstanding renders the year calendar', async () => {
+    const r = await request('GET', '/sms/students/outstanding', school);
+    assert.strictEqual(r.status, 200, `expected 200, got ${r.status}`);
+    assert.ok(r.body.includes('Outstanding by month'), 'should have the page title');
+    // Month columns with data, or the empty state when nothing is outstanding
+    assert.ok(
+      (r.body.includes('Jan') && r.body.includes('Dec')) || r.body.includes('Nothing outstanding'),
+      'should have month columns or the empty state'
+    );
+  });
+
+  await test('GET /sms/students/outstanding?year=2025 honours the year', async () => {
+    const r = await request('GET', '/sms/students/outstanding?year=2025', school);
+    assert.strictEqual(r.status, 200);
+    assert.ok(r.body.includes('2025'), 'should reflect the requested year');
+  });
+
+  await test('parent role is 403 on /sms/students/outstanding', async () => {
+    const r = await request('GET', '/sms/students/outstanding', parent);
+    assert.strictEqual(r.status, 403, `expected 403, got ${r.status}`);
+  });
+
+  await test('GET /sms/students has selection checkboxes and the email composer', async () => {
+    const r = await request('GET', '/sms/students', school);
+    assert.strictEqual(r.status, 200);
+    assert.ok(r.body.includes('Select all students on this page'), 'should have a select-all checkbox');
+    assert.ok(r.body.includes('action="/sms/students/email"'), 'should have the email compose form');
+    assert.ok(r.body.includes('studentListEmailer'), 'should mount the selection component');
+    assert.ok(r.body.includes('All active students'), 'should offer the entire-body scope');
+    assert.ok(r.body.includes('Everyone in a class'), 'should offer the class scope');
+  });
+
+  await test('GET /sms/students/new includes the billing-category picker', async () => {
+    const r = await request('GET', '/sms/students/new', school);
+    assert.strictEqual(r.status, 200);
+    assert.ok(r.body.includes('Billing categories'), 'should have the billing categories section');
+    assert.ok(r.body.includes('studentBillingPicker'), 'should mount the drag-and-drop component');
+    assert.ok(r.body.includes('/student-form.js'), 'should load the picker script');
+  });
+
   await test('GET /sms/students/123 returns 200 or 404 (not 500)', async () => {
     const r = await request('GET', '/sms/students/123', school);
     assert.ok(r.status === 200 || r.status === 404, `expected 200/404, got ${r.status}`);
@@ -165,6 +227,77 @@ async function run() {
   await test('DELETE /sms/students without CSRF token is 403', async () => {
     const r = await request('DELETE', '/sms/students/123', school);
     assert.strictEqual(r.status, 403, `expected 403, got ${r.status}`);
+  });
+
+  console.log('\n[students] bulk parent email');
+
+  await test('POST /sms/students/email without CSRF token is 403', async () => {
+    const r = await request('POST', '/sms/students/email', school,
+      'scope=all&subject=Hello&message=World');
+    assert.strictEqual(r.status, 403, `expected 403, got ${r.status}`);
+  });
+
+  await test('parent role is 403 on POST /sms/students/email', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/sms/students/email',
+      { ...parent, 'X-CSRF-Token': csrf, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookieHeader },
+      'scope=all&subject=Hello&message=World&_csrf=' + csrf);
+    assert.strictEqual(r.status, 403, `expected 403, got ${r.status}`);
+  });
+
+  await test('POST /sms/students/email without a subject is rejected (400, toast)', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/sms/students/email',
+      { ...school, 'HX-Request': 'true', 'X-CSRF-Token': csrf, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookieHeader },
+      'scope=all&subject=&message=World&_csrf=' + csrf);
+    assert.strictEqual(r.status, 400, `expected 400, got ${r.status}`);
+  });
+
+  await test('POST /sms/students/email scope=selected with no students is rejected', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/sms/students/email',
+      { ...school, 'HX-Request': 'true', 'X-CSRF-Token': csrf, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookieHeader },
+      'scope=selected&subject=Hello&message=World&_csrf=' + csrf);
+    assert.strictEqual(r.status, 400, `expected 400, got ${r.status}`);
+  });
+
+  await test('POST /sms/students/email scope=class without classId is rejected', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/sms/students/email',
+      { ...school, 'HX-Request': 'true', 'X-CSRF-Token': csrf, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookieHeader },
+      'scope=class&subject=Hello&message=World&_csrf=' + csrf);
+    assert.strictEqual(r.status, 400, `expected 400, got ${r.status}`);
+  });
+
+  await test('POST /sms/students/email valid body never 500s (400 with no DB, 204 with)', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/sms/students/email',
+      { ...school, 'HX-Request': 'true', 'X-CSRF-Token': csrf, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookieHeader },
+      'scope=all&subject=Hello&message=World&_csrf=' + csrf);
+    assert.ok([204, 400].includes(r.status), `expected 204/400, got ${r.status}`);
+  });
+
+  console.log('\n[students] invoice statement emails');
+
+  await test('POST /sms/students/email-invoices without CSRF token is 403', async () => {
+    const r = await request('POST', '/sms/students/email-invoices', school, 'scope=outstanding');
+    assert.strictEqual(r.status, 403, `expected 403, got ${r.status}`);
+  });
+
+  await test('POST /sms/students/email-invoices with an invalid scope is rejected', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/sms/students/email-invoices',
+      { ...school, 'HX-Request': 'true', 'X-CSRF-Token': csrf, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookieHeader },
+      'scope=bogus&_csrf=' + csrf);
+    assert.strictEqual(r.status, 400, `expected 400, got ${r.status}`);
+  });
+
+  await test('POST /sms/students/email-invoices scope=outstanding never 500s', async () => {
+    const { csrf, cookieHeader } = await getCsrf();
+    const r = await request('POST', '/sms/students/email-invoices',
+      { ...school, 'HX-Request': 'true', 'X-CSRF-Token': csrf, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookieHeader },
+      'scope=outstanding&_csrf=' + csrf);
+    assert.ok([204, 400].includes(r.status), `expected 204/400, got ${r.status}`);
   });
 
   console.log('\n[students] soft delete (HTMX DELETE)');

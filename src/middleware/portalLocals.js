@@ -31,11 +31,14 @@ function applyNavVisibility(nav, visibleSet) {
 
 async function portalLocals(req, res, next) {
   res.locals.user = req.user;
-  // Try to derive the portal from the URL prefix.
+  // Try to derive the portal from the URL prefix; on shared pages
+  // (e.g. /account) fall back to the signed-in user's role.
   let nav = SMS_NAV;
   if (req.path.startsWith('/devforge')) nav = DEVFORGE_NAV;
   else if (req.path.startsWith('/parent')) nav = PARENT_NAV;
   else if (req.path.startsWith('/sms')) nav = SMS_NAV;
+  else if (req.user && req.user.role === 'admin') nav = DEVFORGE_NAV;
+  else if (req.user && req.user.role === 'parent') nav = PARENT_NAV;
   try {
     const visibleSet = await (require('../security/permissionResolver').getEffectivePermissions(req.user));
     res.locals.visibleGroups = applyNavVisibility(nav, visibleSet);

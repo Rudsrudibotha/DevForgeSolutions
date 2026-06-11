@@ -2,7 +2,25 @@
 
 const { getPool, sql } = require('./db');
 
+// Module-level so the DDL runs once per process, not once per instance.
+let profileColumnsEnsured = false;
+
 class UserRepository {
+  // FirstName/LastName are editable on /account; older databases may not
+  // have the columns yet, so add them on first use (same idempotent-DDL
+  // pattern as studentRepository.ensureBillingColumns).
+  async ensureProfileColumns() {
+    if (profileColumnsEnsured) return;
+    const pool = await getPool();
+    await pool.request().batch(`
+      IF COL_LENGTH('dbo.Users', 'FirstName') IS NULL
+        ALTER TABLE dbo.Users ADD FirstName NVARCHAR(255) NULL;
+      IF COL_LENGTH('dbo.Users', 'LastName') IS NULL
+        ALTER TABLE dbo.Users ADD LastName NVARCHAR(255) NULL;
+    `);
+    profileColumnsEnsured = true;
+  }
+
   async getUserByEmail(email) {
     const pool = await getPool();
     const result = await pool.request()
@@ -173,13 +191,51 @@ class UserRepository {
   }
 
   async getUserById(userId) {
+    await this.ensureProfileColumns();
     const pool = await getPool();
     const result = await pool.request()
       .input('userId', sql.Int, userId)
-      .query(`SELECT UserID, Username, Email, Role, SchoolID, IsActive, HasHrPermission, CreatedDate
+      .query(`SELECT UserID, Username, Email, Role, SchoolID, IsActive, HasHrPermission, FirstName, LastName, CreatedDate
               FROM Users
               WHERE UserID = @userId AND ISNULL(IsActive, 1) = 1`);
     return result.recordset[0];
+  }
+
+  // Self-service profile update from /account. Email and Role are
+  // intentionally not editable here (email is the login identity).
+  async updateUserProfile(userId, { firstName, lastName }) {
+    await this.ensureProfileColumns();
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('userId', sql.Int, userId)
+      .input('firstName', sql.NVarChar, firstName || null)
+      .input('lastName', sql.NVarChar, lastName || null)
+      .query(`UPDATE Users
+              SET FirstName = @firstName, LastName = @lastName, UpdatedDate = GETDATE()
+              WHERE UserID = @userId AND ISNULL(IsActive, 1) = 1`);
+    return result.rowsAffected[0] > 0;
+  }
+
+  // Auth row (includes PasswordHash) for the password-change flow only.
+  async getUserAuthById(userId) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('userId', sql.Int, userId)
+      .query(`SELECT UserID, Email, PasswordHash
+              FROM Users
+              WHERE UserID = @userId AND ISNULL(IsActive, 1) = 1`);
+    return result.recordset[0];
+  }
+
+  async updateUserPassword(userId, passwordHash) {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('userId', sql.Int, userId)
+      .input('passwordHash', sql.NVarChar, passwordHash)
+      .query(`UPDATE Users
+              SET PasswordHash = @passwordHash, UpdatedDate = GETDATE()
+              WHERE UserID = @userId AND ISNULL(IsActive, 1) = 1`);
+    return result.rowsAffected[0] > 0;
   }
 
   async createUser(userData) {

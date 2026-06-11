@@ -38,6 +38,7 @@
     <button class="tab" :class="{ 'active': tab === 'profile' }" @click="tab = 'profile'">Profile</button>
     <button class="tab" :class="{ 'active': tab === 'family' }" @click="tab = 'family'">Family</button>
     <button class="tab" :class="{ 'active': tab === 'medical' }" @click="tab = 'medical'">Medical</button>
+    <button class="tab" :class="{ 'active': tab === 'billing' }" @click="tab = 'billing'">Billing</button>
   </div>
 
   <div x-show="tab === 'profile'">
@@ -67,6 +68,14 @@
           <p class="kpi-label">Academic year</p>
           <p class="font-medium"><%= student.CurrentAcademicYear %></p>
         </div>
+        <div>
+          <p class="kpi-label">Home phone</p>
+          <p class="font-medium"><%= student.HomePhone || '—' %></p>
+        </div>
+        <div>
+          <p class="kpi-label">Home address</p>
+          <p class="font-medium whitespace-pre-line"><%= student.HomeAddress || '—' %></p>
+        </div>
       </div>
     </div>
   </div>
@@ -82,7 +91,7 @@
         </div>
         <div>
           <p class="kpi-label">Address</p>
-          <p class="font-medium whitespace-pre-line"><%= student.HomeAddress || '—' %></p>
+          <p class="font-medium whitespace-pre-line"><%= student.FamilyHomeAddress || '—' %></p>
         </div>
         <div>
           <p class="kpi-label">Primary parent</p>
@@ -101,12 +110,70 @@
   </div>
 
   <div x-show="tab === 'medical'">
-    <div class="card">
+    <div class="card mb-6">
       <div class="card-body">
+        <p class="kpi-label mb-1">Illnesses or allergies</p>
         <% if (student.MedicalNotes) { %>
           <p class="text-sm whitespace-pre-line"><%= student.MedicalNotes %></p>
         <% } else { %>
           <p class="text-sm text-muted">No medical notes recorded.</p>
+        <% } %>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h2 class="text-base font-semibold">Emergency contacts</h2>
+        <p class="text-muted text-sm mt-0.5">The family's main emergency contact, doctor, and medical aid are on the <a href="/sms/families/<%= student.FamilyID %>" class="text-brand-600 dark:text-brand-300 hover:underline">family record</a>.</p>
+      </div>
+      <div class="card-body grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+        <div>
+          <p class="kpi-label">Grandmother</p>
+          <p class="font-medium"><%= student.GrandmotherName || '—' %></p>
+          <% if (student.GrandmotherPhone) { %><p class="text-xs text-muted"><%= student.GrandmotherPhone %></p><% } %>
+        </div>
+        <div>
+          <p class="kpi-label">Grandfather</p>
+          <p class="font-medium"><%= student.GrandfatherName || '—' %></p>
+          <% if (student.GrandfatherPhone) { %><p class="text-xs text-muted"><%= student.GrandfatherPhone %></p><% } %>
+        </div>
+        <div>
+          <p class="kpi-label">Family friend</p>
+          <p class="font-medium"><%= student.FamilyFriendName || '—' %></p>
+          <% if (student.FamilyFriendPhone) { %><p class="text-xs text-muted"><%= student.FamilyFriendPhone %></p><% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div x-show="tab === 'billing'">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="text-base font-semibold">Billing categories</h2>
+        <p class="text-muted text-sm mt-0.5">The primary category is used when invoices are generated.</p>
+      </div>
+      <div class="card-body">
+        <% if (!assignedCategories || assignedCategories.length === 0) { %>
+          <div class="empty-state">
+            <p class="empty-state-desc">
+              No billing categories assigned yet.
+              <a href="/sms/students/<%= student.StudentID %>/edit" class="text-brand-600 dark:text-brand-300 hover:underline">Assign one on the edit page</a>.
+            </p>
+          </div>
+        <% } else { %>
+          <ul class="space-y-2">
+            <% assignedCategories.forEach(function(c) { %>
+              <li class="flex items-center justify-between gap-2 rounded-lg border p-3" style="border-color: rgb(var(--color-border))">
+                <div>
+                  <p class="text-sm font-medium">
+                    <%= c.CategoryName %>
+                    <% if (c.IsPrimary) { %><span class="badge-brand ml-1">Primary</span><% } %>
+                    <% if (!c.IsActive) { %><span class="badge-neutral ml-1">Inactive</span><% } %>
+                  </p>
+                  <p class="text-xs text-muted"><%= formatMoney(c.BaseAmount) %> &middot; <%= c.Frequency %></p>
+                </div>
+              </li>
+            <% }) %>
+          </ul>
         <% } %>
       </div>
     </div>

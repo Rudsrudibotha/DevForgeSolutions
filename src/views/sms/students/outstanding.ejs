@@ -1,0 +1,91 @@
+<% layout = 'layouts/app' %>
+<% sidebar = 'school' %>
+
+<% var monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; %>
+<% function monthRange(y, m) {
+     var last = new Date(y, m, 0).getDate();
+     var mm = String(m).padStart(2, '0');
+     return 'from=' + y + '-' + mm + '-01&to=' + y + '-' + mm + '-' + String(last).padStart(2, '0');
+   } %>
+
+<div class="container-page">
+  <nav class="mb-4 text-sm">
+    <a href="/sms/students" class="text-muted hover:underline">Students</a>
+    <span class="text-muted mx-1">/</span>
+    <span>Outstanding by month</span>
+  </nav>
+
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Outstanding by month</h1>
+      <p class="text-muted text-sm">Unpaid balances per learner for <%= year %>, grouped by family. Amounts fall under the month the invoice was issued.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="/sms/students/outstanding?year=<%= year - 1 %>" class="btn-secondary btn-sm" aria-label="Previous year">&larr; <%= year - 1 %></a>
+      <span class="font-semibold text-lg px-1"><%= year %></span>
+      <a href="/sms/students/outstanding?year=<%= year + 1 %>" class="btn-secondary btn-sm" aria-label="Next year"><%= year + 1 %> &rarr;</a>
+    </div>
+  </div>
+
+  <% if (!families || families.length === 0) { %>
+    <div class="card">
+      <div class="card-body empty-state">
+        <p class="empty-state-title">Nothing outstanding for <%= year %></p>
+        <p class="empty-state-desc">Every invoice issued in <%= year %> has been settled, or none have been issued yet.</p>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="table-wrap overflow-x-auto">
+      <table class="table text-sm">
+        <thead>
+          <tr>
+            <th class="min-w-[12rem]">Family / learner</th>
+            <% for (var m = 1; m <= 12; m++) { %>
+              <th class="text-right whitespace-nowrap"><%= monthNames[m] %></th>
+            <% } %>
+            <th class="text-right whitespace-nowrap">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% families.forEach(function(fam) { %>
+            <tr class="bg-slate-50 dark:bg-slate-800/60">
+              <td colspan="13" class="font-semibold">
+                <a href="/sms/families/<%= fam.familyId %>" class="hover:underline"><%= fam.familyName %></a>
+              </td>
+              <td class="text-right font-semibold text-money"><%= formatMoney(fam.total) %></td>
+            </tr>
+            <% fam.students.forEach(function(stu) { %>
+              <tr>
+                <td class="pl-6">
+                  <a href="/sms/students/<%= stu.studentId %>" class="hover:underline"><%= stu.name %></a>
+                  <% if (!stu.isActive) { %><span class="badge-neutral ml-1">Left</span><% } %>
+                </td>
+                <% for (var m = 1; m <= 12; m++) { %>
+                  <td class="text-right text-money">
+                    <% if (stu.months[m] > 0) { %>
+                      <a href="/sms/invoices?studentId=<%= stu.studentId %>&<%= monthRange(year, m) %>"
+                         class="text-red-600 dark:text-red-400 hover:underline"
+                         title="View <%= stu.name %>'s <%= monthNames[m] %> invoices"><%= formatMoney(stu.months[m]) %></a>
+                    <% } else { %>
+                      <span class="text-muted">&mdash;</span>
+                    <% } %>
+                  </td>
+                <% } %>
+                <td class="text-right font-medium text-money"><%= formatMoney(stu.total) %></td>
+              </tr>
+            <% }) %>
+          <% }) %>
+        </tbody>
+        <tfoot>
+          <tr class="border-t-2 font-semibold" style="border-color: rgb(var(--color-border))">
+            <td>All families</td>
+            <% for (var m = 1; m <= 12; m++) { %>
+              <td class="text-right text-money"><%= monthTotals[m] > 0 ? formatMoney(monthTotals[m]) : '—' %></td>
+            <% } %>
+            <td class="text-right text-money"><%= formatMoney(grandTotal) %></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  <% } %>
+</div>

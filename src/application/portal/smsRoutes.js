@@ -18,8 +18,12 @@ const { demoOr } = require('../../business/demoData');
 const parentInvitationService = require('../../business/parentInvitationService');
 const parentGate = require('../../data/parentVerificationGateRepository');
 const { requireFeature } = require('../../middleware/requireFeature');
+const { getAudit } = require('../../middleware/auditTrail');
+const NotificationService = require('../../business/notificationService');
+const { formatDate, formatMoney } = require('./render');
 
 const studentService = new StudentPortalService();
+const notificationService = new NotificationService();
 const familyService = new FamilyPortalService();
 const classService = new ClassPortalService();
 const attendanceService = new AttendancePortalService();
@@ -64,6 +68,19 @@ function requireSchoolScope(req, res, next) {
 // ========================================================
 // Students
 // ========================================================
+
+// The filter bar uses "Current" / "Left" checkboxes; map them onto the
+// service's status values. An explicit ?status= still wins (back-compat
+// with pagination links and older bookmarks).
+function studentStatusFromQuery(query) {
+  if (query.status) return query.status;
+  const current = query.showCurrent === 'on' || query.showCurrent === '1';
+  const left = query.showLeft === 'on' || query.showLeft === '1';
+  if (current && left) return 'all';
+  if (left && !current) return 'inactive';
+  return 'active';
+}
+
 router.get('/students', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'Students | School Management';
@@ -73,7 +90,7 @@ router.get('/students', requireAuth, requireRoleMw, requireSchoolScope, async (r
       schoolDb: req.schoolDb,
       search: req.query.q,
       classId: req.query.classId,
-      status: req.query.status || 'active',
+      status: studentStatusFromQuery(req.query),
       page: req.query.page,
       pageSize: 25
     }), demoOr('smsStudents', { rows: [], total: 0, page: 1, pageSize: 25, hasMore: false, filters: { search: '', classId: '', status: 'active' } }));
@@ -90,11 +107,29 @@ router.get('/students/partials/table', requireAuth, requireRoleMw, requireSchool
       schoolDb: req.schoolDb,
       search: req.query.q,
       classId: req.query.classId,
-      status: req.query.status || 'active',
+      status: studentStatusFromQuery(req.query),
       page: req.query.page,
       pageSize: 25
     }), { rows: [], total: 0, page: 1, pageSize: 25, hasMore: false, filters: { search: '', classId: '', status: 'active' } });
     res.render('sms/students/partials/table', { ...data, layout: false });
+  } catch (err) { next(err); }
+});
+
+// Outstanding fees as a year calendar: one row per student grouped
+// under their family, one column per month.
+router.get('/students/outstanding', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+  try {
+    res.locals.title = 'Outstanding by month | School Management';
+    res.locals.portal = 'sms';
+    res.locals.activeNav = 'students';
+    const data = await safeCall(studentService.outstandingByMonth({
+      schoolDb: req.schoolDb,
+      year: req.query.year
+    }), {
+      year: Number(req.query.year) || new Date().getFullYear(),
+      families: [], monthTotals: new Array(13).fill(0), grandTotal: 0
+    });
+    res.render('sms/students/outstanding', data);
   } catch (err) { next(err); }
 });
 
@@ -106,9 +141,22 @@ router.get('/students/new', requireAuth, requireRoleMw, requireSchoolScope, asyn
     res.locals.activeNav = 'students';
     const families = await safeCall(studentService.listFamilies({ schoolDb: req.schoolDb, search: req.query.familySearch }), []);
     const classes = await safeCall(studentService.listClasses({ schoolDb: req.schoolDb }), []);
-    res.render('sms/students/form', { mode: 'create', student: null, families, classes, errors: {} });
+    const billingCategories = await safeCall(settingsService.listBillingCategories({ schoolDb: req.schoolDb }), []);
+    res.render('sms/students/form', {
+      mode: 'create', student: null, families, classes, errors: {},
+      billingCategories: billingCategories.filter(c => c.IsActive),
+      assignedCategoryIds: []
+    });
   } catch (err) { next(err); }
 });
+
+// Billing-category ids arrive as hidden inputs; one value posts as a
+// string, several as an array.
+function parseCategoryIds(body) {
+  return [].concat(body.billingCategoryIds || [])
+    .map(Number)
+    .filter(id => Number.isInteger(id) && id > 0);
+}
 
 // Create student (HTMX form post)
 router.post('/students', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
@@ -121,7 +169,12 @@ router.post('/students', requireAuth, requireRoleMw, requireSchoolScope, async (
     if (Object.keys(errors).length > 0) {
       const families = await safeCall(studentService.listFamilies({ schoolDb: req.schoolDb }), []);
       const classes = await safeCall(studentService.listClasses({ schoolDb: req.schoolDb }), []);
-      return res.status(400).render('sms/students/form', { mode: 'create', student: req.body, families, classes, errors });
+      const billingCategories = await safeCall(settingsService.listBillingCategories({ schoolDb: req.schoolDb }), []);
+      return res.status(400).render('sms/students/form', {
+        mode: 'create', student: req.body, families, classes, errors,
+        billingCategories: billingCategories.filter(c => c.IsActive),
+        assignedCategoryIds: parseCategoryIds(req.body)
+      });
     }
 
     // Parent gate: the chosen family must have at least one verified
@@ -132,6 +185,7 @@ router.post('/students', requireAuth, requireRoleMw, requireSchoolScope, async (
     if (!familyOk) {
       const families = await safeCall(studentService.listFamilies({ schoolDb: req.schoolDb }), []);
       const classes = await safeCall(studentService.listClasses({ schoolDb: req.schoolDb }), []);
+      const billingCategories = await safeCall(settingsService.listBillingCategories({ schoolDb: req.schoolDb }), []);
       const verifiedCount = await safeCall(parentGate.countVerifiedParentsForFamily({ schoolId: sid, familyId }), 0);
       return res.status(400).render('sms/students/form', {
         mode: 'create',
@@ -139,6 +193,8 @@ router.post('/students', requireAuth, requireRoleMw, requireSchoolScope, async (
         families,
         classes,
         errors: {},
+        billingCategories: billingCategories.filter(c => c.IsActive),
+        assignedCategoryIds: parseCategoryIds(req.body),
         parentGate: {
           familyId,
           verifiedCount,
@@ -155,19 +211,39 @@ router.post('/students', requireAuth, requireRoleMw, requireSchoolScope, async (
     request.input('dateOfBirth', sql.Date, req.body.dateOfBirth || null);
     request.input('classId', sql.Int, req.body.classId ? Number(req.body.classId) : null);
     request.input('medicalNotes', sql.NVarChar, req.body.medicalNotes || null);
+    request.input('homePhone', sql.NVarChar, req.body.homePhone ? String(req.body.homePhone).trim().slice(0, 50) : null);
+    request.input('homeAddress', sql.NVarChar, req.body.homeAddress ? String(req.body.homeAddress).trim().slice(0, 500) : null);
+    request.input('grandmotherName', sql.NVarChar, req.body.grandmotherName ? String(req.body.grandmotherName).trim().slice(0, 255) : null);
+    request.input('grandmotherPhone', sql.NVarChar, req.body.grandmotherPhone ? String(req.body.grandmotherPhone).trim().slice(0, 50) : null);
+    request.input('grandfatherName', sql.NVarChar, req.body.grandfatherName ? String(req.body.grandfatherName).trim().slice(0, 255) : null);
+    request.input('grandfatherPhone', sql.NVarChar, req.body.grandfatherPhone ? String(req.body.grandfatherPhone).trim().slice(0, 50) : null);
+    request.input('familyFriendName', sql.NVarChar, req.body.familyFriendName ? String(req.body.familyFriendName).trim().slice(0, 255) : null);
+    request.input('familyFriendPhone', sql.NVarChar, req.body.familyFriendPhone ? String(req.body.familyFriendPhone).trim().slice(0, 50) : null);
     const today = new Date().toISOString().slice(0, 10);
-    request.input('enrolledDate', sql.Date, today);
+    request.input('enrolledDate', sql.Date, req.body.enrolledDate || today);
 
     const text = `
       INSERT INTO Students
-        (SchoolID, FamilyID, FirstName, LastName, DateOfBirth, ClassID, MedicalNotes, EnrolledDate, IsActive, CurrentAcademicYear, BillingDate)
+        (SchoolID, FamilyID, FirstName, LastName, DateOfBirth, ClassID, MedicalNotes, EnrolledDate,
+         HomePhone, HomeAddress, GrandmotherName, GrandmotherPhone, GrandfatherName, GrandfatherPhone,
+         FamilyFriendName, FamilyFriendPhone, IsActive, CurrentAcademicYear, BillingDate)
       OUTPUT INSERTED.StudentID
       VALUES
-        (@schoolId, @familyId, @firstName, @lastName, @dateOfBirth, @classId, @medicalNotes, @enrolledDate, 1, YEAR(GETDATE()), GETDATE())
+        (@schoolId, @familyId, @firstName, @lastName, @dateOfBirth, @classId, @medicalNotes, @enrolledDate,
+         @homePhone, @homeAddress, @grandmotherName, @grandmotherPhone, @grandfatherName, @grandfatherPhone,
+         @familyFriendName, @familyFriendPhone, 1, YEAR(GETDATE()), GETDATE())
     `;
     req.schoolDb.guardTableScope(text);
     const result = await request.query(text);
     const newId = result.recordset[0] ? result.recordset[0].StudentID : null;
+
+    if (newId) {
+      await studentService.syncBillingCategories({
+        schoolDb: req.schoolDb,
+        studentId: newId,
+        categoryIds: parseCategoryIds(req.body)
+      });
+    }
 
     if (req.headers['hx-request'] === 'true') {
       res.set('HX-Redirect', '/sms/students/' + newId);
@@ -177,6 +253,194 @@ router.post('/students', requireAuth, requireRoleMw, requireSchoolScope, async (
     res.redirect('/sms/students/' + newId);
   } catch (err) { next(err); }
 });
+
+// Send a custom email to the parents of selected students, a class, or
+// every active student. Each parent is emailed individually so addresses
+// are never disclosed to other recipients (POPIA).
+const EMAIL_MAX_RECIPIENTS = 500;
+router.post('/students/email', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+  try {
+    const sid = req.schoolDb.schoolId;
+    if (sid == null) {
+      return res.status(403).render('errors/forbidden', { user: req.user, message: 'No school context.' });
+    }
+
+    const scope = String(req.body.scope || '');
+    const subject = String(req.body.subject || '').trim().slice(0, 200);
+    const message = String(req.body.message || '').trim().slice(0, 5000);
+
+    function fail(text) {
+      res.set('HX-Trigger', JSON.stringify({ toast: { type: 'error', message: text } }));
+      if (req.headers['hx-request'] === 'true') return res.status(400).end();
+      return res.redirect('/sms/students');
+    }
+
+    if (!['selected', 'class', 'all'].includes(scope)) return fail('Choose who to send to.');
+    if (!subject) return fail('A subject is required.');
+    if (!message) return fail('A message is required.');
+    const studentIds = [].concat(req.body.studentIds || []).map(Number).filter(id => Number.isInteger(id) && id > 0);
+    if (scope === 'selected' && !studentIds.length) return fail('Select at least one student first.');
+    if (scope === 'class' && !(Number(req.body.classId) > 0)) return fail('Choose a class first.');
+
+    const { emails, studentCount } = await safeCall(studentService.listParentEmails({
+      schoolDb: req.schoolDb,
+      scope,
+      studentIds,
+      classId: Number(req.body.classId)
+    }), { emails: [], studentCount: 0 });
+
+    if (!emails.length) return fail('No parent email addresses found for that selection.');
+    if (emails.length > EMAIL_MAX_RECIPIENTS) return fail(`Too many recipients (${emails.length}). The limit is ${EMAIL_MAX_RECIPIENTS}.`);
+
+    // One email per parent; enqueue without polling for delivery so a
+    // large send doesn't hold the request open.
+    let sentCount = 0;
+    for (const email of emails) {
+      try {
+        const result = await notificationService.sendEmail(email, subject, message, { waitForResult: false });
+        if (result && result.sent) sentCount += 1;
+      } catch (err) {
+        console.warn('[sms/students] email send failed for one recipient:', err.message);
+      }
+    }
+
+    if (sentCount === 0) return fail('No emails could be sent. Check the email provider settings.');
+
+    // Audit the broadcast (counts only — never recipient addresses).
+    try {
+      await getAudit().recordWrite(req.user, sid, 'student-email', null, 'CREATE', null, null, {
+        scope, students: studentCount, recipients: emails.length, sent: sentCount
+      });
+    } catch (err) {
+      console.warn('[sms/students] audit write failed:', err.message);
+    }
+
+    const note = `Email sent to ${sentCount} parent${sentCount === 1 ? '' : 's'}.`;
+    if (req.headers['hx-request'] === 'true') {
+      res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: note }, 'email-sent': {} }));
+      return res.status(204).end();
+    }
+    res.redirect('/sms/students');
+  } catch (err) { next(err); }
+});
+
+// Email each family their invoice statement: every invoice this year
+// ('all') or only unpaid balances ('outstanding'). Parents only ever see
+// their own family's invoices, and each address gets its own copy.
+router.post('/students/email-invoices', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+  try {
+    const sid = req.schoolDb.schoolId;
+    if (sid == null) {
+      return res.status(403).render('errors/forbidden', { user: req.user, message: 'No school context.' });
+    }
+
+    const scope = String(req.body.scope || '');
+
+    function fail(text) {
+      res.set('HX-Trigger', JSON.stringify({ toast: { type: 'error', message: text } }));
+      if (req.headers['hx-request'] === 'true') return res.status(400).end();
+      return res.redirect('/sms/students');
+    }
+
+    if (!['all', 'outstanding'].includes(scope)) return fail('Choose which invoices to send.');
+
+    const [statements, school] = await Promise.all([
+      safeCall(invoiceService.listFamilyStatements({ schoolDb: req.schoolDb, scope }), []),
+      safeCall(settingsService.getSchool({ schoolDb: req.schoolDb }), null)
+    ]);
+    if (!statements.length) {
+      return fail(scope === 'outstanding' ? 'No outstanding invoices found.' : 'No invoices found for this year.');
+    }
+
+    const schoolName = (school && school.SchoolName) || 'your school';
+    const currency = school && school.CurrencyCode;
+    const year = new Date().getFullYear();
+    const subject = scope === 'outstanding'
+      ? `Outstanding fees statement — ${schoolName}`
+      : `Invoice statement ${year} — ${schoolName}`;
+
+    let familiesSent = 0;
+    let sentCount = 0;
+    for (const fam of statements) {
+      if (!fam.emails.length) continue;
+      const body = buildStatementEmail(fam, { schoolName, school, scope, currency });
+      let famSent = 0;
+      for (const email of fam.emails) {
+        try {
+          const result = await notificationService.sendEmail(email, subject, body, { waitForResult: false });
+          if (result && result.sent) famSent += 1;
+        } catch (err) {
+          console.warn('[sms/students] statement send failed for one recipient:', err.message);
+        }
+      }
+      if (famSent > 0) familiesSent += 1;
+      sentCount += famSent;
+    }
+
+    if (sentCount === 0) return fail('No emails could be sent. Check the email provider settings.');
+
+    try {
+      await getAudit().recordWrite(req.user, sid, 'invoice-statement-email', null, 'CREATE', null, null, {
+        scope, families: familiesSent, recipients: sentCount
+      });
+    } catch (err) {
+      console.warn('[sms/students] audit write failed:', err.message);
+    }
+
+    const note = `Invoice statements sent to ${familiesSent} famil${familiesSent === 1 ? 'y' : 'ies'} (${sentCount} email${sentCount === 1 ? '' : 's'}).`;
+    if (req.headers['hx-request'] === 'true') {
+      res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: note }, 'email-sent': {} }));
+      return res.status(204).end();
+    }
+    res.redirect('/sms/students');
+  } catch (err) { next(err); }
+});
+
+// Plain-text statement body for one family. Amounts use the school's
+// configured currency via the shared formatMoney helper.
+function buildStatementEmail(fam, { schoolName, school, scope, currency }) {
+  const lines = [];
+  lines.push(`Dear ${fam.familyName} family,`);
+  lines.push('');
+  lines.push(scope === 'outstanding'
+    ? `Here is a summary of the outstanding school fees for your family at ${schoolName}.`
+    : `Here is your ${new Date().getFullYear()} invoice statement from ${schoolName}.`);
+  lines.push('');
+
+  let totalOutstanding = 0;
+  let currentStudent = null;
+  for (const line of fam.lines) {
+    if (line.studentName !== currentStudent) {
+      currentStudent = line.studentName;
+      lines.push(currentStudent);
+    }
+    const outstanding = Math.max(0, line.amount - line.amountPaid);
+    totalOutstanding += outstanding;
+    lines.push(
+      `  ${line.invoiceNumber} | issued ${formatDate(line.issueDate)}` +
+      (line.dueDate ? ` | due ${formatDate(line.dueDate)}` : '') +
+      ` | ${formatMoney(line.amount, currency)} | paid ${formatMoney(line.amountPaid, currency)}` +
+      ` | outstanding ${formatMoney(outstanding, currency)}`
+    );
+  }
+
+  lines.push('');
+  lines.push(`Total outstanding: ${formatMoney(totalOutstanding, currency)}`);
+
+  if (school && (school.BankName || school.BankAccountNumber)) {
+    lines.push('');
+    lines.push('Payment details:');
+    if (school.BankName) lines.push(`  Bank: ${school.BankName}`);
+    if (school.BankAccountHolder) lines.push(`  Account holder: ${school.BankAccountHolder}`);
+    if (school.BankAccountNumber) lines.push(`  Account number: ${school.BankAccountNumber}`);
+    if (school.BankBranchCode) lines.push(`  Branch code: ${school.BankBranchCode}`);
+    lines.push(`  Reference: ${fam.familyName}`);
+  }
+
+  lines.push('');
+  lines.push(`— ${schoolName}`);
+  return lines.join('\n');
+}
 
 // Student detail
 router.get('/students/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
@@ -191,7 +455,11 @@ router.get('/students/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScope
     if (!student) {
       return res.status(404).render('errors/csrf', { message: 'Student not found.' });
     }
-    res.render('sms/students/detail', { student });
+    const assignedCategories = await safeCall(studentService.listAssignedBillingCategories({
+      schoolDb: req.schoolDb,
+      studentId: Number(req.params.id)
+    }), []);
+    res.render('sms/students/detail', { student, assignedCategories });
   } catch (err) { next(err); }
 });
 
@@ -205,7 +473,13 @@ router.get('/students/:id(\\d+)/edit', requireAuth, requireRoleMw, requireSchool
     if (!student) return res.status(404).render('errors/csrf', { message: 'Student not found.' });
     const families = await safeCall(studentService.listFamilies({ schoolDb: req.schoolDb }), []);
     const classes = await safeCall(studentService.listClasses({ schoolDb: req.schoolDb }), []);
-    res.render('sms/students/form', { mode: 'edit', student, families, classes, errors: {} });
+    const billingCategories = await safeCall(settingsService.listBillingCategories({ schoolDb: req.schoolDb }), []);
+    const assigned = await safeCall(studentService.listAssignedBillingCategories({ schoolDb: req.schoolDb, studentId: Number(req.params.id) }), []);
+    res.render('sms/students/form', {
+      mode: 'edit', student, families, classes, errors: {},
+      billingCategories: billingCategories.filter(c => c.IsActive),
+      assignedCategoryIds: assigned.map(a => Number(a.BillingCategoryID))
+    });
   } catch (err) { next(err); }
 });
 
@@ -220,7 +494,12 @@ router.post('/students/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScop
     if (Object.keys(errors).length > 0) {
       const families = await safeCall(studentService.listFamilies({ schoolDb: req.schoolDb }), []);
       const classes = await safeCall(studentService.listClasses({ schoolDb: req.schoolDb }), []);
-      return res.status(400).render('sms/students/form', { mode: 'edit', student: { ...req.body, StudentID: id }, families, classes, errors });
+      const billingCategories = await safeCall(settingsService.listBillingCategories({ schoolDb: req.schoolDb }), []);
+      return res.status(400).render('sms/students/form', {
+        mode: 'edit', student: { ...req.body, StudentID: id }, families, classes, errors,
+        billingCategories: billingCategories.filter(c => c.IsActive),
+        assignedCategoryIds: parseCategoryIds(req.body)
+      });
     }
 
     const request = await req.schoolDb.request();
@@ -231,6 +510,15 @@ router.post('/students/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScop
     request.input('dateOfBirth', sql.Date, req.body.dateOfBirth || null);
     request.input('classId', sql.Int, req.body.classId ? Number(req.body.classId) : null);
     request.input('medicalNotes', sql.NVarChar, req.body.medicalNotes || null);
+    request.input('enrolledDate', sql.Date, req.body.enrolledDate || null);
+    request.input('homePhone', sql.NVarChar, req.body.homePhone ? String(req.body.homePhone).trim().slice(0, 50) : null);
+    request.input('homeAddress', sql.NVarChar, req.body.homeAddress ? String(req.body.homeAddress).trim().slice(0, 500) : null);
+    request.input('grandmotherName', sql.NVarChar, req.body.grandmotherName ? String(req.body.grandmotherName).trim().slice(0, 255) : null);
+    request.input('grandmotherPhone', sql.NVarChar, req.body.grandmotherPhone ? String(req.body.grandmotherPhone).trim().slice(0, 50) : null);
+    request.input('grandfatherName', sql.NVarChar, req.body.grandfatherName ? String(req.body.grandfatherName).trim().slice(0, 255) : null);
+    request.input('grandfatherPhone', sql.NVarChar, req.body.grandfatherPhone ? String(req.body.grandfatherPhone).trim().slice(0, 50) : null);
+    request.input('familyFriendName', sql.NVarChar, req.body.familyFriendName ? String(req.body.familyFriendName).trim().slice(0, 255) : null);
+    request.input('familyFriendPhone', sql.NVarChar, req.body.familyFriendPhone ? String(req.body.familyFriendPhone).trim().slice(0, 50) : null);
     request.input('isActive', sql.Bit, req.body.isActive === 'on' || req.body.isActive === 'true' ? 1 : 0);
 
     const text = `
@@ -240,12 +528,27 @@ router.post('/students/:id(\\d+)', requireAuth, requireRoleMw, requireSchoolScop
         DateOfBirth = @dateOfBirth,
         ClassID = @classId,
         MedicalNotes = @medicalNotes,
+        EnrolledDate = COALESCE(@enrolledDate, EnrolledDate),
+        HomePhone = @homePhone,
+        HomeAddress = @homeAddress,
+        GrandmotherName = @grandmotherName,
+        GrandmotherPhone = @grandmotherPhone,
+        GrandfatherName = @grandfatherName,
+        GrandfatherPhone = @grandfatherPhone,
+        FamilyFriendName = @familyFriendName,
+        FamilyFriendPhone = @familyFriendPhone,
         IsActive = @isActive,
         UpdatedDate = GETDATE()
       WHERE SchoolID = @schoolId AND StudentID = @studentId AND IsDeleted = 0
     `;
     req.schoolDb.guardTableScope(text);
     await request.query(text);
+
+    await studentService.syncBillingCategories({
+      schoolDb: req.schoolDb,
+      studentId: id,
+      categoryIds: parseCategoryIds(req.body)
+    });
 
     if (req.headers['hx-request'] === 'true') {
       res.set('HX-Redirect', '/sms/students/' + id);
@@ -286,6 +589,10 @@ function validateStudent(body, { partial = false } = {}) {
   if (body.dateOfBirth) {
     const d = new Date(body.dateOfBirth);
     if (isNaN(d.getTime())) errors.dateOfBirth = 'Invalid date of birth';
+  }
+  if (body.enrolledDate) {
+    const d = new Date(body.enrolledDate);
+    if (isNaN(d.getTime())) errors.enrolledDate = 'Invalid enrolment date';
   }
   return errors;
 }
@@ -901,6 +1208,23 @@ router.get('/invoices/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchool
     if (!invoice) return res.status(404).render('errors/csrf', { message: 'Invoice not found.' });
     const payments = await safeCall(invoiceService.getPayments({ schoolDb: req.schoolDb, invoiceId: Number(req.params.id) }), []);
     res.render('sms/invoices/detail', { invoice, payments });
+  } catch (err) { next(err); }
+});
+
+// Document-style invoice for printing or saving as PDF from the browser.
+// Carries the school's letterhead and banking details so parents know
+// where to pay.
+router.get('/invoices/:id([1-9]\\d*)/print', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+  try {
+    res.locals.title = 'Invoice | School Management';
+    res.locals.portal = 'sms';
+    const invoice = await safeCall(invoiceService.getById({ schoolDb: req.schoolDb, invoiceId: Number(req.params.id) }), null);
+    if (!invoice) return res.status(404).render('errors/csrf', { message: 'Invoice not found.' });
+    const [payments, school] = await Promise.all([
+      safeCall(invoiceService.getPayments({ schoolDb: req.schoolDb, invoiceId: Number(req.params.id) }), []),
+      safeCall(settingsService.getSchool({ schoolDb: req.schoolDb }), null)
+    ]);
+    res.render('sms/invoices/print', { invoice, payments, school: school || {} });
   } catch (err) { next(err); }
 });
 

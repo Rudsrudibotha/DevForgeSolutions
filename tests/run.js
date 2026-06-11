@@ -85,6 +85,8 @@ proc.stderr.on('data', d => { errorOut += d.toString(); });
     await runReports();
     const runSettings = require('./settings.test.js');
     await runSettings();
+    const runAccount = require('./account.test.js');
+    await runAccount();
     const runDevforgeSchools = require('./devforgeSchools.test.js');
     await runDevforgeSchools();
     const runDevforgeUsers = require('./devforgeUsers.test.js');

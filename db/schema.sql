@@ -205,6 +205,17 @@ BEGIN
     ALTER TABLE dbo.Users ADD IsActive BIT NOT NULL CONSTRAINT DF_Users_IsActive DEFAULT 1;
 END;
 
+-- Display name, editable on the /account settings page. Shown in the
+-- portal header; falls back to Username when not set.
+IF COL_LENGTH('dbo.Users', 'FirstName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD FirstName NVARCHAR(255) NULL;
+END;
+IF COL_LENGTH('dbo.Users', 'LastName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD LastName NVARCHAR(255) NULL;
+END;
+
 -- HR permission flag for payslip access
 IF COL_LENGTH('dbo.Users', 'HasHrPermission') IS NULL
 BEGIN
@@ -505,6 +516,34 @@ END;
 IF COL_LENGTH('dbo.Students', 'ResponsiblePayerEmail') IS NULL
 BEGIN
     ALTER TABLE dbo.Students ADD ResponsiblePayerEmail NVARCHAR(255) NULL;
+END;
+
+-- Additional emergency contacts captured on the enrolment form
+-- (grandmother, grandfather, family friend). The family's primary
+-- emergency contact (relative) lives on dbo.Families.
+IF COL_LENGTH('dbo.Students', 'GrandmotherName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD GrandmotherName NVARCHAR(255) NULL;
+END;
+IF COL_LENGTH('dbo.Students', 'GrandmotherPhone') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD GrandmotherPhone NVARCHAR(50) NULL;
+END;
+IF COL_LENGTH('dbo.Students', 'GrandfatherName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD GrandfatherName NVARCHAR(255) NULL;
+END;
+IF COL_LENGTH('dbo.Students', 'GrandfatherPhone') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD GrandfatherPhone NVARCHAR(50) NULL;
+END;
+IF COL_LENGTH('dbo.Students', 'FamilyFriendName') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD FamilyFriendName NVARCHAR(255) NULL;
+END;
+IF COL_LENGTH('dbo.Students', 'FamilyFriendPhone') IS NULL
+BEGIN
+    ALTER TABLE dbo.Students ADD FamilyFriendPhone NVARCHAR(50) NULL;
 END;
 
 IF OBJECT_ID('dbo.StudentBillingCategories', 'U') IS NULL

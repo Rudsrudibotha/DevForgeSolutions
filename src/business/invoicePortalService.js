@@ -124,17 +124,85 @@ class InvoicePortalService {
       SELECT
         i.*,
         s.StudentID, s.FirstName + ' ' + s.LastName AS StudentName, s.DateOfBirth,
+        c.ClassName AS StudentClassName, c.Grade AS StudentGrade,
         f.FamilyID, f.FamilyName, f.PrimaryParentName, f.PrimaryParentEmail, f.PrimaryParentPhone,
+        f.SecondaryParentName, f.HomeAddress AS FamilyHomeAddress,
+        bc.CategoryName AS BillingCategoryName,
         sch.SchoolName
       FROM Invoices i
       LEFT  JOIN Students s  ON s.StudentID = i.StudentID
+      LEFT  JOIN Classes c   ON c.ClassID = s.ClassID
       LEFT  JOIN Families f  ON f.FamilyID = s.FamilyID
+      LEFT  JOIN BillingCategories bc ON bc.BillingCategoryID = i.BillingCategoryID
       INNER JOIN Schools sch ON sch.SchoolID = i.SchoolID
       WHERE i.SchoolID = @schoolId AND i.InvoiceID = @invoiceId AND i.IsDeleted = 0
     `;
     schoolDb.guardTableScope(text);
     const result = await request.query(text);
     return result.recordset[0] || null;
+  }
+
+  // Invoice lines grouped per family, for the statement emails. Scope
+  // 'outstanding' returns only unpaid balances; 'all' returns every
+  // invoice issued this calendar year (a yearly statement). Only active,
+  // non-deleted students are included.
+  async listFamilyStatements({ schoolDb, scope } = {}) {
+    if (!schoolDb) throw new Error('schoolDb is required');
+    const sid = schoolDb.schoolId;
+    if (sid == null) throw new Error('invoicePortalService.listFamilyStatements requires a scoped schoolId');
+
+    const request = await schoolDb.request();
+    request.input('schoolId', sql.Int, sid);
+    const where = [
+      'i.SchoolID = @schoolId', 'i.IsDeleted = 0',
+      's.IsDeleted = 0', 's.IsActive = 1',
+      `i.Status <> 'Cancelled'`
+    ];
+    if (scope === 'outstanding') {
+      where.push(`i.Status <> 'Paid'`, '(i.Amount - ISNULL(i.AmountPaid, 0)) > 0');
+    } else {
+      where.push('YEAR(i.IssueDate) = YEAR(GETDATE())');
+    }
+
+    const text = `
+      SELECT
+        f.FamilyID, f.FamilyName, f.PrimaryParentEmail, f.SecondaryParentEmail,
+        s.StudentID, s.FirstName + ' ' + s.LastName AS StudentName,
+        i.InvoiceID, i.InvoiceNumber, i.IssueDate, i.DueDate, i.Status,
+        i.Amount, ISNULL(i.AmountPaid, 0) AS AmountPaid
+      FROM Invoices i
+      INNER JOIN Students s ON s.StudentID = i.StudentID
+      INNER JOIN Families f ON f.FamilyID = s.FamilyID
+      WHERE ${where.join(' AND ')}
+      ORDER BY f.FamilyName, s.LastName, s.FirstName, i.IssueDate
+    `;
+    schoolDb.guardTableScope(text);
+    const result = await request.query(text);
+
+    // Group rows into one statement per family.
+    const families = new Map();
+    for (const row of result.recordset) {
+      let fam = families.get(row.FamilyID);
+      if (!fam) {
+        const emails = new Set();
+        for (const email of [row.PrimaryParentEmail, row.SecondaryParentEmail]) {
+          const value = String(email || '').trim().toLowerCase();
+          if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) emails.add(value);
+        }
+        fam = { familyId: row.FamilyID, familyName: row.FamilyName, emails: [...emails], lines: [] };
+        families.set(row.FamilyID, fam);
+      }
+      fam.lines.push({
+        studentName: row.StudentName,
+        invoiceNumber: row.InvoiceNumber,
+        issueDate: row.IssueDate,
+        dueDate: row.DueDate,
+        status: row.Status,
+        amount: Number(row.Amount || 0),
+        amountPaid: Number(row.AmountPaid || 0)
+      });
+    }
+    return [...families.values()];
   }
 
   // Payment history for an invoice

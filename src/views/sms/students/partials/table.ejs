@@ -4,11 +4,18 @@
     title: 'No students found',
     desc: (filters && (filters.search || filters.classId)) ? 'Try clearing your filters.' : 'Add your first student to get started.',
     action: (filters && (filters.search || filters.classId)) ? null : { label: 'Add student', href: '/sms/students/new' },
-    colspan: 7
+    colspan: 8
   }) %>
 <% } else { %>
   <% rows.forEach(function(s) { %>
     <tr id="student-row-<%= s.StudentID %>">
+      <td class="w-10">
+        <input type="checkbox" class="checkbox"
+               data-student-id="<%= s.StudentID %>"
+               :checked="isSelected(<%= s.StudentID %>)"
+               @change="toggleRow(<%= s.StudentID %>)"
+               aria-label="Select <%= s.FirstName %> <%= s.LastName %>" />
+      </td>
       <td>
         <a href="/sms/students/<%= s.StudentID %>" class="font-medium hover:underline">
           <%= s.FirstName %> <%= s.LastName %>
@@ -30,7 +37,9 @@
       </td>
       <td class="text-right text-money">
         <% if (Number(s.OutstandingAmount) > 0) { %>
-          <span class="text-red-600 dark:text-red-400 font-medium"><%= formatMoney(s.OutstandingAmount) %></span>
+          <a href="/sms/invoices?studentId=<%= s.StudentID %>"
+             class="text-red-600 dark:text-red-400 font-medium hover:underline"
+             title="View this learner's invoices"><%= formatMoney(s.OutstandingAmount) %></a>
         <% } else { %>
           <span class="text-emerald-600 dark:text-emerald-400"><%= formatMoney(0) %></span>
         <% } %>

@@ -31,6 +31,7 @@
         <p class="kpi-value text-money"><%= formatMoney(Number(invoice.Amount)) %></p>
         <p class="text-sm text-muted">Paid: <%= formatMoney(Number(invoice.AmountPaid || 0)) %></p>
         <p class="text-sm font-medium">Outstanding: <%= formatMoney((Number(invoice.Amount) - Number(invoice.AmountPaid || 0))) %></p>
+        <a href="/sms/invoices/<%= invoice.InvoiceID %>/print" class="btn-secondary btn-sm mt-2 inline-block">Print / PDF</a>
       </div>
     </div>
   </div>

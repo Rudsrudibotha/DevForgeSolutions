@@ -97,6 +97,7 @@ Portal router (src/application/portal/index.js):
                           populates req.user
    - issueCsrf + verifyCsrf : sets kch_csrf cookie + hx-headers
    - /auth/*            : authRoutes (login, register, OAuth callbacks)
+   - /account           : requireAuth (any role) + accountRoutes
    - /sms/*             : requireAuth + requireRole('school','admin')
                           + loadCurrentSchool + scopeToSchool + smsRoutes
    - /parent/*          : requireAuth + requireRole('parent') + parentRoutes
@@ -214,6 +215,7 @@ with the dashboard name. See the table below.
 5.3 PORTAL (EJS-rendered dashboards)
   - portal/index.js                 mounts /, /auth, /sms, /parent, /devforge
   - portal/authRoutes.js            login form handling
+  - portal/accountRoutes.js         self-service account settings (all roles)
   - portal/parentRoutes.js          EJS parent dashboard routes
   - portal/smsRoutes.js             EJS school management routes
   - portal/devforgeRoutes.js        EJS DevForge admin routes

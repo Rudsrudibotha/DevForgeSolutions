@@ -1,0 +1,94 @@
+<% layout = 'layouts/app' %>
+<% sidebar = portal === 'devforge' ? 'devforge' : (portal === 'parent' ? 'parent' : 'school') %>
+
+<div class="container-narrow">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">Account settings</h1>
+    <p class="text-muted text-sm">Your name, sign-in details, and password.</p>
+  </div>
+
+  <% if (saved) { %>
+    <div class="alert alert-success mb-4">Your changes have been saved.</div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert alert-error mb-4"><%= error %></div>
+  <% } %>
+
+  <div class="card mb-6">
+    <div class="card-header">
+      <h2 class="text-lg font-semibold">Profile</h2>
+      <p class="text-muted text-sm mt-0.5">Your name is shown in the header and on records you create.</p>
+    </div>
+    <form method="post" action="/account/profile"
+          hx-post="/account/profile"
+          hx-target="this"
+          hx-swap="none"
+          class="card-body space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label label-required" for="firstName">First name</label>
+          <input id="firstName" name="firstName" type="text" required maxlength="255"
+                 value="<%= profile.firstName %>" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label" for="lastName">Last name</label>
+          <input id="lastName" name="lastName" type="text" maxlength="255"
+                 value="<%= profile.lastName %>" class="input" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label" for="accountEmail">Email</label>
+          <input id="accountEmail" type="email" value="<%= profile.email %>" class="input" disabled />
+          <p class="help-text">Your email is your sign-in identity and cannot be changed here.</p>
+        </div>
+        <div class="form-field">
+          <label class="label">Role</label>
+          <p class="pt-2"><span class="badge-neutral"><%= profile.role %></span>
+            <% if (profile.memberSince) { %>
+              <span class="text-xs text-muted ml-2">Member since <%= formatDate(profile.memberSince) %></span>
+            <% } %>
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button type="submit" class="btn-primary">Save profile</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="text-lg font-semibold">Change password</h2>
+      <p class="text-muted text-sm mt-0.5">Use at least 8 characters. If you sign in with Microsoft or Google and don't know your password, use the <a href="/forgot" class="text-brand-600 dark:text-brand-300 hover:underline">password reset</a> instead.</p>
+    </div>
+    <form method="post" action="/account/password"
+          hx-post="/account/password"
+          hx-target="this"
+          hx-swap="none"
+          class="card-body space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="form-field">
+        <label class="label label-required" for="currentPassword">Current password</label>
+        <input id="currentPassword" name="currentPassword" type="password" required
+               autocomplete="current-password" class="input sm:max-w-sm" />
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label label-required" for="newPassword">New password</label>
+          <input id="newPassword" name="newPassword" type="password" required minlength="8"
+                 autocomplete="new-password" class="input" />
+        </div>
+        <div class="form-field">
+          <label class="label label-required" for="confirmPassword">Confirm new password</label>
+          <input id="confirmPassword" name="confirmPassword" type="password" required minlength="8"
+                 autocomplete="new-password" class="input" />
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button type="submit" class="btn-primary">Change password</button>
+      </div>
+    </form>
+  </div>
+</div>

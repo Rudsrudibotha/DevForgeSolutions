@@ -1,0 +1,167 @@
+<% layout = 'layouts/app' %>
+<% hideChrome = true %>
+
+<% var amount = Number(invoice.Amount || 0); %>
+<% var paid = Number(invoice.AmountPaid || 0); %>
+<% var outstanding = Math.max(0, amount - paid); %>
+
+<div class="max-w-3xl mx-auto px-4 py-6" x-data>
+  <!-- Toolbar (hidden when printing) -->
+  <div class="flex items-center justify-between mb-4 print:hidden">
+    <a href="/sms/invoices/<%= invoice.InvoiceID %>" class="btn-ghost btn-sm">&larr; Back to invoice</a>
+    <button type="button" class="btn-primary btn-sm" @click="window.print()">Print / Save as PDF</button>
+  </div>
+
+  <div class="bg-white text-slate-900 rounded-xl shadow-sm border border-slate-200 print:shadow-none print:border-0 print:rounded-none">
+    <div class="p-8 space-y-8">
+
+      <!-- Letterhead -->
+      <div class="flex items-start justify-between gap-6 border-b border-slate-200 pb-6">
+        <div class="flex items-start gap-4">
+          <% if (school.LogoUrl) { %>
+            <img src="<%= school.LogoUrl %>" alt="" class="h-16 w-16 rounded-md object-contain" />
+          <% } %>
+          <div>
+            <h1 class="text-xl font-bold"><%= school.SchoolName || invoice.SchoolName %></h1>
+            <% if (school.Address) { %><p class="text-sm text-slate-600 whitespace-pre-line"><%= school.Address %></p><% } %>
+            <p class="text-sm text-slate-600">
+              <% if (school.ContactPhone) { %><%= school.ContactPhone %><% } %>
+              <% if (school.ContactPhone && school.ContactEmail) { %> &middot; <% } %>
+              <% if (school.ContactEmail) { %><%= school.ContactEmail %><% } %>
+            </p>
+            <p class="text-xs text-slate-500">
+              <% if (school.RegistrationNumber) { %>Reg no. <%= school.RegistrationNumber %><% } %>
+              <% if (school.RegistrationNumber && school.VATNumber) { %> &middot; <% } %>
+              <% if (school.VATNumber) { %>VAT no. <%= school.VATNumber %><% } %>
+            </p>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <p class="text-2xl font-bold tracking-wide uppercase">Invoice</p>
+          <p class="text-sm text-slate-600">#<%= invoice.InvoiceNumber %></p>
+          <% if (invoice.Status === 'Paid') { %>
+            <p class="mt-2 inline-block rounded border-2 border-emerald-600 px-3 py-0.5 text-sm font-bold uppercase text-emerald-700">Paid</p>
+          <% } else if (outstanding > 0 && invoice.DueDate && new Date(invoice.DueDate) < new Date()) { %>
+            <p class="mt-2 inline-block rounded border-2 border-red-600 px-3 py-0.5 text-sm font-bold uppercase text-red-700">Overdue</p>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Bill to / dates -->
+      <div class="grid grid-cols-2 gap-8">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Billed to</p>
+          <p class="font-semibold"><%= invoice.FamilyName || '—' %></p>
+          <% if (invoice.PrimaryParentName) { %><p class="text-sm text-slate-600"><%= invoice.PrimaryParentName %></p><% } %>
+          <% if (invoice.SecondaryParentName) { %><p class="text-sm text-slate-600"><%= invoice.SecondaryParentName %></p><% } %>
+          <% if (invoice.FamilyHomeAddress) { %><p class="text-sm text-slate-600 whitespace-pre-line"><%= invoice.FamilyHomeAddress %></p><% } %>
+          <% if (invoice.PrimaryParentEmail) { %><p class="text-sm text-slate-600"><%= invoice.PrimaryParentEmail %></p><% } %>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-3 mb-1">Learner</p>
+          <p class="text-sm">
+            <%= invoice.StudentName || '—' %>
+            <% if (invoice.StudentClassName) { %> &middot; <%= invoice.StudentClassName %><% } %>
+            <% if (invoice.StudentGrade) { %> (Grade <%= invoice.StudentGrade %>)<% } %>
+          </p>
+        </div>
+        <div class="text-right">
+          <dl class="space-y-1 text-sm">
+            <div class="flex justify-end gap-4">
+              <dt class="text-slate-500">Issued</dt>
+              <dd class="font-medium w-28"><%= invoice.IssueDate ? formatDate(invoice.IssueDate) : '—' %></dd>
+            </div>
+            <div class="flex justify-end gap-4">
+              <dt class="text-slate-500">Due</dt>
+              <dd class="font-medium w-28"><%= invoice.DueDate ? formatDate(invoice.DueDate) : '—' %></dd>
+            </div>
+            <% if (invoice.PaidDate) { %>
+              <div class="flex justify-end gap-4">
+                <dt class="text-slate-500">Paid</dt>
+                <dd class="font-medium w-28"><%= formatDate(invoice.PaidDate) %></dd>
+              </div>
+            <% } %>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Line items -->
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b-2 border-slate-300 text-left">
+            <th class="py-2 font-semibold">Description</th>
+            <th class="py-2 font-semibold">Category</th>
+            <th class="py-2 font-semibold text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-200">
+            <td class="py-3"><%= invoice.Description || 'School fees' %></td>
+            <td class="py-3 text-slate-600"><%= invoice.BillingCategoryName || '—' %></td>
+            <td class="py-3 text-right text-money"><%= formatMoney(amount) %></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td></td>
+            <td class="py-2 text-right text-slate-500">Total</td>
+            <td class="py-2 text-right font-semibold text-money"><%= formatMoney(amount) %></td>
+          </tr>
+          <tr>
+            <td></td>
+            <td class="py-1 text-right text-slate-500">Payments received</td>
+            <td class="py-1 text-right text-money"><%= formatMoney(paid) %></td>
+          </tr>
+          <tr class="border-t-2 border-slate-300">
+            <td></td>
+            <td class="py-2 text-right font-bold">Outstanding</td>
+            <td class="py-2 text-right font-bold text-money <%= outstanding > 0 ? 'text-red-700' : 'text-emerald-700' %>"><%= formatMoney(outstanding) %></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <!-- Payments received -->
+      <% if (payments && payments.length) { %>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Payment history</p>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-300 text-left">
+                <th class="py-1.5 font-semibold">Date received</th>
+                <th class="py-1.5 font-semibold">Receipt #</th>
+                <th class="py-1.5 font-semibold">Method</th>
+                <th class="py-1.5 font-semibold text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% payments.forEach(function(p) { %>
+                <tr class="border-b border-slate-100">
+                  <td class="py-1.5"><%= p.TransactionDate ? formatDate(p.TransactionDate) : '—' %></td>
+                  <td class="py-1.5 text-slate-600"><%= p.ReceiptNumber || '—' %></td>
+                  <td class="py-1.5 text-slate-600"><%= p.PaymentMethod || '—' %></td>
+                  <td class="py-1.5 text-right text-money"><%= formatMoney(Number(p.Amount)) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+
+      <!-- Banking details -->
+      <% if (school.BankName || school.BankAccountNumber || school.PaymentInstructions) { %>
+        <div class="rounded-lg bg-slate-50 border border-slate-200 p-4 print:bg-white">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Payment details</p>
+          <div class="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
+            <% if (school.BankName) { %><p><span class="text-slate-500">Bank:</span> <%= school.BankName %></p><% } %>
+            <% if (school.BankAccountHolder) { %><p><span class="text-slate-500">Account holder:</span> <%= school.BankAccountHolder %></p><% } %>
+            <% if (school.BankAccountNumber) { %><p><span class="text-slate-500">Account number:</span> <%= school.BankAccountNumber %></p><% } %>
+            <% if (school.BankBranchCode) { %><p><span class="text-slate-500">Branch code:</span> <%= school.BankBranchCode %></p><% } %>
+            <% if (school.BankAccountType) { %><p><span class="text-slate-500">Account type:</span> <%= school.BankAccountType %></p><% } %>
+          </div>
+          <p class="text-sm mt-2"><span class="text-slate-500">Reference:</span> <span class="font-medium"><%= invoice.InvoiceNumber %></span></p>
+          <% if (school.PaymentInstructions) { %><p class="text-xs text-slate-500 mt-2 whitespace-pre-line"><%= school.PaymentInstructions %></p><% } %>
+        </div>
+      <% } %>
+
+      <p class="text-xs text-slate-400 text-center pt-2">Generated by Kinder Care Hub on <%= formatDate(new Date()) %></p>
+    </div>
+  </div>
+</div>

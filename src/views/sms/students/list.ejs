@@ -1,13 +1,26 @@
 <% layout = 'layouts/app' %>
 <% sidebar = 'school' %>
 
-<div class="container-page" x-data="{ showFilters: false }">
+<div class="container-page" x-data="studentListEmailer()">
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
     <div>
       <h1 class="text-2xl font-semibold">Students</h1>
       <p class="text-muted text-sm"><%= total %> student<%= total === 1 ? '' : 's' %><% if (filters.search || filters.classId) { %> matching filters<% } %></p>
     </div>
     <div class="flex items-center gap-2">
+      <a href="/sms/students/outstanding" class="btn-secondary">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Outstanding by month
+      </a>
+      <button type="button" class="btn-secondary" @click="invoicePanel = !invoicePanel; compose = false">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Email invoices
+      </button>
+      <button type="button" class="btn-secondary" @click="openCompose(selected.length ? 'selected' : 'all'); invoicePanel = false">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        Send email
+        <span class="badge-brand ml-1" x-show="selected.length > 0" x-cloak x-text="selected.length"></span>
+      </button>
       <a href="/sms/students/new" class="btn-primary">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Add student
@@ -15,12 +28,86 @@
     </div>
   </div>
 
+  <!-- Email invoice statements -->
+  <div class="card mb-4" x-show="invoicePanel" x-cloak>
+    <div class="card-header">
+      <h2 class="text-lg font-semibold">Email invoice statements</h2>
+      <p class="text-muted text-sm mt-0.5">Each family receives one statement listing only their own children's invoices, with the school's banking details. Sent individually to every parent email on the family record.</p>
+    </div>
+    <form method="post" action="/sms/students/email-invoices"
+          hx-post="/sms/students/email-invoices"
+          hx-swap="none"
+          class="card-body space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="form-field sm:max-w-sm">
+        <label class="label label-required" for="invoiceScope">Which invoices</label>
+        <select id="invoiceScope" name="scope" class="select">
+          <option value="outstanding">Only outstanding balances</option>
+          <option value="all">All invoices for this year</option>
+        </select>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button type="button" class="btn-ghost" @click="invoicePanel = false">Cancel</button>
+        <button type="submit" class="btn-primary">Send statements</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Compose email to parents -->
+  <div class="card mb-4" x-show="compose" x-cloak>
+    <div class="card-header">
+      <h2 class="text-lg font-semibold">Email parents</h2>
+      <p class="text-muted text-sm mt-0.5">Sent to the parent email addresses on each learner's family record. Every parent receives their own copy &mdash; addresses are never shared between recipients.</p>
+    </div>
+    <form method="post" action="/sms/students/email"
+          hx-post="/sms/students/email"
+          hx-swap="none"
+          class="card-body space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label label-required" for="emailScope">Send to</label>
+          <select id="emailScope" name="scope" x-model="scope" class="select">
+            <option value="selected">Selected students</option>
+            <option value="class">Everyone in a class</option>
+            <option value="all">All active students</option>
+          </select>
+          <p class="help-text" x-show="scope === 'selected'" x-cloak><span x-text="selected.length"></span> student<span x-show="selected.length !== 1">s</span> selected — tick learners in the table below.</p>
+        </div>
+        <div class="form-field" x-show="scope === 'class'" x-cloak>
+          <label class="label label-required" for="emailClassId">Class</label>
+          <select id="emailClassId" name="classId" class="select">
+            <option value="">Choose a class...</option>
+            <% classes.forEach(function(c) { %>
+              <option value="<%= c.ClassID %>"><%= c.ClassName %><% if (c.Grade) { %> (Grade <%= c.Grade %>)<% } %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="label label-required" for="emailSubject">Subject</label>
+        <input id="emailSubject" name="subject" type="text" required maxlength="200" class="input" />
+      </div>
+      <div class="form-field">
+        <label class="label label-required" for="emailMessage">Message</label>
+        <textarea id="emailMessage" name="message" rows="5" required maxlength="5000" class="textarea"></textarea>
+      </div>
+      <template x-for="id in selected" :key="id">
+        <input type="hidden" name="studentIds" :value="id" :disabled="scope !== 'selected'" />
+      </template>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button type="button" class="btn-ghost" @click="compose = false">Cancel</button>
+        <button type="submit" class="btn-primary">Send email</button>
+      </div>
+    </form>
+  </div>
+
   <!-- Search + filters -->
   <div class="card mb-4">
     <div class="card-body py-3">
-      <form method="get" action="/sms/students" class="flex flex-col sm:flex-row gap-2"
+      <form method="get" action="/sms/students" class="flex flex-col sm:flex-row sm:items-center gap-2"
             hx-get="/sms/students/partials/table"
-            hx-trigger="keyup changed delay:250ms from:input[name=q], change from:select"
+            hx-trigger="keyup changed delay:250ms from:input[name=q], change from:select, change from:input[type=checkbox]"
             hx-target="#students-table"
             hx-swap="innerHTML"
             hx-push-url="true">
@@ -36,12 +123,20 @@
             </option>
           <% }) %>
         </select>
-        <select name="status" class="select sm:w-40">
-          <option value="active"   <%= filters.status === 'active'   ? 'selected' : '' %>>Active</option>
-          <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
-          <option value="all"      <%= filters.status === 'all'      ? 'selected' : '' %>>All</option>
-        </select>
-        <button type="button" onclick="window.location='/sms/students'" class="btn-ghost btn-sm">Reset</button>
+        <% var showCurrent = filters.status === 'active' || filters.status === 'all'; %>
+        <% var showLeft = filters.status === 'inactive' || filters.status === 'all'; %>
+        <fieldset class="flex items-center gap-4 px-1">
+          <legend class="sr-only">Which students to show</legend>
+          <label class="flex items-center gap-2 text-sm whitespace-nowrap">
+            <input type="checkbox" name="showCurrent" <%= showCurrent ? 'checked' : '' %> class="checkbox" />
+            Current
+          </label>
+          <label class="flex items-center gap-2 text-sm whitespace-nowrap">
+            <input type="checkbox" name="showLeft" <%= showLeft ? 'checked' : '' %> class="checkbox" />
+            Left
+          </label>
+        </fieldset>
+        <a href="/sms/students" class="btn-ghost btn-sm">Reset</a>
       </form>
     </div>
   </div>
@@ -51,6 +146,12 @@
     <table class="table">
       <thead>
         <tr>
+          <th class="w-10">
+            <input type="checkbox" class="checkbox"
+                   :checked="allOnPageSelected()"
+                   @change="toggleAll()"
+                   aria-label="Select all students on this page" />
+          </th>
           <th>Name</th>
           <th>Family</th>
           <th>Class</th>
@@ -88,3 +189,5 @@
     </div>
   <% } %>
 </div>
+
+<script src="/student-form.js" defer></script>

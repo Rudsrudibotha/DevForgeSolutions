@@ -11,6 +11,7 @@ const parentRoutes = require('./parentRoutes');
 const schoolRoutes = require('./smsRoutes');
 const devforgeRoutes = require('./devforgeRoutes');
 const authRoutes = require('./authRoutes');
+const accountRoutes = require('./accountRoutes');
 
 // Common middleware: load user, issue CSRF, verify CSRF on writes, expose locals
 router.use(loadUser);
@@ -20,6 +21,9 @@ router.use(verifyCsrf);
 // Public auth routes (also handles /login at root)
 router.use('/auth', authRoutes);
 router.get('/login', (req, res, next) => authRoutes.handle(Object.assign(req, { url: '/login' + (req.url.indexOf('?') >= 0 ? req.url.slice(req.url.indexOf('?')) : '') }), res, next));
+
+// Account settings: any signed-in role (linked from the header dropdown)
+router.use('/account', requireAuth, accountRoutes);
 
 // Protected portal shells.
 // SMS gets scopeToSchool so every DB call is auto-scoped to req.user.schoolId.

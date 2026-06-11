@@ -351,6 +351,42 @@ class UserService {
     return await this.userRepository.getUserById(userId);
   }
 
+  // Self-service profile update from /account (name only — email and
+  // role stay fixed; they are the login identity and authorization).
+  async updateProfile(userId, { firstName, lastName }) {
+    const parsedUserId = Number(userId);
+    if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+      throw new Error('Invalid user id');
+    }
+    const first = String(firstName || '').trim().slice(0, 255);
+    const last = String(lastName || '').trim().slice(0, 255);
+    if (!first) throw new Error('First name is required');
+    return await this.userRepository.updateUserProfile(parsedUserId, {
+      firstName: first,
+      lastName: last || null
+    });
+  }
+
+  // Self-service password change. Requires the current password so a
+  // hijacked session cannot silently rotate credentials. OAuth-only
+  // accounts have a random hash and should use the reset flow instead.
+  async changePassword(userId, currentPassword, newPassword) {
+    const parsedUserId = Number(userId);
+    if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+      throw new Error('Invalid user id');
+    }
+    if (!currentPassword) throw new Error('Current password is required');
+    if (!newPassword || String(newPassword).length < 8) {
+      throw new Error('New password must be at least 8 characters');
+    }
+    const user = await this.userRepository.getUserAuthById(parsedUserId);
+    if (!user || !user.PasswordHash) throw new Error('Account not found');
+    const isValid = await bcrypt.compare(currentPassword, user.PasswordHash);
+    if (!isValid) throw new Error('Current password is incorrect');
+    const passwordHash = await bcrypt.hash(String(newPassword), 10);
+    return await this.userRepository.updateUserPassword(parsedUserId, passwordHash);
+  }
+
   async getActiveStaffMembership(userId, schoolId) {
     return await this.userRepository.getActiveStaffMembership(userId, schoolId);
   }

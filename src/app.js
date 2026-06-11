@@ -79,7 +79,11 @@ app.use(helmet({
       'frame-ancestors': ["'none'"],
       'img-src': ["'self'", 'data:', 'https:'],
       'object-src': ["'none'"],
-      'script-src': ["'self'"],
+      // 'unsafe-eval' is required by Alpine.js (standard build compiles x-show/
+      // @click expressions with new AsyncFunction). Without it every Alpine
+      // directive fails silently and dropdowns render permanently open.
+      // Script *sources* remain locked to 'self'.
+      'script-src': ["'self'", "'unsafe-eval'"],
       'style-src': ["'self'", "'unsafe-inline'"]
     }
   },

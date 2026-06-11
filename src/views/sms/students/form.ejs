@@ -78,6 +78,28 @@
         </div>
       </div>
 
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="form-field">
+          <label class="label" for="enrolledDate">Date of enrolment</label>
+          <input id="enrolledDate" name="enrolledDate" type="date"
+                 value="<%= student && (student.EnrolledDate || student.enrolledDate) ? new Date(student.EnrolledDate || student.enrolledDate).toISOString().slice(0,10) : new Date().toISOString().slice(0,10) %>"
+                 class="input <%= errors.enrolledDate ? 'input-error' : '' %>" />
+          <% if (errors.enrolledDate) { %><p class="error-text"><%= errors.enrolledDate %></p><% } %>
+        </div>
+        <div class="form-field">
+          <label class="label" for="homePhone">Home phone</label>
+          <input id="homePhone" name="homePhone" type="tel" maxlength="50"
+                 value="<%= student ? (student.HomePhone || student.homePhone || '') : '' %>"
+                 class="input" />
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label class="label" for="homeAddress">Home address</label>
+        <textarea id="homeAddress" name="homeAddress" rows="2" maxlength="500"
+                  class="textarea"><%= student ? (student.HomeAddress || student.homeAddress || '') : '' %></textarea>
+      </div>
+
       <div class="form-field">
         <label class="label label-required" for="familyId">Family</label>
         <select id="familyId" name="familyId" required class="select <%= errors.familyId ? 'input-error' : '' %>">
@@ -96,11 +118,124 @@
       </div>
 
       <div class="form-field">
-        <label class="label" for="medicalNotes">Medical notes</label>
+        <label class="label" for="medicalNotes">Illnesses or allergies</label>
         <textarea id="medicalNotes" name="medicalNotes" rows="3" maxlength="1000"
                   class="textarea"
                   placeholder="Allergies, conditions, medication..."><%= student && student.MedicalNotes ? student.MedicalNotes : '' %></textarea>
-        <p class="help-text">Only visible to school staff. Not shown on invoices or to parents.</p>
+        <p class="help-text">Only visible to school staff. Not shown on invoices or to parents. The family doctor and medical aid are captured on the family record.</p>
+      </div>
+
+      <fieldset class="space-y-4">
+        <legend class="label">Emergency contacts</legend>
+        <p class="help-text -mt-2">Extra people the school may call if the parents can't be reached. The family's main emergency contact is on the family record.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="form-field">
+            <label class="label" for="grandmotherName">Grandmother &mdash; surname and full name</label>
+            <input id="grandmotherName" name="grandmotherName" type="text" maxlength="255"
+                   value="<%= student ? (student.GrandmotherName || student.grandmotherName || '') : '' %>" class="input" />
+          </div>
+          <div class="form-field">
+            <label class="label" for="grandmotherPhone">Grandmother &mdash; home or cell phone</label>
+            <input id="grandmotherPhone" name="grandmotherPhone" type="tel" maxlength="50"
+                   value="<%= student ? (student.GrandmotherPhone || student.grandmotherPhone || '') : '' %>" class="input" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="form-field">
+            <label class="label" for="grandfatherName">Grandfather &mdash; surname and full name</label>
+            <input id="grandfatherName" name="grandfatherName" type="text" maxlength="255"
+                   value="<%= student ? (student.GrandfatherName || student.grandfatherName || '') : '' %>" class="input" />
+          </div>
+          <div class="form-field">
+            <label class="label" for="grandfatherPhone">Grandfather &mdash; home or cell phone</label>
+            <input id="grandfatherPhone" name="grandfatherPhone" type="tel" maxlength="50"
+                   value="<%= student ? (student.GrandfatherPhone || student.grandfatherPhone || '') : '' %>" class="input" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="form-field">
+            <label class="label" for="familyFriendName">Family friend &mdash; surname and full name</label>
+            <input id="familyFriendName" name="familyFriendName" type="text" maxlength="255"
+                   value="<%= student ? (student.FamilyFriendName || student.familyFriendName || '') : '' %>" class="input" />
+          </div>
+          <div class="form-field">
+            <label class="label" for="familyFriendPhone">Family friend &mdash; home or cell phone</label>
+            <input id="familyFriendPhone" name="familyFriendPhone" type="tel" maxlength="50"
+                   value="<%= student ? (student.FamilyFriendPhone || student.familyFriendPhone || '') : '' %>" class="input" />
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="form-field"
+           x-data="studentBillingPicker()"
+           data-assigned="<%= JSON.stringify(assignedCategoryIds) %>">
+        <span class="label">Billing categories</span>
+        <p class="help-text">Drag a category onto the learner's list, or use Add. You can assign more than one; the first is the primary category used for invoices.</p>
+        <% if (billingCategories.length === 0) { %>
+          <div class="empty-state">
+            <p class="empty-state-desc">
+              No active billing categories yet.
+              <a href="/sms/settings" class="text-brand-600 dark:text-brand-300 hover:underline">Create them in Settings</a>.
+            </p>
+          </div>
+        <% } else { %>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-1">
+            <div>
+              <p class="text-xs font-medium text-muted uppercase tracking-wide mb-2">Available</p>
+              <div class="space-y-2">
+                <% billingCategories.forEach(function(c) { %>
+                  <div x-show="!isAssigned(<%= c.BillingCategoryID %>)" x-cloak
+                       draggable="true"
+                       @dragstart="startDrag(<%= c.BillingCategoryID %>, $event)"
+                       @dragend="endDrag()"
+                       class="flex items-center justify-between gap-2 rounded-lg border p-2 cursor-grab bg-white dark:bg-slate-900"
+                       style="border-color: rgb(var(--color-border))">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium truncate"><%= c.CategoryName %></p>
+                      <p class="text-xs text-muted"><%= formatMoney(c.BaseAmount) %> &middot; <%= c.Frequency %></p>
+                    </div>
+                    <button type="button" class="btn-ghost btn-sm shrink-0" @click="assign(<%= c.BillingCategoryID %>)">Add</button>
+                  </div>
+                <% }) %>
+                <p class="text-xs text-muted" x-show="assignedIds.length === <%= billingCategories.length %>" x-cloak>All categories assigned.</p>
+              </div>
+            </div>
+            <div @dragover.prevent="overDrop = true"
+                 @dragleave="overDrop = false"
+                 @drop.prevent="drop($event)"
+                 class="rounded-lg border-2 border-dashed p-2"
+                 :class="overDrop ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : ''"
+                 style="border-color: rgb(var(--color-border))"
+                 aria-label="Billing categories assigned to this learner">
+              <p class="text-xs font-medium text-muted uppercase tracking-wide mb-2">Assigned to this learner</p>
+              <div class="space-y-2">
+                <% billingCategories.forEach(function(c) { %>
+                  <div x-show="isAssigned(<%= c.BillingCategoryID %>)" x-cloak
+                       class="flex items-center justify-between gap-2 rounded-lg border p-2 bg-white dark:bg-slate-900"
+                       style="border-color: rgb(var(--color-border))">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium truncate">
+                        <%= c.CategoryName %>
+                        <span class="badge-brand ml-1" x-show="isPrimary(<%= c.BillingCategoryID %>)" x-cloak>Primary</span>
+                      </p>
+                      <p class="text-xs text-muted"><%= formatMoney(c.BaseAmount) %> &middot; <%= c.Frequency %></p>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <button type="button" class="btn-ghost btn-sm" x-show="!isPrimary(<%= c.BillingCategoryID %>)" x-cloak
+                              @click="makePrimary(<%= c.BillingCategoryID %>)">Make primary</button>
+                      <button type="button" class="btn-ghost btn-sm text-red-600 dark:text-red-400"
+                              @click="remove(<%= c.BillingCategoryID %>)" aria-label="Remove <%= c.CategoryName %>">Remove</button>
+                    </div>
+                  </div>
+                <% }) %>
+                <p class="text-xs text-muted py-4 text-center" x-show="assignedIds.length === 0" x-cloak>Drag categories here, or use Add.</p>
+              </div>
+              <template x-for="id in assignedIds" :key="id">
+                <input type="hidden" name="billingCategoryIds" :value="id" />
+              </template>
+            </div>
+          </div>
+        <% } %>
       </div>
 
       <% if (mode === 'edit') { %>
@@ -122,3 +257,5 @@
     </form>
   </div>
 </div>
+
+<script src="/student-form.js" defer></script>
