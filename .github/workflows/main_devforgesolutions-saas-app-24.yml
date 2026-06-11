@@ -64,7 +64,7 @@ jobs:
 
       - name: Publish package and restart Azure Web App
         run: |
-          storage_account="kinderhubst115707"
+          storage_account="kinderhubstza115707"
           container="app-packages"
           blob_name="release-${GITHUB_SHA}.zip"
           expiry=$(date -u -d "30 days" '+%Y-%m-%dT%H:%MZ')
