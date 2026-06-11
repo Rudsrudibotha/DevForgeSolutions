@@ -3849,16 +3849,21 @@ body {
 
 .registration-shell {
   align-items: start;
-  padding: 32px 18px;
+  padding: 34px 18px;
+  background:
+    linear-gradient(180deg, #f8fafc 0%, #eef6f4 100%);
 }
 
 .registration-card {
   display: grid;
-  width: min(100%, 1040px);
-  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+  width: min(100%, 1120px);
+  grid-template-columns: minmax(300px, 0.38fr) minmax(0, 1fr);
   gap: 0;
   overflow: hidden;
+  border-color: rgba(15, 23, 42, 0.1);
   padding: 0;
+  background: #ffffff;
+  box-shadow: 0 22px 70px rgba(15, 23, 42, 0.14);
 }
 
 .registration-intro {
@@ -3867,23 +3872,33 @@ body {
   flex-direction: column;
   justify-content: space-between;
   gap: 28px;
-  border-right: 1px solid var(--portal-border);
-  background: #f8fafc;
-  padding: 30px;
+  border-right: 0;
+  background: #102a3f;
+  color: #f8fafc;
+  padding: 34px;
 }
 
 .registration-intro .auth-brand {
   margin-bottom: 0;
 }
 
+.registration-intro .auth-brand h1,
+.registration-intro .auth-brand p {
+  color: #f8fafc;
+}
+
+.registration-intro .auth-brand p {
+  color: #b9d8e6;
+}
+
 .registration-copy {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .registration-eyebrow {
   margin: 0;
-  color: var(--portal-primary);
+  color: #7dd3fc;
   font-size: 12px;
   font-weight: 750;
   letter-spacing: 0;
@@ -3892,16 +3907,43 @@ body {
 
 .registration-copy h2 {
   margin: 0;
-  color: var(--portal-text);
-  font-size: 26px;
-  line-height: 1.12;
+  color: #ffffff;
+  font-size: 31px;
+  line-height: 1.08;
 }
 
 .registration-copy p {
   margin: 0;
-  color: var(--portal-muted);
+  color: #d8e8ef;
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.6;
+}
+
+.registration-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.registration-summary div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(186, 230, 253, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 14px;
+}
+
+.registration-summary strong {
+  color: #ffffff;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.registration-summary span {
+  color: #bfdbfe;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .registration-steps {
@@ -3910,31 +3952,47 @@ body {
 }
 
 .registration-steps span {
-  border: 1px solid var(--portal-border);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(186, 230, 253, 0.2);
   border-radius: 8px;
-  background: #ffffff;
-  color: #334155;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dbeafe;
   font-size: 13px;
   font-weight: 700;
   padding: 10px 12px;
 }
 
+.registration-steps b {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 12px;
+}
+
 .registration-card .auth-form {
-  padding: 30px;
+  background: #f8fafc;
+  padding: 28px;
 }
 
 .registration-panel {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   margin: 0;
-  border: 1px solid var(--portal-border);
+  border: 1px solid rgba(203, 213, 225, 0.85);
   border-radius: 8px;
   background: #ffffff;
-  padding: 18px;
+  padding: 20px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 }
 
 .registration-panel + .registration-panel {
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .registration-panel legend {
@@ -3956,12 +4014,12 @@ body {
 
 .registration-panel legend span {
   display: inline-grid;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border-radius: 8px;
-  background: #e0f2fe;
-  color: #075985;
+  background: #ecfeff;
+  color: #0f766e;
   font-size: 12px;
   font-weight: 800;
 }
@@ -3979,7 +4037,7 @@ body {
 }
 
 .registration-card .registration-grid {
-  gap: 14px 16px;
+  gap: 16px;
 }
 
 .registration-card .auth-form label {
@@ -3990,9 +4048,15 @@ body {
 .registration-card .auth-form input,
 .registration-card .auth-form select,
 .registration-card .auth-form textarea {
-  min-height: 44px;
+  min-height: 46px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 11px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.registration-card .auth-form input[readonly] {
+  background: #f1f5f9;
+  color: #64748b;
 }
 
 .registration-card .auth-form textarea {
@@ -4005,7 +4069,44 @@ body {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-start;
-  margin-top: 18px;
+  margin-top: 20px;
+  border-top: 1px solid var(--portal-border);
+  padding-top: 20px;
+}
+
+.registration-plan-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.registration-plan-strip article {
+  display: grid;
+  gap: 5px;
+  min-height: 118px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 14px;
+}
+
+.registration-plan-strip span {
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.registration-plan-strip strong {
+  color: var(--portal-text);
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.registration-plan-strip small {
+  color: var(--portal-muted);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 @media (max-width: 860px) {
@@ -4015,11 +4116,15 @@ body {
 
   .registration-intro {
     border-right: 0;
-    border-bottom: 1px solid var(--portal-border);
+    border-bottom: 0;
   }
 
   .registration-steps {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .registration-plan-strip {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -4624,7 +4729,27 @@ body.school-user .brand-mark {
   }
 
   .registration-copy h2 {
-    font-size: 22px;
+    font-size: 24px;
+  }
+
+  .registration-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-panel {
+    padding: 16px;
+  }
+
+  .registration-panel legend {
+    align-items: flex-start;
+  }
+
+  .registration-panel legend strong {
+    padding-top: 6px;
   }
 
   .registration-card .form-actions {
