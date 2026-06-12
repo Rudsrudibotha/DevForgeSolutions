@@ -30,18 +30,19 @@ async function buildOutstandingPivot({ schoolId, tenantId }) {
     .query(`
       ;WITH inv AS (
         SELECT i.StudentID, i.FamilyID,
-               YEAR(i.InvoiceDate) AS Y, MONTH(i.InvoiceDate) AS M,
+               YEAR(i.IssueDate) AS Y, MONTH(i.IssueDate) AS M,
                SUM(i.Amount) AS Invoiced
         FROM dbo.Invoices i
         WHERE i.SchoolID = @schoolId AND i.IsDeleted = 0
-        GROUP BY i.StudentID, i.FamilyID, YEAR(i.InvoiceDate), MONTH(i.InvoiceDate)
+        GROUP BY i.StudentID, i.FamilyID, YEAR(i.IssueDate), MONTH(i.IssueDate)
       ),
       pay AS (
-        SELECT t.StudentID, YEAR(t.PaymentDate) AS Y, MONTH(t.PaymentDate) AS M,
+        SELECT t.StudentID, YEAR(t.TransactionDate) AS Y, MONTH(t.TransactionDate) AS M,
                SUM(t.Amount) AS Paid
         FROM dbo.Transactions t
-        WHERE t.SchoolID = @schoolId AND t.IsDeleted = 0
-        GROUP BY t.StudentID, YEAR(t.PaymentDate), MONTH(t.PaymentDate)
+        WHERE t.SchoolID = @schoolId AND t.StudentID IS NOT NULL
+          AND ISNULL(t.AllocationStatus, '') <> 'PendingPayment'
+        GROUP BY t.StudentID, YEAR(t.TransactionDate), MONTH(t.TransactionDate)
       )
       SELECT inv.StudentID, inv.FamilyID, inv.Y, inv.M,
              ISNULL(inv.Invoiced, 0) - ISNULL(pay.Paid, 0) AS Outstanding

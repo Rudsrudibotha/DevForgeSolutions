@@ -82,6 +82,17 @@ async function run() {
     assert.ok(!/tenant-required/.test(financeSection), 'tenant-required guard still present');
   });
 
+  console.log('\n[finance-leave-fixes] outstanding pivot uses real columns');
+
+  const outstandingSrc = fs.readFileSync('src/data/outstandingRepository.js', 'utf8');
+  await test('outstanding query does not reference nonexistent columns', async () => {
+    assert.ok(!/InvoiceDate/.test(outstandingSrc), 'InvoiceDate (should be IssueDate) still present');
+    assert.ok(!/PaymentDate/.test(outstandingSrc), 'PaymentDate (should be TransactionDate) still present');
+    assert.ok(!/t\.IsDeleted/.test(outstandingSrc), 't.IsDeleted (no such column on Transactions) still present');
+    assert.ok(/i\.IssueDate/.test(outstandingSrc), 'invoice query should use IssueDate');
+    assert.ok(/t\.TransactionDate/.test(outstandingSrc), 'payment query should use TransactionDate');
+  });
+
   console.log('\n[finance-leave-fixes] adjustment type normalisation (unit)');
 
   const { normalizeAdjustmentType, ADJUSTMENT_TYPES } = require('../src/business/smsPortalFacades');
