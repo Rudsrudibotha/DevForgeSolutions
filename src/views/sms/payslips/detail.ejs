@@ -19,7 +19,8 @@
           </p>
         </div>
         <div class="flex items-center gap-2">
-          <% if (payslip.Status === 'Finalized') { %>
+          <a href="/sms/payslips/<%= payslip.PayslipID %>/print" class="btn-secondary btn-sm">Print / Save as PDF</a>
+          <% if (payslip.Status === 'Finalized' || payslip.IsFinalized) { %>
             <span class="badge-emerald">Finalized</span>
           <% } else if (payslip.Status === 'Draft') { %>
             <span class="badge-amber">Draft</span>
@@ -48,15 +49,16 @@
               <tr><td>Allowances</td><td class="text-right"><%= formatMoney(payslip.Allowances) %></td></tr>
               <tr><td>Overtime</td><td class="text-right"><%= formatMoney(payslip.Overtime) %></td></tr>
               <tr><td>Bonus</td><td class="text-right"><%= formatMoney(payslip.Bonus) %></td></tr>
+              <tr class="border-t"><td class="font-medium">Gross</td><td class="text-right font-medium"><%= formatMoney(payslip.GrossAmount) %></td></tr>
               <tr><td>Leave deduction</td><td class="text-right text-rose-600">(<%= formatMoney(payslip.LeaveDeduction) %>)</td></tr>
-              <tr><td>PAYE</td><td class="text-right text-rose-600">(<%= formatMoney(payslip.PAYE) %>)</td></tr>
-              <tr><td>UIF</td><td class="text-right text-rose-600">(<%= formatMoney(payslip.UIF) %>)</td></tr>
+              <tr><td>PAYE</td><td class="text-right text-rose-600">(<%= formatMoney(payslip.TaxPaye) %>)</td></tr>
+              <tr><td>UIF</td><td class="text-right text-rose-600">(<%= formatMoney(payslip.UifDeduction) %>)</td></tr>
               <tr><td>Other deductions</td><td class="text-right text-rose-600">(<%= formatMoney(payslip.OtherDeductions) %>)</td></tr>
             </tbody>
             <tfoot>
               <tr class="font-semibold">
                 <td>Net pay</td>
-                <td class="text-right"><%= formatMoney(payslip.NetPay) %></td>
+                <td class="text-right"><%= formatMoney(payslip.NetAmount) %></td>
               </tr>
             </tfoot>
           </table>

@@ -1,0 +1,150 @@
+<% layout = 'layouts/app' %>
+<% hideChrome = true %>
+
+<%
+  var gross = Number(payslip.GrossAmount || 0);
+  var deductions = Number(payslip.Deductions || 0);
+  var net = Number(payslip.NetAmount || 0);
+  var employeeName = [payslip.FirstName, payslip.LastName].filter(Boolean).join(' ') || '—';
+  var employeeContact = [payslip.Email, payslip.Phone].filter(Boolean).join(' / ');
+  var earnings = [
+    ['Basic salary', payslip.BasicSalary],
+    ['Allowances', payslip.Allowances],
+    ['Overtime', payslip.Overtime],
+    ['Bonus', payslip.Bonus]
+  ].filter(function(r){ return Number(r[1] || 0) !== 0; });
+  if (!earnings.length) earnings.push(['Basic salary', payslip.BasicSalary || gross]);
+  var deds = [
+    ['Leave deduction', payslip.LeaveDeduction],
+    ['PAYE', payslip.TaxPaye],
+    ['UIF', payslip.UifDeduction],
+    ['Other deductions', payslip.OtherDeductions]
+  ].filter(function(r){ return Number(r[1] || 0) !== 0; });
+  var ytd = [
+    ['Taxable earnings', payslip.YearToDateTaxableEarnings],
+    ['Tax paid', payslip.YearToDateTaxPaid],
+    ['UIF', payslip.YearToDateUif],
+    ['Net pay', payslip.YearToDateNetPay]
+  ];
+%>
+
+<div class="max-w-3xl mx-auto px-4 py-6" x-data>
+  <!-- Toolbar (hidden when printing) -->
+  <div class="flex items-center justify-between mb-4 print:hidden">
+    <a href="/sms/payslips/<%= payslip.PayslipID %>" class="btn-ghost btn-sm">&larr; Back to payslip</a>
+    <button type="button" class="btn-primary btn-sm" @click="window.print()">Print / Save as PDF</button>
+  </div>
+
+  <div class="bg-white text-slate-900 rounded-xl shadow-sm border border-slate-200 print:shadow-none print:border-0 print:rounded-none">
+    <div class="p-8 space-y-8">
+
+      <!-- Letterhead -->
+      <div class="flex items-start justify-between gap-6 border-b border-slate-300 pb-6">
+        <div class="flex items-start gap-4">
+          <% if (payslip.SchoolLogo) { %>
+            <img src="<%= payslip.SchoolLogo %>" alt="" class="h-16 w-16 rounded-md object-contain" />
+          <% } %>
+          <div>
+            <h1 class="text-xl font-bold"><%= payslip.SchoolName || '—' %></h1>
+            <% if (payslip.SchoolAddress) { %><p class="text-sm text-slate-600 whitespace-pre-line"><%= payslip.SchoolAddress %></p><% } %>
+            <p class="text-sm text-slate-600">
+              <% if (payslip.SchoolPhone) { %><%= payslip.SchoolPhone %><% } %>
+              <% if (payslip.SchoolPhone && payslip.SchoolEmail) { %> &middot; <% } %>
+              <% if (payslip.SchoolEmail) { %><%= payslip.SchoolEmail %><% } %>
+            </p>
+            <% if (payslip.SchoolRegistrationNumber) { %><p class="text-xs text-slate-500">Reg no. <%= payslip.SchoolRegistrationNumber %></p><% } %>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <p class="text-2xl font-bold tracking-wide uppercase">Payslip</p>
+          <p class="text-sm text-slate-600">#<%= payslip.PayslipID %></p>
+          <% if (payslip.Status === 'Finalized' || payslip.IsFinalized) { %>
+            <p class="mt-2 inline-block rounded border-2 border-emerald-600 px-3 py-0.5 text-sm font-bold uppercase text-emerald-700">Finalized</p>
+          <% } else { %>
+            <p class="mt-2 inline-block rounded border-2 border-amber-500 px-3 py-0.5 text-sm font-bold uppercase text-amber-700">Draft</p>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Employee + statutory details -->
+      <div class="grid grid-cols-2 gap-8 text-sm">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Employee</p>
+          <p class="font-semibold"><%= employeeName %></p>
+          <dl class="mt-1 space-y-0.5 text-slate-600">
+            <% if (payslip.JobTitle) { %><div><span class="text-slate-500">Job title:</span> <%= payslip.JobTitle %></div><% } %>
+            <% if (payslip.EmployeeNumber) { %><div><span class="text-slate-500">Employee no:</span> <%= payslip.EmployeeNumber %></div><% } %>
+            <% if (payslip.StartDate) { %><div><span class="text-slate-500">Date engaged:</span> <%= formatDate(payslip.StartDate) %></div><% } %>
+            <% if (payslip.IdNumber || payslip.PassportNumber) { %><div><span class="text-slate-500">ID / Passport:</span> <%= payslip.IdNumber || payslip.PassportNumber %></div><% } %>
+            <% if (employeeContact) { %><div><span class="text-slate-500">Contact:</span> <%= employeeContact %></div><% } %>
+            <% if (payslip.PhysicalAddress) { %><div class="whitespace-pre-line"><span class="text-slate-500">Address:</span> <%= payslip.PhysicalAddress %></div><% } %>
+          </dl>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Pay &amp; statutory</p>
+          <dl class="space-y-0.5 text-slate-600">
+            <div><span class="text-slate-500">Pay period:</span> <%= payslip.PayPeriod || '—' %></div>
+            <div><span class="text-slate-500">Payment date:</span> <%= payslip.PaymentDate ? formatDate(payslip.PaymentDate) : '—' %></div>
+            <% if (payslip.TaxNumber) { %><div><span class="text-slate-500">Income tax no:</span> <%= payslip.TaxNumber %></div><% } %>
+            <% if (payslip.PayeReference) { %><div><span class="text-slate-500">PAYE ref:</span> <%= payslip.PayeReference %></div><% } %>
+            <% if (payslip.UifNumber || payslip.UifReferenceNumber) { %><div><span class="text-slate-500">UIF no:</span> <%= payslip.UifNumber || payslip.UifReferenceNumber %></div><% } %>
+            <% if (payslip.BankName) { %><div><span class="text-slate-500">Bank:</span> <%= payslip.BankName %></div><% } %>
+            <% if (payslip.BankAccountNumber) { %><div><span class="text-slate-500">Account no:</span> <%= payslip.BankAccountNumber %></div><% } %>
+            <% if (payslip.BranchCode) { %><div><span class="text-slate-500">Branch code:</span> <%= payslip.BranchCode %></div><% } %>
+            <% if (payslip.AccountType) { %><div><span class="text-slate-500">Account type:</span> <%= payslip.AccountType %></div><% } %>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Earnings + deductions -->
+      <div class="grid grid-cols-2 gap-8">
+        <div>
+          <table class="w-full text-sm">
+            <thead><tr class="border-b-2 border-slate-300 text-left"><th class="py-2 font-semibold" colspan="2">Earnings</th></tr></thead>
+            <tbody>
+              <% earnings.forEach(function(r){ %>
+                <tr class="border-b border-slate-100"><td class="py-1.5"><%= r[0] %></td><td class="py-1.5 text-right text-money"><%= formatMoney(Number(r[1] || 0)) %></td></tr>
+              <% }) %>
+            </tbody>
+            <tfoot><tr class="border-t-2 border-slate-300 font-bold"><td class="py-2">Total earnings</td><td class="py-2 text-right text-money"><%= formatMoney(gross) %></td></tr></tfoot>
+          </table>
+        </div>
+        <div>
+          <table class="w-full text-sm">
+            <thead><tr class="border-b-2 border-slate-300 text-left"><th class="py-2 font-semibold" colspan="2">Deductions</th></tr></thead>
+            <tbody>
+              <% if (!deds.length) { %>
+                <tr class="border-b border-slate-100"><td class="py-1.5 text-slate-500" colspan="2">No deductions</td></tr>
+              <% } %>
+              <% deds.forEach(function(r){ %>
+                <tr class="border-b border-slate-100"><td class="py-1.5"><%= r[0] %></td><td class="py-1.5 text-right text-money"><%= formatMoney(Number(r[1] || 0)) %></td></tr>
+              <% }) %>
+            </tbody>
+            <tfoot>
+              <tr class="border-t-2 border-slate-300 font-bold"><td class="py-2">Total deductions</td><td class="py-2 text-right text-money"><%= formatMoney(deductions) %></td></tr>
+              <tr class="font-bold"><td class="py-2">Net pay</td><td class="py-2 text-right text-money text-emerald-700"><%= formatMoney(net) %></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Year to date -->
+      <div class="w-1/2 ml-auto">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Year to date</p>
+        <table class="w-full text-sm">
+          <tbody>
+            <% ytd.forEach(function(r){ %>
+              <tr class="border-b border-slate-100"><td class="py-1.5"><%= r[0] %></td><td class="py-1.5 text-right text-money"><%= formatMoney(Number(r[1] || 0)) %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if (payslip.Notes) { %>
+        <div class="text-sm"><span class="text-slate-500">Notes:</span> <%= payslip.Notes %></div>
+      <% } %>
+
+      <p class="text-xs text-slate-400 text-center pt-2">Generated by Kinder Care Hub on <%= formatDate(new Date()) %></p>
+    </div>
+  </div>
+</div>

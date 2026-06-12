@@ -1788,6 +1788,17 @@ router.get('/payslips/:id([1-9]\\d*)', requireAuth, requireRoleMw, requireSchool
   } catch (err) { next(err); }
 });
 
+// Printable / save-as-PDF payslip document (restores the legacy PDF view).
+router.get('/payslips/:id([1-9]\\d*)/print', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
+  try {
+    res.locals.title = 'Payslip | School Management';
+    res.locals.portal = 'sms';
+    const payslip = await safeCall(payslipService.getPayslipById(parseInt(req.params.id, 10), req.user), null);
+    if (!payslip) return res.status(404).render('errors/404', { path: req.originalUrl });
+    res.render('sms/payslips/print', { payslip });
+  } catch (err) { next(err); }
+});
+
 router.get('/payslips/new', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     res.locals.title = 'New payslip | School Management';
