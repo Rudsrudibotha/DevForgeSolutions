@@ -33,6 +33,7 @@ class SettingsPortalService {
     request.input('contactPerson', sql.NVarChar, data.contactPerson ? String(data.contactPerson).slice(0, 255) : null);
     request.input('contactEmail', sql.NVarChar, data.contactEmail ? String(data.contactEmail).slice(0, 255) : null);
     request.input('contactPhone', sql.NVarChar, data.contactPhone ? String(data.contactPhone).slice(0, 50) : null);
+    request.input('registrationNumber', sql.NVarChar, data.registrationNumber ? String(data.registrationNumber).slice(0, 100) : null);
     request.input('website', sql.NVarChar, data.website ? String(data.website).slice(0, 255) : null);
     request.input('paymentInstructions', sql.NVarChar, data.paymentInstructions ? String(data.paymentInstructions).slice(0, 500) : null);
     request.input('currencyCode', sql.NVarChar, data.currencyCode ? String(data.currencyCode).slice(0, 3).toUpperCase() : 'ZAR');
@@ -45,6 +46,7 @@ class SettingsPortalService {
         ContactPerson = @contactPerson,
         ContactEmail = @contactEmail,
         ContactPhone = @contactPhone,
+        RegistrationNumber = @registrationNumber,
         Website = @website,
         PaymentInstructions = @paymentInstructions,
         CurrencyCode = @currencyCode,
