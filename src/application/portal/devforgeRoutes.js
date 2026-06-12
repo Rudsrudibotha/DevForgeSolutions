@@ -10,6 +10,7 @@ const AdminSettingsService = require('../../business/adminSettingsService');
 const SchoolOnboardingService = require('../../business/schoolOnboardingService');
 const UserService = require('../../business/userService');
 const FaultReportService = require('../../business/faultReportService');
+const { auditLog } = require('../../middleware/audit');
 const { demoOr } = require('../../business/demoData');
 const adminSchoolService = new AdminSchoolService();
 const schoolOnboardingService = new SchoolOnboardingService();
@@ -335,6 +336,71 @@ router.get('/payments/partials/table', requireAuth, requireAdmin, async (req, re
     }), { rows: [], total: 0, totalAmount: 0, page: 1, pageSize: 25, hasMore: false, kpis: { totalAmount: 0, pageAllocated: 0, pageUnallocated: 0, pagePending: 0 }, filters: { search: '', schoolId: '', allocationStatus: '', paymentMethod: '', from: '', to: '' } });
     res.render('devforge/payments/partials/table', { ...data, layout: false });
   } catch (err) { next(err); }
+});
+
+// ========================================================
+// DevForge Admin - Fault reports review queue
+// ========================================================
+const FAULT_STATUSES = ['Open', 'In Progress', 'Resolved', 'Closed'];
+
+async function loadFaults(req) {
+  const status = FAULT_STATUSES.includes(req.query.status) ? req.query.status : '';
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const pageSize = 50;
+  const rows = await safeCall(faultReportService.getFaultReports({
+    status: status || undefined,
+    schoolId: req.query.schoolId || undefined,
+    limit: pageSize,
+    page
+  }), []);
+  return { rows, page, pageSize, hasMore: rows.length === pageSize, filters: { status, schoolId: req.query.schoolId || '' } };
+}
+
+router.get('/faults', requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    res.locals.title = 'Reported faults | DevForge';
+    res.locals.portal = 'devforge';
+    res.locals.activeNav = 'faults';
+    const data = await loadFaults(req);
+    res.render('devforge/faults/list', { ...data, statuses: FAULT_STATUSES });
+  } catch (err) { next(err); }
+});
+
+router.get('/faults/partials/table', requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const data = await loadFaults(req);
+    res.render('devforge/faults/partials/table', { ...data, statuses: FAULT_STATUSES, layout: false });
+  } catch (err) { next(err); }
+});
+
+router.post('/faults/:id([1-9]\\d*)/status', requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const status = String(req.body.status || '').trim();
+    if (!FAULT_STATUSES.includes(status)) {
+      res.set('HX-Trigger', JSON.stringify({ toast: { type: 'error', message: 'Pick a valid status.' } }));
+      return res.status(400).end();
+    }
+    const updated = await faultReportService.updateFaultStatus(id, status, { UserID: req.user.id });
+    try {
+      auditLog.log({
+        userId: req.user.id,
+        schoolId: updated.SchoolID,
+        entityName: 'FaultReport',
+        entityId: id,
+        action: 'UpdateStatus',
+        after: { status },
+        ipAddress: req.ip
+      });
+    } catch (e) { console.error('[devforge] fault audit failed:', e.message); }
+    res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: 'Fault marked ' + status + '.' } }));
+    res.set('HX-Refresh', 'true');
+    return res.status(204).end();
+  } catch (err) {
+    res.set('HX-Trigger', JSON.stringify({ toast: { type: 'error', message: err.message || 'Update failed' } }));
+    if (req.headers['hx-request'] === 'true') return res.status(err.statusCode === 404 ? 404 : 400).end();
+    next(err);
+  }
 });
 
 // ========================================================

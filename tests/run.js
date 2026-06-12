@@ -95,6 +95,8 @@ proc.stderr.on('data', d => { errorOut += d.toString(); });
     await runDevforgePayments();
     const runDevforgeAudit = require('./devforgeAudit.test.js');
     await runDevforgeAudit();
+    const runDevforgeFaults = require('./devforgeFaults.test.js');
+    await runDevforgeFaults();
     const runDevforgeSettings = require('./devforgeSettings.test.js');
     await runDevforgeSettings();
     const runEmptyStates = require('./emptyStates.test.js');

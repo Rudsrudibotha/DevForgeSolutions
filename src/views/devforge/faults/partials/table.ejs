@@ -1,0 +1,39 @@
+<% if (!rows || rows.length === 0) { %>
+  <%- include('../../../partials/empty/default', { title: filters && filters.status ? 'No ' + filters.status.toLowerCase() + ' faults' : 'No reported faults', desc: 'Faults reported by schools will appear here for review.', colspan: 6 }) %>
+<% } else { %>
+  <% rows.forEach(function(f) { %>
+    <tr>
+      <td>
+        <p class="font-medium"><%= f.SchoolName || ('School #' + f.SchoolID) %></p>
+        <% if (f.ContactEmail) { %><p class="text-xs text-muted"><%= f.ContactEmail %></p><% } %>
+      </td>
+      <td>
+        <p class="font-medium"><%= f.ViewName || f.PagePath || 'Dashboard' %></p>
+        <p class="text-xs text-muted line-clamp-2"><%= f.Remarks %></p>
+      </td>
+      <td class="text-sm text-muted">
+        <%= f.Username || f.Email || '—' %>
+      </td>
+      <td>
+        <% if (f.Status === 'Open') { %><span class="badge-warning">Open</span>
+        <% } else if (f.Status === 'In Progress') { %><span class="badge-neutral">In Progress</span>
+        <% } else if (f.Status === 'Resolved' || f.Status === 'Closed') { %><span class="badge-success"><%= f.Status %></span>
+        <% } else { %><span class="badge-neutral"><%= f.Status %></span><% } %>
+        <% if (f.ResolvedByUsername) { %><p class="text-xs text-muted mt-0.5">by <%= f.ResolvedByUsername %></p><% } %>
+      </td>
+      <td class="text-sm text-muted"><%= f.CreatedDate ? formatDate(f.CreatedDate) : '—' %></td>
+      <td class="text-right">
+        <form class="inline-flex items-center gap-1 justify-end">
+          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+          <select name="status" class="select select-sm" aria-label="Set status for fault <%= f.FaultReportID %>"
+                  hx-post="/devforge/faults/<%= f.FaultReportID %>/status" hx-swap="none"
+                  hx-trigger="change" hx-include="closest form">
+            <% statuses.forEach(function(s) { %>
+              <option value="<%= s %>" <%= f.Status === s ? 'selected' : '' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </form>
+      </td>
+    </tr>
+  <% }) %>
+<% } %>

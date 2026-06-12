@@ -138,60 +138,27 @@ class BroadcastDeliveryRepository {
   }
 }
 
+// Writes to the single canonical dbo.FaultReports table (SchoolID /
+// PagePath / ViewName / Remarks / Status) shared with the school "Report
+// a fault" form and the DevForge review queue at /devforge/faults. The
+// KCH chat fault modal's richer fields are folded in: screenName ->
+// ViewName/PagePath, priority is prefixed onto Remarks.
 class FaultReportRepository {
-  async create({ tenantId, schoolId, reportedByUserId, dashboardType, screenName, description, priority, primaryAttachmentId, status, assignedToUserId }) {
+  async create({ schoolId, reportedByUserId, screenName, description, priority }) {
     const pool = await getPool();
+    const remarks = (priority && priority !== 'Normal') ? `[${priority}] ${description}` : String(description || '');
     const result = await pool.request()
-      .input('tenantId', sql.Int, tenantId)
       .input('schoolId', sql.Int, schoolId || null)
-      .input('reportedByUserId', sql.Int, reportedByUserId)
-      .input('dashboardType', sql.NVarChar, dashboardType || 'SchoolManagement')
-      .input('screenName', sql.NVarChar, screenName || null)
-      .input('description', sql.NVarChar, description)
-      .input('priority', sql.NVarChar, priority || 'Normal')
-      .input('primaryAttachmentId', sql.Int, primaryAttachmentId || null)
-      .input('status', sql.NVarChar, status || 'Open')
-      .input('assignedToUserId', sql.Int, assignedToUserId || null)
+      .input('userId', sql.Int, reportedByUserId || null)
+      .input('pagePath', sql.NVarChar, String(screenName || '/sms').slice(0, 500))
+      .input('viewName', sql.NVarChar, screenName ? String(screenName).slice(0, 120) : null)
+      .input('remarks', sql.NVarChar, remarks.slice(0, 2000))
       .query(`
-        INSERT INTO dbo.FaultReports
-          (TenantId, SchoolId, ReportedByUserId, DashboardType, ScreenName, Description, Priority, PrimaryAttachmentId, Status, AssignedToUserId, CreatedAt, UpdatedAt)
-        OUTPUT INSERTED.FaultReportId
-        VALUES (@tenantId, @schoolId, @reportedByUserId, @dashboardType, @screenName, @description, @priority, @primaryAttachmentId, @status, @assignedToUserId, SYSUTCDATETIME(), SYSUTCDATETIME())
+        INSERT INTO dbo.FaultReports (SchoolID, UserID, PagePath, ViewName, Remarks)
+        OUTPUT INSERTED.FaultReportID
+        VALUES (@schoolId, @userId, @pagePath, @viewName, @remarks)
       `);
-    return result.recordset[0].FaultReportId;
-  }
-
-  async list({ tenantId, status, page = 1, pageSize = 50 } = {}) {
-    const pool = await getPool();
-    const request = pool.request();
-    const where = ['1 = 1'];
-    if (tenantId) { request.input('tenantId', sql.Int, tenantId); where.push('TenantId = @tenantId'); }
-    if (status) { request.input('status', sql.NVarChar, status); where.push('Status = @status'); }
-    const safePage = Math.max(1, parseInt(page, 10) || 1);
-    const safeSize = Math.min(200, Math.max(1, parseInt(pageSize, 10) || 50));
-    request.input('offset', sql.Int, (safePage - 1) * safeSize);
-    request.input('size', sql.Int, safeSize);
-    const result = await request.query(`
-      SELECT FaultReportId, TenantId, SchoolId, ReportedByUserId, DashboardType, ScreenName, Description, Priority, Status, AssignedToUserId, CreatedAt, UpdatedAt
-      FROM dbo.FaultReports
-      WHERE ${where.join(' AND ')}
-      ORDER BY CreatedAt DESC
-      OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY
-    `);
-    return result.recordset;
-  }
-
-  async setStatus(id, status, assignedToUserId) {
-    const pool = await getPool();
-    await pool.request()
-      .input('id', sql.Int, id)
-      .input('status', sql.NVarChar, status)
-      .input('assignedToUserId', sql.Int, assignedToUserId || null)
-      .query(`
-        UPDATE dbo.FaultReports
-        SET Status = @status, AssignedToUserId = COALESCE(@assignedToUserId, AssignedToUserId), UpdatedAt = SYSUTCDATETIME()
-        WHERE FaultReportId = @id
-      `);
+    return result.recordset[0].FaultReportID;
   }
 }
 

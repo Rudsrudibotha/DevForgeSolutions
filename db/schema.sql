@@ -3069,25 +3069,19 @@ BEGIN
     CREATE INDEX IX_BD_BA_Status ON dbo.BroadcastDeliveries(BroadcastAnnouncementId, DeliveryStatus, AttemptCount);
 END;
 
-IF OBJECT_ID('dbo.FaultReports', 'U') IS NULL
+-- NOTE: dbo.FaultReports is defined once, earlier in this file (SchoolID /
+-- PagePath / ViewName / Remarks / Status / ResolvedBy). An older second
+-- definition for the KCH operations layer (TenantId / Description / Priority)
+-- used to live here and collided on the same table name. Both the school
+-- "Report a fault" form and the Kinder Care Hub "Report a Fault" chat modal
+-- now write to that single canonical table, and DevForge reviews them at
+-- /devforge/faults. Do not re-add a second FaultReports table here.
+
+-- Review index for the DevForge faults queue (filter by status, newest first).
+IF OBJECT_ID('dbo.FaultReports', 'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_FaultReports_Status_Created' AND object_id = OBJECT_ID('dbo.FaultReports'))
 BEGIN
-    CREATE TABLE dbo.FaultReports (
-        FaultReportId        BIGINT IDENTITY(1,1) PRIMARY KEY,
-        TenantId             INT NOT NULL,
-        SchoolId             INT NULL,
-        ReportedByUserId     INT NOT NULL,
-        DashboardType        NVARCHAR(40) NOT NULL,  -- DevForge, SchoolManagement, ParentManagement
-        ScreenName           NVARCHAR(200) NULL,
-        Description          NVARCHAR(MAX) NOT NULL,
-        Priority             NVARCHAR(10) NOT NULL DEFAULT 'Normal',  -- Low, Normal, High, Urgent
-        PrimaryAttachmentId  BIGINT NULL,
-        Status               NVARCHAR(20) NOT NULL DEFAULT 'Open',  -- Open, InProgress, Resolved, Closed
-        AssignedToUserId     INT NULL,
-        CreatedAt            DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-        UpdatedAt            DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT FK_FR_Tenant FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(TenantId)
-    );
-    CREATE INDEX IX_FR_Tenant_Status ON dbo.FaultReports(TenantId, Status, CreatedAt DESC);
+    EXEC sp_executesql N'CREATE INDEX IX_FaultReports_Status_Created ON dbo.FaultReports(Status, CreatedDate DESC) INCLUDE (SchoolID, PagePath, ViewName)';
 END;
 
 IF OBJECT_ID('dbo.AIRequestLogs', 'U') IS NULL
