@@ -11,22 +11,29 @@ const UserRepository = require('../data/userRepository');
 const SchoolRepository = require('../data/schoolRepository');
 const { getPool, sql } = require('../data/db');
 
+// Must match the CK_Adjustments_Type CHECK constraint on
+// dbo.FinancialAdjustments. Anything else is coerced to a safe default
+// so a stray form value can never fail the insert.
+const ADJUSTMENT_TYPES = ['Write-off', 'Reversal', 'Credit Correction', 'Debit Correction', 'Fee Correction'];
+function normalizeAdjustmentType(value) {
+  return ADJUSTMENT_TYPES.includes(value) ? value : 'Fee Correction';
+}
+
 class AdmissionsFinanceService {
   async getRefunds(currentUser) {
     if (!currentUser || !currentUser.SchoolID) return [];
     const pool = await getPool();
     const result = await pool.request()
       .input('schoolId', sql.Int, Number(currentUser.SchoolID))
-      .input('tenantId', sql.Int, Number(currentUser.tenantId || 0))
       .query(`
-        SELECT TOP 200 r.RefundID, r.SchoolID, r.FamilyID, r.StudentID, r.Amount, r.Reason, r.Status, r.CreatedAt,
+        SELECT TOP 200 r.RefundID, r.SchoolID, r.FamilyID, r.StudentID, r.Amount, r.Reason, r.Status, r.CreatedDate AS CreatedAt,
                f.FamilyName, s.FirstName + ' ' + s.LastName AS StudentName, sch.CurrencyCode
         FROM dbo.Refunds r
         INNER JOIN dbo.Schools sch ON sch.SchoolID = r.SchoolID
         LEFT JOIN dbo.Families f ON f.FamilyID = r.FamilyID
         LEFT JOIN dbo.Students s ON s.StudentID = r.StudentID
-        WHERE r.SchoolID = @schoolId AND r.TenantId = @tenantId
-        ORDER BY r.CreatedAt DESC
+        WHERE r.SchoolID = @schoolId
+        ORDER BY r.CreatedDate DESC
       `);
     return result.recordset;
   }
@@ -36,16 +43,15 @@ class AdmissionsFinanceService {
     const pool = await getPool();
     const result = await pool.request()
       .input('schoolId', sql.Int, Number(currentUser.SchoolID))
-      .input('tenantId', sql.Int, Number(currentUser.tenantId || 0))
       .query(`
-        SELECT TOP 200 a.AdjustmentID, a.SchoolID, a.StudentID, a.FamilyID, a.AdjustmentType, a.Amount, a.Reason, a.CreatedAt, a.TenantId,
+        SELECT TOP 200 a.AdjustmentID, a.SchoolID, a.StudentID, a.FamilyID, a.AdjustmentType, a.Amount, a.Reason, a.CreatedDate AS CreatedAt,
                s.FirstName + ' ' + s.LastName AS StudentName, f.FamilyName, sch.CurrencyCode
         FROM dbo.FinancialAdjustments a
         INNER JOIN dbo.Schools sch ON sch.SchoolID = a.SchoolID
         LEFT JOIN dbo.Students s ON s.StudentID = a.StudentID
         LEFT JOIN dbo.Families f ON f.FamilyID = a.FamilyID
-        WHERE a.SchoolID = @schoolId AND a.TenantId = @tenantId
-        ORDER BY a.CreatedAt DESC
+        WHERE a.SchoolID = @schoolId
+        ORDER BY a.CreatedDate DESC
       `);
     return result.recordset;
   }
@@ -148,7 +154,6 @@ class AdmissionsFinanceService {
     const pool = await getPool();
     const r = await pool.request()
       .input('schoolId', sql.Int, Number(currentUser.SchoolID))
-      .input('tenantId', sql.Int, Number(currentUser.tenantId || 0))
       .input('familyId', sql.Int, familyId)
       .input('studentId', sql.Int, payload.studentId ? Number(payload.studentId) : null)
       .input('amount', sql.Decimal(10, 2), amount)
@@ -158,10 +163,10 @@ class AdmissionsFinanceService {
         IF NOT EXISTS (SELECT 1 FROM dbo.Families WHERE FamilyID = @familyId AND SchoolID = @schoolId)
           THROW 50000, 'Family must belong to the selected school', 1;
         INSERT INTO dbo.Refunds
-          (TenantId, SchoolID, FamilyID, StudentID, Amount, Reason, Status, CreatedBy, CreatedAt)
-        OUTPUT INSERTED.RefundID, INSERTED.Amount, INSERTED.Status, INSERTED.CreatedAt
+          (SchoolID, FamilyID, StudentID, Amount, Reason, Status, CreatedBy)
+        OUTPUT INSERTED.RefundID, INSERTED.Amount, INSERTED.Status, INSERTED.CreatedDate AS CreatedAt
         VALUES
-          (@tenantId, @schoolId, @familyId, @studentId, @amount, @reason, 'Pending', @createdBy, SYSUTCDATETIME())
+          (@schoolId, @familyId, @studentId, @amount, @reason, 'Pending', @createdBy)
       `);
     return { ok: true, refund: r.recordset[0] };
   }
@@ -195,8 +200,6 @@ class AdmissionsFinanceService {
     const items = Array.isArray(payload.items) ? payload.items : [];
     if (!Number.isInteger(familyId) || familyId <= 0) return { ok: false, error: 'family-required' };
     if (items.length === 0) return { ok: false, error: 'at-least-one-student-required' };
-    const tenantId = Number(currentUser.tenantId || currentUser.TenantId || 0);
-    if (!Number.isInteger(tenantId) || tenantId <= 0) return { ok: false, error: 'tenant-required' };
     const pool = await getPool();
     const created = [];
     for (const it of items) {
@@ -208,11 +211,10 @@ class AdmissionsFinanceService {
       if (invoiceId !== null && (!Number.isInteger(invoiceId) || invoiceId <= 0)) return { ok: false, error: 'invalid-invoice' };
       const r = await pool.request()
         .input('schoolId', sql.Int, Number(currentUser.SchoolID))
-        .input('tenantId', sql.Int, tenantId)
         .input('studentId', sql.Int, studentId)
         .input('familyId', sql.Int, familyId)
         .input('invoiceId', sql.Int, invoiceId)
-        .input('type', sql.NVarChar, String(it.adjustmentType || 'Fee Correction'))
+        .input('type', sql.NVarChar, normalizeAdjustmentType(it.adjustmentType))
         .input('amount', sql.Decimal(10, 2), amount)
         .input('reason', sql.NVarChar, String(it.reason || payload.reason || '').slice(0, 500))
         .input('createdBy', sql.Int, Number(currentUser.UserID || currentUser.id))
@@ -231,10 +233,10 @@ class AdmissionsFinanceService {
           )
             THROW 50001, 'Invoice must belong to the selected student and family', 1;
           INSERT INTO dbo.FinancialAdjustments
-            (SchoolID, TenantId, StudentID, FamilyID, InvoiceID, AdjustmentType, Amount, Reason, CreatedBy, CreatedDate)
+            (SchoolID, StudentID, FamilyID, InvoiceID, AdjustmentType, Amount, Reason, CreatedBy, CreatedDate)
           OUTPUT INSERTED.AdjustmentID, INSERTED.Amount
           VALUES
-            (@schoolId, @tenantId, @studentId, @familyId, @invoiceId, @type, @amount, @reason, @createdBy, GETDATE())
+            (@schoolId, @studentId, @familyId, @invoiceId, @type, @amount, @reason, @createdBy, GETDATE())
         `);
       if (r.recordset[0]) created.push(r.recordset[0]);
     }
@@ -579,5 +581,7 @@ module.exports = {
   RolloverTemplateService,
   AdminAuditService,
   SchoolServiceFacade,
-  UserServiceFacade
+  UserServiceFacade,
+  normalizeAdjustmentType,
+  ADJUSTMENT_TYPES
 };

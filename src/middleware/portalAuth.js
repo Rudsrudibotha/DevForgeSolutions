@@ -130,20 +130,32 @@ async function loadUser(req, _res, next) {
   next();
 }
 
+// Send an unauthenticated visitor to the login form for the dashboard
+// they were trying to reach, not the generic /login. (Reported fault:
+// an expired DevForge session landed on the wrong sign-in page.)
+function loginPathFor(req) {
+  // Use originalUrl: when this runs under router.use('/devforge', ...)
+  // Express strips the mount path from req.path.
+  const p = req.originalUrl || req.path || '';
+  if (p.startsWith('/devforge')) return '/devforge-login';
+  if (p.startsWith('/parent')) return '/parent-login';
+  if (p.startsWith('/sms')) return '/school-login';
+  return '/login';
+}
+
 function requireAuth(req, res, next) {
   if (req.userLoadError) {
     return res.status(503).render('errors/offline', { user: null, message: req.userLoadError });
   }
   if (!req.user) {
-    const next_url = encodeURIComponent(req.originalUrl || '/');
-    return res.redirect('/login?next=' + next_url);
+    return res.redirect(loginPathFor(req) + '?next=' + encodeURIComponent(req.originalUrl || '/'));
   }
   next();
 }
 
 function requireRole(...roles) {
   return function (req, res, next) {
-    if (!req.user) return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl || '/'));
+    if (!req.user) return res.redirect(loginPathFor(req) + '?next=' + encodeURIComponent(req.originalUrl || '/'));
     if (!roles.includes(req.user.role)) {
       return res.status(403).render('errors/forbidden', { user: req.user, message: 'You do not have access to this area.' });
     }

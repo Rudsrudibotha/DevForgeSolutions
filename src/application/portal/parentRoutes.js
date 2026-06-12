@@ -20,7 +20,7 @@ function safeCall(promise, fallback) {
 }
 
 function requireParent(req, res, next) {
-  if (!req.user) return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
+  if (!req.user) return res.redirect('/parent-login?next=' + encodeURIComponent(req.originalUrl));
   if (req.user.role !== 'parent') return res.redirect('/');
   next();
 }

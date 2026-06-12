@@ -21,13 +21,15 @@ const adminAuditService = new AdminAuditService();
 const adminSettingsService = new AdminSettingsService();
 const faultReportService = new FaultReportService();
 
+// Unauthenticated hits on the admin portal go to the DevForge login
+// (AAD), not the generic /login form.
 function requireAuth(req, res, next) {
-  if (!req.user) return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
+  if (!req.user) return res.redirect('/devforge-login?next=' + encodeURIComponent(req.originalUrl));
   next();
 }
 
 function requireAdmin(req, res, next) {
-  if (!req.user) return res.redirect('/login');
+  if (!req.user) return res.redirect('/devforge-login');
   if (req.user.role !== 'admin') {
     return res.status(403).render('errors/forbidden', { user: req.user, message: 'Admin access required.' });
   }

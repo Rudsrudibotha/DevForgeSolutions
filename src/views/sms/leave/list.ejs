@@ -54,7 +54,7 @@
                   <td><%= lv.Days || 0 %></td>
                   <td class="text-right">
                     <button class="btn-primary btn-sm" hx-post="/sms/leave/<%= lv.LeaveRequestID %>/review" hx-vals='{"status":"Approved"}'>Approve</button>
-                    <button class="btn-secondary btn-sm" hx-post="/sms/leave/<%= lv.LeaveRequestID %>/review" hx-vals='{"status":"Declined"}'>Decline</button>
+                    <button class="btn-secondary btn-sm" hx-post="/sms/leave/<%= lv.LeaveRequestID %>/review" hx-vals='{"status":"Rejected"}'>Decline</button>
                   </td>
                 </tr>
               <% }); %>

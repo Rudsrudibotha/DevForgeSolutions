@@ -40,12 +40,12 @@ const userService = new UserService();
 const consentRepository = new ConsentRepository();
 
 function requireAuth(req, res, next) {
-  if (!req.user) return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
+  if (!req.user) return res.redirect('/school-login?next=' + encodeURIComponent(req.originalUrl));
   next();
 }
 
 function requireRoleMw(req, res, next) {
-  if (!req.user) return res.redirect('/login');
+  if (!req.user) return res.redirect('/school-login');
   if (!['school', 'admin'].includes(req.user.role)) {
     return res.status(403).render('errors/forbidden', { user: req.user, message: 'School access required.' });
   }
@@ -1747,12 +1747,16 @@ router.get('/leave', requireAuth, requireRoleMw, requireSchoolScope, async (req,
 router.post('/leave/:id([1-9]\\d*)/review', requireAuth, requireRoleMw, requireSchoolScope, async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const status = String(req.body.status || '').trim();
-    if (!['Approved', 'Declined'].includes(status)) {
+    // The UI says "Decline"; the data model (and CK_LeaveRequests_Status)
+    // uses 'Rejected'. Accept either and normalise to the stored value.
+    const raw = String(req.body.status || '').trim();
+    const status = raw === 'Declined' ? 'Rejected' : raw;
+    if (!['Approved', 'Rejected'].includes(status)) {
       return res.status(400).json({ error: 'invalid-status' });
     }
     await leaveService.reviewLeave(id, status, req.user);
-    res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: 'Leave ' + status.toLowerCase() } }));
+    res.set('HX-Trigger', JSON.stringify({ toast: { type: 'success', message: 'Leave ' + (status === 'Rejected' ? 'declined' : 'approved') } }));
+    res.set('HX-Refresh', 'true');
     res.status(204).end();
   } catch (err) {
     res.set('HX-Trigger', JSON.stringify({ toast: { type: 'error', message: err.message } }));
