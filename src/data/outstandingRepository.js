@@ -21,108 +21,86 @@ function monthLabels() {
   return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 }
 
-async function buildOutstandingPivot({ schoolId, tenantId }) {
+async function buildOutstandingPivot({ schoolId }) {
   const pool = await getPool();
-  // Pull the raw (school, family, student, year, month, outstanding) rows.
+  // Build the pivot DIRECTLY from the outstanding invoices, using the
+  // exact same definition as the dashboard KPI:
+  //   outstanding = SUM(Amount - AmountPaid) where Status is Pending /
+  //   Overdue / Partial. Student/family/class names are LEFT-joined, so
+  //   an invoice still appears even if its student was removed or never
+  //   linked (it falls under an "Unassigned" row) — nothing is silently
+  //   dropped, and the page total always matches the dashboard.
   const r = await pool.request()
     .input('schoolId', sql.Int, schoolId)
-    .input('tenantId', sql.Int, tenantId || 0)
     .query(`
-      -- Outstanding per invoice = Amount - AmountPaid (the same canonical
-      -- field the DevForge KPIs and school detail use). Grouped by the
-      -- invoice's issue month. Paid / cancelled invoices are excluded.
-      SELECT i.StudentID, i.FamilyID,
-             YEAR(i.IssueDate) AS Y, MONTH(i.IssueDate) AS M,
-             SUM(i.Amount - ISNULL(i.AmountPaid, 0)) AS Outstanding
+      SELECT
+        i.StudentID, i.FamilyID,
+        YEAR(i.IssueDate) AS Y, MONTH(i.IssueDate) AS M,
+        SUM(i.Amount - ISNULL(i.AmountPaid, 0)) AS Outstanding,
+        MAX(s.FirstName) AS FirstName, MAX(s.LastName) AS LastName,
+        MAX(c.ClassName) AS ClassName, MAX(c.Grade) AS Grade,
+        MAX(f.FamilyName) AS FamilyName, MAX(f.PrimaryParentName) AS PrimaryParentName,
+        MAX(f.PrimaryParentEmail) AS PrimaryParentEmail, MAX(f.PrimaryParentPhone) AS PrimaryParentPhone
       FROM dbo.Invoices i
+      LEFT JOIN dbo.Students s ON s.StudentID = i.StudentID
+      LEFT JOIN dbo.Classes c ON c.ClassID = s.ClassID
+      LEFT JOIN dbo.Families f ON f.FamilyID = i.FamilyID
       WHERE i.SchoolID = @schoolId AND i.IsDeleted = 0
-        AND ISNULL(i.Status, '') NOT IN ('Paid', 'Cancelled')
-        AND i.StudentID IS NOT NULL
+        AND ISNULL(i.Status, '') IN ('Pending', 'Overdue', 'Partial')
       GROUP BY i.StudentID, i.FamilyID, YEAR(i.IssueDate), MONTH(i.IssueDate)
       HAVING SUM(i.Amount - ISNULL(i.AmountPaid, 0)) > 0.005
       ORDER BY i.FamilyID, i.StudentID, YEAR(i.IssueDate), MONTH(i.IssueDate)
     `);
   const raw = r.recordset;
 
-  // Now load families + students + class info for the header rows.
-  const meta = await pool.request()
-    .input('schoolId', sql.Int, schoolId)
-    .query(`
-      SELECT s.StudentID, s.FirstName, s.LastName, s.FamilyID, s.IsActive,
-             c.ClassName, c.Grade,
-             f.FamilyName, f.PrimaryParentName, f.PrimaryParentEmail, f.PrimaryParentPhone
-      FROM dbo.Students s
-      INNER JOIN dbo.Families f ON f.FamilyID = s.FamilyID
-      LEFT JOIN dbo.Classes c ON c.ClassID = s.ClassID
-      WHERE s.SchoolID = @schoolId AND s.IsDeleted = 0
-      ORDER BY f.FamilyName, s.FirstName, s.LastName
-    `);
-  const studentMeta = new Map();
-  for (const row of meta.recordset) studentMeta.set(row.StudentID, row);
+  const sortedYears = [...new Set(raw.map((row) => row.Y))].sort((a, b) => a - b);
+  const emptyCells = () => {
+    const cells = {};
+    const yearTotals = {};
+    for (const y of sortedYears) { cells[y] = Array(12).fill(null); yearTotals[y] = 0; }
+    return { cells, yearTotals };
+  };
 
-  // Determine the set of years present
-  const years = new Set();
-  for (const row of raw) years.add(row.Y);
-  const sortedYears = [...years].sort((a, b) => a - b);
-
-  // Group outstanding by (studentId, year, month)
-  const outMap = new Map();
-  for (const row of raw) {
-    const key = `${row.StudentID}|${row.Y}|${row.M}`;
-    outMap.set(key, Number(row.Outstanding));
-  }
-
-  // Build families, students under each, plus cells
+  // family -> student -> cells, built from the outstanding rows only.
   const families = new Map();
-  for (const meta of studentMeta.values()) {
-    if (!families.has(meta.FamilyID)) {
-      families.set(meta.FamilyID, {
-        familyId: meta.FamilyID,
-        familyName: meta.FamilyName,
-        primaryParentName: meta.PrimaryParentName,
-        primaryParentEmail: meta.PrimaryParentEmail,
-        primaryParentPhone: meta.PrimaryParentPhone,
-        students: []
+  for (const row of raw) {
+    const famKey = row.FamilyID == null ? 'unassigned' : `f${row.FamilyID}`;
+    if (!families.has(famKey)) {
+      families.set(famKey, {
+        familyId: row.FamilyID || null,
+        familyName: row.FamilyName || 'Unassigned',
+        primaryParentName: row.PrimaryParentName || '',
+        primaryParentEmail: row.PrimaryParentEmail || '',
+        primaryParentPhone: row.PrimaryParentPhone || '',
+        students: new Map()
       });
     }
-    const cellMap = {};
-    let familyYearTotals = {};
-    let studentYearTotals = {};
-    const cells = {}; // cells[year][month] = amount
-    for (const y of sortedYears) {
-      cells[y] = Array(12).fill(null);
-      studentYearTotals[y] = 0;
+    const fam = families.get(famKey);
+    const stuKey = row.StudentID == null ? 'unassigned' : `s${row.StudentID}`;
+    if (!fam.students.has(stuKey)) {
+      const { cells, yearTotals } = emptyCells();
+      fam.students.set(stuKey, {
+        studentId: row.StudentID || null,
+        firstName: row.FirstName || (row.StudentID ? ('Student #' + row.StudentID) : 'Unassigned'),
+        lastName: row.LastName || '',
+        className: row.ClassName || 'Unassigned',
+        grade: row.Grade || null,
+        cells,
+        yearTotals,
+        grandTotal: 0
+      });
     }
-    for (const y of sortedYears) {
-      for (let m = 1; m <= 12; m++) {
-        const v = outMap.get(`${meta.StudentID}|${y}|${m}`);
-        if (v) {
-          cells[y][m - 1] = v;
-          studentYearTotals[y] += v;
-        }
-      }
-    }
-    const studentGrandTotal = Object.values(studentYearTotals).reduce((s, v) => s + v, 0);
-    families.get(meta.FamilyID).students.push({
-      studentId: meta.StudentID,
-      firstName: meta.FirstName,
-      lastName: meta.LastName,
-      className: meta.ClassName || 'Unassigned',
-      grade: meta.Grade || null,
-      isActive: meta.IsActive,
-      cells,
-      yearTotals: studentYearTotals,
-      grandTotal: studentGrandTotal
-    });
+    const stu = fam.students.get(stuKey);
+    const amt = Number(row.Outstanding) || 0;
+    stu.cells[row.Y][row.M - 1] = (stu.cells[row.Y][row.M - 1] || 0) + amt;
+    stu.yearTotals[row.Y] += amt;
+    stu.grandTotal += amt;
   }
 
-  // Sort students inside each family
-  for (const f of families.values()) {
-    f.students.sort((a, b) => (a.firstName + a.lastName).localeCompare(b.firstName + b.lastName));
-  }
-  const familyList = [...families.values()].sort((a, b) => a.familyName.localeCompare(b.familyName));
+  const familyList = [...families.values()]
+    .map((f) => ({ ...f, students: [...f.students.values()].sort((a, b) => (a.firstName + a.lastName).localeCompare(b.firstName + b.lastName)) }))
+    .sort((a, b) => String(a.familyName).localeCompare(String(b.familyName)));
 
-  // Compute grand totals across the pivot for header
   const grandYearTotals = {};
   for (const y of sortedYears) grandYearTotals[y] = 0;
   let grandTotal = 0;
