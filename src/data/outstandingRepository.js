@@ -28,28 +28,19 @@ async function buildOutstandingPivot({ schoolId, tenantId }) {
     .input('schoolId', sql.Int, schoolId)
     .input('tenantId', sql.Int, tenantId || 0)
     .query(`
-      ;WITH inv AS (
-        SELECT i.StudentID, i.FamilyID,
-               YEAR(i.IssueDate) AS Y, MONTH(i.IssueDate) AS M,
-               SUM(i.Amount) AS Invoiced
-        FROM dbo.Invoices i
-        WHERE i.SchoolID = @schoolId AND i.IsDeleted = 0
-        GROUP BY i.StudentID, i.FamilyID, YEAR(i.IssueDate), MONTH(i.IssueDate)
-      ),
-      pay AS (
-        SELECT t.StudentID, YEAR(t.TransactionDate) AS Y, MONTH(t.TransactionDate) AS M,
-               SUM(t.Amount) AS Paid
-        FROM dbo.Transactions t
-        WHERE t.SchoolID = @schoolId AND t.StudentID IS NOT NULL
-          AND ISNULL(t.AllocationStatus, '') <> 'PendingPayment'
-        GROUP BY t.StudentID, YEAR(t.TransactionDate), MONTH(t.TransactionDate)
-      )
-      SELECT inv.StudentID, inv.FamilyID, inv.Y, inv.M,
-             ISNULL(inv.Invoiced, 0) - ISNULL(pay.Paid, 0) AS Outstanding
-      FROM inv
-      LEFT JOIN pay ON pay.StudentID = inv.StudentID AND pay.Y = inv.Y AND pay.M = inv.M
-      WHERE ISNULL(inv.Invoiced, 0) - ISNULL(pay.Paid, 0) > 0.005
-      ORDER BY inv.FamilyID, inv.StudentID, inv.Y, inv.M
+      -- Outstanding per invoice = Amount - AmountPaid (the same canonical
+      -- field the DevForge KPIs and school detail use). Grouped by the
+      -- invoice's issue month. Paid / cancelled invoices are excluded.
+      SELECT i.StudentID, i.FamilyID,
+             YEAR(i.IssueDate) AS Y, MONTH(i.IssueDate) AS M,
+             SUM(i.Amount - ISNULL(i.AmountPaid, 0)) AS Outstanding
+      FROM dbo.Invoices i
+      WHERE i.SchoolID = @schoolId AND i.IsDeleted = 0
+        AND ISNULL(i.Status, '') NOT IN ('Paid', 'Cancelled')
+        AND i.StudentID IS NOT NULL
+      GROUP BY i.StudentID, i.FamilyID, YEAR(i.IssueDate), MONTH(i.IssueDate)
+      HAVING SUM(i.Amount - ISNULL(i.AmountPaid, 0)) > 0.005
+      ORDER BY i.FamilyID, i.StudentID, YEAR(i.IssueDate), MONTH(i.IssueDate)
     `);
   const raw = r.recordset;
 

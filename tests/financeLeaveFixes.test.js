@@ -90,7 +90,7 @@ async function run() {
     assert.ok(!/PaymentDate/.test(outstandingSrc), 'PaymentDate (should be TransactionDate) still present');
     assert.ok(!/t\.IsDeleted/.test(outstandingSrc), 't.IsDeleted (no such column on Transactions) still present');
     assert.ok(/i\.IssueDate/.test(outstandingSrc), 'invoice query should use IssueDate');
-    assert.ok(/t\.TransactionDate/.test(outstandingSrc), 'payment query should use TransactionDate');
+    assert.ok(/AmountPaid/.test(outstandingSrc), 'outstanding should be computed from Amount - AmountPaid');
   });
 
   console.log('\n[finance-leave-fixes] adjustment type normalisation (unit)');
